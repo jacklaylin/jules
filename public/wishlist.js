@@ -53,3 +53,6 @@ $('detail').addEventListener('click',e=>{if(backdropPress&&outsideDetail(e))clos
 $('detail').addEventListener('close',()=>{document.body.classList.remove('detail-open');});
 if(token)load().catch(e=>message(e.message));
 if(fragment.get('error_description'))message('This sign-in link has expired. Request a new one.');
+function neonPress(event){const control=event.target.closest('button,a');if(control&&!control.disabled)control.dataset.neon=String(Math.floor(Math.random()*6));}
+document.addEventListener('pointerdown',neonPress);
+document.addEventListener('keydown',event=>{if(!event.repeat&&['Enter',' '].includes(event.key))neonPress(event);});

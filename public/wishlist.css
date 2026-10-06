@@ -21,3 +21,14 @@
  #detail-content>.info{min-height:0;min-width:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding:0 12px 12px 0}
  #detail-content>.info h2{margin-top:0}
 }
+
+[data-neon="0"]{--neon-a:#ff00f5;--neon-b:#00f5ff;--neon-glow:#ff00f560}
+[data-neon="1"]{--neon-a:#a8ff00;--neon-b:#00e5ff;--neon-glow:#a8ff0060}
+[data-neon="2"]{--neon-a:#ff6b00;--neon-b:#ff00d4;--neon-glow:#ff00d460}
+[data-neon="3"]{--neon-a:#00ff85;--neon-b:#a100ff;--neon-glow:#00ff8560}
+[data-neon="4"]{--neon-a:#ffe600;--neon-b:#ff007a;--neon-glow:#ff007a60}
+[data-neon="5"]{--neon-a:#00eaff;--neon-b:#fffc00;--neon-glow:#00eaff60}
+button:not(.tile)[data-neon]:active,button.tile[data-neon]:active strong,a[data-neon]:active .link-copy{background:linear-gradient(110deg,var(--neon-a),var(--neon-b));background-clip:text;-webkit-background-clip:text;color:transparent;filter:drop-shadow(0 0 3px var(--neon-glow))}
+a[data-neon]:active .link-copy strong,a[data-neon]:active .link-copy .retailer{color:transparent}
+a.link-preview[data-neon]:active{box-shadow:0 0 8px var(--neon-glow)}
+@media(forced-colors:active){button:not(.tile)[data-neon]:active,button.tile[data-neon]:active strong,a[data-neon]:active .link-copy,a[data-neon]:active .link-copy strong,a[data-neon]:active .link-copy .retailer{background:none;color:LinkText;filter:none}}

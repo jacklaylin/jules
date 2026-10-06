@@ -645,3 +645,5 @@ Wishlist interaction refinement: open product details with a brief fade and upwa
 Wishlist visual polish: crop grid imagery to fill each card, use a restrained card lift on pointer hover, and show each link's saved product photo or an explicitly sourced retailer image. Never substitute the outfit photo as a product-link preview. At widths up to 800px the detail view fills the viewport with edge-to-edge imagery; retain a visible close control. Escape and desktop backdrop clicks close it; scrolling inside stays usable.
 
 Desktop details use a fixed-height overlay with a stationary close control and a fully contained main image. Only the right-hand product details and link pane scrolls, including keyboard scrolling. Mobile retains one full-screen scroll area with a sticky close control.
+
+Pressed buttons and product links briefly use a randomly selected bright neon gradient with a subtle glow. Apply feedback only while pressed; preserve ordinary text contrast at rest and system colors in forced-color mode.
