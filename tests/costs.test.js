@@ -16,3 +16,34 @@ test('unauthenticated cost access never touches database',async()=>{
  const res={setHeader(){},end(body){this.body=JSON.parse(body);}};
  await handler({headers:{},method:'GET',url:'/api/costs?date=2026-10-06'},res);assert.equal(res.statusCode,403);
 });
+
+import {openaiCosts,serpapiCredits,billingSnapshot} from '../lib/billing.js';
+const billingEnv={OPENAI_BILLING_ADMIN_KEY:'private-test-key',OPENAI_BILLING_PROJECT_ID:'proj_test'};
+const bucket=(date,value)=>({start_time:Date.parse(date+'T00:00:00Z')/1000,results:[{amount:{currency:'usd',value}}]});
+test('empty ledger total is unknown',()=>assert.equal(summarize('2026-10-06',[]).total,null));
+test('OpenAI uses UTC project filter and paginates, separating daily from period total',async()=>{
+ let calls=0;
+ const result=await openaiCosts('2026-10-06',billingEnv,async(url,options)=>{
+  const u=new URL(url);assert.equal(u.searchParams.get('project_ids[]'),'proj_test');assert.equal(u.searchParams.get('end_time'),String(Date.parse('2026-10-07T00:00:00Z')/1000));assert.equal(options.headers.Authorization,'Bearer private-test-key');
+  calls++;
+  return {ok:true,json:async()=>calls===1?{data:[bucket('2026-10-05',.1)],has_more:true,next_page:'next'}:{data:[bucket('2026-10-06',.02)],has_more:false}};
+ });
+ assert.equal(calls,2);assert.equal(result.daily,.02);assert.ok(Math.abs(result.periodTotal-.12)<1e-10);assert.ok(!JSON.stringify(result).includes('private-test-key'));
+});
+test('missing credentials never call provider; missing daily bucket remains unknown',async()=>{
+ assert.equal((await openaiCosts('2026-10-06',{},()=>{throw new Error('must not fetch');})).status,'not_connected');
+ const result=await openaiCosts('2026-10-06',billingEnv,async()=>({ok:true,json:async()=>({data:[],has_more:false})}));assert.equal(result.daily,null);
+});
+test('unsupported currencies and incomplete pages fail rather than reporting zero',async()=>{
+ await assert.rejects(openaiCosts('2026-10-06',billingEnv,async()=>({ok:true,json:async()=>({data:[{...bucket('2026-10-06',1),results:[{amount:{currency:'eur',value:1}}]}],has_more:false})})));
+ const report=await billingSnapshot('2026-10-06',billingEnv,async()=>({ok:false,status:403}));assert.equal(report.openai.status,'error');
+});
+test('SerpApi returns safe account counters without secret or email',async()=>{
+ const result=await serpapiCredits({SERPAPI_API_KEY:'private-test'},async()=>({ok:true,json:async()=>({api_key:'private-test',account_email:'private@example.com',this_month_usage:35,total_searches_left:215,searches_per_month:250})}));
+ assert.equal(result.used,35);assert.equal(result.remaining,215);assert.ok(!JSON.stringify(result).includes('private-test'));assert.ok(!JSON.stringify(result).includes('private@example.com'));
+});
+test('billing sync overlays manual OpenAI usage without double counting',async()=>{
+ const handler=createCostsHandler({auth:async()=>200,storeFactory:()=>({costEntries:async()=>[{service:'openai',kind:'usage',date:'2026-10-06',amount:9}]}),billing:async()=>({openai:{status:'connected',daily:.12},serpapi:{status:'not_connected'}})});
+ const res={setHeader(){},end(body){this.body=JSON.parse(body);}};
+ await handler({headers:{},method:'GET',url:'/api/costs?date=2026-10-06'},res);assert.equal(res.body.total,.12);assert.equal(res.body.rows[1].total,null);
+});
