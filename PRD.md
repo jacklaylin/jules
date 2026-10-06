@@ -649,3 +649,5 @@ Desktop details use a fixed-height overlay with a stationary close control and a
 Pressed buttons and product links briefly use a randomly selected bright neon gradient with a subtle glow. Apply feedback only while pressed; preserve ordinary text contrast at rest and system colors in forced-color mode.
 
 PDP main imagery also fills its frame with cover cropping, removing internal grey bars. This supersedes the fully contained main-image requirement; retain the fixed desktop image pane and independently scrolling details.
+
+Neon interaction feedback uses darker saturated gradients for readability and applies only to text, with no glow or highlight around the full link card. Keyboard focus is indicated around the text area.
