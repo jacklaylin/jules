@@ -29,11 +29,12 @@ test('Lens uploads private bytes rather than creating a public image URL and fil
  let calls=0;
  const found=await lensSearch({mime_type:'image/jpeg',data:Buffer.from('test').toString('base64')},'jacket',{SERPAPI_API_KEY:'fake'},async(url,options)=>{
   if(++calls===1){assert.equal(url,'https://serpapi.com/image');assert.equal(options.body.get('api_key'),'fake');assert.ok(options.body.get('image') instanceof Blob);return {ok:true,json:async()=>({image_id:'temporary'})};}
-  const params=new URL(url).searchParams;assert.equal(params.get('image_id'),'temporary');assert.equal(params.has('url'),false);assert.equal(params.get('auto_crop'),'false');
+  const params=new URL(url).searchParams;assert.equal(params.get('image_id'),'temporary');assert.equal(params.has('url'),false);assert.equal(params.has('q'),false);assert.equal(params.get('auto_crop'),'false');
   return {ok:true,json:async()=>({search_metadata:{status:'Success'},visual_matches:[{link:candidates[0].url,title:'Jacket',thumbnail:thumb},{link:'https://retailer.example/other',title:'Other',thumbnail:'https://127.0.0.1/image'},{link:'https://instagram.com/post',title:'Post',thumbnail:thumb}]})};
  });
  assert.equal(found.length,1);assert.equal(calls,2);
  assert.throws(()=>lensCandidates({error:'provider private diagnostic'}));
+ assert.deepEqual(lensCandidates({search_metadata:{status:'Success'},error:"Google Lens hasn't returned any results for this query."}),[]);
 });
 test('candidate photo contradictions reject identification even at an official retailer; generic similarity cannot establish identity',()=>{
  const wrong={...assessment('1'),contradictions:['Different pocket layout']};
