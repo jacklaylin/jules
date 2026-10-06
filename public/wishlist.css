@@ -28,19 +28,24 @@
 [data-neon="3"]{--neon-a:#008044;--neon-b:#7900bc;--neon-glow:#00804460}
 [data-neon="4"]{--neon-a:#806d00;--neon-b:#b50058;--neon-glow:#b5005860}
 [data-neon="5"]{--neon-a:#007c90;--neon-b:#777400;--neon-glow:#007c9060}
-button:not(.tile)[data-neon]:active,button.tile[data-neon]:active strong,a[data-neon]:active .link-copy{background:linear-gradient(110deg,var(--neon-a),var(--neon-b));background-clip:text;-webkit-background-clip:text;color:transparent;filter:drop-shadow(0 0 3px var(--neon-glow))}
+button:not(.tile):not(#close)[data-neon]:active,button.tile[data-neon]:active strong,a[data-neon]:active .link-copy{background:linear-gradient(110deg,var(--neon-a),var(--neon-b));background-clip:text;-webkit-background-clip:text;color:transparent;filter:drop-shadow(0 0 3px var(--neon-glow))}
 a[data-neon]:active .link-copy strong,a[data-neon]:active .link-copy .retailer{color:transparent}
 a.link-preview:focus{outline:none}a.link-preview:focus-visible .link-copy{outline:2px solid #2359ec;outline-offset:5px}
-@media(forced-colors:active){button:not(.tile)[data-neon]:active,button.tile[data-neon]:active strong,a[data-neon]:active .link-copy,a[data-neon]:active .link-copy strong,a[data-neon]:active .link-copy .retailer{background:none;color:LinkText;filter:none}}
+@media(forced-colors:active){button:not(.tile):not(#close)[data-neon]:active,button.tile[data-neon]:active strong,a[data-neon]:active .link-copy,a[data-neon]:active .link-copy strong,a[data-neon]:active .link-copy .retailer{background:none;color:LinkText;filter:none}}
 
 #detail-content>.photo img{object-fit:cover;mix-blend-mode:normal}
 @media(hover:hover) and (pointer:fine){
- button:not(.tile)[data-neon]:hover,button.tile[data-neon]:hover strong,a[data-neon]:hover .link-copy{background:linear-gradient(110deg,var(--neon-a),var(--neon-b));background-clip:text;-webkit-background-clip:text;color:transparent;filter:drop-shadow(0 0 3px var(--neon-glow))}
+ button:not(.tile):not(#close)[data-neon]:hover,button.tile[data-neon]:hover strong,a[data-neon]:hover .link-copy{background:linear-gradient(110deg,var(--neon-a),var(--neon-b));background-clip:text;-webkit-background-clip:text;color:transparent;filter:drop-shadow(0 0 3px var(--neon-glow))}
  a[data-neon]:hover .link-copy strong,a[data-neon]:hover .link-copy .retailer{color:transparent}
 }
-@media(forced-colors:active){button:not(.tile)[data-neon]:hover,button.tile[data-neon]:hover strong,a[data-neon]:hover .link-copy,a[data-neon]:hover .link-copy strong,a[data-neon]:hover .link-copy .retailer{background:none;color:LinkText;filter:none}}
+@media(forced-colors:active){button:not(.tile):not(#close)[data-neon]:hover,button.tile[data-neon]:hover strong,a[data-neon]:hover .link-copy,a[data-neon]:hover .link-copy strong,a[data-neon]:hover .link-copy .retailer{background:none;color:LinkText;filter:none}}
 header{position:sticky;top:0;z-index:10;background:#fff;transition:height .22s ease}header .wordmark{transition:font-size .22s ease,letter-spacing .22s ease}header.compact{height:64px}header.compact .wordmark{font-size:30px;letter-spacing:-2px}
 @media(max-width:560px){header.compact{height:56px}header.compact .wordmark{font-size:27px}}
 
 body{padding-top:100px}header{position:fixed;left:5vw;right:5vw;margin:0}header.compact{height:50px}header.compact .wordmark{font-size:26px}
 @media(max-width:560px){body{padding-top:76px}header.compact{height:38px}header.compact .wordmark{font-size:24px}}
+
+#close .button-label{display:inline-block}
+#close[data-neon]:active .button-label{background:linear-gradient(110deg,var(--neon-a),var(--neon-b));background-clip:text;-webkit-background-clip:text;color:transparent;filter:drop-shadow(0 0 3px var(--neon-glow))}
+@media(hover:hover) and (pointer:fine){#close[data-neon]:hover .button-label{background:linear-gradient(110deg,var(--neon-a),var(--neon-b));background-clip:text;-webkit-background-clip:text;color:transparent;filter:drop-shadow(0 0 3px var(--neon-glow))}}
+@media(forced-colors:active){#close[data-neon]:active .button-label,#close[data-neon]:hover .button-label{background:none;color:ButtonText;filter:none}}
