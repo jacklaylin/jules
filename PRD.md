@@ -307,6 +307,20 @@ Long-term hierarchy:
 
 Do not architect the system around retailers.
 
+### Future merchant ranking
+
+This is future OPTIMIZE guidance, not a requirement for the current visual-search implementation.
+
+First establish the product match and the requested variant and size. Compare merchants selling equivalent eligible products; a preferred retailer must not make the wrong product rank higher.
+
+Official brands and reviewed retailers are useful defaults, not an absolute ordering. Merchant ranking should also consider:
+
+- **Verified total delivered cost:** item price, applicable discounts, taxes, shipping, duties, and other fees, compared in the same currency for the user's destination. A small boutique can rank above the official brand when its verified total is lower. Unknown charges must remain unknown, never be treated as zero or used to claim a listing is cheaper.
+- **Explicit shopping preferences:** persist preferred and avoided retailers structurally in `retailer_preferences`. A user who usually shops at Mr Porter may prefer it over the official brand, even at a modest premium. Substantial verified savings elsewhere may change the recommendation.
+- **Loyalty preferences and benefits:** record preferences the user explicitly shares; count benefits only when their applicability is verified. Do not store retailer credentials or payment details.
+
+Explain the tradeoff briefly, such as the user's usual store versus a cheaper verified option elsewhere. When the choice depends on how much extra the user will pay for a preferred store, ask for that preference rather than inventing a universal premium or savings threshold. Unfamiliar stores remain unreviewed until assessed; a lower price alone does not establish retailer credibility.
+
 ## 13. Human fallback
 
 If the agent cannot confidently complete something, create a human task.

@@ -181,6 +181,8 @@ OpenAI billing, the restricted Responses API key, Production environment setting
 
 ### Behavior and limits
 
+AI replies show an iMessage typing indicator while Jules processes the request, refreshed every eight seconds and stopped after the send attempt or an application error. Relevant incoming messages receive one acknowledgement reaction: 🔎 for identification/sourcing, 💭 for recommendations, or 👀 for an image without an explicit request. Ordinary conversation does not get a default reaction. Feedback starts only after the durable reply claim, so webhook retries do not add reactions twice. These are best-effort Photon SDK features; feedback errors are logged without private details and do not suppress the reply. A reaction acknowledges work, not a successful product identification. A platform-enforced function termination can prevent cleanup; progress is not a delivery guarantee.
+
 - Latest 20 messages through the triggering inbound message; each text capped at 2,000 characters. Only accepted outbound replies enter model context. No structured taste memory, image analysis, product search, watches, or purchases.
 - Plain-text shopper prompt with short replies, relevant clarifying questions, and explicit prohibitions against fabricated commerce facts or claiming unavailable capabilities. These are model instructions, not a guarantee of perfect behavior; founder testing remains necessary.
 - OpenAI requests use `store:false`; recent message text is sent to OpenAI, without recipient/line metadata. Existing inbox history stays in Supabase.
