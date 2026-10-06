@@ -46,3 +46,15 @@ test('unsourced URLs returned outside the sourcing tool are not delivered',async
   const text=await generateReply([{direction:'inbound',body:'Find jacket links'}],{OPENAI_API_KEY:'fake',SEARCH_ENABLED:'true'},async()=>response([{type:'message',role:'assistant',content:[{type:'output_text',text:'Buy it at https://retailer.example/invented'}]}]));
   assert.ok(!text.includes('https://'));assert.match(text,/source product links/);
 });
+
+test('OpenAI source tracking does not reject a real listing; product variants remain distinct',()=>{
+  const tracked=[{type:'web_search_call',status:'completed',action:{sources:[{url:url+'?color=black&utm_source=openai&utm_medium=referral'}]}}];
+  const found=validateSearch({output:tracked},{...result,products:[{...result.products[0],url:url+'?color=black'}]});
+  assert.equal(found.products.length,1);assert.equal(found.products[0].url,url+'?color=black');
+  const wrongVariant=validateSearch({output:tracked},{...result,products:[{...result.products[0],url:url+'?color=olive'}]});
+  assert.equal(wrongVariant.products.length,0);
+});
+test('unverified links in narrative text cannot bypass source validation',()=>{
+  const found=validateSearch({output},{...result,intro:'See [a jacket](https://unverified.example/fake).',products:[{...result.products[0],reason:'Also https://unverified.example/fake'}]});
+  const text=formatSearch(found);assert.ok(text.includes(url));assert.ok(!text.includes('unverified.example'));
+});
