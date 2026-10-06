@@ -55,7 +55,7 @@ Do not proceed to the next milestone without being asked.
 
 For Milestone 1, the acceptance test is:
 
-> A user sends `hello` from a phone to the Twilio number, the application receives the message, and the user receives `Hello from your personal shopper.`
+> A tester sends `hello` through iMessage to their Photon-assigned line, the application receives the message, and the tester receives `Hello from your personal shopper.`
 
 Do not implement AI, taste profiles, product search, or other later-stage features until Milestone 1 passes.
 

@@ -4,7 +4,7 @@
 **Goal:** Working product in ≤1 weekend  
 **Initial users:** Founder + 5–10 invited testers  
 **Budget:** ≤$250 to launch  
-**Primary interface:** SMS/MMS  
+**Primary interface:** iMessage via Photon (founder-approved change; SMS/RCS fallback is not the Milestone 1 test)
 **Working name:** TBD
 
 ## 1. Product thesis
@@ -424,10 +424,10 @@ Do not build:
 
 ## 21. Build sequence
 
-### Milestone 1 — SMS loop
-Acceptance test: I can text the number and receive a fixed reply.
+### Milestone 1 — iMessage loop
+Acceptance test: A tester sends `hello` through iMessage and receives `Hello from your personal shopper.`
 
-Implement Twilio → backend → database/logging as appropriate → Twilio response.
+Implement Photon → Vercel webhook → structured logging → Photon SDK reply. Use the Free plan’s assigned shared line for each tester. This founder-approved change replaces Twilio for the current milestone.
 
 ### Milestone 2 — Admin
 Acceptance test: I can see the conversation and manually respond.
