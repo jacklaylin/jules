@@ -1,8 +1,8 @@
 import { createProcessor, MAX_BYTES } from '../lib/imessage.js';
-import { sendGreeting } from '../lib/photon.js';
+import { receiveInInbox } from '../lib/inbox.js';
 
 export const config = { api: { bodyParser: false }, maxDuration: 30 };
-const process = createProcessor({ send: sendGreeting });
+const process = createProcessor({ handle: receiveInInbox });
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {

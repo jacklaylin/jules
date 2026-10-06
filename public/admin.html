@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Jules · Inbox</title><link rel="stylesheet" href="/admin.css">
+  <script src="/admin.js" defer></script>
+</head>
+<body>
+  <header><a class="brand" href="/admin">jules<span>PERSONAL SHOPPER</span></a><div class="header-right"><span class="private">Private inbox</span><button id="signout" hidden>Sign out</button></div></header>
+  <main>
+    <section id="login" class="login-card">
+      <p class="eyebrow">THE SHOPPER’S DESK</p><h1>A conversation.<br>A little more personal.</h1>
+      <p>Read your testers’ messages and reply as their personal shopper.</p>
+      <form id="login-form"><label for="email">Your email</label><input type="email" id="email" autocomplete="email" required placeholder="you@example.com"><button class="primary" id="login-button">Email me a sign-in link</button></form>
+      <p class="muted">Access is limited to the owner account.</p>
+    </section>
+    <section id="inbox" class="inbox" hidden>
+      <aside><div class="list-heading"><div><p class="eyebrow">YOUR PEOPLE</p><h1>Conversations</h1></div><button id="refresh" aria-label="Refresh conversations">Refresh</button></div><div id="people"></div></aside>
+      <section class="thread"><div id="empty" class="empty"><div class="empty-mark">j.</div><h2>Your next conversation starts here.</h2><p>Select a person to read their messages.<br>New texts appear after you refresh.</p></div>
+        <div id="conversation" hidden><div class="thread-heading"><div><p class="eyebrow">IMESSAGE</p><h2 id="person"></h2></div><span class="private">Manual replies</span></div><button id="older" hidden>Load earlier messages</button><div id="messages" aria-label="Conversation history"></div>
+        <form id="reply-form"><label for="reply">Your reply</label><textarea id="reply" rows="3" maxlength="4000" required placeholder="Write a thoughtful reply…"></textarea><div class="composer-footer"><p id="send-note">Sends an iMessage to this person.</p><button id="send" class="primary">Send reply</button></div></form></div>
+      </section>
+    </section>
+    <p id="notice" role="status" aria-live="polite" hidden></p>
+  </main>
+</body>
+</html>
