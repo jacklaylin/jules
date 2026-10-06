@@ -1,4 +1,4 @@
-# Jules — Milestone 3: AI conversation (live verification pending)
+# Jules — Milestone 3: AI conversation
 
 Current interface: **Photon iMessage**, replacing the original Twilio SMS plan.
 Milestone 1 passed on October 5, 2026: the founder confirmed receiving the greeting.
@@ -112,7 +112,7 @@ Only register one endpoint for this test to avoid duplicate replies.
 3. Confirm the phone receives `Hello from your personal shopper.`
 4. Record the deployment, date, message ID and pass/fail in a private note.
 
-Milestones 1 and 2 passed. Milestone 3 is authorized and implemented; live verification is pending.
+Milestones 1 and 2 passed. Milestone 3 passed on October 5, 2026: the founder received a natural AI reply and a relevant follow-up, and confirmed the agent acknowledged the live-search limitation.
 
 Troubleshooting:
 - **404:** deploy the revision containing `api/imessage.js`.
@@ -171,7 +171,7 @@ Live acceptance passed on October 5, 2026 on deployment `4PmJp4XZHhG2S335xMFruyq
 
 ## Milestone 3 — AI conversation
 
-OpenAI billing, the restricted Responses API key, Production environment settings, and the database migration are configured. Deployment `2H6PACrBmPQuRat8cNzPH9oqi4PH` is Ready and current; live conversation acceptance is in progress. The existing Vercel webhook stores incoming text, claims one durable AI reply per Photon message, calls the OpenAI Responses API, and sends the reply via Photon. No new runtime dependency or service is required.
+OpenAI billing, the restricted Responses API key, Production environment settings, and the database migration are configured. Deployment `2H6PACrBmPQuRat8cNzPH9oqi4PH` is Ready and current; live conversation acceptance passed on October 5, 2026. The existing Vercel webhook stores incoming text, claims one durable AI reply per Photon message, calls the OpenAI Responses API, and sends the reply via Photon. No new runtime dependency or service is required.
 
 ### Setup
 
@@ -190,6 +190,6 @@ OpenAI billing, the restricted Responses API key, Production environment setting
 
 ### Acceptance test
 
-Text “I need shoes for a wedding.” Confirm that Jules asks a useful clarifying question. Send a follow-up including the dress code and budget; confirm a coherent response that uses that context. Check both turns in `/admin`, including AI labels. Test a request for current listings: it should acknowledge that live search is not connected rather than invent facts. Do not declare Milestone 3 complete until the phone test passes.
+Text “I need shoes for a wedding.” Confirm that Jules asks a useful clarifying question. Send a follow-up including the dress code and budget; confirm a coherent response that uses that context. Check both turns in `/admin`, including AI labels. Test a request for current listings: it should acknowledge that live search is not connected rather than invent facts. Live acceptance passed on October 5, 2026: the founder confirmed both replies arrived, the navy-tux follow-up was relevant, and the agent acknowledged that live search was not connected. Milestones 4 and later remain out of scope.
 
 All 22 automated tests pass, including bounded model context, incomplete-output rejection, duplicate/concurrent delivery, failure fallback, and no repeat send after an ambiguous outcome.
