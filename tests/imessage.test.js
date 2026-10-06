@@ -90,3 +90,11 @@ test('HTTP endpoint rejects browser GET and oversized requests', async () => {
   await handler({ method: 'POST', async *[Symbol.asyncIterator]() { yield Buffer.alloc(65537); } }, large);
   assert.equal(large.statusCode, 413);
 });
+
+test('image webhook is gated, normalizes attachment captions, and deduplicates', async () => {
+  const value = { ...payload, message: { ...payload.message, content: {type:'attachment',id:'fake-image',mimeType:'image/png'} } };
+  let received=0;
+  const process=createProcessor({now:()=>now,log:()=>{},handle:async(delivery)=>{received++;assert.equal(delivery.message.attachments[0].id,'fake-image');assert.equal(delivery.message.content.text,'[Inspiration images]');return 'received';}});
+  const args=request(value); args[2]={...env,IMAGES_ENABLED:'true'};
+  assert.equal(await process(...args),200);assert.equal(await process(...args),200);assert.equal(received,1);
+});

@@ -16,14 +16,24 @@ async function api(path, options = {}) {
   return data;
 }
 const date = at => new Date(at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+let imageURLs = [];
 function renderMessages() {
+  imageURLs.forEach(url => URL.revokeObjectURL(url)); imageURLs = [];
   $('messages').replaceChildren();
   for (const message of historyMessages) {
     const item = document.createElement('article'); item.id = `message-${message.id}`; item.className = `message ${message.direction} ${message.status}`;
     const bubble = document.createElement('div'); bubble.className = 'bubble'; bubble.textContent = message.body;
+    for (const image of message.message_images ?? []) {
+      const preview = document.createElement('img'); preview.alt = 'Private inspiration image'; preview.className = 'inspiration';
+      bubble.append(preview);
+      fetch(`/api/image?id=${encodeURIComponent(image.id)}`, {headers:{Authorization:`Bearer ${token}`},cache:'no-store'})
+        .then(async response => { if (!response.ok) throw new Error(); return response.blob(); })
+        .then(blob => { if (!preview.isConnected) return; const url=URL.createObjectURL(blob); imageURLs.push(url); preview.src=url; })
+        .catch(() => { if (preview.isConnected) { const error=document.createElement('p'); error.textContent='Image unavailable — refresh or sign in again.'; preview.replaceWith(error); } });
+    }
     const meta = document.createElement('div'); meta.className = 'meta';
     const status = message.status === 'sent' ? 'Accepted by Photon' : message.status === 'generating' ? 'AI preparing reply · refresh to check' : message.status === 'sending' ? 'Send started · refresh to check' : message.status === 'uncertain' ? 'Delivery uncertain · check the phone before resending' : 'Received';
-    meta.textContent = `${message.memory_status === 'failed' ? 'Memory update failed · ' : ''}${date(message.created_at)} · ${message.source === 'greeting' ? 'Automatic greeting · ' : message.source === 'ai' ? 'Jules AI · ' : message.source === 'ai_fallback' ? 'AI failed · manual review needed · ' : ''}${status}`;
+    meta.textContent = `${message.image_status === 'failed' ? 'Image failed · manual review needed · ' : ''}${message.memory_status === 'failed' ? 'Memory update failed · ' : ''}${date(message.created_at)} · ${message.source === 'greeting' ? 'Automatic greeting · ' : message.source === 'ai' ? 'Jules AI · ' : message.source === 'ai_fallback' ? 'AI failed · manual review needed · ' : ''}${status}`;
     item.append(bubble, meta); $('messages').append(item);
   }
   $('older').hidden = !cursor;
