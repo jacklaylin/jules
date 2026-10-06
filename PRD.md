@@ -647,3 +647,5 @@ Wishlist visual polish: crop grid imagery to fill each card, use a restrained ca
 Desktop details use a fixed-height overlay with a stationary close control and a fully contained main image. Only the right-hand product details and link pane scrolls, including keyboard scrolling. Mobile retains one full-screen scroll area with a sticky close control.
 
 Pressed buttons and product links briefly use a randomly selected bright neon gradient with a subtle glow. Apply feedback only while pressed; preserve ordinary text contrast at rest and system colors in forced-color mode.
+
+PDP main imagery also fills its frame with cover cropping, removing internal grey bars. This supersedes the fully contained main-image requirement; retain the fixed desktop image pane and independently scrolling details.

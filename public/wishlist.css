@@ -32,3 +32,5 @@ button:not(.tile)[data-neon]:active,button.tile[data-neon]:active strong,a[data-
 a[data-neon]:active .link-copy strong,a[data-neon]:active .link-copy .retailer{color:transparent}
 a.link-preview[data-neon]:active{box-shadow:0 0 8px var(--neon-glow)}
 @media(forced-colors:active){button:not(.tile)[data-neon]:active,button.tile[data-neon]:active strong,a[data-neon]:active .link-copy,a[data-neon]:active .link-copy strong,a[data-neon]:active .link-copy .retailer{background:none;color:LinkText;filter:none}}
+
+#detail-content>.photo img{object-fit:cover;mix-blend-mode:normal}
