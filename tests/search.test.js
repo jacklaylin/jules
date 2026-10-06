@@ -23,7 +23,7 @@ test('product sourcing sends the referenced image, requires live web search, and
     assert.equal(request.include[0],'web_search_call.action.sources');assert.equal(request.store,false);
     assert.equal(request.input[0].content[1].type,'input_image');return response(output);
   });
-  assert.equal(found.products[0].url,url);assert.equal(found.sources[0],url);assert.ok(found.checked_at);
+  assert.equal(found.products.length,0);assert.equal(found.sources[0],url);assert.ok(found.checked_at);
 });
 test('explicit follow-up can source the recent image without attaching it to ordinary conversation turns',async()=>{
   let calls=0,loaded=0,recorded;
@@ -32,7 +32,7 @@ test('explicit follow-up can source the recent image without attaching it to ord
     if(++calls===1){assert.equal(request.tools[0].name,'search_products');return response([{type:'function_call',name:'search_products',arguments:JSON.stringify({query:'Dark waxed jacket with corduroy collar',use_image:true})}]);}
     assert.equal(request.input[0].content[1].type,'input_image');return response(output);
   },{loadImages:async()=>{loaded++;return [{mime_type:'image/jpeg',data:'fake'}];},recordSearch:async r=>recorded=r});
-  assert.equal(calls,2);assert.equal(loaded,1);assert.equal(recorded.products.length,1);assert.match(text,/https:\/\/retailer.example/);
+  assert.equal(calls,2);assert.equal(loaded,1);assert.equal(recorded.products.length,0);assert.match(text,/closer crop/);
 });
 test('search errors are recorded for review and never generate invented links',async()=>{
   let calls=0,recorded;
@@ -58,3 +58,18 @@ test('unverified links in narrative text cannot bypass source validation',()=>{
   const found=validateSearch({output},{...result,intro:'See [a jacket](https://unverified.example/fake).',products:[{...result.products[0],reason:'Also https://unverified.example/fake'}]});
   const text=formatSearch(found);assert.ok(text.includes(url));assert.ok(!text.includes('unverified.example'));
 });
+
+ test('generic visual resemblance is withheld for identification and retained only for explicit alternatives',()=>{
+  const guessed={...result,products:[{...result.products[0],match:'likely_match'}]};
+  const strict=validateSearch({output},guessed,new Date(),{image:true});
+  assert.equal(strict.products.length,0);assert.equal(strict.status,'needs_review');
+  const alternatives=validateSearch({output},guessed,new Date(),{image:true,allowSimilar:true});
+  assert.equal(alternatives.products[0].match,'similar');
+  assert.ok(!formatSearch(alternatives).includes('Likely match'));
+ });
+ test('matching readable identifiers permit an uncertain match; conflicting construction rejects it',()=>{
+  const identified={...result,products:[{...result.products[0],match:'likely_match',identity:{visible_identifier:'Example Model 123',listing_identifier:'Example Model 123',contradictions:[]}}]};
+  assert.equal(validateSearch({output},identified,new Date(),{image:true}).products.length,1);
+  identified.products[0].identity.contradictions=['Listing has a chest pocket absent in the image'];
+  assert.equal(validateSearch({output},identified,new Date(),{image:true}).products.length,0);
+ });
