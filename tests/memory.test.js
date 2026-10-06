@@ -62,3 +62,15 @@ test('profile API denies access before database lookup and rejects stale owner e
  result=res();await handler(req({conversation:id,action:'set',field:'size',key:'shoes/us_men',value:'12',version:0}),result);assert.equal(result.statusCode,409);
  assert.equal((await store.profile(id)).facts[0].value,'10');
 });
+
+test('temporary budgets, request clothing ranges and unsupported size units are excluded even if the model emits them',()=>{
+ const source={...message,body:'Formal men’s shoes, less than $1200. I’m size eye 45 / us 12'};
+ const facts=validateChanges([
+ {...change,field:'budget',key:'shoes/unknown',value:'1200',evidence:'less than $1200'},
+ {...change,field:'shopping_range',key:'clothing',value:'men’s formal shoes',evidence:'Formal men’s shoes'},
+ {...change,key:'shoes/eu',value:'45',evidence:'I’m size eye 45 / us 12'},
+ {...change,key:'shoes/us_men',value:'12',evidence:'I’m size eye 45 / us 12'}
+ ],[source]); assert.equal(facts.length,1);assert.equal(facts[0].key,'shoes/us_men');
+ const usual={...message,body:'My usual shoe budget is USD 300.'};
+ assert.equal(validateChanges([{...change,field:'budget',key:'shoes/usd',value:'300',evidence:usual.body}],[usual]).length,1);
+});
