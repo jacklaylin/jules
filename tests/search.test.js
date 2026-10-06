@@ -73,3 +73,9 @@ test('unverified links in narrative text cannot bypass source validation',()=>{
   identified.products[0].identity.contradictions=['Listing has a chest pocket absent in the image'];
   assert.equal(validateSearch({output},identified,new Date(),{image:true}).products.length,0);
  });
+
+test('completed empty identification can request a closer photo without claiming search failure',()=>{
+  const empty=validateSearch({output:[]},{intro:'Cannot read a model identifier.',products:[],needs_review:true},new Date(),{image:true});
+  assert.equal(empty.status,'needs_review');assert.match(formatSearch(empty),/closer crop/);
+  assert.ok(!formatSearch(empty).includes('didn’t finish'));
+});
