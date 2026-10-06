@@ -24,14 +24,18 @@ test('image bytes have bounded streaming and checked types, unsupported formats 
 });
 test('vision uses private inline bytes and treats inferred taste as unconfirmed',async()=>{
   let sent;
-  const reply=await generateReply([{direction:'inbound',body:'What do you see?'}],{OPENAI_API_KEY:'fake'},async(url,options)=>{
+  const reply=await generateReply([{direction:'inbound',body:'Wedding shoes under $300'}, {direction:'outbound',status:'sent',body:'What is the wedding dress code?'}, {direction:'inbound',body:'I love this outfit'}],{OPENAI_API_KEY:'fake'},async(url,options)=>{
     sent=JSON.parse(options.body);
     return {ok:true,json:async()=>({status:'completed',output:[{type:'message',role:'assistant',content:[{type:'output_text',text:'Relaxed tailoring. Which details do you like?'}]}]})};
   },{enabled:true,images:[{mime_type:'image/png',data:png.toString('base64')}],facts:[]});
   assert.match(reply,/Relaxed/);
-  assert.equal(sent.input[0].content[1].type,'input_image');
-  assert.match(sent.input[0].content[1].image_url,/^data:image\/png;base64,/);
+  assert.equal(sent.input.at(-1).content[1].type,'input_image');
+  assert.match(sent.input.at(-1).content[1].image_url,/^data:image\/png;base64,/);
   assert.match(sent.instructions,/no image-derived preferences have been saved/);
+  assert.match(sent.instructions,/CURRENT TURN: A new inspiration image/);
+  assert.match(sent.instructions,/do not link this image to them unless the newest caption explicitly does so/);
+  assert.equal(sent.input[0].content,'Wedding shoes under $300');
+  assert.equal(sent.input.at(-1).content[0].text,'I love this outfit');
   assert.equal(sent.store,false);
 });
 test('image receipt saves private bytes, skips inference-to-memory, and sends one reply across retries',async()=>{
