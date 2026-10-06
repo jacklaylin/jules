@@ -27,6 +27,15 @@ test('hello sends exact greeting through the signed shared line', async () => {
   assert.equal(sent[0][1], GREETING);
   assert.equal(sent[0][0].space.phone, 'shared');
 });
+test('live Photon lowercase imessage platform sends the greeting', async () => {
+  let sent = 0;
+  const value = { ...payload, space: { ...payload.space, platform: 'imessage' } };
+  assert.equal(await processor(async (_message, greeting) => {
+    assert.equal(greeting, GREETING);
+    sent++;
+  })(...request(value)), 200);
+  assert.equal(sent, 1);
+});
 test('rejects missing, invalid, stale, future and tampered signatures', async () => {
   const [body, headers] = request();
   assert.equal(verifySignature(body, headers, env.SPECTRUM_WEBHOOK_SECRET, now), true);
