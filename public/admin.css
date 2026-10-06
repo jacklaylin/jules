@@ -3,3 +3,5 @@
 #profile-panel{border-bottom:1px solid var(--line);padding:16px 32px}#profile-panel summary{cursor:pointer;font-size:14px;color:var(--green)}.profile-inner{padding-top:12px}.profile-actions{display:flex;flex-wrap:wrap;gap:8px}.profile-actions button,.fact-row button{font-size:12px;padding:7px 10px}.fact-row{padding:12px 0;border-bottom:1px solid var(--line)}.fact-row label{margin:0 0 8px}.fact-row input{padding:10px}.fact-row p{overflow-wrap:anywhere}.fact-row button{margin-right:8px}#profile-add h3{font-family:Georgia,serif;font-weight:normal}#profile-add select{font:inherit;padding:10px;border:1px solid var(--line);border-radius:6px;background:white;width:100%}#profile-add button{margin-top:12px}#profile-summary{white-space:pre-line}select:focus-visible{outline:2px solid #718c65;outline-offset:3px}
 
 .inspiration { display:block; max-width:100%; max-height:480px; object-fit:contain; margin-top:12px; border-radius:8px; }
+
+.product-link {display:block; margin-top:10px; color:#315443; text-decoration:underline;}

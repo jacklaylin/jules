@@ -31,9 +31,16 @@ function renderMessages() {
         .then(blob => { if (!preview.isConnected) return; const url=URL.createObjectURL(blob); imageURLs.push(url); preview.src=url; })
         .catch(() => { if (preview.isConnected) { const error=document.createElement('p'); error.textContent='Image unavailable — refresh or sign in again.'; preview.replaceWith(error); } });
     }
+    for (const product of message.search_result?.products ?? []) {
+      try {
+        const url=new URL(product.url); if(url.protocol!=='https:')continue;
+        const link=document.createElement('a');link.href=url.href;link.target='_blank';link.rel='noopener noreferrer';link.className='product-link';
+        link.textContent=`${product.brand} ${product.name} · ${product.match==='likely_match'?'Likely match; unconfirmed':'Similar alternative'}`;bubble.append(link);
+      } catch {}
+    }
     const meta = document.createElement('div'); meta.className = 'meta';
     const status = message.status === 'sent' ? 'Accepted by Photon' : message.status === 'generating' ? 'AI preparing reply · refresh to check' : message.status === 'sending' ? 'Send started · refresh to check' : message.status === 'uncertain' ? 'Delivery uncertain · check the phone before resending' : 'Received';
-    meta.textContent = `${message.image_status === 'failed' ? 'Image failed · manual review needed · ' : ''}${message.memory_status === 'failed' ? 'Memory update failed · ' : ''}${date(message.created_at)} · ${message.source === 'greeting' ? 'Automatic greeting · ' : message.source === 'ai' ? 'Jules AI · ' : message.source === 'ai_fallback' ? 'AI failed · manual review needed · ' : ''}${status}`;
+    meta.textContent = `${message.search_result && message.search_result.status !== 'found' ? 'Sourcing review needed · ' : ''}${message.search_result?.checked_at ? `Search checked ${date(message.search_result.checked_at)} · ` : ''}${message.image_status === 'failed' ? 'Image failed · manual review needed · ' : ''}${message.memory_status === 'failed' ? 'Memory update failed · ' : ''}${date(message.created_at)} · ${message.source === 'greeting' ? 'Automatic greeting · ' : message.source === 'ai' ? 'Jules AI · ' : message.source === 'ai_fallback' ? 'AI failed · manual review needed · ' : ''}${status}`;
     item.append(bubble, meta); $('messages').append(item);
   }
   $('older').hidden = !cursor;

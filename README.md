@@ -213,7 +213,7 @@ Extraction failure leaves existing memory intact, marks the inbound message “M
 
 Import the founder's existing messages and verify gender/clothing range, sizes, brands, and lasting budgets against source quotes. A wedding-specific budget must not become a permanent budget. Confirm the profile survives reload and can be corrected from admin. Send a new request or ask what Jules remembers; then correct a size and verify the latest value is saved and recalled. Automated tests also verify memory is supplied even when the source is absent from recent chat, duplicate import preservation, concurrent updates, source validation, owner authorization, stale edits, and extraction failures. All 30 tests pass. Live acceptance passed on October 5, 2026: imported brand preferences and confirmed sizes survived reload, owner corrections persisted, and the founder confirmed Jules recalled the brands and shoe sizes over iMessage. The wedding-only budget was removed; conservative validation was added after live extraction errors. Database RLS and server-only table/RPC access were verified. Text correction ordering and recall without recent source messages are covered by automated tests. Milestone 5 and later remain out of scope.
 
-### Milestone 5 — inspiration images (implementation ready; phone acceptance pending)
+### Milestone 5 — inspiration images (live image acceptance passed)
 
 Apply `db/004_images.sql` in the existing Supabase SQL Editor, then set `IMAGES_ENABLED=true` in Vercel Production and redeploy. The existing Photon and OpenAI credentials are sufficient. Images sent through Photon are fetched by authenticated attachment ID, stored privately in the existing database, and sent to OpenAI as inline image inputs with `store:false`. Only the authenticated inbox owner can retrieve them; no public storage or signed image URLs are created.
 
@@ -221,4 +221,17 @@ Send JPG, PNG, WebP, or HEIC/HEIF images, up to three per message and 3 MB per i
 
 For this small experiment image bytes live in a private Postgres table rather than adding separate storage infrastructure. They remain until their conversation/message is deleted; there is no automatic expiry. This is deliberately bounded, not a general photo library. No face identification, inferred gender or body size, product identification guarantees, or verified commerce facts.
 
-Acceptance still requires a real iMessage screenshot, a specific visual response, private inbox rendering, and a corrected/confirmed style preference that survives reload. Automated tests cover formats/limits, private endpoint authorization, vision requests, durable dedupe, failure fallback, and keeping image inferences out of memory.
+Live image acceptance passed on October 5, 2026: a real HEIC image was converted, saved privately, interpreted with specific clothing details, rendered in the inbox, and the founder confirmed receiving the reply. A subsequent prompt correction treats standalone inspiration images as general style input rather than inheriting an earlier shopping occasion. Image-derived taste preferences still require an explicit user statement. Automated tests cover formats/limits, private endpoint authorization, vision requests, durable dedupe, failure fallback, and keeping image inferences out of memory.
+
+
+### Milestone 6 — image recognition and product links (phone acceptance pending)
+
+Apply `db/005_search.sql`, set `SEARCH_ENABLED=true` in Vercel Production, and redeploy. This reuses the existing OpenAI Responses API credential and hosted web search; no new provider or key is needed. Web search uses API credits.
+
+An explicit request such as “Find the jacket in that image and send links” invokes sourcing. An inspiration image alone remains a style conversation. The sourcing step receives the actual current image, or the most recent image in the bounded conversation context for follow-up requests. Query briefs include relevant clothing attributes and ordinary preferences, not personal contact details.
+
+The separate `lib/search.js` module searches live product listings, distinguishes likely matches from similar alternatives, and returns up to three sourced product URLs. The server rejects any link missing from the API's retrieved sources/citations, unsafe URLs, duplicates, and unbounded results. It saves results, source URLs, and the check time privately on the reply. The inbox shows clickable product links and marks failed or insufficient sourcing for manual review. Links are current search results, not guarantees that a product is the exact item in the photo.
+
+This initial slice returns names, brands, match rationale and links. It does not confirm price, inventory, available sizes, shipping, duties, discounts, or policies. Those values are left unknown rather than inferred. No checkout or watches.
+
+Acceptance: source a specified item from a real phone image, receive working product links with explicit match uncertainty, check the linked retailer pages, and verify source evidence/review status in the private inbox.
