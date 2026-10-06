@@ -630,3 +630,12 @@ Saving an item does not automatically enable a price alert. A saved price snapsh
 Observe successful saves, wishlist returns, item opens, retailer-link opens, and save failures using minimal existing logging. The key question is whether testers return to saved findings and use them to continue shopping. Do not build an analytics dashboard for this experiment.
 
 Out of scope: item removal/management controls, search/filter controls, settings pages, owned wardrobe tracking, purchase-state management, outfit building, collections/folders, sharing or social features, bulk imports, retailer-account connections, live stock/price refresh, sale alerts, autonomous purchases, and automatic taste inference from saving. The digital closet can expand after we learn whether a simple wishlist is useful.
+
+
+### Wishlist refinement — October 6, 2026 (supersedes candidate-tile/detail-copy requirements above)
+
+The founder requested one grid tile per isolated/requested item in a source image. Different potential product matches and merchants are nested as link previews in that item's detail view, not separate tiles. A jacket and bag from the same outfit remain separate requested items. Retain candidate evidence internally, but remove the visible “Original outfit · Possible match · unconfirmed” labels and generated identification explanations. Titles describe the requested piece (e.g. “Jacket”), without implying that one candidate's brand/model is established.
+
+Item detail contains the image, the date the user sent it, a price range calculated only from sourced price snapshots, and the list of possible product links. Keep different currencies separate; missing prices stay unavailable. Each link preview displays its saved product title, retailer domain, and sourced price when present. Do not fetch arbitrary preview pages or invent prices merely to fill the interface. Generic site-sharing metadata may describe Jules but must not expose private items/images.
+
+Remove image zoom on hover. Use restrained opacity transitions and button/text feedback, with reduced-motion support. Motion is the recommended future microanimation library; the initial interaction refinement can use CSS without adding a dependency. Reuse loaded private images between grid and detail; show a loading state until an image actually fails.

@@ -1,5 +1,5 @@
 import { createStore } from '../lib/store.js';
-import { wishlistUser, sessionHash } from '../lib/wishlist.js';
+import { wishlistUser, sessionHash, groupWishlist } from '../lib/wishlist.js';
 import { authorize } from '../lib/auth.js';
 import { json, readJson, uuid } from '../lib/http.js';
 
@@ -46,11 +46,18 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
       if (access.status !== 200) return json(res, access.status, {error:'Please sign in with your invited email.'});
       const query = new URL(req.url, 'https://local.invalid').searchParams;
       const id = query.get('item');
-      if (!id) {
-        const items = await store.wishlist(access.conversation);
-        return json(res, 200, { items: items.map(({id, product, saved_at}) => ({id, name:product.name,brand:product.brand,match:product.match,saved_at,has_image:Boolean(product.image),image_kind:product.image_kind})) });
+      const groupId = query.get('group');
+      if (groupId && !uuid(groupId)) return json(res,400,{error:'Invalid item.'});
+      if (!id || groupId) {
+        const groups = groupWishlist(await store.wishlistEntries(access.conversation));
+        if (groupId) {
+          const item = groups.find(g=>g.id===groupId);
+          return item ? json(res,200,{item}) : json(res,404,{error:'Item not found.'});
+        }
+        return json(res,200,{items:groups.map(({links,...group})=>group)});
       }
       if (!uuid(id)) return json(res,400,{error:'Invalid item.'});
+      if (query.get('image') === 'product' && store.wishlistPhoto) return image(res,await store.wishlistPhoto(access.conversation,id));
       const item = await store.wishlistItem(access.conversation, id);
       if (!item) return json(res,404,{error:'Item not found.'});
       if (query.get('image') === 'product') return image(res,item.product.image);

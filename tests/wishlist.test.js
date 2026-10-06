@@ -61,3 +61,27 @@ test('database list/detail queries always include conversation ownership',async(
  const paths=[];const store=createStore({SUPABASE_URL:'https://database.invalid',SUPABASE_SERVICE_ROLE_KEY:'test'},async url=>{paths.push(url);return{ok:true,text:async()=>'[]'};});
  await store.wishlist(id);await store.wishlistItem(id,other);assert.ok(paths.every(path=>path.includes('conversation_id=eq.'+id)));
 });
+
+test('groups candidate links under the source item and keeps jacket and bag separate',async()=>{
+ const {groupWishlist}=await import('../lib/wishlist.js');
+ const base={reply_id:id,source_image_id:other,item_id:id,has_image:'image/jpeg',message_images:{messages:{created_at:'2026-10-05T12:00:00Z'}},messages:{created_at:'2026-10-06T12:00:00Z'},brand:'Example'};
+ const rows=[{...base,name:'First jacket',links:[{url:'https://shop.example.com/one'}]},{...base,item_id:other,name:'Second coat',links:[{url:'https://shop.example.com/two'}]},{...base,target:'bag',name:'Third item',links:[{url:'https://shop.example.com/bag'}]}];
+ const groups=groupWishlist(rows);assert.equal(groups.length,2);const jacket=groups.find(g=>g.name==='Jacket');assert.equal(jacket.links.length,2);assert.equal(jacket.sent_at,'2026-10-05T12:00:00Z');assert.equal(jacket.image_item,id);assert.deepEqual(jacket.price_ranges,[]);
+ assert.equal(groupWishlist([...rows,rows[0]])[0].links.length,2);
+ assert.equal(groupWishlist([{...rows[0],source_image_id:id},rows[0]]).length,2);
+});
+test('price ranges use sourced snapshots and never blend currencies or invent missing prices',async()=>{
+ const {groupWishlist}=await import('../lib/wishlist.js');
+ const rows=[625,700].map((amount,i)=>({reply_id:id,source_image_id:other,item_id:id,target:'jacket',name:'Jacket',links:[{url:`https://shop.example.com/${i}`}],price_snapshot:{amount,currency:'USD',source_url:`https://shop.example.com/${i}`,checked_at:'2026-10-06T12:00:00Z'}}));
+ let groups=groupWishlist(rows);assert.deepEqual(groups[0].price_ranges,[{currency:'USD',min:625,max:700}]);
+ groups=groupWishlist([...rows,{...rows[0],links:[{url:'https://shop.example.com/CHF'}],price_snapshot:{amount:600,currency:'CHF',source_url:'https://shop.example.com/CHF',checked_at:'today'}}]);assert.equal(groups[0].price_ranges.length,2);
+ assert.deepEqual(groupWishlist([{...rows[0],price_snapshot:{...rows[0].price_snapshot,source_url:'https://wrong.example.com'}}])[0].price_ranges,[]);
+});
+test('group detail and list use metadata only and remain scoped to the authenticated conversation',async()=>{
+ const {groupWishlist}=await import('../lib/wishlist.js');
+ const rows=[{reply_id:id,source_image_id:other,item_id:id,target:'jacket',name:'Jacket',links:[{url:product.url}],has_image:'image/jpeg'}];
+ const handler=createWishlistHandler({env,auth:async()=>({status:200,conversation:id}),storeFactory:()=>({wishlistEntries:async conversation=>{assert.equal(conversation,id);return rows;}})});
+ let res=response();await handler(request(),res);assert.equal(res.statusCode,200);assert.equal(JSON.parse(res.value).items.length,1);assert.equal(JSON.parse(res.value).items[0].links,undefined);
+ res=response();await handler(request('GET',`/api/wishlist?group=${groupWishlist(rows)[0].id}`),res);assert.equal(res.statusCode,200);assert.equal(JSON.parse(res.value).item.links.length,1);
+ res=response();await handler(request('GET',`/api/wishlist?group=${id}`),res);assert.equal(res.statusCode,404);
+});
