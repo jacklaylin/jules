@@ -10,7 +10,7 @@ async function api(options={}) {
 let version=0;
 async function load() {
   const request=++version;
-  $('total').textContent='Loading…'; $('rows').replaceChildren();$('coverage').textContent='';$('budget-status').textContent='';$('openai-status').textContent='';$('serpapi-status').textContent='';
+  $('total').textContent='Loading…'; $('rows').replaceChildren();$('coverage').textContent='';$('budget-status').textContent='';$('openai-status').textContent='';$('serpapi-status').textContent='';$('github-status').textContent='';$('vercel-status').textContent='';
   try {
     const data=await api(); if(request!==version)return;
     $('notice').textContent='';$('total').textContent=data.total===null?'Costs unknown':`${money(data.total)} ${data.missing?'known subtotal':'recorded'}`;
@@ -20,6 +20,10 @@ async function load() {
     $('openai-status').textContent=`OpenAI: ${openai.message}${openai.status==='connected'?` Total reported ${openai.periodStart} through ${openai.periodEnd} (UTC): ${money(openai.periodTotal)}. Checked ${new Date(openai.checkedAt).toLocaleString()}.`:''}`;
     const serpapi=data.providers.serpapi;
     $('serpapi-status').textContent=`SerpApi: ${serpapi.message}${serpapi.status==='connected'?` ${serpapi.used} searches used this billing month; ${serpapi.remaining} credits left; allowance ${serpapi.allowance}. Checked ${new Date(serpapi.checkedAt).toLocaleString()}.`:''}`;
+    for(const name of ['github','vercel']) {
+      const provider=data.providers[name];
+      $(name+'-status').textContent=`${name==='github'?'GitHub':'Vercel'}: ${provider.message}${provider.status==='connected'?` Reported daily charges: ${money(provider.daily)}. ${name==='vercel'?`Excluded unallocated team charges: ${money(provider.unallocated)}. `:''}Checked ${new Date(provider.checkedAt).toLocaleString()}.`:''}`;
+    }
     if(!$('service').options.length)for(const row of data.rows){const option=document.createElement('option');option.value=row.id;option.textContent=row.name;$('service').append(option);}
     for(const row of data.rows){
       const tr=document.createElement('tr');const name=document.createElement('td');const link=document.createElement('a');link.href=row.url;link.target='_blank';link.rel='noopener noreferrer';link.textContent=row.name;name.append(link);

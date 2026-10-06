@@ -15,12 +15,11 @@ export function createCostsHandler({auth=authorize, storeFactory=createStore, en
         if (!validDate(date)) return json(res,400,{error:'Choose a valid date.'});
         const [entries, providers] = await Promise.all([store.costEntries(date),billing(date,env)]);
         const report=summarize(date,entries);
-        const row=report.rows.find(r=>r.id==='openai');
-        if(providers.openai.status==='connected') {
-          row.usage=providers.openai.daily;
-          row.source='OpenAI billing API';
-        } else if(providers.openai.status==='error') {
-          row.usage=null; row.source='Billing sync failed';
+        for(const service of ['openai','github','vercel']) {
+          const provider=providers[service];
+          const row=report.rows.find(r=>r.id===service);
+          if(provider?.status==='connected') {row.usage=provider.daily;row.source=service==='openai'?'OpenAI billing API':`${service} billing API`;}
+          else if(provider?.status==='error') {row.usage=null;row.source='Billing sync failed';}
         }
         for(const item of report.rows) {
           item.total=item.usage===null && item.daily===null ? null : (item.usage??0)+(item.daily??0);
