@@ -651,3 +651,4 @@ Pressed buttons and product links briefly use a randomly selected bright neon gr
 PDP main imagery also fills its frame with cover cropping, removing internal grey bars. This supersedes the fully contained main-image requirement; retain the fixed desktop image pane and independently scrolling details.
 
 Neon interaction feedback uses darker saturated gradients for readability and applies only to text, with no glow or highlight around the full link card. Keyboard focus is indicated around the text area.
+The darker text-only gradient also appears on pointer hover, choosing a random palette on entry and staying stable while the pointer remains inside a control. Touch retains pressed feedback.

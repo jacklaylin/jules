@@ -34,3 +34,8 @@ a.link-preview:focus{outline:none}a.link-preview:focus-visible .link-copy{outlin
 @media(forced-colors:active){button:not(.tile)[data-neon]:active,button.tile[data-neon]:active strong,a[data-neon]:active .link-copy,a[data-neon]:active .link-copy strong,a[data-neon]:active .link-copy .retailer{background:none;color:LinkText;filter:none}}
 
 #detail-content>.photo img{object-fit:cover;mix-blend-mode:normal}
+@media(hover:hover) and (pointer:fine){
+ button:not(.tile)[data-neon]:hover,button.tile[data-neon]:hover strong,a[data-neon]:hover .link-copy{background:linear-gradient(110deg,var(--neon-a),var(--neon-b));background-clip:text;-webkit-background-clip:text;color:transparent;filter:drop-shadow(0 0 3px var(--neon-glow))}
+ a[data-neon]:hover .link-copy strong,a[data-neon]:hover .link-copy .retailer{color:transparent}
+}
+@media(forced-colors:active){button:not(.tile)[data-neon]:hover,button.tile[data-neon]:hover strong,a[data-neon]:hover .link-copy,a[data-neon]:hover .link-copy strong,a[data-neon]:hover .link-copy .retailer{background:none;color:LinkText;filter:none}}
