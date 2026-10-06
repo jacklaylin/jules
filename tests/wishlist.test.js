@@ -104,3 +104,9 @@ test('link previews reference product photos and never substitute outfit images'
  assert.equal(groupWishlist([{...row,preview_image_url:'https://shop.example.com/jacket.jpg'}])[0].links[0].preview_image_url,'https://shop.example.com/jacket.jpg');
  assert.equal(groupWishlist([{...row,preview_image_url:'javascript:alert(1)'}])[0].links[0].preview_image_url,null);
 });
+
+test('refresh exchanges only the token and returns a no-store rotating session',async()=>{
+ let captured;const handler=createWishlistHandler({env,storeFactory:()=>({}),fetcher:async(url,options)=>{captured={url,options};return{ok:true,json:async()=>({access_token:'new-access',refresh_token:'new-refresh',expires_in:3600,user:{email:'private@example.com'}})}}});
+ const res=response();await handler(request('POST','/api/wishlist',{action:'refresh',refresh_token:'old-refresh'}),res);
+ assert.equal(res.statusCode,200);assert.ok(captured.url.endsWith('/auth/v1/token?grant_type=refresh_token'));assert.deepEqual(JSON.parse(captured.options.body),{refresh_token:'old-refresh'});const data=JSON.parse(res.value);assert.equal(data.refresh_token,'new-refresh');assert.equal(data.user,undefined);assert.equal(res.headers['Cache-Control'],'no-store');
+});

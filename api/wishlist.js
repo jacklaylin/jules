@@ -10,7 +10,15 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
       if (env.WISHLIST_ENABLED !== 'true') return json(res, 503, { error: 'Wishlist is not available yet.' });
       const store = storeFactory(env);
       if (req.method === 'POST') {
-        const input = await readJson(req, 2048);
+        const input = await readJson(req, 16384);
+        if (input.action === 'refresh') {
+          if(typeof input.refresh_token!=='string'||!input.refresh_token||input.refresh_token.length>8192)return json(res,400,{error:'Invalid session.'});
+          const response=await fetcher(`${env.SUPABASE_URL.replace(/\/$/, '')}/auth/v1/token?grant_type=refresh_token`,{method:'POST',headers:{apikey:env.SUPABASE_ANON_KEY,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:input.refresh_token}),signal:AbortSignal.timeout(10000)});
+          if(!response.ok)return json(res,[400,401,403].includes(response.status)?401:503,{error:'Please sign in again.'});
+          const data=await response.json();
+          if(!data.access_token||!data.refresh_token||!Number.isFinite(data.expires_in))return json(res,503,{error:'Could not renew session.'});
+          return json(res,200,{access_token:data.access_token,refresh_token:data.refresh_token,expires_at:Math.floor(Date.now()/1000)+data.expires_in});
+        }
         if (input.action === 'repair') {
           const access = await admin(req.headers, env, fetcher);
           if (access !== 200) return json(res, access, { error: 'Owner access required.' });
