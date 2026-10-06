@@ -86,3 +86,12 @@ test('group detail and list use metadata only and remain scoped to the authentic
  res=response();await handler(request('GET',`/api/wishlist?group=${groupWishlist(rows)[0].id}`),res);assert.equal(res.statusCode,200);assert.equal(JSON.parse(res.value).item.links.length,1);
  res=response();await handler(request('GET',`/api/wishlist?group=${id}`),res);assert.equal(res.statusCode,404);
 });
+
+test('wishlist titles use supported identities or observed item descriptions',async()=>{
+ const {groupWishlist}=await import('../lib/wishlist.js');
+ const row={reply_id:id,item_id:id,target:'jacket',brand:'Barbour',name:'Transport Jacket',links:[]};
+ assert.equal(groupWishlist([{...row,match:'likely_match'}])[0].name,'Barbour Transport Jacket');
+ assert.equal(groupWishlist([{...row,match:'similar',item_description:'waxed dark green jacket'}])[0].name,'Waxed dark green jacket');
+ assert.equal(groupWishlist([{...row,display_name:'Founder confirmed jacket'}])[0].name,'Founder confirmed jacket');
+ assert.equal(groupWishlist([{...row,brand:'Barbour',name:'Barbour Transport Jacket',match:'likely_match'}])[0].name,'Barbour Transport Jacket');
+});
