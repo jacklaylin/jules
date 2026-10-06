@@ -12,7 +12,7 @@ async function api(query='', options={}){
  const data=await response.json();if(!response.ok){if([401,403].includes(response.status))login();throw new Error(data.error||'Please try again.');}return data;
 }
 function node(tag,text,cls){const el=document.createElement(tag);if(text)el.textContent=text;if(cls)el.className=cls;return el;}
-const label=p=>p.match==='likely_match'?'Possible match · unconfirmed':'Similar alternative';
+const label=p=>(p.image_kind==='source_image'?'Original outfit · ':p.image_kind==='outfit_crop'?'Outfit crop · ':'')+(p.match==='likely_match'?'Possible match · unconfirmed':'Similar alternative');
 const date=value=>new Date(value).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
 function photo(query,alt){
  const frame=node('div',null,'photo');frame.textContent='Image unavailable';const version=generation;
@@ -22,7 +22,7 @@ function links(entries){const box=node('div',null,'links');for(const entry of en
 async function detail(id){
  const version=++detailVersion;message('');$('detail-content').replaceChildren(node('p','Loading…'));$('detail').showModal();
  try{const {item}=await api('?item='+encodeURIComponent(id));if(version!==detailVersion||!$('detail').open)return;const p=item.product;const info=node('div',null,'info');info.append(node('span',label(p),'label'),node('h2',[p.brand,p.name].filter(Boolean).join(' ')),node('p',p.reason),node('p',`Found ${date(item.saved_at)}. Saved links; prices and availability have not been checked.`),links(p.links));
- const source=node('div',null,'source');for(const encounter of item.encounters){const panel=node('details');panel.append(node('summary','Original outfit · '+date(encounter.found_at)));if(encounter.source_image_id)panel.append(photo(`?item=${id}&source=${encounter.source_image_id}`,'Original outfit'));else panel.append(node('p','Source image unavailable.'));panel.append(node('p',label(encounter)+' · '+(encounter.reason||'')),links(encounter.links));source.append(panel);}info.append(source);$('detail-content').replaceChildren(photo(`?item=${id}&image=product`,p.image_kind==='outfit_crop'?'Crop from your outfit':p.name),info);
+ const source=node('div',null,'source');for(const encounter of item.encounters){const panel=node('details');panel.append(node('summary','Original outfit · '+date(encounter.found_at)));if(encounter.source_image_id)panel.append(photo(`?item=${id}&source=${encounter.source_image_id}`,'Original outfit'));else panel.append(node('p','Source image unavailable.'));panel.append(node('p',label(encounter)+' · '+(encounter.reason||'')),links(encounter.links));source.append(panel);}info.append(source);$('detail-content').replaceChildren(photo(`?item=${id}&image=product`,p.image_kind==='source_image'?'Original outfit':p.image_kind==='outfit_crop'?'Crop from your outfit':p.name),info);
  }catch(e){if(version===detailVersion)$('detail-content').replaceChildren(node('p',e.message));}
 }
 async function load(){

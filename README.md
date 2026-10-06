@@ -294,7 +294,7 @@ Acceptance: send a DM report, confirm the acknowledgment and admin entry, then s
 
 ### Companion wishlist MVP — implemented, live acceptance pending
 
-The consumer app is `/wishlist`: email login, a product grid, product detail, and logout. It reuses Supabase Auth, Vercel, and the private database; no new paid service or API key. Only new image-identification results are saved. No historical import, price alerts, cutouts, item management, or owned-wardrobe features.
+The consumer app is `/wishlist`: email login, a product grid, product detail, and logout. It reuses Supabase Auth, Vercel, and the private database; no new paid service or API key. Only new image-identification results are saved. No automatic historical import, price alerts, cutouts, item management, or owned-wardrobe features. The founder subsequently requested a one-time import of the three previously sent Barbour × Paul Smith candidates; those use a clearly labeled original outfit image because the earlier search did not retain product thumbnails.
 
 #### Enable it
 
