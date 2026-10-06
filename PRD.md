@@ -655,3 +655,5 @@ The darker text-only gradient also appears on pointer hover, choosing a random p
 The wishlist header stays at the top during page scrolling and compacts after scrolling down, restoring its full size near the top. Keep the logo and logout visible, with reduced-motion support.
 
 Wishlist sign-in persists in the same browser using a saved access/refresh token pair, renewing the short-lived access token automatically before protected requests. Rotate and persist both tokens together; coordinate refresh across tabs. Logout clears the saved browser session and revokes the server session. Temporary network failures do not discard a valid refresh token. Existing access-only sessions require one fresh sign-in to enable persistence.
+
+Header refinement: begin minimizing after the first 8px of scrolling and reduce the Jules row to half its original height (100→50px desktop, 76→38px mobile). Preserve the page's top spacing during collapse to prevent scroll-position jumps or oscillation.

@@ -68,7 +68,7 @@ document.addEventListener('keydown',event=>{if(!event.repeat&&['Enter',' '].incl
 document.addEventListener('pointerover',event=>{const control=event.target.closest('button,a');if(control&&!control.contains(event.relatedTarget))neonPress(event);});
 const header=document.querySelector('header');
 let headerTick=false;
-function updateHeader(){header.classList.toggle('compact',scrollY>(header.classList.contains('compact')?20:80));headerTick=false;}
+function updateHeader(){header.classList.toggle('compact',scrollY>8);headerTick=false;}
 window.addEventListener('scroll',()=>{if(!headerTick){headerTick=true;requestAnimationFrame(updateHeader);}},{passive:true});
 updateHeader();
 
