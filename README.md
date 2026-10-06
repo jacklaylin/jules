@@ -13,9 +13,10 @@ Milestone 1 acceptance test:
 Photon sends a signed JSON event to Vercel at `POST /api/imessage`. The Node
 function verifies the signature and five-minute timestamp window, accepts
 inbound text in a direct iMessage conversation, and stores it in Supabase.
-Only `hello` (case-insensitive, with surrounding whitespace ignored) triggers
-the fixed greeting. Other texts wait for an operator’s reply. Reactions,
-attachments and group chats remain outside this milestone.
+With `AI_ENABLED=true`, each incoming text gets an AI reply using recent
+conversation context. When disabled, only `hello` triggers the fixed greeting
+and other texts wait for the operator. Reactions, attachments, and group chats
+remain outside this milestone.
 
 `/admin` is a static HTML/CSS/JavaScript inbox. Server endpoints `/api/admin`
 and `/api/session` handle private data and sign-in. Supabase sends an email
@@ -170,7 +171,7 @@ Live acceptance passed on October 5, 2026 on deployment `4PmJp4XZHhG2S335xMFruyq
 
 ## Milestone 3 — AI conversation
 
-Implementation ready; live acceptance is pending. The existing Vercel webhook stores incoming text, claims one durable AI reply per Photon message, calls the OpenAI Responses API, and sends the reply via Photon. No new runtime dependency or service is required.
+OpenAI billing, the restricted Responses API key, Production environment settings, and the database migration are configured. Deployment `2H6PACrBmPQuRat8cNzPH9oqi4PH` is Ready and current; live conversation acceptance is in progress. The existing Vercel webhook stores incoming text, claims one durable AI reply per Photon message, calls the OpenAI Responses API, and sends the reply via Photon. No new runtime dependency or service is required.
 
 ### Setup
 
