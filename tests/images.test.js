@@ -58,3 +58,17 @@ test('private image endpoint authenticates before reading any bytes',async()=>{
   const accepted=response();await createImageHandler({auth:async()=>200,storeFactory:()=>({image:async()=>({mime_type:'image/png',data:png.toString('base64')})})})({headers:{},method:'GET',url:'/api/image?id=00000000-0000-4000-8000-000000000001'},accepted);
   assert.equal(accepted.statusCode,200);assert.match(accepted.headers['Cache-Control'],/no-store/);assert.deepEqual(accepted.body,png);
 });
+
+test('real HEIC phone-format bytes convert to a bounded JPEG for storage and vision',async()=>{
+  const {readFile}=await import('node:fs/promises');
+  const bytes=await readFile(new URL('./fixtures/white-8x8.heic',import.meta.url));
+  const image=await readImage(attachment(bytes,'image/heic'));
+  assert.equal(image.mime_type,'image/jpeg');
+  const jpeg=Buffer.from(image.data,'base64');
+  assert.equal(jpeg[0],255);assert.equal(jpeg[1],216);assert.ok(jpeg.length<MAX_IMAGE_BYTES);
+});
+test('HEIC conversion errors and oversized conversion output stay on the fallback path',async()=>{
+  const bytes=Buffer.from([0,0,0,20,102,116,121,112,104,101,105,99,0,0,0,0]);
+  await assert.rejects(readImage(attachment(bytes,'image/heic'),async()=>{throw new Error('Invalid HEIC');}));
+  await assert.rejects(readImage(attachment(bytes,'image/heic'),async()=>Buffer.alloc(MAX_IMAGE_BYTES+1)));
+});

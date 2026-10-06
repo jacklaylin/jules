@@ -2,11 +2,20 @@
   "name": "jules-personal-shopper",
   "private": true,
   "type": "module",
-  "engines": { "node": "24.x" },
-  "scripts": { "test": "node --test tests/*.test.js" },
-  "pnpm": { "ignoredBuiltDependencies": ["protobufjs"] },
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.js"
+  },
+  "pnpm": {
+    "ignoredBuiltDependencies": [
+      "protobufjs"
+    ]
+  },
   "dependencies": {
     "@spectrum-ts/core": "10.0.0",
-    "@spectrum-ts/imessage": "10.0.0"
+    "@spectrum-ts/imessage": "10.0.0",
+    "heic-convert": "2.1.0"
   }
 }
