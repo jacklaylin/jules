@@ -6,3 +6,8 @@
 @keyframes skeleton-wipe{to{transform:translateX(100%)}}
 .skeleton-card-title{height:14px;width:75%;margin:16px 0 10px}.skeleton-title{height:32px;width:85%;margin:22px 0}.skeleton-price{height:14px;width:30%;margin:12px 0}.skeleton-date{height:10px;width:40%;margin:12px 0}.skeleton-line{height:16px;width:90%;margin:12px 0}.skeleton-link{padding:10px 0 14px;border-bottom:1px solid #eee}.detail-skeleton .skeleton-price{height:20px}.detail-skeleton .skeleton-link .skeleton-price{height:12px}
 @media(prefers-reduced-motion:reduce){.skeleton::after{display:none}}
+
+.tile .photo img{object-fit:cover;mix-blend-mode:normal}.tile .photo{transition:box-shadow .22s ease}.tile strong{transition:color .22s ease}.detail-open{overflow:hidden}
+@media(hover:hover) and (pointer:fine){button.tile{transition:transform .22s ease}button.tile:hover{transform:translateY(-3px)}button.tile:hover .photo{box-shadow:0 8px 22px #0000000c}button.tile:active{transform:translateY(-1px)}}
+.link-preview{grid-template-columns:76px minmax(0,1fr);align-items:center;gap:16px}.link-preview .photo{width:76px;aspect-ratio:3/4;font-size:10px}.link-copy{display:grid;gap:8px;min-width:0}.link-preview .photo img{object-fit:contain;mix-blend-mode:normal}
+@media(max-width:800px){dialog{width:100%;height:100dvh;max-width:100%;max-height:100dvh;margin:0;padding:0;box-shadow:none}#detail-content{grid-template-columns:1fr;gap:0}#detail-content>.photo{width:100%;max-height:65dvh;aspect-ratio:4/5}#detail-content>.info{padding:0 24px 32px}#close{position:sticky;top:0;z-index:2;width:100%;margin:0;padding:18px 24px;text-align:right;background:#fff}dialog[open]{animation:enter .22s ease both}}

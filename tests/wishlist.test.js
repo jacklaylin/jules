@@ -95,3 +95,12 @@ test('wishlist titles use supported identities or observed item descriptions',as
  assert.equal(groupWishlist([{...row,display_name:'Founder confirmed jacket'}])[0].name,'Founder confirmed jacket');
  assert.equal(groupWishlist([{...row,brand:'Barbour',name:'Barbour Transport Jacket',match:'likely_match'}])[0].name,'Barbour Transport Jacket');
 });
+
+test('link previews reference product photos and never substitute outfit images',async()=>{
+ const {groupWishlist}=await import('../lib/wishlist.js');
+ const row={reply_id:id,item_id:id,target:'jacket',name:'Jacket',has_image:'image/jpeg',links:[{url:product.url}]};
+ assert.equal(groupWishlist([{...row,image_kind:'product'}])[0].links[0].image_item,id);
+ assert.equal(groupWishlist([{...row,image_kind:'source_image'}])[0].links[0].image_item,null);
+ assert.equal(groupWishlist([{...row,preview_image_url:'https://shop.example.com/jacket.jpg'}])[0].links[0].preview_image_url,'https://shop.example.com/jacket.jpg');
+ assert.equal(groupWishlist([{...row,preview_image_url:'javascript:alert(1)'}])[0].links[0].preview_image_url,null);
+});
