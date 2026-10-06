@@ -22,8 +22,8 @@ function renderMessages() {
     const item = document.createElement('article'); item.className = `message ${message.direction} ${message.status}`;
     const bubble = document.createElement('div'); bubble.className = 'bubble'; bubble.textContent = message.body;
     const meta = document.createElement('div'); meta.className = 'meta';
-    const status = message.status === 'sent' ? 'Accepted by Photon' : message.status === 'sending' ? 'Send started · refresh to check' : message.status === 'uncertain' ? 'Delivery uncertain · check the phone before resending' : 'Received';
-    meta.textContent = `${date(message.created_at)} · ${message.source === 'greeting' ? 'Automatic greeting · ' : ''}${status}`;
+    const status = message.status === 'sent' ? 'Accepted by Photon' : message.status === 'generating' ? 'AI preparing reply · refresh to check' : message.status === 'sending' ? 'Send started · refresh to check' : message.status === 'uncertain' ? 'Delivery uncertain · check the phone before resending' : 'Received';
+    meta.textContent = `${date(message.created_at)} · ${message.source === 'greeting' ? 'Automatic greeting · ' : message.source === 'ai' ? 'Jules AI · ' : message.source === 'ai_fallback' ? 'AI failed · manual review needed · ' : ''}${status}`;
     item.append(bubble, meta); $('messages').append(item);
   }
   $('older').hidden = !cursor;

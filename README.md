@@ -1,4 +1,4 @@
-# Jules — Milestone 2: private inbox
+# Jules — Milestone 3: AI conversation (live verification pending)
 
 Current interface: **Photon iMessage**, replacing the original Twilio SMS plan.
 Milestone 1 passed on October 5, 2026: the founder confirmed receiving the greeting.
@@ -40,7 +40,7 @@ An interrupted request may remain `sending`; it is also uncertain and must
 not be automatically retried. This intentionally favors avoiding duplicates
 rather than guaranteeing delivery after a crash. SDK telemetry/logs stay off.
 
-No AI, taste profiles, product search, watches, or payment data are implemented.
+Milestone 3 adds AI conversation when enabled. Taste profiles, product search, watches, and payment data remain out of scope.
 
 ## Local verification
 
@@ -111,7 +111,7 @@ Only register one endpoint for this test to avoid duplicate replies.
 3. Confirm the phone receives `Hello from your personal shopper.`
 4. Record the deployment, date, message ID and pass/fail in a private note.
 
-Milestone 1 passed. Milestone 2 is now authorized; later milestones remain out of scope.
+Milestones 1 and 2 passed. Milestone 3 is authorized and implemented; live verification is pending.
 
 Troubleshooting:
 - **404:** deploy the revision containing `api/imessage.js`.
@@ -165,4 +165,30 @@ This integration uses Photon **Stable** documentation and pinned SDK 10.0.0.
 - Confirm `/api/admin` without a bearer token returns 401, and browser database
   roles cannot access the private tables.
 
-Live acceptance passed on October 5, 2026 on deployment `4PmJp4XZHhG2S335xMFruyqVuAQR` (code commit `cfaaaa9`). The founder confirmed receipt of the manual test reply. Later milestones remain out of scope.
+Live acceptance passed on October 5, 2026 on deployment `4PmJp4XZHhG2S335xMFruyqVuAQR` (code commit `cfaaaa9`). The founder confirmed receipt of the manual test reply.
+
+
+## Milestone 3 — AI conversation
+
+Implementation ready; live acceptance is pending. The existing Vercel webhook stores incoming text, claims one durable AI reply per Photon message, calls the OpenAI Responses API, and sends the reply via Photon. No new runtime dependency or service is required.
+
+### Setup
+
+1. Run `db/002_ai.sql` once in the existing Supabase SQL editor. It extends message statuses/sources and adds a server-only AI reply reservation function; private-table permissions stay unchanged.
+2. Set up API billing in the OpenAI Platform and create a project API key. Store it only as the secret `OPENAI_API_KEY` in Vercel Production. Never put it in Git or chat.
+3. Set Production `OPENAI_MODEL=gpt-4.1-mini` and `AI_ENABLED=true`, then deploy. Set `AI_ENABLED=false` and redeploy to return to the Milestone 2 hello/manual mode.
+
+### Behavior and limits
+
+- Latest 20 messages through the triggering inbound message; each text capped at 2,000 characters. Only accepted outbound replies enter model context. No structured taste memory, image analysis, product search, watches, or purchases.
+- Plain-text shopper prompt with short replies, relevant clarifying questions, and explicit prohibitions against fabricated commerce facts or claiming unavailable capabilities. These are model instructions, not a guarantee of perfect behavior; founder testing remains necessary.
+- OpenAI requests use `store:false`; recent message text is sent to OpenAI, without recipient/line metadata. Existing inbox history stays in Supabase.
+- Generation errors produce a saved fallback labeled “AI failed · manual review needed.” Sends with ambiguous outcomes remain uncertain and never auto-retry. A process interruption can leave a reply at generating/sending; inspect history and phone before replying manually.
+- Separate incoming messages can be processed concurrently. Send the next test message after receiving the prior reply; strict conversation sequencing is outside this small prototype.
+- AI replies also handle `hello` while enabled. The original fixed greeting returns when AI is disabled.
+
+### Acceptance test
+
+Text “I need shoes for a wedding.” Confirm that Jules asks a useful clarifying question. Send a follow-up including the dress code and budget; confirm a coherent response that uses that context. Check both turns in `/admin`, including AI labels. Test a request for current listings: it should acknowledge that live search is not connected rather than invent facts. Do not declare Milestone 3 complete until the phone test passes.
+
+All 22 automated tests pass, including bounded model context, incomplete-output rejection, duplicate/concurrent delivery, failure fallback, and no repeat send after an ambiguous outcome.
