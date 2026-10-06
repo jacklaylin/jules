@@ -56,10 +56,11 @@ export function createIdentificationTestHandler({env=process.env,auth=authorize,
       console.log(JSON.stringify({event:'identification_test_imported',operation:input.operation,products:payload.length}));
       return json(res,200,{result,saved:payload.length});
     } catch(error) {
-      const known=['Database request failed','Invalid visual plan','Invalid visual target','Invalid visual crop','Visual model request failed','Incomplete visual result','Visual search failed'];
+      const known=['Database request failed','Invalid visual plan','Invalid visual target','Invalid visual crop','Visual model request failed','Incomplete visual result','Visual search failed','Visual upload failed'];
       const reason=known.includes(error.message)?error.message:'request_failed';
-      console.log(JSON.stringify({event:'identification_test_failed',stage,reason}));
-      return json(res,503,{error:`Test failed at ${stage} (${reason}). Retry with the same operation to recover a completed result without another search.`});
+      const provider_status=Number.isInteger(error.provider_status)?error.provider_status:undefined;
+      console.log(JSON.stringify({event:'identification_test_failed',stage,reason,provider_status}));
+      return json(res,503,{error:`Test failed at ${stage} (${reason}${provider_status?' HTTP '+provider_status:''}). Retry with the same operation to recover a completed result without another search.`});
     }
   };
 }
