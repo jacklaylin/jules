@@ -308,7 +308,7 @@ The consumer app is `/wishlist`: email login, a product grid, product detail, an
 
 The app records a private, structured snapshot before attempting the iMessage send, then materializes it only after the reply is marked `sent` (accepted by Photon, not a read/delivery receipt). Only URLs actually included in the reply are saved. Alternative merchants stay under the same item. Repeated exact product URLs reuse a tile and retain previous source encounters; different URLs are conservatively kept separate if cross-request equivalence is uncertain. Database uniqueness and the atomic save function prevent retry duplicates.
 
-Product thumbnails are downloaded through the existing bounded, allowlisted image loader and retained privately. If a thumbnail fails, the existing garment crop is used when available, otherwise a placeholder. The original source image remains privately associated with the saved item. Grid reads currently return the latest 200 items, an explicit prototype bound.
+Product thumbnails are downloaded through the existing bounded, allowlisted image loader and retained privately. If a thumbnail fails, the existing garment crop is used when available, otherwise a placeholder. The original source image remains privately associated with the saved item. Grid reads group up to 1,000 saved encounters for this small prototype.
 
 On the first saved collection and explicit “show my wishlist” / “open my wishlist” requests, Jules provides the `/wishlist` URL. This link is a navigation URL, not an access credential; email login is still required. It does not claim a save succeeded before persistence.
 

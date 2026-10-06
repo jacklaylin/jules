@@ -68,6 +68,7 @@ test('groups candidate links under the source item and keeps jacket and bag sepa
  const rows=[{...base,name:'First jacket',links:[{url:'https://shop.example.com/one'}]},{...base,item_id:other,name:'Second coat',links:[{url:'https://shop.example.com/two'}]},{...base,target:'bag',name:'Third item',links:[{url:'https://shop.example.com/bag'}]}];
  const groups=groupWishlist(rows);assert.equal(groups.length,2);const jacket=groups.find(g=>g.name==='Jacket');assert.equal(jacket.links.length,2);assert.equal(jacket.sent_at,'2026-10-05T12:00:00Z');assert.equal(jacket.image_item,id);assert.deepEqual(jacket.price_ranges,[]);
  assert.equal(groupWishlist([...rows,rows[0]])[0].links.length,2);
+ const ranked=rows.slice(0,2).map((row,i)=>({...row,candidate_rank:i}));assert.equal(groupWishlist(ranked.reverse())[0].links[0].url,'https://shop.example.com/one');
  assert.equal(groupWishlist([{...rows[0],source_image_id:id},rows[0]]).length,2);
 });
 test('price ranges use sourced snapshots and never blend currencies or invent missing prices',async()=>{
