@@ -9,10 +9,10 @@ const output=[{type:'web_search_call',status:'completed',action:{type:'search',s
 test('product links require completed live search and retrieved source URLs; invented and duplicate URLs are dropped',()=>{
   const verified=validateSearch({output},{...result,products:[...result.products,{...result.products[0],url:'https://retailer.example/invented'},result.products[0]]});
   assert.equal(verified.products.length,1);assert.equal(verified.status,'found');
-  assert.match(formatSearch(verified),/Similar alternative/);assert.match(formatSearch(verified),/not confirmed/);
+  assert.match(formatSearch(verified),/similar options/);
   assert.throws(()=>validateSearch({output:[]},result));
   const missing=validateSearch({output}, {...result,products:[{...result.products[0],url:'https://retailer.example/invented'}]});
-  assert.equal(missing.status,'needs_review');assert.match(formatSearch(missing),/won’t guess a link/);
+  assert.equal(missing.status,'needs_review');assert.match(formatSearch(missing),/closer photo/);
 });
 test('unsafe links cannot be exposed as product sources',()=>{
   for(const value of ['javascript:alert(1)','http://retailer.example/item','https://localhost/item','https://127.0.0.1/item','https://user:secret@retailer.example/item','https://retailer.invalid/item'])assert.equal(publicURL(value),null);
@@ -32,7 +32,7 @@ test('explicit follow-up can source the recent image without attaching it to ord
     if(++calls===1){assert.equal(request.tools[0].name,'search_products');return response([{type:'function_call',name:'search_products',arguments:JSON.stringify({query:'Dark waxed jacket with corduroy collar',use_image:true})}]);}
     assert.equal(request.input[0].content[1].type,'input_image');return response(output);
   },{loadImages:async()=>{loaded++;return [{mime_type:'image/jpeg',data:'fake'}];},recordSearch:async r=>recorded=r});
-  assert.equal(calls,2);assert.equal(loaded,1);assert.equal(recorded.products.length,0);assert.match(text,/closer crop/);
+  assert.equal(calls,2);assert.equal(loaded,1);assert.equal(recorded.products.length,0);assert.match(text,/closer photo/);
 });
 test('search errors are recorded for review and never generate invented links',async()=>{
   let calls=0,recorded;
@@ -40,7 +40,7 @@ test('search errors are recorded for review and never generate invented links',a
     if(++calls===1)return response([{type:'function_call',name:'search_products',arguments:'{"query":"Waxed jacket","use_image":false}'}]);
     return {ok:false,status:503};
   },{recordSearch:async r=>recorded=r});
-  assert.equal(recorded.status,'failed');assert.match(text,/manual review/);assert.ok(!text.includes('https://'));
+  assert.equal(recorded.status,'failed');assert.match(text,/try again/);assert.ok(!text.includes('https://'));
 });
 test('unsourced URLs returned outside the sourcing tool are not delivered',async()=>{
   const text=await generateReply([{direction:'inbound',body:'Find jacket links'}],{OPENAI_API_KEY:'fake',SEARCH_ENABLED:'true'},async()=>response([{type:'message',role:'assistant',content:[{type:'output_text',text:'Buy it at https://retailer.example/invented'}]}]));
@@ -76,7 +76,7 @@ test('unverified links in narrative text cannot bypass source validation',()=>{
 
 test('completed empty identification can request a closer photo without claiming search failure',()=>{
   const empty=validateSearch({output:[]},{intro:'Cannot read a model identifier.',products:[],needs_review:true},new Date(),{image:true});
-  assert.equal(empty.status,'needs_review');assert.match(formatSearch(empty),/closer crop/);
+  assert.equal(empty.status,'needs_review');assert.match(formatSearch(empty),/closer photo/);
   assert.ok(!formatSearch(empty).includes('didn’t finish'));
 });
 
@@ -89,4 +89,11 @@ test('prose from hosted search is structured separately while original sources s
     return response([{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify({...result,products:[result.products[0],{...result.products[0],url:'https://retailer.example/invented'}]})}]}]);
   });
   assert.equal(calls,2);assert.equal(found.products.length,1);assert.equal(found.products[0].url,url);
+});
+
+test('shopper result layout removes technical labels, repeats no brand, and separates a bonus',()=>{
+ const text=formatSearch({intro:'That looks like a possible match.',products:[{brand:'Example',name:'Example Jacket',reason:'A dark checked finish.',url,match:'likely_match',role:'primary'},{brand:'Example',name:'Long Coat',reason:'A longer related style.',url:url+'-long',match:'similar',role:'bonus'}]});
+ assert.match(text,/1\. Example Jacket: A dark checked finish\.\nhttps:/);
+ assert.match(text,/Bonus: Example Long Coat\. A longer related style/);
+ assert.ok(!text.includes('Example Example'));assert.ok(!text.includes('Likely match; unconfirmed'));assert.ok(!text.includes('These are sourced links'));
 });

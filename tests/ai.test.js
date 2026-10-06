@@ -18,7 +18,7 @@ test('AI uses bounded role-aware recent context and does not store API response'
   history.push({ direction: 'outbound', body: 'What is your budget?', status: 'sent' });
   const result = await generateReply(history, env, async (url, options) => {
     assert.equal(url, 'https://api.openai.com/v1/responses');
-    const body = JSON.parse(options.body); assert.equal(body.store, false); assert.equal(body.input.length, 20);
+    const body = JSON.parse(options.body); assert.ok(body.instructions.includes('This is the source of truth')); assert.equal(body.store, false); assert.equal(body.input.length, 20);
     assert.equal(body.input.at(-1).role, 'assistant'); assert.ok(body.input.every(m => m.content.length <= 2000));
     assert.ok(!body.input.some(m => m.content === 'unsent'));
     return { ok: true, json: async () => ({ status: 'completed', output: [{ type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'What will you wear?' }] }] }) };
