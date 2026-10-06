@@ -6,7 +6,7 @@ if (fragment.has('access_token')) {
 }
 const loginError = fragment.get('error_description');
 if (location.hash) history.replaceState(null, '', '/admin');
-let current = null, requestVersion = 0, cursor = null, historyMessages = [], sending = false, operation = null;
+let current = null, requestVersion = 0, cursor = null, historyMessages = [], sending = false, operation = null, profileBusy = false, profileVersion = 0;
 function notice(message) { $('notice').textContent = message; $('notice').hidden = !message; }
 function showLogin() { token = null; sessionStorage.removeItem('jules_token'); $('login').hidden = false; $('inbox').hidden = true; $('signout').hidden = true; }
 async function api(path, options = {}) {
@@ -19,11 +19,11 @@ const date = at => new Date(at).toLocaleString(undefined, { month: 'short', day:
 function renderMessages() {
   $('messages').replaceChildren();
   for (const message of historyMessages) {
-    const item = document.createElement('article'); item.className = `message ${message.direction} ${message.status}`;
+    const item = document.createElement('article'); item.id = `message-${message.id}`; item.className = `message ${message.direction} ${message.status}`;
     const bubble = document.createElement('div'); bubble.className = 'bubble'; bubble.textContent = message.body;
     const meta = document.createElement('div'); meta.className = 'meta';
     const status = message.status === 'sent' ? 'Accepted by Photon' : message.status === 'generating' ? 'AI preparing reply · refresh to check' : message.status === 'sending' ? 'Send started · refresh to check' : message.status === 'uncertain' ? 'Delivery uncertain · check the phone before resending' : 'Received';
-    meta.textContent = `${date(message.created_at)} · ${message.source === 'greeting' ? 'Automatic greeting · ' : message.source === 'ai' ? 'Jules AI · ' : message.source === 'ai_fallback' ? 'AI failed · manual review needed · ' : ''}${status}`;
+    meta.textContent = `${message.memory_status === 'failed' ? 'Memory update failed · ' : ''}${date(message.created_at)} · ${message.source === 'greeting' ? 'Automatic greeting · ' : message.source === 'ai' ? 'Jules AI · ' : message.source === 'ai_fallback' ? 'AI failed · manual review needed · ' : ''}${status}`;
     item.append(bubble, meta); $('messages').append(item);
   }
   $('older').hidden = !cursor;
@@ -38,6 +38,7 @@ async function loadConversation(id, earlier = false) {
   $('person').textContent = data.conversation.sender_id;
   historyMessages = earlier ? [...data.messages, ...historyMessages] : data.messages;
   cursor = data.before; renderMessages();
+  if (!earlier) await loadProfile(id);
   if (!earlier) $('messages').scrollTop = $('messages').scrollHeight;
 }
 async function loadInbox() {
@@ -51,7 +52,7 @@ async function loadInbox() {
     const subtitle = document.createElement('span'); subtitle.textContent = `Last activity · ${date(person.updated_at)}`;
     button.append(title, subtitle); button.disabled = sending;
     button.onclick = async () => {
-      if (sending) return;
+      if (sending || profileBusy) return;
       if (current !== person.id && $('reply').value && !confirm('Discard your unsent draft?')) return;
       if (current !== person.id) { $('reply').value = ''; operation = null; }
       current = person.id;
@@ -88,3 +89,51 @@ $('reply-form').onsubmit = async event => {
 };
 if (loginError) notice('The sign-in link expired or was already used. Request a new link.');
 if (token) loadInbox().catch(error => notice(error.message));
+
+function profileNotice(text) { $('profile-notice').textContent = text; }
+async function loadProfile(id) {
+  const data = await api(`/api/profile?conversation=${encodeURIComponent(id)}`).catch(error => { if (current === id) { $('profile-facts').replaceChildren(); $('profile-summary').textContent = ''; profileNotice(error.message); } return null; });
+  if (!data || current !== id) return;
+  profileVersion = data.version;
+  $('profile-summary').textContent = data.summary || 'No saved preferences yet. Learn from existing messages or add one below.';
+  $('profile-facts').replaceChildren(); profileNotice('');
+  for (const fact of data.facts.filter(f => !f.deleted)) {
+    const row = document.createElement('div'); row.className = 'fact-row';
+    const title = document.createElement('label'); title.textContent = `${fact.field} · ${fact.key}`;
+    const value = document.createElement('input'); value.value = fact.value; value.maxLength = 500; value.setAttribute('aria-label', title.textContent);
+    const evidence = document.createElement('p'); evidence.className = 'muted'; evidence.textContent = `${fact.source === 'operator' ? 'Owner edit' : 'User statement'} · ${date(fact.updated_at)} · ${fact.evidence}`;
+    const save = document.createElement('button'); save.textContent = 'Save'; save.type = 'button';
+    const remove = document.createElement('button'); remove.textContent = 'Remove'; remove.type = 'button';
+    save.onclick = () => changeProfile({ action:'set',field:fact.field,key:fact.key,value:value.value });
+    remove.onclick = () => changeProfile({ action:'remove',field:fact.field,key:fact.key,value:'' });
+    row.append(title,value,evidence,save,remove);
+    if (fact.source_id) {
+      const source = document.createElement('button'); source.type='button'; source.textContent='Show source';
+      source.onclick = async () => {
+        const selected = current;
+        try {
+          while (current === selected && !historyMessages.some(m => m.id === fact.source_id) && cursor) await loadConversation(selected,true);
+          if (current === selected) document.getElementById(`message-${fact.source_id}`)?.scrollIntoView({block:'center',behavior:'smooth'});
+        } catch (error) { profileNotice(error.message); }
+      };
+      row.append(source);
+    } $('profile-facts').append(row);
+  }
+}
+async function changeProfile(change) {
+  if (!current || profileBusy) return;
+  profileBusy = true; const id = current;
+  const buttons = [...$('profile-panel').querySelectorAll('button')]; buttons.forEach(b => { b.disabled=true; });
+  document.querySelectorAll('.person-button').forEach(b => { b.disabled=true; });
+  profileNotice(change.action === 'import' ? 'Reading existing messages…' : 'Saving…');
+  try {
+    const result = await api('/api/profile',{method:'POST',body:JSON.stringify({conversation:id,version:profileVersion,...change})});
+    await loadProfile(id);
+    profileNotice(result.limited ? 'Imported the latest 100 incoming messages. Earlier history was not included.' : 'Profile saved.');
+    if (change.action === 'set') { $('fact-key').value=''; $('fact-value').value=''; }
+  } catch (error) { profileNotice(error.message); }
+  finally { profileBusy=false; buttons.forEach(b => { b.disabled=false; }); document.querySelectorAll('.person-button').forEach(b => { b.disabled=sending; }); }
+}
+$('profile-reload').onclick = () => { if (current && !profileBusy) loadProfile(current); };
+$('profile-import').onclick = () => changeProfile({action:'import'});
+$('profile-add').onsubmit = event => { event.preventDefault(); changeProfile({action:'set',field:$('fact-field').value,key:$('fact-key').value,value:$('fact-value').value}); };

@@ -1,4 +1,4 @@
-# Jules — Milestone 3: AI conversation
+# Jules — Milestone 4: personal memory (live verification pending)
 
 Current interface: **Photon iMessage**, replacing the original Twilio SMS plan.
 Milestone 1 passed on October 5, 2026: the founder confirmed receiving the greeting.
@@ -193,3 +193,22 @@ OpenAI billing, the restricted Responses API key, Production environment setting
 Text “I need shoes for a wedding.” Confirm that Jules asks a useful clarifying question. Send a follow-up including the dress code and budget; confirm a coherent response that uses that context. Check both turns in `/admin`, including AI labels. Test a request for current listings: it should acknowledge that live search is not connected rather than invent facts. Live acceptance passed on October 5, 2026: the founder confirmed both replies arrived, the navy-tux follow-up was relevant, and the agent acknowledged that live search was not connected. Milestones 4 and later remain out of scope.
 
 All 22 automated tests pass, including bounded model context, incomplete-output rejection, duplicate/concurrent delivery, failure fallback, and no repeat send after an ambiguous outcome.
+
+
+## Milestone 4 — Personal memory
+
+Implementation ready; live acceptance pending. Run `db/003_memory.sql` in the existing Supabase SQL editor, set Vercel Production `MEMORY_ENABLED=true`, and deploy. No additional account, credential, dependency, or infrastructure is needed.
+
+Each existing private conversation has one `taste_profiles` row with a versioned array of structured facts. Fact fields are gender, shopping_range, size, brand, category, style, and budget. A fact has a stable category/system/brand key, explicit value, supporting quote, source message ID, and timestamp. Gender is recorded only from self-identification, separately from clothing range. Sizing systems and brand exceptions are retained without conversion. Usual category budgets are distinguished from a specific request. Style attributes are explicit statements only for this milestone; inferred image taste is out of scope.
+
+The extractor uses strict structured output and server validation of message IDs and verbatim quotes. Model instructions exclude temporary constraints, hypothetical statements, assistant suggestions, and inferred gender; semantic extraction can still be imperfect, so inspect and edit the profile in the inbox. The readable taste summary is derived from saved facts rather than an independently generated summary that could contradict them.
+
+New text is extracted before the shopper generates its reply. The persistent profile is loaded independently of the latest 20-message context. Atomic version checks merge concurrent updates without losing unrelated facts. Newer evidence replaces older values; deletions retain tombstones so importing old history does not resurrect removed preferences. Owner edits use a version check and reject stale edits. A later explicit user correction can update an owner edit.
+
+In `/admin`, expand **Personal memory** to inspect facts, edit/add/remove preferences, jump to source messages, or **Learn from existing messages**. Import reads the latest 100 inbound texts; the UI reports if older history was excluded. Re-import preserves newer changes and edits. Profiles are keyed by the existing conversation (person + Photon line), so a changed line creates a separate profile in this small prototype.
+
+Extraction failure leaves existing memory intact, marks the inbound message “Memory update failed,” and logs only a fixed event and provider ID. Jules may still reply using existing facts but is instructed not to claim that new information was remembered. Process interruptions can leave an in-progress reply as documented for Milestone 3. The extra extraction call adds latency and API usage; there is no background worker or queue.
+
+### Acceptance
+
+Import the founder's existing messages and verify gender/clothing range, sizes, brands, and lasting budgets against source quotes. A wedding-specific budget must not become a permanent budget. Confirm the profile survives reload and can be corrected from admin. Send a new request or ask what Jules remembers; then correct a size and verify the latest value is saved and recalled. Automated tests also verify memory is supplied even when the source is absent from recent chat, duplicate import preservation, concurrent updates, source validation, owner authorization, stale edits, and extraction failures. All 29 tests pass. Do not call Milestone 4 complete until the live test passes.
