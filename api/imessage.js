@@ -1,7 +1,7 @@
 import { createProcessor, MAX_BYTES } from '../lib/imessage.js';
 import { receiveInInbox } from '../lib/inbox.js';
 
-export const config = { api: { bodyParser: false }, maxDuration: 60 };
+export const config = { api: { bodyParser: false }, maxDuration: 120 };
 const process = createProcessor({ handle: receiveInInbox });
 
 export default async function handler(req, res) {
