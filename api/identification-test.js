@@ -9,6 +9,7 @@ import { json, readJson, uuid } from '../lib/http.js';
 export const config = { api: { bodyParser: false }, maxDuration: 120 };
 export function createIdentificationTestHandler({env=process.env,auth=authorize,storeFactory=createStore,search=visualSearchProducts,prepare=wishlistProducts}={}) {
   return async (req,res) => {
+    let stage='authorization';
     try {
       const access=await auth(req.headers,env);
       if(access!==200)return json(res,access,{error:'Owner sign-in required.'});
@@ -26,18 +27,23 @@ export function createIdentificationTestHandler({env=process.env,auth=authorize,
       const hash=createHash('sha256').update(query).update(bytes).digest('hex');
       const key=`identification-test:${input.operation}`;
       const image={mime_type:mime,data:bytes.toString('base64')};
+      stage='reservation';
       const reservation=await store.reserveIdentificationTest(member.conversation_id,key,query,hash);
       let record=reservation.record;
       if(record.conversation_id!==member.conversation_id||record.search_result?.test_hash!==hash)return json(res,409,{error:'Operation belongs to a different test.'});
       if(reservation.created) {
+        stage='source_image';
         await store.saveImages(key,[image]);
+        stage='search';
         const result=await search(query,[image],env);
+        stage='search_persistence';
         await store.finishIdentificationTest(record.id,{...result,test_hash:hash,test_status:'complete'});
         record={...record,search_result:{...result,test_hash:hash,test_status:'complete'}};
       } else if(record.search_result?.test_status!=='complete') {
         return json(res,409,{error:'This test started but has not completed. Do not retry it with a new operation unless you intend another paid search.'});
       }
       const result=record.search_result;
+      stage='wishlist_prepare';
       const sources=await store.identificationTestImages(record.id);
       const body=(result.products??[]).flatMap(p=>[p.url,...(p.merchant_options??[]).map(m=>m.url)]).join('\n');
       let payload=record.wishlist_payload;
@@ -45,12 +51,15 @@ export function createIdentificationTestHandler({env=process.env,auth=authorize,
         payload=await prepare(result,body,sources,store);
         await store.identificationTestPayload(record.id,payload);
       }
+      stage='wishlist_import';
       await store.importIdentificationTest(member.conversation_id,record.id,payload,result.checked_at);
       console.log(JSON.stringify({event:'identification_test_imported',operation:input.operation,products:payload.length}));
       return json(res,200,{result,saved:payload.length});
-    } catch {
-      console.log(JSON.stringify({event:'identification_test_failed'}));
-      return json(res,503,{error:'Test or import failed. Retry with the same operation to recover a completed result without another search.'});
+    } catch(error) {
+      const known=['Database request failed','Invalid visual plan','Invalid visual target','Invalid visual crop','Visual model request failed','Incomplete visual result','Visual search failed'];
+      const reason=known.includes(error.message)?error.message:'request_failed';
+      console.log(JSON.stringify({event:'identification_test_failed',stage,reason}));
+      return json(res,503,{error:`Test failed at ${stage} (${reason}). Retry with the same operation to recover a completed result without another search.`});
     }
   };
 }
