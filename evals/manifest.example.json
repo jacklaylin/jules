@@ -1,0 +1,8 @@
+[
+  {
+    "id": "case-01",
+    "image_paths": ["/absolute/path/to/private/case-01.jpg"],
+    "query": "Find the jacket in this image",
+    "expected": {"brand": "Barbour x Paul Smith", "model": "MWX2611BR71", "reference": "https://www.farfetch.com/shopping/men/barbour-x-paul-smith-loves-barbour-check-waxed-cotton-jacket-item-38865356.aspx"}
+  }
+]

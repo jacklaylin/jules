@@ -27,7 +27,8 @@
   ],
   "functions": {
     "api/**/*.js": {
-      "includeFiles": "VOICE.md"
+      "includeFiles": "VOICE.md",
+      "maxDuration": 120
     }
   }
 }
