@@ -41,7 +41,7 @@ test('generation failure produces a visible fallback, while ambiguous send never
   const db = store(); let sent = 0;
   const options = { store: db, generate: async () => { throw new Error('private error'); }, send: async () => { sent++; throw new Error('unknown outcome'); } };
   assert.equal(await receiveInInbox(delivery, env, options), 'imessage_ai_reply_uncertain');
-  assert.equal(db.state.source, 'ai_fallback'); assert.match(db.state.body, /manual review/); assert.equal(db.state.status, 'uncertain');
+  assert.equal(db.state.source, 'ai_fallback'); assert.match(db.state.body, /try again/); assert.equal(db.state.status, 'uncertain');
   await receiveInInbox(delivery, env, options); assert.equal(sent, 1);
 });
 test('failure saving generated text prevents a send and a retry cannot send twice', async () => {
