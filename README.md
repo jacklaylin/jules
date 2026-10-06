@@ -2,7 +2,7 @@
 
 Current interface: **Photon iMessage**, replacing the original Twilio SMS plan.
 Milestone 1 passed on October 5, 2026: the founder confirmed receiving the greeting.
-Milestone 2 acceptance remains pending: see the conversation in `/admin` and receive a manual reply on the phone.
+Milestone 2 passed on October 5, 2026: the founder’s fresh message appeared in `/admin`, the manual reply reached the phone, and history persisted after reloading. Owner sign-in and a live unauthenticated API rejection (HTTP 401) were verified. Both private tables have RLS enabled with no browser-role read privileges; only the server can invoke message RPCs. All 17 automated tests pass.
 
 Milestone 1 acceptance test:
 
@@ -165,4 +165,4 @@ This integration uses Photon **Stable** documentation and pinned SDK 10.0.0.
 - Confirm `/api/admin` without a bearer token returns 401, and browser database
   roles cannot access the private tables.
 
-Do not call Milestone 2 complete until these live checks pass.
+Live acceptance passed on October 5, 2026 on deployment `4PmJp4XZHhG2S335xMFruyqVuAQR` (code commit `cfaaaa9`). The founder confirmed receipt of the manual test reply. Later milestones remain out of scope.
