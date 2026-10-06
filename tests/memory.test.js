@@ -66,6 +66,7 @@ test('profile API denies access before database lookup and rejects stale owner e
 test('temporary budgets, request clothing ranges and unsupported size units are excluded even if the model emits them',()=>{
  const source={...message,body:'Formal men’s shoes, less than $1200. I’m size eye 45 / us 12'};
  const facts=validateChanges([
+ {...change,field:'gender',key:'identity',value:'male',evidence:'I’m size eye 45 / us 12'},
  {...change,field:'budget',key:'shoes/unknown',value:'1200',evidence:'less than $1200'},
  {...change,field:'shopping_range',key:'clothing',value:'men’s formal shoes',evidence:'Formal men’s shoes'},
  {...change,key:'shoes/eu',value:'45',evidence:'I’m size eye 45 / us 12'},

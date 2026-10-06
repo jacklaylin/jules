@@ -1,4 +1,4 @@
-# Jules — Milestone 4: personal memory (live verification pending)
+# Jules — Milestone 4: personal memory
 
 Current interface: **Photon iMessage**, replacing the original Twilio SMS plan.
 Milestone 1 passed on October 5, 2026: the founder confirmed receiving the greeting.
@@ -197,7 +197,7 @@ All 22 automated tests pass, including bounded model context, incomplete-output 
 
 ## Milestone 4 — Personal memory
 
-Implementation ready; live acceptance pending. Run `db/003_memory.sql` in the existing Supabase SQL editor, set Vercel Production `MEMORY_ENABLED=true`, and deploy. No additional account, credential, dependency, or infrastructure is needed.
+Live acceptance passed on October 5, 2026. Run `db/003_memory.sql` in the existing Supabase SQL editor, set Vercel Production `MEMORY_ENABLED=true`, and deploy. No additional account, credential, dependency, or infrastructure is needed.
 
 Each existing private conversation has one `taste_profiles` row with a versioned array of structured facts. Fact fields are gender, shopping_range, size, brand, category, style, and budget. A fact has a stable category/system/brand key, explicit value, supporting quote, source message ID, and timestamp. Gender is recorded only from self-identification, separately from clothing range. Sizing systems and brand exceptions are retained without conversion. Usual category budgets are distinguished from a specific request. Style attributes are explicit statements only for this milestone; inferred image taste is out of scope.
 
@@ -211,4 +211,4 @@ Extraction failure leaves existing memory intact, marks the inbound message “M
 
 ### Acceptance
 
-Import the founder's existing messages and verify gender/clothing range, sizes, brands, and lasting budgets against source quotes. A wedding-specific budget must not become a permanent budget. Confirm the profile survives reload and can be corrected from admin. Send a new request or ask what Jules remembers; then correct a size and verify the latest value is saved and recalled. Automated tests also verify memory is supplied even when the source is absent from recent chat, duplicate import preservation, concurrent updates, source validation, owner authorization, stale edits, and extraction failures. All 30 tests pass. Do not call Milestone 4 complete until the live test passes.
+Import the founder's existing messages and verify gender/clothing range, sizes, brands, and lasting budgets against source quotes. A wedding-specific budget must not become a permanent budget. Confirm the profile survives reload and can be corrected from admin. Send a new request or ask what Jules remembers; then correct a size and verify the latest value is saved and recalled. Automated tests also verify memory is supplied even when the source is absent from recent chat, duplicate import preservation, concurrent updates, source validation, owner authorization, stale edits, and extraction failures. All 30 tests pass. Live acceptance passed on October 5, 2026: imported brand preferences and confirmed sizes survived reload, owner corrections persisted, and the founder confirmed Jules recalled the brands and shoe sizes over iMessage. The wedding-only budget was removed; conservative validation was added after live extraction errors. Database RLS and server-only table/RPC access were verified. Text correction ordering and recall without recent source messages are covered by automated tests. Milestone 5 and later remain out of scope.
