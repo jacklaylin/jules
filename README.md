@@ -290,3 +290,30 @@ Testers can send `DM the replies are too long` (case insensitive; `DM: feedback`
 In `/admin`, expand **Developer feedback** for the latest 100 reports across testers. Each shows its sender and time; click it to open the conversation and follow up. You can also ask Codex here to inspect developer feedback using the configured private database. Reports stay in the conversation history. Repeated webhook deliveries do not create additional reports or send another acknowledgment.
 
 Acceptance: send a DM report, confirm the acknowledgment and admin entry, then send an ordinary shopping message and confirm normal behavior. Live acceptance requires the migration and deployment.
+
+
+### Companion wishlist MVP — implemented, live acceptance pending
+
+The consumer app is `/wishlist`: email login, a product grid, product detail, and logout. It reuses Supabase Auth, Vercel, and the private database; no new paid service or API key. Only new image-identification results are saved. No historical import, price alerts, cutouts, item management, or owned-wardrobe features.
+
+#### Enable it
+
+1. **Create the private wishlist tables:** open the existing Supabase project → SQL Editor, paste `db/008_wishlist.sql`, and run it once. This adds invited-email mappings, wishlist items/encounters, explicit session revocations, and an atomic save function. No credential is produced or needs to be copied.
+2. **Associate each tester with their existing conversation:** open the private Jules `/admin` inbox and select the tester. Obtain that conversation's UUID from the authenticated `/api/admin` response in browser developer tools, or use Supabase Table Editor → `conversations`. In Table Editor → `wishlist_members`, insert the tester's lowercase email and that conversation UUID. This mapping grants access to that conversation's saved items and images. Confirm the identity with the tester; do not match conversations by guesswork. Keep personal email/phone values in Supabase only, never in Git or source files. Remove the mapping to revoke that tester's access.
+3. **Allow the sign-in redirect:** Supabase → Authentication → URL Configuration → Redirect URLs, add `https://YOUR-EXISTING-JULES-DOMAIN/wishlist` (replace the domain with the actual production domain). Keep the existing admin redirect. Supabase's existing email sender delivers a one-use magic link; no password or new credential is required. Existing Auth email rate limits still apply.
+4. **Enable deployment:** in the existing Vercel project's Production environment variables, set `WISHLIST_ENABLED=true`. Keep the existing `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, and `SITE_ORIGIN`; `SITE_ORIGIN` must equal the production HTTPS origin. Deploy this code through the project's normal Git/Vercel flow. Keep all secret values in Vercel, never paste them into source code. The example environment file contains placeholders only.
+5. Open `/wishlist`, enter the invited email, and follow the email link in the same browser you want to use. The browser stores only the access token in session storage, not a refresh token. When the session expires, request another email link. Log out explicitly to revoke that token immediately for wishlist access; closing a tab clears its session-storage copy but is not server-side revocation.
+
+#### Saving and repair
+
+The app records a private, structured snapshot before attempting the iMessage send, then materializes it only after the reply is marked `sent` (accepted by Photon, not a read/delivery receipt). Only URLs actually included in the reply are saved. Alternative merchants stay under the same item. Repeated exact product URLs reuse a tile and retain previous source encounters; different URLs are conservatively kept separate if cross-request equivalence is uncertain. Database uniqueness and the atomic save function prevent retry duplicates.
+
+Product thumbnails are downloaded through the existing bounded, allowlisted image loader and retained privately. If a thumbnail fails, the existing garment crop is used when available, otherwise a placeholder. The original source image remains privately associated with the saved item. Grid reads currently return the latest 200 items, an explicit prototype bound.
+
+On the first saved collection and explicit “show my wishlist” / “open my wishlist” requests, Jules provides the `/wishlist` URL. This link is a navigation URL, not an access credential; email login is still required. It does not claim a save succeeded before persistence.
+
+A failure after a successful send logs `wishlist_save_failed` with the reply operation ID. An owner-authenticated POST to `/api/wishlist` with JSON `{"action":"repair"}` saves up to 100 pending accepted replies from their snapshots, without sending any messages. For a single operation, the operator can instead call `select public.save_wishlist_reply('OPERATION_ID');` in Supabase SQL Editor, replacing the placeholder with the logged operation ID. Both are idempotent and ignore uncertain/failed sends. Do not change an uncertain reply to `sent` unless the operator has verified the actual send. A `wishlist_prepare_failed` log means the snapshot step failed before send; inspect the stored search result/reply for manual recovery rather than resending. No automatic repair scheduler is added.
+
+#### Live acceptance
+
+Invite two testers, sign in, and send an outfit with an explicit jacket/bag request. Verify the returned pieces appear separately, match labels remain uncertain, all sent links agree, and source outfits are correct. Try a partial result, reload, repeat a product request, and confirm one tile per exact product URL with multiple source encounters. Check a second tester cannot fetch the first tester's item ID or source image, and that a logged-out token is rejected. Check the phone-sized grid, product details, empty collection, missing-photo fallback, and retailer-link destinations. Existing identification accuracy/phone gates still apply: automated logic tests do not establish recognition quality.

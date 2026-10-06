@@ -71,7 +71,7 @@ Already knows what they want but wants the best transaction. Pain point: price, 
 ## 4. Product principles
 
 ### 4.1 Conversation over interface
-There is no consumer dashboard in V0. The product lives in SMS/MMS. Users communicate naturally and the system should infer and remember context.
+The primary interface is iMessage via Photon. Users communicate naturally and the system should infer and remember context. A small companion web wishlist lets users revisit items and links Jules has already sent; shopping requests still start in the conversation. This is the first step toward a digital closet, not a full consumer dashboard.
 
 ### 4.2 Taste before catalog
 Do not show large result sets. Default to **3 products**, maximum **5** unless explicitly requested.
@@ -140,6 +140,9 @@ Each recommendation should include, when available:
 
 ### SOURCE
 Given a link, screenshot, product name, or image, search for matching listings and requested sizes. Return retailer, price, availability, shipping information when available, and link. If confidence is insufficient, create a human sourcing task.
+
+### SAVE — companion wishlist
+Automatically retain items and product links sent in response to explicit image-identification requests. Let users revisit them in a private, mobile-friendly web grid, inspect product details and the original inspiration image, and return to the same retailer links. See Section 25 for the scoped wishlist milestone.
 
 ### OPTIMIZE
 For a known product, search alternative sources and compare item price, sale price, shipping, estimated duties when reliable, return policy, availability, and retailer credibility. Explicitly flag unknowns.
@@ -413,7 +416,7 @@ Choose simple, well-supported libraries and avoid unnecessary dependencies.
 
 Do not build:
 - native iOS or Android apps
-- consumer web dashboard
+- consumer web dashboard beyond the scoped companion wishlist in Section 25
 - custom authentication system
 - retailer accounts
 - autonomous checkout
@@ -463,6 +466,8 @@ Acceptance test: Difficult searches appear in admin and I can resolve them manua
 
 ### Milestone 8 — Watches
 Acceptance test: The agent remembers an ongoing shopping intent and can notify me later.
+
+The founder has separately requested a companion wishlist specification (Section 25). Its implementation requires a separate request; it does not authorize watches or other unassigned milestones.
 
 Then **stop building and recruit users.**
 
@@ -520,3 +525,108 @@ Flag anything in this PRD that would materially increase complexity and suggest 
 Then implement **Milestone 1 only**.
 
 Do not proceed to later milestones until Milestone 1 has been tested successfully.
+
+
+## 25. Companion wishlist — first step toward a digital closet
+
+**Status:** Founder authorized the wishlist MVP implementation; live acceptance pending.
+**Goal:** Give items Jules finds a lasting home so users can return to them without searching an iMessage thread.
+**Initial scope:** The same maximum of 10 invited testers, using a simple mobile-friendly web app.
+
+### User story and core loop
+
+> I send Jules an outfit and ask it to find the jacket and bag. Jules sends possible matches and product links. Those items appear automatically in my wishlist. Later, I open the wishlist, tap the bag, see the original outfit and Jules's identification, and open the links it sent me.
+
+Sending an inspiration image alone does not trigger identification or saving. Reuse the existing explicit-request behavior and its limit of up to three outfit pieces. A wishlist is a record of interest, not a statement that the user owns an item, endorses it, or intends to buy it.
+
+### What already exists and what is new
+
+The broader PRD already specifies image input, SOURCE, persisted recommendations, and product links. The current implementation also retains incoming images privately, stores structured search results on replies, and compares candidate product thumbnails with requested outfit pieces. Visual results include possible-match/similar-alternative labels and may include other merchants for the same product. Live recognition and phone acceptance remain pending in the README; saved results do not establish recognition accuracy.
+
+The new work is a user-facing private wishlist, durable associations between each sent item and its source image/reply, and an item-detail view. Reuse the existing app, database, and search results. Do not rerun search just to populate or open the wishlist.
+
+### Saving behavior
+
+- Automatically save each distinct product actually included in an accepted outbound identification reply. Save the jacket and bag as separate items, associated with the same source outfit.
+- Group retailer links for the same identified product under one item. Keep distinct products or explicitly requested similar alternatives separate, preserving their labels.
+- Save only results sent to the user, not rejected candidates, clarification requests, or unresolved pieces. A partially successful outfit search saves the sent items only.
+- Keep exactly the product links included in the reply, their ordering, the identification wording/uncertainty, and the date found. Internal candidates and merchant options that were not sent are not user wishlist links.
+- Webhook retries must not create duplicate items. Repeat encounters with a confidently identical product should reuse its item and retain the additional source image/reply associations; do not merge on generic names or visual resemblance alone.
+- A reply-send failure must not create visible wishlist items. A save failure after a successful send must be logged and repairable from the stored reply/search result without resending the message. Do not claim an item is saved until persistence succeeds.
+- Provide one easy way to open the user's wishlist from iMessage, initially on the first successful save and on an explicit request such as “show my wishlist.” Avoid adding the web link to every response.
+- Start saving new identification results when enabled. Historical backfill and manual URL entry are outside the first version.
+
+### Wishlist grid
+
+**Founder scope: dead simple.** The first version has only login/logout, the product grid, and product details opened from that grid. No dashboard, navigation menu, search, filters, folders, settings page, or visible alert controls. Login should use a simple existing or managed authentication mechanism, not a custom authentication system. Successful login opens the grid directly; logout ends access to the private collection.
+
+The landing view is a visual grid of saved items, newest first. Each tile has an item image, a short product name, and a visible possible-match or similar-alternative label. The grid should feel like a small personal collection: generous space, quiet backgrounds, and subtle motion can give pieces a floating feel. It must remain easy to scan and tap on a phone, with reduced-motion support.
+
+**Agreed first-version image approach:** Reuse the actual matched product photos already returned by the visual-search flow and sent by Jules. If unavailable, reuse a clearly labeled outfit-item crop, then a simple placeholder. The existing search flow already creates rectangular garment crops; neither these crops nor the returned product thumbnails guarantee background removal. Persist the selected display image privately for later retrieval rather than depending solely on temporary search-thumbnail URLs. This adds image persistence and display work, not a new image-generation or background-removal pipeline. Never generate a replacement that changes the product's appearance.
+
+**Optional visual exploration:** Isolate products on transparent backgrounds for a more playful closet-like grid. Background removal adds processing, cost, and failure cases, so it is not a first-version acceptance requirement. If explored later, preserve the original photo and fall back when a cutout clips or distorts an item. No custom vision model, draggable canvas, or physics engine is required.
+
+An empty wishlist explains: “Ask Jules to find a piece in a photo. Items Jules sends you will appear here.”
+
+### UI direction — sleek, simple, with playful interactions
+
+**Founder direction:** Take inspiration from SSENSE's fashion-retail presentation, with more color and motion in interactive elements. Use it as a visual reference, not a requirement to reproduce its navigation or shopping features.
+
+- Keep the page background white. Let product imagery, generous whitespace, a disciplined grid, and restrained black typography carry the interface. Avoid heavy card borders, decorative panels, and crowded controls.
+- Keep navigation minimal: wishlist grid, item detail, and login/logout. Product details provide the retailer links; no additional management actions are required. Product names and match labels must remain readable without hovering.
+- Add personality through active buttons and interactive text: a small accent palette, animated underlines, or a brief color transition on hover, focus, press, or selection. Reserve these treatments for elements users can act on; ordinary text remains quiet.
+- Use subtle motion for tile entry, opening an item, and button feedback. The floating feel should come from spacing and gentle transitions, with items remaining still while browsing. Avoid continuous bobbing, flashing, or animations that delay navigation.
+- Touch interactions must receive the same clear feedback as desktop interactions. Preserve visible keyboard focus, sufficient text contrast, and reduced-motion support. Color alone must not communicate match uncertainty or an active future price alert.
+- Keep the first version's palette and animation choices small and consistent. Explore the exact accent colors and transition style in the UI design pass before implementation; no new animation framework is required for this direction.
+
+
+### Item detail
+
+Tapping a tile opens:
+
+- The item photo and available brand/product name, without invented attributes.
+- Jules's match label and concise identification explanation, including uncertainty.
+- The original outfit/source image and date found; multiple source encounters remain accessible when present.
+- Every product link sent for this item, with retailer labels and the original ordering.
+- Price/currency only if sourced and recorded, alongside the date checked. Otherwise omit the price or show “Price not checked.” Availability, sizes, shipping, and policies stay unknown unless verified.
+- No item-management controls in the first version. Removal can be added later if testers need it; the initial product view is for revisiting images and links.
+
+These are saved findings, not live inventory. Opening a wishlist item does not refresh commerce facts or promise that a link still works. Retain old links and their dates; an unavailable product is not silently replaced by another product.
+
+### Privacy and access
+
+Each user can view only their own items and source images. Reuse existing identity and hosting where practical, but do not expose the operator inbox or reuse an admin credential for consumer access. Choose the simplest existing or managed login mechanism during implementation planning, with a visible logout action. Sessions/access tokens must be unguessable, revocable, and treated as credentials. A public URL or user ID alone is insufficient authorization. No phone numbers or credentials in frontend bundles or source control.
+
+### Minimum persistent information
+
+This is a conceptual requirement, not a mandate to implement all of Section 10's proposed tables. Adapt the existing schema with the fewest necessary additions:
+
+- Wishlist item: owner, stable ID, product identity when supported, display name/brand, match label, explanation, image reference, and saved timestamp.
+- Sent links: URL, retailer label, order, and any verified commerce facts with their check time. Keep these separate from product identity.
+- Source encounters: original inbound message/image reference, sent reply reference, and search-result/item reference sufficient to reconstruct what was sent and deduplicate retries.
+
+Preserve owner authorization across items, images, and source encounters. Save useful structure rather than rebuilding the collection from chat text on every page load.
+
+### Acceptance criteria for the wishlist milestone
+
+1. A tester sends an outfit and explicitly asks Jules to find its jacket and bag. When both are returned in an accepted reply, two items appear in that tester's wishlist with the same source outfit. When only one is found, only that item appears.
+2. The tester can open the wishlist from iMessage, return later, and see the persisted items in a usable phone-sized grid.
+3. Tapping either item shows its image, original outfit, date, identification uncertainty, and all and only the product links sent for that item. The links open the same destinations as the reply.
+4. Another tester cannot retrieve those items or images, including by changing an item/image ID or using an expired or revoked session. Logout prevents subsequent access through that session.
+5. Duplicate delivery/retry does not duplicate tiles; a failed reply does not appear as a sent finding. A save failure is observable and can be repaired without another iMessage send.
+6. Missing product images have a usable fallback, and unverified prices or availability are never invented. The only first-version surfaces are login, the product grid with logout, and product details; there are no extra navigation or management screens.
+7. The first version requires no cutouts, new search provider, price-monitoring service, or public image library. Verify the existing phone-identification flow as part of live acceptance; automated wishlist tests alone do not establish matching quality.
+
+### Future extension — price-drop notifications
+
+The wishlist should eventually become the home for price-drop notifications as well as saved findings. A user can see which saved items have an active price-drop notification and open an item to inspect or change that notification.
+
+When the WATCH milestone is explicitly assigned, connect watches to wishlist item IDs rather than creating a separate product collection. The grid can show a clear “Price alert on” indicator; item detail can show the watched variant/size, target price or drop condition, notification status, and last check time. Jules can continue creating alerts through conversation, with the wishlist providing a place to review and eventually manage them. Multiple eligible merchant links can belong to the same watched item, but comparison must respect variant, currency, and verified costs as described in Section 12.
+
+Saving an item does not automatically enable a price alert. A saved price snapshot is not a monitor, and the first version must not show an active-alert indicator until a real watch exists. Notification delivery, monitoring frequency, verified price changes, and alert-management behavior belong to the later WATCH specification. No monitoring jobs or alert controls are required for the initial wishlist milestone.
+
+### Learning goals and boundaries
+
+Observe successful saves, wishlist returns, item opens, retailer-link opens, and save failures using minimal existing logging. The key question is whether testers return to saved findings and use them to continue shopping. Do not build an analytics dashboard for this experiment.
+
+Out of scope: item removal/management controls, search/filter controls, settings pages, owned wardrobe tracking, purchase-state management, outfit building, collections/folders, sharing or social features, bulk imports, retailer-account connections, live stock/price refresh, sale alerts, autonomous purchases, and automatic taste inference from saving. The digital closet can expand after we learn whether a simple wishlist is useful.
