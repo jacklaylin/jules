@@ -280,3 +280,13 @@ SerpApi uses the existing server-side `SERPAPI_API_KEY` to read current account-
 GitHub: create a fine-grained token with account **Plan: Read** permission and no repository write permissions. Store it as `GITHUB_BILLING_TOKEN` in Vercel Production, with `GITHUB_BILLING_USER` and `GITHUB_BILLING_REPOSITORY` (`owner/repository`). The dashboard requests the repository-filtered daily usage summary and sums net metered charges. Fixed subscriptions remain manual. Account eligibility for enhanced billing and summary API access must be verified live.
 
 Vercel: create a token scoped to the Jules team, save it as `VERCEL_BILLING_TOKEN` in Production, and configure `VERCEL_BILLING_TEAM_SLUG` plus `VERCEL_BILLING_PROJECT_ID` from project General settings. Its official FOCUS billing endpoint returns JSONL; only USD charges tagged with the exact Jules `ProjectId`, contained within the selected UTC day, enter the subtotal. Untagged team charges are shown separately; other projects are excluded. Charges spanning multiple days remain unknown rather than being allocated speculatively. Fixed fees remain manual. An empty successful provider report means no reported charges yet, not a guarantee of no later charges. Neither integration enforces spending limits. Redeploy after saving settings. No additional SQL or paid service is needed.
+
+## Developer feedback in iMessage
+
+Run `db/007_feedback.sql` in the existing Supabase SQL editor before deploying this change. It adds a feedback field to private messages; no new account or credential is needed.
+
+Testers can send `DM the replies are too long` (case insensitive; `DM: feedback` also works). Each message is a separate report, and the next ordinary message resumes shopping. Jules saves the text after DM and confirms receipt. Bare `DM` returns usage instructions. Words such as “DMV” do not activate it. Feedback bypasses AI, images, and taste extraction and is excluded from subsequent AI context and memory imports.
+
+In `/admin`, expand **Developer feedback** for the latest 100 reports across testers. Each shows its sender and time; click it to open the conversation and follow up. You can also ask Codex here to inspect developer feedback using the configured private database. Reports stay in the conversation history. Repeated webhook deliveries do not create additional reports or send another acknowledgment.
+
+Acceptance: send a DM report, confirm the acknowledgment and admin entry, then send an ordinary shopping message and confirm normal behavior. Live acceptance requires the migration and deployment.

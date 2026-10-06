@@ -40,7 +40,7 @@ function renderMessages() {
     }
     const meta = document.createElement('div'); meta.className = 'meta';
     const status = message.status === 'sent' ? 'Accepted by Photon' : message.status === 'generating' ? 'AI preparing reply · refresh to check' : message.status === 'sending' ? 'Send started · refresh to check' : message.status === 'uncertain' ? 'Delivery uncertain · check the phone before resending' : 'Received';
-    meta.textContent = `${message.search_result && message.search_result.status !== 'found' ? 'Sourcing review needed · ' : ''}${message.search_result?.checked_at ? `Search checked ${date(message.search_result.checked_at)} · ` : ''}${message.image_status === 'failed' ? 'Image failed · manual review needed · ' : ''}${message.memory_status === 'failed' ? 'Memory update failed · ' : ''}${date(message.created_at)} · ${message.source === 'greeting' ? 'Automatic greeting · ' : message.source === 'ai' ? 'Jules AI · ' : message.source === 'ai_fallback' ? 'AI failed · manual review needed · ' : ''}${status}`;
+    meta.textContent = `${message.search_result && message.search_result.status !== 'found' ? 'Sourcing review needed · ' : ''}${message.search_result?.checked_at ? `Search checked ${date(message.search_result.checked_at)} · ` : ''}${message.image_status === 'failed' ? 'Image failed · manual review needed · ' : ''}${message.memory_status === 'failed' ? 'Memory update failed · ' : ''}${message.developer_feedback !== null && message.developer_feedback !== undefined ? 'Developer feedback · ' : ''}${date(message.created_at)} · ${message.source === 'greeting' ? 'Automatic greeting · ' : message.source === 'ai' ? 'Jules AI · ' : message.source === 'ai_fallback' ? 'AI failed · manual review needed · ' : ''}${status}`;
     item.append(bubble, meta); $('messages').append(item);
   }
   $('older').hidden = !cursor;
@@ -59,12 +59,23 @@ async function loadConversation(id, earlier = false) {
   if (!earlier) $('messages').scrollTop = $('messages').scrollHeight;
 }
 async function loadInbox() {
-  const data = await api('/api/admin');
+  const [data, reports] = await Promise.all([api('/api/admin'), api('/api/admin?view=feedback')]);
+  $('feedback').replaceChildren();
+  if (!reports.feedback.length) $('feedback').textContent = 'No feedback yet.';
+  for (const report of reports.feedback) {
+    const button = document.createElement('button'); button.className = 'person-button';
+    const title = document.createElement('strong'); title.textContent = report.developer_feedback;
+    const subtitle = document.createElement('span'); subtitle.textContent = `${report.conversations?.sender_id ?? 'Tester'} · ${date(report.created_at)}`;
+    button.append(title, subtitle);
+    button.onclick = () => [...$('people').children].find(item => item.dataset.conversation === report.conversation_id)?.click();
+    $('feedback').append(button);
+  }
   $('login').hidden = true; $('inbox').hidden = false; $('signout').hidden = false;
   $('people').replaceChildren();
   if (!data.conversations.length) { const p = document.createElement('p'); p.className = 'no-people'; p.textContent = 'No conversations yet. Send an iMessage to your assigned line to begin.'; $('people').append(p); }
   for (const person of data.conversations) {
     const button = document.createElement('button'); button.className = `person-button${current === person.id ? ' selected' : ''}`;
+    button.dataset.conversation = person.id;
     const title = document.createElement('strong'); title.textContent = person.sender_id;
     const subtitle = document.createElement('span'); subtitle.textContent = `Last activity · ${date(person.updated_at)}`;
     button.append(title, subtitle); button.disabled = sending;

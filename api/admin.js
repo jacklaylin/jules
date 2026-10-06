@@ -13,6 +13,7 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
       const store = storeFactory(env);
       if (req.method === 'GET') {
         const query = new URL(req.url, 'https://local.invalid').searchParams;
+        if (query.get('view') === 'feedback') return json(res, 200, { feedback: await store.feedback() });
         const id = query.get('conversation');
         if (!id) return json(res, 200, { conversations: await store.list() });
         if (!uuid(id)) return json(res, 400, { error: 'Invalid conversation.' });
