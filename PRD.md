@@ -652,3 +652,4 @@ PDP main imagery also fills its frame with cover cropping, removing internal gre
 
 Neon interaction feedback uses darker saturated gradients for readability and applies only to text, with no glow or highlight around the full link card. Keyboard focus is indicated around the text area.
 The darker text-only gradient also appears on pointer hover, choosing a random palette on entry and staying stable while the pointer remains inside a control. Touch retains pressed feedback.
+The wishlist header stays at the top during page scrolling and compacts after scrolling down, restoring its full size near the top. Keep the logo and logout visible, with reduced-motion support.
