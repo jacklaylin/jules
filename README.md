@@ -258,6 +258,12 @@ No new database schema or human queue is introduced. Whole-outfit searches are c
 
 See `evals/IDENTIFICATION.md` for the 12-case evaluation, independent answer labels, scoring, and release gate. Run outputs/photos live in Git-ignored `.eval-local/`, not the deployed app. Offline logic tests do not establish image recognition accuracy. Real-image evaluation and phone acceptance are pending.
 
+## Automatic price alerts — local implementation, live acceptance pending
+
+See [MILESTONE-8.md](MILESTONE-8.md) for setup and acceptance. Apply `db/009_price_alerts.sql`, set `PRICE_ALERTS_ENABLED=true` and a private random `CRON_SECRET` in Vercel, then deploy. The daily scheduled endpoint checks each due alert every three days using retailer structured data; no AI search runs on every check.
+
+Wishlist bells require a retailer-sourced size before activation. Baselines use the lowest verified in-stock price for that size across the supplied links, separately per currency. A drop must exceed 10%; higher merchant prices falling but remaining above the lowest do not qualify. Accepted texts include the qualifying link and lower the reference for future alerts. Missing size-bound price/stock evidence prevents activation or notification. Live retailer coverage, database functions, persistence, and phone delivery must still be verified.
+
 ## Simple cost dashboard
 
 Run `db/006_costs.sql` in your existing Supabase project’s **SQL Editor → New query → Run**. This creates a private cost ledger; it produces no new credential. Keep your existing Supabase environment variables in Vercel. Deploy the updated application through the existing Vercel deployment workflow, sign in at `/admin`, and click **Costs** (or open `/costs.html`).

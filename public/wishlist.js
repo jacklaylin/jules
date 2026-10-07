@@ -7,7 +7,7 @@ const fragment=new URLSearchParams(location.hash.slice(1));
 if(fragment.has('access_token')){token=fragment.get('access_token');session.save({access_token:token,refresh_token:fragment.get('refresh_token'),expires_at:Number(fragment.get('expires_at'))||Date.now()/1000+(Number(fragment.get('expires_in'))||3600)});sessionStorage.removeItem('jules_wishlist_token');}
 if(location.hash)history.replaceState(null,'','/wishlist');
 const message=text=>{$('notice').textContent=text;};
-function clear(){generation++;detailVersion++;urls.forEach(URL.revokeObjectURL);urls.clear();imageCache.clear();$('grid').replaceChildren();$('detail-content').replaceChildren();$('detail').close();}
+function clear(){generation++;detailVersion++;urls.forEach(URL.revokeObjectURL);urls.clear();imageCache.clear();$('grid').replaceChildren();$('detail-content').replaceChildren();$('detail').close();$('alert-picker').close();alertSelection=null;}
 function login(){clear();token=null;session.clear();sessionStorage.removeItem('jules_wishlist_token');$('login').hidden=false;$('collection').hidden=true;$('logout').hidden=true;}
 async function authorizedFetch(query='',options={}){
  try{token=await session.token()||token;}catch(e){if(!session.read())login();throw e;}
@@ -65,8 +65,37 @@ async function load(){
  clear();$('login').hidden=true;$('collection').hidden=false;$('logout').hidden=false;$('empty').hidden=true;$('count').textContent='';$('grid').setAttribute('aria-busy','true');for(let i=0;i<4;i++){const tile=node('div',null,'tile');tile.setAttribute('aria-hidden','true');tile.append(skeleton('photo'),skeleton('skeleton-card-title'),skeleton('skeleton-price'));$('grid').append(tile);}
  let items;try{({items}=await api());}catch(e){$('grid').replaceChildren();throw e;}finally{$('grid').setAttribute('aria-busy','false');}
  $('grid').replaceChildren();$('login').hidden=true;$('collection').hidden=false;$('logout').hidden=false;$('empty').hidden=items.length>0;$('count').textContent=items.length+' '+(items.length===1?'ITEM':'ITEMS');
- for(const item of items){const tile=node('button',null,'tile');tile.type='button';tile.append(item.has_image?photo(`?item=${item.image_item}&image=product`,item.name):node('div','Image unavailable','photo'),node('strong',item.name),node('span',priceRange(item.price_ranges),'card-price'));if(item.sourcing_status==='store_not_found')tile.append(node('span','Product identified · Store not found','card-state'));tile.onclick=()=>detail(item.id);$('grid').append(tile);}message('');
+ for(const item of items){const card=node('div',null,'product-card');const tile=node('button',null,'tile');tile.type='button';tile.append(item.has_image?photo(`?item=${item.image_item}&image=product`,item.name):node('div','Image unavailable','photo'),node('strong',item.name),node('span',priceRange(item.price_ranges),'card-price'));if(item.sourcing_status==='store_not_found')tile.append(node('span','Product identified · Store not found','card-state'));tile.onclick=()=>detail(item.id);card.append(tile);if(item.alerts_enabled)card.append(alertToggle(item));$('grid').append(card);}message('');
 }
+let alertSelection=null,toastTimer;
+const alertPost=input=>api('',{method:'POST',body:JSON.stringify(input)});
+function toast(text){clearTimeout(toastTimer);$('toast').textContent=text;$('toast').hidden=false;toastTimer=setTimeout(()=>{$('toast').hidden=true;},6000);}
+function alertToggle(item){
+ const button=node('button',null,'alert-toggle');button.type='button';
+ button.innerHTML='<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM10 21h4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+ const update=()=>{const active=Boolean(item.price_alert?.active);button.setAttribute('aria-pressed',String(active));button.setAttribute('aria-label',`${active?'Turn off':'Set up'} price alert for ${item.name}`);button.title=active?`Price alert on · ${item.price_alert.size}`:'Set up price alert';};update();
+ button.onclick=async()=>{
+   button.disabled=true;
+   try{
+     if(item.price_alert?.active){await alertPost({action:'alert-disable',group:item.id});item.price_alert.active=false;update();toast('Price alert turned off.');return;}
+     alertSelection={item,update};const selected=alertSelection;
+     $('alert-size').replaceChildren(node('option','Choose a size'));$('alert-size').firstChild.value='';$('alert-size').disabled=true;$('alert-save').disabled=true;$('alert-note').textContent='Checking sizes across your retailer links…';$('alert-picker').showModal();
+     const {sizes}=await alertPost({action:'alert-options',group:item.id});
+     if(alertSelection!==selected||!$('alert-picker').open)return;
+     for(const size of sizes){const option=node('option',size);option.value=size;$('alert-size').append(option);}
+     $('alert-size').disabled=!sizes.length;$('alert-note').textContent=sizes.length?'Sizes come from the retailer listings; availability can change.':'We couldn’t read sizes from these listings. Price alerts are unavailable for this item for now.';
+   }catch(e){$('alert-note').textContent=e.message;message(e.message);}finally{button.disabled=false;}
+ };return button;
+}
+$('alert-size').onchange=()=>{$('alert-save').disabled=!$('alert-size').value;};
+$('alert-close').onclick=()=>{$('alert-picker').close();alertSelection=null;};
+$('alert-picker').addEventListener('close',()=>{alertSelection=null;});
+$('alert-form').onsubmit=async event=>{
+ event.preventDefault();if(!alertSelection||!$('alert-size').value)return;
+ const selected=alertSelection;$('alert-save').disabled=true;$('alert-size').disabled=true;$('alert-close').disabled=true;
+ try{const data=await alertPost({action:'alert-enable',group:selected.item.id,size:$('alert-size').value});selected.item.price_alert=data;selected.update();$('alert-picker').close();toast("We'll text you if the price drops more than 10% and your size is available");}
+ catch(e){$('alert-note').textContent=e.message;}finally{$('alert-save').disabled=!$('alert-size').value;$('alert-size').disabled=false;$('alert-close').disabled=false;}
+};
 $('login-form').onsubmit=async e=>{e.preventDefault();$('login-button').disabled=true;try{const data=await api('',{method:'POST',body:JSON.stringify({action:'login',email:$('email').value})});message(data.message);}catch(e){message(e.message);}finally{$('login-button').disabled=false;}};
 $('logout').onclick=async()=>{$('logout').disabled=true;try{await api('',{method:'POST',body:JSON.stringify({action:'logout'})});login();message('Logged out.');}catch(e){message(e.message);}finally{$('logout').disabled=false;}};
 const closeDetail=()=>{detailVersion++;$('detail').close();};

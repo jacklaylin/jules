@@ -1,17 +1,34 @@
 import {verifyListing,verifyWishlistRows} from '../lib/listings.js';
+import { inspectAlertLinks, baselineOffers, readSizeOffers, lowestAvailable } from '../lib/price-alerts.js';
 import { createStore } from '../lib/store.js';
 import { wishlistUser, sessionHash, groupWishlist } from '../lib/wishlist.js';
 import { authorize } from '../lib/auth.js';
 import { json, readJson, uuid } from '../lib/http.js';
 
 export const config = { api: { bodyParser: false }, maxDuration: 120 };
-export function createWishlistHandler({ env = process.env, storeFactory = createStore, auth = wishlistUser, admin = authorize, fetcher = fetch, verify = verifyListing } = {}) {
+export function createWishlistHandler({ env = process.env, storeFactory = createStore, auth = wishlistUser, admin = authorize, fetcher = fetch, verify = verifyListing, inspect = inspectAlertLinks } = {}) {
   return async (req, res) => {
     try {
       if (env.WISHLIST_ENABLED !== 'true') return json(res, 503, { error: 'Wishlist is not available yet.' });
       const store = storeFactory(env);
       if (req.method === 'POST') {
         const input = await readJson(req, 16384);
+        if (['alert-options','alert-enable','alert-disable'].includes(input.action)) {
+          if(env.PRICE_ALERTS_ENABLED!=='true')return json(res,503,{error:'Price alerts are not enabled yet.'});
+          const access=await auth(req.headers,env,store,fetcher);
+          if(access.status!==200)return json(res,access.status,{error:'Please sign in with your invited email.'});
+          if(!uuid(input.group))return json(res,400,{error:'Invalid item.'});
+          const item=groupWishlist(await store.wishlistEntries(access.conversation)).find(g=>g.id===input.group);
+          if(!item)return json(res,404,{error:'Item not found.'});
+          if(input.action==='alert-disable'){await store.disablePriceAlert(access.conversation,item.id);return json(res,200,{active:false});}
+          const {sizes,checks}=await inspect(item.links,link=>readSizeOffers(link,fetcher));
+          if(input.action==='alert-options')return json(res,200,{sizes});
+          if(typeof input.size!=='string'||!sizes.includes(input.size))return json(res,400,{error:'Select a size found on the retailer listings.'});
+          const baselines=lowestAvailable(baselineOffers(checks,input.size));
+          if(!baselines.length)return json(res,422,{error:'We couldn’t verify an available price for that size. Try another size or check back later.'});
+          const alert=await store.enablePriceAlert({p_conversation:access.conversation,p_item:item.image_item,p_group:item.id,p_name:item.name,p_size:input.size,p_baselines:baselines,p_links:item.links.map(({url,name})=>({url,name}))});
+          return json(res,200,{active:alert.active,size:alert.size});
+        }
         if (input.action === 'refresh') {
           if(typeof input.refresh_token!=='string'||!input.refresh_token||input.refresh_token.length>8192)return json(res,400,{error:'Invalid session.'});
           const response=await fetcher(`${env.SUPABASE_URL.replace(/\/$/, '')}/auth/v1/token?grant_type=refresh_token`,{method:'POST',headers:{apikey:env.SUPABASE_ANON_KEY,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:input.refresh_token}),signal:AbortSignal.timeout(10000)});
@@ -59,6 +76,10 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
       if (groupId && !uuid(groupId)) return json(res,400,{error:'Invalid item.'});
       if (!id || groupId) {
         const groups = groupWishlist(await verifyWishlistRows(await store.wishlistEntries(access.conversation),fetcher,verify));
+        if(env.PRICE_ALERTS_ENABLED==='true'){
+          const alerts=await store.priceAlerts(access.conversation);
+          for(const group of groups){const alert=alerts.find(a=>a.group_id===group.id);group.price_alert=alert?{active:alert.active,size:alert.size,last_checked_at:alert.last_checked_at,notified:alert.notified}:null;group.alerts_enabled=true;}
+        }
         if (groupId) {
           const item = groups.find(g=>g.id===groupId);
           return item ? json(res,200,{item}) : json(res,404,{error:'Item not found.'});

@@ -62,10 +62,6 @@ header.compact .wordmark{font-size:34px;letter-spacing:0}
 
 .photo-carousel{display:grid;grid-template-rows:minmax(0,1fr) auto;min-height:0;min-width:0;overflow:hidden}.carousel-view{min-height:0;overflow:hidden;touch-action:pan-y}.carousel-view>.photo{height:100%;width:100%;aspect-ratio:auto}.carousel-view .photo img{object-fit:cover;mix-blend-mode:normal}.carousel-view.original-photo .photo img{object-fit:contain}.carousel-controls{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;background:#fff}.carousel-controls button{padding:8px;min-width:44px;min-height:44px}.carousel-controls button:disabled{opacity:.3;cursor:default}.carousel-caption{font-size:11px;color:#555;text-align:center}@media(max-width:800px){.carousel-view{height:60dvh}.photo-carousel{width:100%}}
 
-.card-state{display:block;font-size:11px;color:#666;margin-top:8px}.sourcing-state{font-size:13px;font-weight:600}.sourcing-note{font-size:13px;color:#666;line-height:1.5}.identity-sources{font-size:13px;font-weight:500;margin-top:24px}
-
-.carousel-view .photo img{object-fit:contain}.identity-sources a{display:block;margin:10px 0}
-
 /* A slow color sweep only while hovering over the logo. */
 @media(hover:hover) and (pointer:fine){
  .wordmark:hover{background-size:200% 100%;animation:wordmark-gradient 2.4s ease-in-out infinite alternate}
@@ -73,6 +69,13 @@ header.compact .wordmark{font-size:34px;letter-spacing:0}
 @keyframes wordmark-gradient{from{background-position:0% 50%}to{background-position:100% 50%}}
 @media(prefers-reduced-motion:reduce){.wordmark:hover{animation:none;background-size:100% 100%}}
 @media(forced-colors:active){.wordmark:hover{background:none;animation:none;color:CanvasText}}
+
+.card-state{display:block;font-size:11px;color:#666;margin-top:8px}.sourcing-state{font-size:13px;font-weight:600}.sourcing-note{font-size:13px;color:#666;line-height:1.5}.identity-sources{font-size:13px;font-weight:500;margin-top:24px}
+
+.carousel-view .photo img{object-fit:contain}.identity-sources a{display:block;margin:10px 0}
+.product-card{position:relative;min-width:0}.alert-toggle{position:absolute;top:8px;right:8px;width:44px;height:44px;display:grid;place-items:center;padding:0;background:#fffffff2;border-radius:50%;color:#333}.alert-toggle[aria-pressed=true]{color:#2359ec;background:#eaf0ff}.alert-toggle[aria-pressed=true]::after{content:'';position:absolute;right:7px;top:7px;width:5px;height:5px;border-radius:50%;background:currentColor}.alert-toggle:disabled{opacity:.5;cursor:wait}
+#alert-picker{width:min(420px,calc(100vw - 32px));height:auto;max-height:85dvh;overflow:auto;padding:24px;margin:auto}#alert-picker[open]{display:block}#alert-picker h2{font-weight:400;font-size:26px}#alert-picker p{font-size:13px;line-height:1.6;color:#555}#alert-close{display:block;margin-left:auto}#alert-size{font:inherit;background:white;border:1px solid #aaa;padding:12px;width:100%}#alert-save:disabled{opacity:.4;cursor:default}#toast{position:fixed;z-index:20;bottom:24px;left:50%;transform:translateX(-50%);width:max-content;max-width:calc(100vw - 32px);background:#161616;color:white;padding:16px 20px;border-radius:8px;box-shadow:0 4px 24px #0002;font-size:13px;line-height:1.5;animation:enter .2s ease}
+@media(forced-colors:active){.alert-toggle[aria-pressed=true]{outline:2px solid Highlight}#toast{border:1px solid CanvasText}}
 
 /* Typed colors interpolate smoothly when the logo selects a new palette. */
 @property --neon-a{syntax:"<color>";inherits:true;initial-value:#ad00a6}
