@@ -5,6 +5,11 @@ import {productShoppingRange} from '../lib/structured-product.js';
 import {textWishlistAction} from '../lib/text-wishlist.js';
 const facts=[{field:'gender',key:'identity',value:'man'},{field:'size',key:'shoes/eu',value:'45'}];
 const men={name:'Speedrock sneakers',url:'https://www.prada.com/us/en/p/sneaker/model-code',match:'likely_match',sourcing_status:'store_found',listing_check:{status:'verified',color:'Black',shopping_range:'men'}};
+test('failed product pages remain sourcing failures rather than being mislabeled as range mismatches',()=>{
+ const failed={...men,sourcing_status:'store_not_found',listing_check:undefined,listing_checks:[{status:'not_product',reason:'category_page'}]};
+ const result=relevantProducts({products:[failed]},shoppingConstraints(facts,'Sneakers'));
+ assert.equal(result.products.length,1);assert.equal(result.relevance_rejections.length,0);assert.equal(result.products[0].listing_checks[0].reason,'category_page');
+});
 test('saved shopping range precedes identity; explicit requests and gifts override self defaults',()=>{
   assert.equal(shoppingConstraints(facts,'I want Prada sneakers').range,'men');
   assert.equal(shoppingConstraints([...facts,{field:'shopping_range',value:'womenswear'}],'I want Prada sneakers').range,'women');

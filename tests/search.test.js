@@ -6,6 +6,15 @@ const url='https://retailer.example/products/waxed-jacket';
 const result={intro:'I can’t confirm the exact jacket; here is a similar option.',products:[{brand:'Example',name:'Waxed jacket',url,match:'similar',reason:'Dark waxed cotton with a corduroy collar.'}],needs_review:false};
 const response=(output)=>({ok:true,json:async()=>({status:'completed',output})});
 const output=[{type:'web_search_call',status:'completed',action:{type:'search',sources:[{url}]}},{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify(result)}]}];
+test('failed category URLs are excluded on refinement and their page checks survive profile filtering',async()=>{
+ const category='https://www.prada.com/us/en/mens/shoes/speedrock/c/10851US';let calls=0;
+ const found=await searchProducts('Prada Speedrock',[],{},async(endpoint,options)=>{
+  const request=JSON.parse(options.body);assert.equal(request.tool_choice,'required');calls++;
+  if(calls===2){assert.ok(request.input[0].content[0].text.includes(category));return response([{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify({intro:'None found.',products:[],needs_review:true})}]}]);}
+  return response([{type:'web_search_call',status:'completed',action:{sources:[{url:category}]}},{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify({...result,products:[{...result.products[0],brand:'Prada',name:'Speedrock sneakers',url:category}]})}]}]);
+ },{range:'men'});
+ assert.equal(calls,2);assert.equal(found.initial_checks[0].checks[0].reason,'category_page');assert.equal(found.initial_checks[0].url,category);
+});
 test('product links require completed live search and retrieved source URLs; invented and duplicate URLs are dropped',()=>{
   const verified=validateSearch({output},{...result,products:[...result.products,{...result.products[0],url:'https://retailer.example/invented'},result.products[0]]});
   assert.equal(verified.products.length,1);assert.equal(verified.status,'found');

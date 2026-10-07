@@ -11,6 +11,8 @@ test('reactions acknowledge identification, recommendations, and uncaptained ima
   assert.equal(progressEmoji(message('What should I wear?')), '💭');
   assert.equal(progressEmoji(message('[Image]', [{}])), '👀');
   assert.equal(progressEmoji(message('Thanks')), null);
+  assert.equal(progressEmoji(message('I really want the Prada Speedrock sneakers.')), '👀');
+  assert.equal(progressEmoji(message('I want the ASICS GEL-KAYANO 14')), '👀');
 });
 
 test('typing and reactions use the incoming line and message; failures allow cleanup', async () => {

@@ -40,5 +40,5 @@ test('text wishlist expands only retailer-provided, independently verified color
 test('failed retailer checks are retained for diagnosis and do not blame the user’s model spelling',async()=>{
   let recorded;
   const body=await textWishlistAction({action:'start',query:'Prada Speedrock'},{env:{},record:async r=>{recorded=r;},search:async()=>({status:'identified_no_store',products:[{url,match:'likely_match',sourcing_status:'store_not_found',listing_checks:[{status:'not_product'}]}]})});
-  assert.match(body,/I found listings/);assert.doesNotMatch(body,/double-check/);assert.equal(recorded.text_wishlist_diagnostics.candidates[0].checks[0].status,'not_product');
+  assert.doesNotMatch(body,/double-check|https:/);assert.equal(recorded.text_wishlist_state,null);assert.equal(recorded.text_wishlist_diagnostics.candidates[0].checks[0].status,'not_product');
 });
