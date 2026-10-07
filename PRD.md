@@ -73,6 +73,12 @@ Already knows what they want but wants the best transaction. Pain point: price, 
 ### 4.1 Conversation over interface
 The primary interface is iMessage via Photon. Users communicate naturally and the system should infer and remember context. A small companion web wishlist lets users revisit items and links Jules has already sent; shopping requests still start in the conversation. This is the first step toward a digital closet, not a full consumer dashboard.
 
+Conversation behavior must follow intent and expected outcome, not phrase triggers. Interpret each message using the current choices, recent conversation, relevant images, and saved preferences. The model proposes a structured interpretation; application code validates evidence, product references, and consent before acting. Do not use keyword or regex rules to choose conversational responses, reactions, or state transitions.
+
+Users may choose one variant, several, all, none, or express a tentative preference. Preserve that set and its uncertainty and offer the next useful step. Do not restart sourcing or repeat a list when the user has already narrowed it. Ask for clarification only when it materially affects what happens next. For example, interest in two colors should lead to an offer to wishlist both and a question about price-drop reminders for both, rather than forcing a single color. Offers are not completed actions; saving and reminders require clear consent scoped to the intended set.
+
+Conversational continuity is a trust requirement. Regression tests must cover varied wording and multi-turn outcomes, including subsets, all/none, corrections, uncertainty, topic changes, and consent. Examples illustrate behavior; they are not required commands or exact response templates.
+
 ### 4.2 Taste before catalog
 Do not show large result sets. Default to **3 products**, maximum **5** unless explicitly requested.
 

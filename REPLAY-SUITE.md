@@ -4,6 +4,10 @@ Acceptance: asking about a shoe yields sourced, individually checked product-pag
 
 ## Before reporting a fix
 
+Follow the conversation operating principle in `AGENTS.md` and PRD Section 4.1. A single sentence reproducer is not sufficient coverage for an interpretation bug. Test varied language across complete turns: choose one, a subset, all, none, tentative preferences, exclusions, corrections, and a topic change. Assert the intended selected set, preserved context, useful next step, and consent scope rather than matching trigger phrases or exact response wording. A response that repeats the full list or forces one choice after the user expresses interest in several is a failure. Technical URL and evidence checks remain deterministic.
+
+Existing phrase-based reaction and wishlist routing, single-selection handling, and wording-based clarification grading still need to be refactored to meet this principle. This document establishes the required behavior; it does not claim the current runtime already satisfies it.
+
 1. Open `/replay.html` signed in as the owner.
 2. Replay the latest reported turn with the expected brand/model, and download its private snapshot. The snapshot uses the current profile: it cannot reconstruct the profile at the time of an older failure. Keep these reports outside Git.
 3. Run all eight synthetic cases, across Nike, ASICS, New Balance, Salomon, and Prada; include correction, explicit recipient, misspelling/spacing, ambiguous versions, and unknown models.

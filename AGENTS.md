@@ -47,6 +47,18 @@ Scalability is not currently a priority.
 - V0 must not store payment-card details or retailer credentials.
 - V0 must not autonomously complete purchases.
 
+## Conversation operating principle
+
+Build around user intent and the expected conversational outcome. Each turn should move the current conversation forward while preserving context and trust.
+
+- Do not use specific phrases, keyword lists, or regular expressions to decide Jules' conversational intent, reaction, response, or next action. User examples describe behavior, not commands to match.
+- Use the model to interpret the message, relevant image, recent conversation, and pending choices into a structured intent and proposed outcome. Code validates product references, supported facts, permissions, and consent before executing an action; it does not infer intent from wording.
+- Selection can mean one item, several, all, none, tentative preferences, exclusions, or a request for other options. Preserve the user's intended set and uncertainty; do not force every reply into a single numbered choice.
+- Progress from the current state. Do not restart search, repeat a full list, or ask the same question when the user has already supplied useful information. Clarify only when ambiguity materially affects the next action.
+- Offer the next useful step without claiming it has already happened. For multiple desired variants, offer to save the set and ask whether price-drop reminders should apply to that set; obtain clear consent before saving or enabling reminders.
+- Tests assert intent, state transitions, supported actions, and conversational progress across varied language. Do not make exact phrasing the acceptance criterion. Include multi-turn cases for subsets, all, none, corrections, uncertainty, topic changes, and consent scope.
+- Treat a conversational misstep as a trust defect. Fix the underlying interpretation/state model, not the single sentence in the bug report. Review existing phrase-based routing when changing the affected flow.
+
 ## Current milestone
 
 Follow the milestone explicitly assigned by the user.
