@@ -55,3 +55,17 @@ test('retailer brand and department words in a title do not hide the matching pr
  const value=await verifyListing(url,'Barbour Men’s Transport Windowpane Waxed Jacket',async()=>html({...product,brand:{name:'Barbour'}}));
  assert.equal(value.status,'verified');
 });
+test('ProductGroup size variants establish one page without assuming stock or converting sizes',async()=>{
+ const nike='https://www.nike.com/t/air-max-90-mens-shoes/CN8490-002';
+ const group={'@type':'ProductGroup',name:'Nike Air Max 90 Men’s Shoes',brand:{name:'Nike'},audience:{suggestedGender:'https://schema.org/Male'},hasVariant:[6,7].map(size=>({'@type':'Product',name:'Air Max 90',size:String(size),color:'Black',offers:{url:nike,price:'150',priceCurrency:'USD'}}))};
+ const value=await verifyListing(nike,'Nike Air Max 90',async()=>html(group));assert.equal(value.status,'verified');assert.equal(value.shopping_range,'men');assert.equal(value.price_snapshot.amount,150);assert.equal(value.availability,null);
+ const mixed=await verifyListing(nike,'Nike Air Max 90',async()=>html({...group,hasVariant:[...group.hasVariant,{...group.hasVariant[0],color:'White'}]}));assert.equal(mixed.status,'not_product');
+ const wrong=await verifyListing(nike,'Nike Air Max 95',async()=>html(group));assert.equal(wrong.status,'not_product');
+});
+test('short model names and product-bound unisex subtitles remain verifiable',async()=>{
+ const salomon='https://www.salomon.com/en-us/product/xt-6/L47445300';
+ const group={'@type':'ProductGroup',name:'XT-6',brand:{name:'Salomon'},hasVariant:[{'@type':'Product',name:'XT-6 Black',color:'Black',offers:{url:salomon,price:185,priceCurrency:'USD'}}]};
+ const page='<h1>XT-6</h1><h2>Sneakers · Unisex</h2><script type="application/ld+json">'+JSON.stringify(group)+'</script>';
+ const value=await verifyListing(salomon,'Salomon XT-6',async()=>new Response(page,{headers:{'content-type':'text/html'}}));assert.equal(value.status,'verified');assert.equal(value.shopping_range,'unisex');
+ assert.equal((await verifyListing(salomon,'Salomon XT-4',async()=>new Response(page,{headers:{'content-type':'text/html'}}))).status,'not_product');
+});

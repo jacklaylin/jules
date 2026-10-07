@@ -91,7 +91,7 @@ test('prose from hosted search is structured separately while original sources s
     }
     assert.equal(request.tools,undefined);assert.equal(request.text.format.type,'json_schema');
     return response([{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify({...result,products:[result.products[0],{...result.products[0],url:'https://retailer.example/invented'}]})}]}]);
-  });
+  },{},true);
   assert.equal(calls,2);assert.equal(found.products.length,1);assert.equal(found.products[0].url,url);
 });
 
