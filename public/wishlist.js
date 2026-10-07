@@ -72,7 +72,9 @@ const alertPost=input=>api('',{method:'POST',body:JSON.stringify(input)});
 function toast(text){clearTimeout(toastTimer);$('toast').textContent=text;$('toast').hidden=false;toastTimer=setTimeout(()=>{$('toast').hidden=true;},6000);}
 function alertToggle(item){
  const button=node('button',null,'alert-toggle');button.type='button';
- button.innerHTML='<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM10 21h4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+ const paint=`bell-${crypto.randomUUID()}`;
+ button.style.setProperty('--bell-paint',`url(#${paint})`);
+ button.innerHTML=`<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><defs><linearGradient id="${paint}" x1="0" y1="0" x2="1" y2="1"><stop class="bell-start" offset="0"/><stop class="bell-end" offset="1"/></linearGradient></defs><path class="bell-shape" d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path class="bell-clapper" d="M10 21h4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><span class="alert-on" aria-hidden="true">ON</span>`;
  const update=()=>{const active=Boolean(item.price_alert?.active);button.setAttribute('aria-pressed',String(active));button.setAttribute('aria-label',`${active?'Turn off':'Set up'} price alert for ${item.name}`);button.title=active?`Price alert on · ${item.price_alert.size}`:'Set up price alert';};update();
  button.onclick=async()=>{
    button.disabled=true;

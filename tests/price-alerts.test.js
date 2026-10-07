@@ -1,5 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
 import {parseSizeOffers,inspectAlertLinks,baselineOffers,priceDrop,readSizeOffers,lowestAvailable} from '../lib/price-alerts.js';
 import {createWishlistHandler} from '../api/wishlist.js';
 import {createPriceChecksHandler} from '../api/price-checks.js';
@@ -8,9 +9,23 @@ const url='https://www.barbour.com/jacket';
 const html=value=>`<script type="application/ld+json">${JSON.stringify(value)}</script>`;
 const offer=(amount=100,size='M',available=true)=>({size,key:size.toUpperCase(),url,name:'Waxed jacket',amount,currency:'USD',available,checked_at:'2026-10-06T00:00:00Z'});
 const product={ '@type':'ProductGroup',name:'Waxed jacket',hasVariant:[{'@type':'Product',name:'Waxed jacket medium',size:'M',offers:{price:'100',priceCurrency:'USD',availability:'https://schema.org/InStock'}},{'@type':'Product',name:'Waxed jacket large',size:'L',offers:{price:'120',priceCurrency:'USD',availability:'https://schema.org/OutOfStock'}}]};
+test('actual Barbour selectors expose all sizes and prove individual stock separately from price',async()=>{
+ const source=await readFile(new URL('./fixtures/barbour-sizes.html',import.meta.url),'utf8');
+ const rows=parseSizeOffers(source,'Transport Windowpane Waxed Jacket','https://www.barbour.com/us/paul-smith-loves-barbour-transport-windowpane-waxed-jacket-MWX2611BR71.html');
+ assert.deepEqual(rows.map(r=>r.size),['XS','S','M','L','XL','XXL']);assert.deepEqual(rows.filter(r=>r.available).map(r=>r.size),['XS','L','XL','XXL']);assert.ok(rows.every(r=>r.amount===700&&r.currency==='USD'));
+ const sold=await readFile(new URL('./fixtures/barbour-sold-out-sizes.html',import.meta.url),'utf8');
+ const unavailable=parseSizeOffers(sold,'Key Transport Waxed Jacket','https://www.barbour.com/us/paul-smith-loves-barbour-key-transport-waxed-jacket-MWX2610BR71S.html');assert.ok(unavailable.length>0);assert.ok(unavailable.every(r=>!r.available));
+ assert.ok(parseSizeOffers(source,'Transport Windowpane Waxed Jacket','https://www.barbour.com/us/other-MWX1111.html').every(r=>!r.available));
+});
 test('reads size-specific product variants and keeps sold-out sizes selectable',()=>{
  const rows=parseSizeOffers(html(product),'Waxed jacket',url);assert.deepEqual(rows.map(r=>r.size),['M','L']);assert.equal(rows[0].available,true);assert.equal(rows[1].available,false);
  assert.deepEqual(parseSizeOffers(html(product),'Leather boots',url),[]);
+});
+test('actual Natalino Shopify data binds native sizes to stock and a verified same-currency price',async()=>{
+ const source=await readFile(new URL('./fixtures/natalino-sizes.html',import.meta.url),'utf8');
+ const rows=parseSizeOffers(source,'Sport Jacket Beige Brown Glen Check Wool Linen','https://natalino.co/en-us/products/sport-jacket-beige-brown-glen-check-wool-linen');
+ assert.deepEqual(rows.map(r=>r.size),['44','46','48','50R','50L','52R','52L','54R','54L']);assert.deepEqual(rows.filter(r=>r.available).map(r=>r.size),['44','46']);assert.ok(rows.every(r=>r.amount===558&&r.currency==='USD'));
+ const mismatched=parseSizeOffers(source.replaceAll('"price":55800','"price":70000'),'Sport Jacket Beige Brown Glen Check Wool Linen','https://natalino.co/en-us/products/sport-jacket-beige-brown-glen-check-wool-linen');assert.ok(mismatched.every(r=>r.amount===undefined));
 });
 test('generic stock and aggregate prices never prove size-specific eligibility',()=>{
  const shared={ '@type':'Product',name:'Waxed jacket',size:['S','M'],offers:{price:100,priceCurrency:'USD',availability:'https://schema.org/InStock'}};
