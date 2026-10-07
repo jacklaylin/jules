@@ -110,3 +110,13 @@ test('refresh exchanges only the token and returns a no-store rotating session',
  const res=response();await handler(request('POST','/api/wishlist',{action:'refresh',refresh_token:'old-refresh'}),res);
  assert.equal(res.statusCode,200);assert.ok(captured.url.endsWith('/auth/v1/token?grant_type=refresh_token'));assert.deepEqual(JSON.parse(captured.options.body),{refresh_token:'old-refresh'});const data=JSON.parse(res.value);assert.equal(data.refresh_token,'new-refresh');assert.equal(data.user,undefined);assert.equal(res.headers['Cache-Control'],'no-store');
 });
+
+test('identified items keep evidence separate from store links and promote product photos over source crops',async()=>{
+ const result={identification_policy:'visual_comparison',products:[{...product,sourcing_status:'store_not_found',identity_sources:[{url:product.url,name:'Model reference'}]}]};
+ const entries=await wishlistProducts(result,product.url,[],{},async()=>Buffer.from('photo'));
+ assert.equal(entries.length,1);assert.deepEqual(entries[0].links,[]);assert.equal(entries[0].identity_sources.length,1);
+ const {groupWishlist}=await import('../lib/wishlist.js');
+ const rows=[{item_id:id,source_image_id:other,target:'jacket',has_image:true,image_kind:'outfit_crop',candidate_rank:0,links:[]},{item_id:other,source_image_id:other,target:'jacket',has_image:true,image_kind:'product',candidate_rank:1,photo_count:2,links:[]}];
+ assert.equal(groupWishlist(rows)[0].image_item,other);assert.equal(groupWishlist(rows)[0].photo_count,2);
+ const groups=groupWishlist([{...rows[1],sourcing_status:'store_not_found',identity_sources:entries[0].identity_sources}]);assert.equal(groups[0].sourcing_status,'store_not_found');assert.deepEqual(groups[0].links,[]);assert.deepEqual(groups[0].price_ranges,[]);
+});

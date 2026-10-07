@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import sharp from 'sharp';
-import { fetchProductPhoto, productPhotoURL } from '../lib/product-photos.js';
+import { fetchProductPhoto, productPhotoURL, listingPhotos, fetchListingPhotos } from '../lib/product-photos.js';
 import { sendGreeting } from '../lib/photon.js';
 import { receiveInInbox } from '../lib/inbox.js';
 
@@ -80,4 +80,18 @@ test('follow-up searches retain the original provider image ID and pass only sav
   await receiveInInbox(followup, { AI_ENABLED: 'true' }, options);
   await receiveInInbox(followup, { AI_ENABLED: 'true' }, options);
   assert.equal(calls, 1);
+});
+
+test('website photos require matching structured product data and trusted asset URLs',async()=>{
+ const make=data=>'<script type="application/ld+json">'+JSON.stringify(data)+'</script>';
+ const data={'@type':'Product',name:'Transport Windowpane Waxed Jacket',image:['https://www.barbour.com/jacket.jpg','https://127.0.0.1/private']};
+ assert.deepEqual(listingPhotos(make(data),'Transport Windowpane Waxed Jacket'),['https://www.barbour.com/jacket.jpg']);
+ assert.deepEqual(listingPhotos(make({...data,name:'Other jacket'}),'Transport Windowpane Waxed Jacket'),[]);
+ assert.deepEqual(listingPhotos('<meta property="og:image" content="https://www.barbour.com/category.jpg">','Jacket'),[]);
+ await assert.rejects(fetchListingPhotos('https://barbour.com.evil.example/a','Jacket',()=>assert.fail()));
+ const png=await sharp({create:{width:500,height:700,channels:3,background:'white'}}).png().toBuffer();
+ const images=await fetchListingPhotos('https://www.barbour.com/jacket','Transport Windowpane Waxed Jacket',async(url,options)=>{
+ assert.equal(options.redirect,'error');return url.endsWith('.jpg')?new Response(png,{headers:{'content-type':'image/png'}}):new Response(make(data),{headers:{'content-type':'text/html'}});
+ });
+ assert.equal(images.length,1);assert.equal(images[0].source_url,'https://www.barbour.com/jacket');assert.equal((await sharp(Buffer.from(images[0].data,'base64')).metadata()).width,500);
 });

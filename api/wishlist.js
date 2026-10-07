@@ -65,6 +65,7 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
         return json(res,200,{items:groups.map(({links,...group})=>group)});
       }
       if (!uuid(id)) return json(res,400,{error:'Invalid item.'});
+      if(query.get('image')==='reference'){const index=query.get('index');if(!/^[01]$/.test(index??''))return json(res,400,{error:'Invalid photo.'});return image(res,await store.wishlistPhoto(access.conversation,id,Number(index)));}
       if (query.get('image') === 'product' && store.wishlistPhoto) return image(res,await store.wishlistPhoto(access.conversation,id));
       const item = await store.wishlistItem(access.conversation, id);
       if (!item) return json(res,404,{error:'Item not found.'});
@@ -74,7 +75,7 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
         if (!uuid(source) || !item.wishlist_encounters.some(e=>e.source_image_id===source)) return json(res,404,{error:'Image not found.'});
         return image(res,await store.image(source));
       }
-      const { image: bytes, ...product } = item.product;
+      const { image: bytes, additional_images: references, ...product } = item.product;
       return json(res,200,{item:{id:item.id,saved_at:item.saved_at,product,encounters:item.wishlist_encounters.map(e=>({source_image_id:e.source_image_id,found_at:e.messages?.created_at,links:e.product.links,match:e.product.match,reason:e.product.reason}))}});
     } catch { console.log(JSON.stringify({event:'wishlist_request_failed'})); return json(res,503,{error:'Could not load your wishlist. Please try again.'}); }
   };

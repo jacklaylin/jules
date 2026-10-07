@@ -32,7 +32,7 @@ test('Lens uploads private bytes rather than creating a public image URL and fil
   const params=new URL(url).searchParams;assert.equal(params.get('image_id'),'temporary');assert.equal(params.has('url'),false);assert.equal(params.has('q'),false);assert.equal(params.get('auto_crop'),'false');
   return {ok:true,json:async()=>({search_metadata:{status:'Success'},visual_matches:[{link:candidates[0].url,title:'Jacket',thumbnail:thumb},{link:'https://retailer.example/other',title:'Other',thumbnail:'https://127.0.0.1/image'},{link:'https://instagram.com/post',title:'Post',thumbnail:thumb}]})};
  });
- assert.equal(found.length,1);assert.equal(calls,2);
+ assert.equal(found.length,2);assert.equal(calls,2);
  assert.throws(()=>lensCandidates({error:'provider private diagnostic'}));
  assert.deepEqual(lensCandidates({search_metadata:{status:'Success'},error:"Google Lens hasn't returned any results for this query."}),[]);
 });
@@ -57,7 +57,7 @@ test('whole outfit searches pieces independently, groups equivalent sellers, and
   plan:async()=>({scope:'outfit',items:[target,{...target,label:'trousers'}],omitted:['shoes']}),crop:async()=>({}),retrieve:async()=>candidates,
   compare:async t=>({candidates:t.label==='jacket'?[assessment('3'),assessment('2'),assessment('1')]:[]})
  });
- assert.equal(result.products.length,1);assert.equal(result.products[0].url,candidates[0].url);assert.equal(result.products[0].merchant_options.length,2);
+ assert.equal(result.products.length,1);assert.equal(result.products[0].url,candidates[0].url);assert.equal(result.products[0].merchant_options.length,1);
  assert.equal(result.status,'needs_review');assert.deepEqual(result.missing,['trousers']);assert.match(formatSearch(result),/haven’t searched the shoes/);
 });
 import {scoreIdentification} from '../lib/evaluation.js';
@@ -71,4 +71,11 @@ test('evaluation separates false matches, coverage, and correct abstentions; all
 test('higher product evidence selects identity before an official retailer for a different model',async()=>{
  const result=await visualSearchProducts('Find the jacket',[{}],{},null,{plan:async()=>({scope:'item',items:[target],omitted:[]}),crop:async()=>({}),retrieve:async()=>candidates,compare:async()=>({candidates:[{...assessment('1'),product_key:'wrong-other-model'}, {...assessment('2'),distinctive_details:['unique flap angle','specific pattern alignment','double closure seam'],product_key:'correct-model'}]})});
  assert.equal(result.products[0].url,candidates[1].url);assert.equal(result.products[0].merchant_options.length,0);
+});
+
+test('a specific identity survives without a recommended merchant, while contradictions still reject it',async()=>{
+ const deps={plan:async()=>({scope:'item',items:[target],omitted:[]}),crop:async()=>({}),retrieve:async()=>[candidates[2]],compare:async()=>({candidates:[{...assessment('3'),is_product_listing:false}]})};
+ const result=await visualSearchProducts('Find this jacket',[{}],{},null,deps);
+ assert.equal(result.status,'identified_no_store');assert.equal(result.products[0].sourcing_status,'store_not_found');assert.deepEqual(result.products[0].merchant_options,[]);assert.match(formatSearch(result),/haven’t found a store/);
+ assert.equal(assessCandidates(candidates,{candidates:[{...assessment('3'),is_product_listing:false,contradictions:['wrong closure']}]},false,true).length,0);
 });

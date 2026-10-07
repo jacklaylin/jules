@@ -61,3 +61,7 @@ header.compact .wordmark{font-size:34px;letter-spacing:0}
 @media(max-width:560px){header .wordmark{font-size:44px}header.compact .wordmark{font-size:28px}}
 
 .photo-carousel{display:grid;grid-template-rows:minmax(0,1fr) auto;min-height:0;min-width:0;overflow:hidden}.carousel-view{min-height:0;overflow:hidden;touch-action:pan-y}.carousel-view>.photo{height:100%;width:100%;aspect-ratio:auto}.carousel-view .photo img{object-fit:cover;mix-blend-mode:normal}.carousel-view.original-photo .photo img{object-fit:contain}.carousel-controls{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;background:#fff}.carousel-controls button{padding:8px;min-width:44px;min-height:44px}.carousel-controls button:disabled{opacity:.3;cursor:default}.carousel-caption{font-size:11px;color:#555;text-align:center}@media(max-width:800px){.carousel-view{height:60dvh}.photo-carousel{width:100%}}
+
+.card-state{display:block;font-size:11px;color:#666;margin-top:8px}.sourcing-state{font-size:13px;font-weight:600}.sourcing-note{font-size:13px;color:#666;line-height:1.5}.identity-sources{font-size:13px;font-weight:500;margin-top:24px}
+
+.carousel-view .photo img{object-fit:contain}.identity-sources a{display:block;margin:10px 0}

@@ -39,3 +39,8 @@ document.getElementById('correction-form').onsubmit=async event=>{
   correctionStatus.textContent='Correction saved. Refresh your wishlist.';
  }catch(e){correctionStatus.textContent=e.message;}finally{button.disabled=false;}
 };
+
+document.getElementById('refresh-photo').onclick=async()=>{
+ const button=document.getElementById('refresh-photo');button.disabled=true;correctionStatus.textContent='Loading product website photos…';
+ try{await correctionRequest('/api/wishlist-correction',{method:'POST',body:JSON.stringify({action:'refresh_photo',item:document.getElementById('correction-item').value})});correctionStatus.textContent='Website photos saved. Refresh your wishlist.';}catch(e){correctionStatus.textContent=e.message;}finally{button.disabled=false;}
+};
