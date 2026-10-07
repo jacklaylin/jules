@@ -49,7 +49,7 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
           if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) return json(res, 400, { error: 'Enter your email address.' });
           if (!env.SITE_ORIGIN) return json(res, 503, { error: 'Sign-in is not configured.' });
           if (await store.wishlistMember(email)) {
-            const response = await fetcher(`${env.SUPABASE_URL.replace(/\/$/, '')}/auth/v1/otp?redirect_to=${encodeURIComponent(env.SITE_ORIGIN.replace(/\/$/, '') + '/wishlist')}`, {
+            const response = await fetcher(`${env.SUPABASE_URL.replace(/\/$/, '')}/auth/v1/otp?redirect_to=${encodeURIComponent(env.SITE_ORIGIN.replace(/\/$/, '') + (input.destination==='style'?'/style':'/wishlist'))}`, {
               method: 'POST', headers: { apikey: env.SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
               body: JSON.stringify({ email, create_user: true }), signal: AbortSignal.timeout(10000),
             });

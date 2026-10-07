@@ -1,3 +1,5 @@
+import {initWishlistTheme} from './wishlist-theme.js';
+initWishlistTheme();
 import {createSession} from './wishlist-session.js';
 const $ = id => document.getElementById(id);
 const session=createSession({storage:localStorage,lock:work=>navigator.locks?navigator.locks.request('jules-wishlist-refresh',work):work()});
@@ -110,21 +112,4 @@ $('detail').addEventListener('click',e=>{if(backdropPress&&outsideDetail(e))clos
 $('detail').addEventListener('close',()=>{document.body.classList.remove('detail-open');});
 if(token)load().catch(e=>message(e.message));
 if(fragment.get('error_description'))message('This sign-in link has expired. Request a new one.');
-function neonPress(event){const control=event.target.closest('button,a');if(control&&!control.disabled)control.dataset.neon=String(Math.floor(Math.random()*6));}
-document.addEventListener('pointerdown',neonPress);
-document.addEventListener('keydown',event=>{if(!event.repeat&&['Enter',' '].includes(event.key))neonPress(event);});
-document.addEventListener('pointerover',event=>{const control=event.target.closest('button,a');if(control&&!control.contains(event.relatedTarget))neonPress(event);});
-const wordmark=document.querySelector('.wordmark');
-wordmark.dataset.neon=String(Math.floor(Math.random()*6));
-wordmark.addEventListener('pointerenter',event=>{
- if(event.pointerType==='touch'||!matchMedia('(hover:hover) and (pointer:fine)').matches)return;
- const previous=Number(wordmark.dataset.neon);
- wordmark.dataset.neon=String((previous+1+Math.floor(Math.random()*5))%6);
-});
-const header=document.querySelector('header');
-let headerTick=false;
-function updateHeader(){header.classList.toggle('compact',scrollY>8);headerTick=false;}
-window.addEventListener('scroll',()=>{if(!headerTick){headerTick=true;requestAnimationFrame(updateHeader);}},{passive:true});
-updateHeader();
-
 window.addEventListener('storage',event=>{if(event.key==='jules_wishlist_session'&&!event.newValue)login();});

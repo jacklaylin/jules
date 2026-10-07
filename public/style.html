@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Your style · Jules</title><meta name="description" content="A personal style read from Jules. Your outfits, your habits, your starter pack."><meta property="og:title" content="Get your style read · Jules"><meta property="og:description" content="Your outfits, your habits, your starter pack."><link rel="stylesheet" href="/wishlist.css"><link rel="stylesheet" href="/style.css"><script type="module" src="/style.js"></script></head>
+<body>
+<header class="masthead"><a class="wordmark" href="/wishlist" aria-label="Jules wishlist">jules</a><nav aria-label="Your collection"><a href="/wishlist">Wishlist</a><a href="/style" aria-current="page">Your style</a><button id="logout" hidden>Log out ↗</button></nav></header>
+<main>
+<section id="login" hidden><p class="eyebrow">A LITTLE SELF-REFLECTION</p><h1>You have a style.<br>Let's get into it.</h1><p class="intro">Show me what you wear, what you buy, and what catches your eye. I'll put the pieces together.</p><form id="login-form"><label for="email">Your invited email</label><input id="email" type="email" autocomplete="email" placeholder="you@example.com" required><button class="primary" type="submit">Send me a sign-in link ↗</button></form><p class="fine">The first version is for invited testers. Ask whoever introduced you to Jules for an invitation.</p></section>
+<p id="notice" role="status" aria-live="polite">Loading your style…</p>
+<div id="workspace" hidden>
+<div id="style-intro" class="page-heading"><div><p class="eyebrow">PERSONAL STYLE, WITH RECEIPTS</p><h1>Let's get<br>to know you.</h1></div><p class="intro">The outfits you wear. The ones you save. The things you keep coming back to.</p></div>
+<div id="style-steps" class="steps" aria-label="How this works"><span>01 / Show me</span><span>02 / Check my read</span><span>03 / Make it yours</span></div>
+<section id="inputs" class="input-section">
+<div class="section-heading"><div><p class="eyebrow">01 / SHOW ME</p><h2>A few things to go on.</h2></div><p>Start with about five outfits from different days. Receipts and inspiration are optional.</p></div>
+<form id="upload-form" class="upload-form">
+<label>What are you adding?<select id="kind"><option value="outfit">An outfit I wear</option><option value="inspiration">Style inspiration</option><option value="receipt">Purchase receipts</option></select></label>
+<label>Occasion, if relevant<input id="occasion" maxlength="80" placeholder="Everyday, work, going out…"></label>
+<label class="wide">Anything I should know?<input id="source-note" maxlength="600" placeholder="A favorite piece, what you like, whether a purchase was for you…"></label>
+<label class="file-label wide">Choose photos or receipts<input id="files" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif,application/pdf" multiple required><span>JPEG, PNG, WebP, HEIC; PDF for receipts. Up to 12 files total. PDFs and HEIC under 3 MB.</span></label>
+<label class="check wide"><input id="consent" type="checkbox" required><span>Save these privately and send them to OpenAI to analyze my clothing and purchases. My report and photos stay private until I choose what to share.</span></label>
+<p class="fine wide">You can remove files or delete this style read and its confirmed preferences. Avoid uploading payment details, addresses, or other information you don't want processed. No operator review is required for this flow.</p>
+<button class="primary" type="submit">Add to my style ↗</button>
+</form>
+<div id="sources" class="source-grid"></div>
+<form id="context-form" class="context-form"><label for="context">What do you reach for, and what do you want to try?</label><textarea id="context" maxlength="2000" rows="3" placeholder="My most-worn pieces are… I like this influencer's layering… I'm happy to spend more on…"></textarea><button type="submit">Save my notes</button></form>
+<div class="analyze-row"><button id="analyze" class="primary">Give me my style read ↗</button><p class="fine">This uses your saved inputs and OpenAI credits. You'll check the interpretation before any preferences are remembered.</p></div>
+</section>
+<section id="report-section" hidden><div class="section-heading"><div><p id="report-stage" class="eyebrow">02 / CHECK MY READ</p><h2 id="report-heading">Does this sound like you?</h2></div><fieldset id="tones"><legend>How should I put it?</legend><label><input type="radio" name="tone" value="nice">Be nice</label><label><input type="radio" name="tone" value="balanced" checked>Balanced</label><label><input type="radio" name="tone" value="roast">Roast me</label></fieldset></div>
+<p id="report-description">These are interpretations of what you shared. Keep what fits, correct what doesn't, and choose which shopping preferences I should remember.</p>
+<div id="cards" class="report-grid"></div>
+<button id="confirm" class="primary">Save my read & selected preferences ↗</button>
+<p id="confirmed-note" class="fine" hidden>Only the shopping preferences you selected were added to Jules's memory. The evidence remains private.</p>
+<button id="edit-inputs">Back to my inputs</button></section>
+<footer><button id="delete" class="quiet">Delete my style data</button><p class="fine">Changing your inputs clears this report and its saved style preferences so an old read doesn't follow you around.</p></footer>
+</div>
+</main>
+<dialog id="export-dialog"><div class="dialog-heading"><h2>Your share card</h2><button id="export-close" aria-label="Close export preview">Close ✕</button></div><p>Only this preview is exported. Supporting evidence stays private.</p><label id="private-consent-label" class="check" hidden><input id="private-consent" type="checkbox"><span>Include this shopping-history card in my shared image.</span></label><label id="photo-consent-label" class="check" hidden><input id="photo-consent" type="checkbox"><span>Include the garment crops from my personal photos. I've checked them for anything private.</span></label><div id="export-preview"></div><div class="export-actions"><button id="download" class="primary">Download image ↓</button><button id="share">Share with a friend ↗</button><button id="copy-link">Copy signup link</button></div><p id="export-notice" role="status" aria-live="polite"></p></dialog>
+<dialog id="delete-dialog"><h2>Delete your style read?</h2><p>This removes your uploads, report, and preferences saved by this feature. Your wishlist and conversation stay available.</p><button id="delete-confirm" class="primary">Delete my style data</button><button id="delete-cancel">Keep it</button></dialog>
+</body></html>

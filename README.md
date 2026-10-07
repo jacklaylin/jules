@@ -1,5 +1,7 @@
 # Jules — Milestone 4: personal memory
 
+Personal style / starter pack: `/style` adds private uploads, adaptive style cards, confirmation into taste memory, three tones, and story-image export. See [STYLE-MVP.md](STYLE-MVP.md) for the implementation, exact setup, verification, and pending live acceptance. Apply `db/010_style.sql`, allow the `/style` Supabase Auth redirect, and enable `STYLE_ENABLED` before deploying this feature.
+
 Owner identification testing without texting: open `/identification-test.html` after signing in at `/admin`. Upload one JPEG/PNG/WebP under 3 MB and enter the original request. Explicit provider-sharing approval is required; OpenAI and SerpApi credits are used. The endpoint runs the existing visual identification code and imports returned findings only into the owner email's existing wishlist membership. It does not send messages or mark replies as sent. Imported source records say “Identification test import”; they are excluded from AI conversation and taste-memory context. Refresh `/wishlist` to inspect results. Missing pieces are reported in the test result rather than populated with invented matches. Repeating the same completed operation repairs imports without rerunning search. An interrupted search stays visibly incomplete and requires a deliberate new test operation to search again. No new keys or migration are needed.
 
 Current interface: **Photon iMessage**, replacing the original Twilio SMS plan.
