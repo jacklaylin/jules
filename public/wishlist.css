@@ -84,3 +84,13 @@ header.compact .wordmark{font-size:34px;letter-spacing:0}
 @property --neon-a{syntax:"<color>";inherits:true;initial-value:#ad00a6}
 @property --neon-b{syntax:"<color>";inherits:true;initial-value:#007c85}
 header .wordmark{transition:font-size .22s ease,letter-spacing .22s ease,--neon-a .8s ease,--neon-b .8s ease}
+
+/* Both companion pages share the same text actions, including Log out. */
+.header-actions{display:flex;align-items:center;gap:24px;font-size:16px;line-height:1.5}
+.header-actions a,.header-actions button{display:inline-block;font:inherit;line-height:inherit;padding:10px 0;border:0;background:transparent;color:inherit;text-decoration:none;white-space:nowrap;transition:color .18s,transform .18s}
+.header-actions a:hover,.header-actions button:hover{color:#2359ec}
+.header-actions a:active{transform:translateY(2px)}
+.header-actions a[data-neon]:active{background:linear-gradient(110deg,var(--neon-a),var(--neon-b));background-clip:text;-webkit-background-clip:text;color:transparent;filter:drop-shadow(0 0 3px var(--neon-glow))}
+@media(hover:hover) and (pointer:fine){.header-actions a[data-neon]:hover{background:linear-gradient(110deg,var(--neon-a),var(--neon-b));background-clip:text;-webkit-background-clip:text;color:transparent;filter:drop-shadow(0 0 3px var(--neon-glow))}}
+@media(max-width:560px){.header-actions{gap:20px;font-size:12px}}
+@media(forced-colors:active){.header-actions a[data-neon]:hover,.header-actions a[data-neon]:active{background:none;color:LinkText;filter:none}}
