@@ -71,3 +71,7 @@ When an external action is required:
 5. never ask the founder to paste secrets into source code or commit them to Git.
 
 When there are multiple reasonable technical options, recommend one rather than presenting an exhaustive menu unless the tradeoff materially affects the product experiment.
+
+## Shared web design system
+
+For companion web-app UI work, read `DESIGN-SYSTEM.md` and reuse `public/design-system.css` and `public/design-system.js`. Extend shared primitives/components when UI repeats; do not copy headers or redefine global layout, typography, logo, or controls in page stylesheets. Keep page content aligned to the shared full-width layout and gutters. Verify both wishlist and style pages on desktop and phone, including logo rest/hover, compact header, forms, dialogs, and browser errors, before deploying shared changes.
