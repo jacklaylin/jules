@@ -5,11 +5,26 @@ import {wishlistProducts} from '../lib/wishlist.js';
 import {generateReply} from '../lib/ai.js';
 import {readSizeOffers,priceDrop} from '../lib/price-alerts.js';
 import {groupWishlist} from '../lib/wishlist.js';
+import {pendingColorChoices} from '../lib/wishlist-intent.js';
 const product={brand:'Example',name:'Trail sneaker',url:'https://www.prada.com/product/example',match:'likely_match',sourcing_status:'store_found',listing_check:{status:'verified',color:'Brown'},price_snapshot:{amount:400,currency:'USD',source_url:'https://www.prada.com/product/example',checked_at:'2026-10-07'}};
 const env={PRICE_ALERTS_ENABLED:'true'};
 const offer={size:'EU 45',key:'EU 45',amount:400,currency:'USD',available:true,url:product.url};
 const inspect=async()=>({sizes:['EU 45'],checks:[{offers:[offer]}]});
 function harness(){let recorded;return {record:async r=>{recorded=r;},get result(){return recorded;}};}
+test('tentative multiple-color replies narrow pending choices without repeating sourcing or saving',async()=>{
+ const options=['Ivory','Black','Navy'].map((color,i)=>({...product,url:product.url+'/'+i,listing_check:{...product.listing_check,color}}));
+ const h=harness();
+ const state={stage:'choice',query:'Example Trail sneaker',options};
+ const body=await generateReply([{direction:'inbound',body:'Ivory or black I think'}],{OPENAI_API_KEY:'test',SEARCH_ENABLED:'true'},async()=>assert.fail('No new model or search request'),{wishlistState:state,wishlistAction:args=>textWishlistAction(args,{state,text:'Ivory or black I think',env:{},record:h.record,search:()=>assert.fail('No new search')})});
+ assert.deepEqual(h.result.text_wishlist_state.options.map(p=>p.listing_check.color),['Ivory','Black']);
+ assert.equal(h.result.text_wishlist_state.stage,'choice');assert.equal(h.result.user_confirmed,undefined);assert.equal(h.result.alert_request,undefined);
+ assert.doesNotMatch(body,/https:|Navy|found these listings/);assert.ok(body.endsWith('?'));
+ const narrowed=h.result.text_wishlist_state;
+ await textWishlistAction({action:'select',choice:'I prefer black'},{state:narrowed,text:'I prefer black',env:{},record:h.record});
+ assert.equal(h.result.text_wishlist_state.selected.listing_check.color,'Black');assert.equal(h.result.text_wishlist_state.stage,'confirm');assert.equal(h.result.user_confirmed,undefined);
+ assert.deepEqual(pendingColorChoices('Ivory but not black',state),['ivory']);
+ assert.deepEqual(pendingColorChoices('I wore black yesterday',state),[]);
+});
 test('text desire sources real options but does not save; exact color selection offers only supported alerts',async()=>{
   const h=harness();
   const first=await textWishlistAction({action:'start',query:'Example Trail sneaker'},{env,record:h.record,search:async()=>({products:[product]})});
