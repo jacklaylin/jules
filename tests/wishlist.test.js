@@ -31,20 +31,20 @@ test('wishlist auth checks confirmed server identity, invitation, and local logo
 test('API scopes items and source bytes to the invited conversation and strips stored image data',async()=>{
  let bytes=0;
  const store={wishlistItem:async(conversation,item)=>{assert.equal(conversation,id);return item===id?{id,product:{...product,image:{mime_type:'image/jpeg',data:'private'}},wishlist_encounters:[{source_image_id:id,product,messages:{created_at:'now'}}]}:null;},image:async()=>{bytes++;return{mime_type:'image/jpeg',data:Buffer.from('safe').toString('base64')};}};
- const handler=createWishlistHandler({env,storeFactory:()=>store,auth:async()=>({status:200,conversation:id})});
+ const handler=createWishlistHandler({verify:async url=>({status:'verified',url,price_snapshot:null}),env,storeFactory:()=>store,auth:async()=>({status:200,conversation:id})});
  let res=response();await handler(request('GET',`/api/wishlist?item=${other}`),res);assert.equal(res.statusCode,404);
  res=response();await handler(request('GET',`/api/wishlist?item=${id}&source=${other}`),res);assert.equal(res.statusCode,404);assert.equal(bytes,0);
  res=response();await handler(request('GET',`/api/wishlist?item=${id}&source=${id}`),res);assert.equal(res.statusCode,200);assert.equal(bytes,1);assert.equal(res.headers['Cache-Control'],'no-store');
  res=response();await handler(request('GET',`/api/wishlist?item=${id}`),res);assert.equal(JSON.parse(res.value).item.product.image,undefined);
- const denied=createWishlistHandler({env,storeFactory:()=>({}),auth:async()=>({status:401})});res=response();await denied(request(),res);assert.equal(res.statusCode,401);
+ const denied=createWishlistHandler({verify:async url=>({status:'verified',url,price_snapshot:null}),env,storeFactory:()=>({}),auth:async()=>({status:401})});res=response();await denied(request(),res);assert.equal(res.statusCode,401);
 });
 test('logout immediately records only a token hash and revoked sessions fail before provider calls',async()=>{
- let stored;const handler=createWishlistHandler({env,storeFactory:()=>({wishlistRevoke:async hash=>stored=hash}),fetcher:async()=>({ok:true})});
+ let stored;const handler=createWishlistHandler({verify:async url=>({status:'verified',url,price_snapshot:null}),env,storeFactory:()=>({wishlistRevoke:async hash=>stored=hash}),fetcher:async()=>({ok:true})});
  const res=response();await handler(request('POST','/api/wishlist',{action:'logout'}),res);assert.equal(res.statusCode,200);assert.equal(stored,sessionHash('Bearer test'));assert.equal(stored.length,64);
 });
 test('login only emails invited people; repair requires admin and never sends iMessages',async()=>{
  let emails=0;const store={wishlistMember:async email=>email==='invited@example.com'?{conversation_id:id}:null};
- const handler=createWishlistHandler({env,storeFactory:()=>store,fetcher:async()=>{emails++;return{ok:true};},admin:async()=>403});
+ const handler=createWishlistHandler({verify:async url=>({status:'verified',url,price_snapshot:null}),env,storeFactory:()=>store,fetcher:async()=>{emails++;return{ok:true};},admin:async()=>403});
  for(const email of ['unknown@example.com','invited@example.com']){const res=response();await handler(request('POST','/api/wishlist',{action:'login',email}),res);assert.equal(res.statusCode,200);}
  assert.equal(emails,1);const res=response();await handler(request('POST','/api/wishlist',{action:'repair'}),res);assert.equal(res.statusCode,403);
 });
@@ -81,7 +81,7 @@ test('price ranges use sourced snapshots and never blend currencies or invent mi
 test('group detail and list use metadata only and remain scoped to the authenticated conversation',async()=>{
  const {groupWishlist}=await import('../lib/wishlist.js');
  const rows=[{reply_id:id,source_image_id:other,item_id:id,target:'jacket',name:'Jacket',links:[{url:product.url}],has_image:'image/jpeg'}];
- const handler=createWishlistHandler({env,auth:async()=>({status:200,conversation:id}),storeFactory:()=>({wishlistEntries:async conversation=>{assert.equal(conversation,id);return rows;}})});
+ const handler=createWishlistHandler({verify:async url=>({status:'verified',url,price_snapshot:null}),env,auth:async()=>({status:200,conversation:id}),storeFactory:()=>({wishlistEntries:async conversation=>{assert.equal(conversation,id);return rows;}})});
  let res=response();await handler(request(),res);assert.equal(res.statusCode,200);assert.equal(JSON.parse(res.value).items.length,1);assert.equal(JSON.parse(res.value).items[0].links,undefined);
  res=response();await handler(request('GET',`/api/wishlist?group=${groupWishlist(rows)[0].id}`),res);assert.equal(res.statusCode,200);assert.equal(JSON.parse(res.value).item.links.length,1);
  res=response();await handler(request('GET',`/api/wishlist?group=${id}`),res);assert.equal(res.statusCode,404);
@@ -106,7 +106,7 @@ test('link previews reference product photos and never substitute outfit images'
 });
 
 test('refresh exchanges only the token and returns a no-store rotating session',async()=>{
- let captured;const handler=createWishlistHandler({env,storeFactory:()=>({}),fetcher:async(url,options)=>{captured={url,options};return{ok:true,json:async()=>({access_token:'new-access',refresh_token:'new-refresh',expires_in:3600,user:{email:'private@example.com'}})}}});
+ let captured;const handler=createWishlistHandler({verify:async url=>({status:'verified',url,price_snapshot:null}),env,storeFactory:()=>({}),fetcher:async(url,options)=>{captured={url,options};return{ok:true,json:async()=>({access_token:'new-access',refresh_token:'new-refresh',expires_in:3600,user:{email:'private@example.com'}})}}});
  const res=response();await handler(request('POST','/api/wishlist',{action:'refresh',refresh_token:'old-refresh'}),res);
  assert.equal(res.statusCode,200);assert.ok(captured.url.endsWith('/auth/v1/token?grant_type=refresh_token'));assert.deepEqual(JSON.parse(captured.options.body),{refresh_token:'old-refresh'});const data=JSON.parse(res.value);assert.equal(data.refresh_token,'new-refresh');assert.equal(data.user,undefined);assert.equal(res.headers['Cache-Control'],'no-store');
 });

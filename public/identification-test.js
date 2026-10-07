@@ -44,3 +44,8 @@ document.getElementById('refresh-photo').onclick=async()=>{
  const button=document.getElementById('refresh-photo');button.disabled=true;correctionStatus.textContent='Loading product website photos…';
  try{await correctionRequest('/api/wishlist-correction',{method:'POST',body:JSON.stringify({action:'refresh_photo',item:document.getElementById('correction-item').value})});correctionStatus.textContent='Website photos saved. Refresh your wishlist.';}catch(e){correctionStatus.textContent=e.message;}finally{button.disabled=false;}
 };
+
+document.getElementById('verify-listings').onclick=async()=>{
+ const button=document.getElementById('verify-listings');button.disabled=true;correctionStatus.textContent='Checking saved product pages and prices…';
+ try{const data=await correctionRequest('/api/wishlist-correction',{method:'POST',body:JSON.stringify({action:'verify_listings'})});correctionStatus.textContent=`Checked ${data.checked} links; removed ${data.removed} unverified shopping links. Prices updated. Refresh your wishlist.`;}catch(e){correctionStatus.textContent=e.message;}finally{button.disabled=false;}
+};

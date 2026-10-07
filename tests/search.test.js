@@ -93,7 +93,7 @@ test('prose from hosted search is structured separately while original sources s
 
 test('shopper result layout removes technical labels, repeats no brand, and separates a bonus',()=>{
  const text=formatSearch({intro:'That looks like a possible match.',products:[{brand:'Example',name:'Example Jacket',reason:'A dark checked finish.',url,match:'likely_match',role:'primary'},{brand:'Example',name:'Long Coat',reason:'A longer related style.',url:url+'-long',match:'similar',role:'bonus'}]});
- assert.match(text,/1\. Example Jacket: A dark checked finish\.\nhttps:/);
+ assert.match(text,/1\. Example Jacket: A dark checked finish\.\nPrice unavailable\nhttps:/);
  assert.match(text,/Bonus: Example Long Coat\. A longer related style/);
  assert.ok(!text.includes('Example Example'));assert.ok(!text.includes('Likely match; unconfirmed'));assert.ok(!text.includes('These are sourced links'));
 });

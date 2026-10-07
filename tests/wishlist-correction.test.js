@@ -13,7 +13,7 @@ test('verified corrections stay within the owner conversation and store sourced 
  const input={item,url:'https://www.mytheresa.com/us/en/product',name:'House polo sweater',brand:'JW Anderson',amount:1510,currency:'USD',verified:true,image:bytes.toString('base64')};
  let update;
  const store={wishlistMember:async()=>({conversation_id:'owner'}),wishlistItem:async(c,id)=>{assert.equal(c,'owner');assert.equal(id,item);return {};},correctWishlistProduct:async(c,id,value)=>{assert.equal(c,'owner');assert.equal(id,item);update=value;}};
- const handler=createCorrectionHandler({env:{ADMIN_EMAIL:'owner@example.invalid'},auth:async()=>200,storeFactory:()=>store});
+ const handler=createCorrectionHandler({env:{ADMIN_EMAIL:'owner@example.invalid'},auth:async()=>200,storeFactory:()=>store,verify:async url=>({status:'verified',url,checked_at:'2026-10-06T00:00:00Z',price_snapshot:{source_url:url,amount:1510,currency:'USD'}})});
  const r=res();await handler(req(input),r);assert.equal(r.statusCode,200);assert.equal(update.price_snapshot.source_url,input.url);assert.equal(update.price_snapshot.amount,1510);assert.equal(update.match,'similar');assert.equal(update.image_kind,'product');assert.equal((await sharp(Buffer.from(update.image.data,'base64')).metadata()).width,1100);
  const invalid=res();await handler(req({...input,verified:false}),invalid);assert.equal(invalid.statusCode,400);
  const other=res();await createCorrectionHandler({env:{ADMIN_EMAIL:'owner@example.invalid'},auth:async()=>200,storeFactory:()=>({...store,wishlistItem:async()=>null,correctWishlistProduct:()=>assert.fail()})})(req(input),other);assert.equal(other.statusCode,404);

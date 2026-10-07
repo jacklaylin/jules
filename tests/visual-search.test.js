@@ -54,7 +54,7 @@ test('merchant ranking prefers official then preferred then unreviewed only with
 });
 test('whole outfit searches pieces independently, groups equivalent sellers, and reports unmatched pieces',async()=>{
  const result=await visualSearchProducts('Find the whole outfit',[{mime_type:'image/jpeg',data:'fake'}],{},null,{
-  plan:async()=>({scope:'outfit',items:[target,{...target,label:'trousers'}],omitted:['shoes']}),crop:async()=>({}),retrieve:async()=>candidates,
+  plan:async()=>({scope:'outfit',items:[target,{...target,label:'trousers'}],omitted:['shoes']}),verifyListing:async url=>({status:'verified',url,checked_at:'2026-10-06T00:00:00Z',price_snapshot:null}),crop:async()=>({}),retrieve:async()=>candidates,
   compare:async t=>({candidates:t.label==='jacket'?[assessment('3'),assessment('2'),assessment('1')]:[]})
  });
  assert.equal(result.products.length,1);assert.equal(result.products[0].url,candidates[0].url);assert.equal(result.products[0].merchant_options.length,1);
@@ -69,12 +69,12 @@ test('evaluation separates false matches, coverage, and correct abstentions; all
  assert.throws(()=>scoreIdentification([base,base]));
 });
 test('higher product evidence selects identity before an official retailer for a different model',async()=>{
- const result=await visualSearchProducts('Find the jacket',[{}],{},null,{plan:async()=>({scope:'item',items:[target],omitted:[]}),crop:async()=>({}),retrieve:async()=>candidates,compare:async()=>({candidates:[{...assessment('1'),product_key:'wrong-other-model'}, {...assessment('2'),distinctive_details:['unique flap angle','specific pattern alignment','double closure seam'],product_key:'correct-model'}]})});
+ const result=await visualSearchProducts('Find the jacket',[{}],{},null,{plan:async()=>({scope:'item',items:[target],omitted:[]}),verifyListing:async url=>({status:'verified',url,checked_at:'2026-10-06T00:00:00Z',price_snapshot:null}),crop:async()=>({}),retrieve:async()=>candidates,compare:async()=>({candidates:[{...assessment('1'),product_key:'wrong-other-model'}, {...assessment('2'),distinctive_details:['unique flap angle','specific pattern alignment','double closure seam'],product_key:'correct-model'}]})});
  assert.equal(result.products[0].url,candidates[1].url);assert.equal(result.products[0].merchant_options.length,0);
 });
 
 test('a specific identity survives without a recommended merchant, while contradictions still reject it',async()=>{
- const deps={plan:async()=>({scope:'item',items:[target],omitted:[]}),crop:async()=>({}),retrieve:async()=>[candidates[2]],compare:async()=>({candidates:[{...assessment('3'),is_product_listing:false}]})};
+ const deps={plan:async()=>({scope:'item',items:[target],omitted:[]}),verifyListing:async url=>({status:'verified',url,checked_at:'2026-10-06T00:00:00Z',price_snapshot:null}),crop:async()=>({}),retrieve:async()=>[candidates[2]],compare:async()=>({candidates:[{...assessment('3'),is_product_listing:false}]})};
  const result=await visualSearchProducts('Find this jacket',[{}],{},null,deps);
  assert.equal(result.status,'identified_no_store');assert.equal(result.products[0].sourcing_status,'store_not_found');assert.deepEqual(result.products[0].merchant_options,[]);assert.match(formatSearch(result),/haven’t found a store/);
  assert.equal(assessCandidates(candidates,{candidates:[{...assessment('3'),is_product_listing:false,contradictions:['wrong closure']}]},false,true).length,0);
