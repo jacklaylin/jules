@@ -47,5 +47,5 @@ document.getElementById('refresh-photo').onclick=async()=>{
 
 document.getElementById('verify-listings').onclick=async()=>{
  const button=document.getElementById('verify-listings');button.disabled=true;correctionStatus.textContent='Checking saved product pages and prices…';
- try{const data=await correctionRequest('/api/wishlist-correction',{method:'POST',body:JSON.stringify({action:'verify_listings'})});correctionStatus.textContent=`Checked ${data.checked} links; removed ${data.removed} unverified shopping links. Prices updated. Refresh your wishlist.`;}catch(e){correctionStatus.textContent=e.message;}finally{button.disabled=false;}
+ try{const data=await correctionRequest('/api/wishlist-correction',{method:'POST',body:JSON.stringify({action:'verify_listings'})});correctionStatus.textContent=`Checked ${data.checked} links; withheld ${data.removed} unverified shopping links. Prices updated. Refresh your wishlist.`;}catch(e){correctionStatus.textContent=e.message;}finally{button.disabled=false;}
 };

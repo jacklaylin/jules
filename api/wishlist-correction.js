@@ -21,7 +21,7 @@ export function createCorrectionHandler({env=process.env,auth=authorize,storeFac
      const p=item.product;if(!p.links?.length)continue;
      const links=[];const checks=[];
      for(const link of p.links){const check=await verify(link.url,link.name??p.name);checks.push({url:link.url,...check});checked++;if(check.status==='verified')links.push({...link,url:check.url,price_snapshot:check.price_snapshot,availability:check.availability});else removed++;}
-     await store.correctWishlistProduct(member.conversation_id,item.id,{links,price_snapshot:null,sourcing_status:links.length?'store_found':'store_not_found',listing_checks:checks,identity_sources:links.length?[]:p.identity_sources??[{url:p.url??p.links[0].url,name:p.name}]});
+     await store.correctWishlistProduct(member.conversation_id,item.id,{links:p.links.map((link,i)=>checks[i].status==='verified'?{...link,url:checks[i].url,price_snapshot:checks[i].price_snapshot,availability:checks[i].availability}:{...link,price_snapshot:null,availability:null}),price_snapshot:null,sourcing_status:links.length?'store_found':'store_not_found',listing_checks:checks,identity_sources:links.length?[]:p.identity_sources??[{url:p.url??p.links[0].url,name:p.name}]});
     }
     return json(res,200,{ok:true,checked,removed});
    }
