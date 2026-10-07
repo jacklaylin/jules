@@ -20,3 +20,22 @@ form.onsubmit=async event=>{
   }catch(error){status.textContent=error.message;}
   finally{document.getElementById('run').disabled=false;}
 };
+
+const correctionStatus=document.getElementById('correction-status');
+async function correctionRequest(path,options={}){
+ const token=await session.token()||sessionStorage.getItem('jules_wishlist_token')||sessionStorage.getItem('jules_token');
+ const response=await fetch(path,{...options,headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},cache:'no-store'});
+ const data=await response.json();if(!response.ok)throw new Error(data.error);return data;
+}
+document.getElementById('load-items').onclick=async()=>{
+ try{const {items}=await correctionRequest('/api/wishlist');const select=document.getElementById('correction-item');select.replaceChildren();for(const item of items){const option=document.createElement('option');option.value=item.image_item;option.textContent=item.name;select.append(option);}correctionStatus.textContent='Saved items loaded.';}catch(e){correctionStatus.textContent=e.message;}
+};
+document.getElementById('correction-form').onsubmit=async event=>{
+ event.preventDefault();const button=document.getElementById('save-correction');button.disabled=true;
+ try{
+  const file=document.getElementById('correction-image').files[0];if(!file||file.size>3*1024*1024)throw new Error('Choose an image under 3 MB.');
+  const image=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result.split(',')[1]);reader.onerror=reject;reader.readAsDataURL(file);});
+  await correctionRequest('/api/wishlist-correction',{method:'POST',body:JSON.stringify({item:document.getElementById('correction-item').value,url:document.getElementById('correction-url').value,name:document.getElementById('correction-name').value,brand:document.getElementById('correction-brand').value,amount:Number(document.getElementById('correction-amount').value),currency:document.getElementById('correction-currency').value,image,verified:document.getElementById('correction-verified').checked})});
+  correctionStatus.textContent='Correction saved. Refresh your wishlist.';
+ }catch(e){correctionStatus.textContent=e.message;}finally{button.disabled=false;}
+};
