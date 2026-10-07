@@ -39,3 +39,18 @@ test('owner text diagnostic uses fixed public query and never saves or sends mes
  const response=res();await handler(req({action:'text_search_diagnostic',mode:'standard_auto',query:'ignored private text'}),response);assert.equal(response.statusCode,200);assert.equal(calls,1);
  const invalid=res();await handler(req({action:'text_search_diagnostic',mode:'arbitrary'}),invalid);assert.equal(invalid.statusCode,400);assert.equal(calls,1);
 });
+test('owner replay is bounded to known cases and routes no delivery or persistence functions',async()=>{
+ let runs=0;const handler=createIdentificationTestHandler({env,auth:async()=>200,storeFactory:()=>assert.fail(),replay:async scenario=>{runs++;return {id:scenario.id,passed:true};}});
+ const manifest=res();await handler(req({action:'replay_manifest'}),manifest);assert.ok(manifest.body.cases.length>=8);assert.equal(runs,0);
+ const result=res();await handler(req({action:'replay',case_id:'nike-named'}),result);assert.equal(result.statusCode,200);assert.equal(result.body.report.passed,true);assert.equal(runs,1);
+ const bad=res();await handler(req({action:'replay',case_id:'invented'}),bad);assert.equal(bad.statusCode,400);assert.equal(runs,1);
+});
+test('private captured replay snapshots current profile and context without database writes',async()=>{
+ let snapshot;
+ const messages=[{direction:'outbound',status:'sent',body:'Old item',search_result:{identification_policy:'text_wishlist',text_wishlist_state:{stage:'choice'}}},{direction:'outbound',status:'sent',body:'Cleared',search_result:{identification_policy:'text_wishlist',text_wishlist_state:null}},{direction:'inbound',body:'Find Nike Air Max 90'}];
+ const store={wishlistMember:async()=>({conversation_id:'owner'}),messages:async()=>({messages}),profile:async()=>({facts:[{field:'gender',key:'identity',value:'man'}]})};
+ const handler=createIdentificationTestHandler({env:{...env,ADMIN_EMAIL:'owner@example.invalid'},auth:async()=>200,storeFactory:()=>store,replay:async value=>{snapshot=value;return {passed:true};}});
+ const result=res();await handler(req({action:'replay',case_id:'latest_failure',brand:'Nike',model:'Air Max 90'}),result);
+ assert.equal(result.statusCode,200);assert.equal(snapshot.state,null);assert.equal(snapshot.history.length,2);assert.equal(snapshot.message,'Find Nike Air Max 90');assert.equal(snapshot.facts[0].value,'man');assert.equal(snapshot.model,'Air.*Max.*90');
+ const saved=res();await handler(req({action:'replay',case_id:'saved_failure',snapshot:result.body.report.snapshot}),saved);assert.equal(saved.statusCode,200);assert.equal(saved.body.report.snapshot.model,'Air.*Max.*90');
+});

@@ -38,3 +38,20 @@ test('an HTTP 200 bot failover is a failed check and no-store replies expose no 
  const checked=await verifyListing(url,name,async()=>new Response('<script>window.isBotPage = true</script>',{headers:{'content-type':'text/html'}}));assert.equal(checked.status,'check_failed');
  const {formatSearch}=await import('../lib/search.js');assert.ok(!formatSearch({intro:'Possible match',products:[{brand:'Barbour',name,url,sourcing_status:'store_not_found'}]}).includes('https://'));
 });
+
+test('page-bound primary product survives recommendation JSON while ambiguous unbound products remain rejected',async()=>{
+ const bound={...product,url},recommended={...product,name:'Other coat',url:'https://www.barbour.com/us/other.html'};
+ const value=await verifyListing(url,name,async()=>html([bound,recommended,{'@type':'ItemList',itemListElement:[recommended]}]));
+ assert.equal(value.status,'verified');assert.equal(value.price_snapshot.amount,700);
+ assert.equal((await verifyListing(url,'Other coat',async()=>html([bound,recommended]))).status,'not_product');
+});
+test('explicit canonical product metadata supports a link without fabricating commerce facts',async()=>{
+ const page=`<link rel="canonical" href="${url}"><meta property="og:type" content="product"><meta property="og:title" content="${name}"><meta property="product:gender" content="male">`;
+ const value=await verifyListing(url,name,async()=>new Response(page,{headers:{'content-type':'text/html'}}));
+ assert.equal(value.status,'verified');assert.equal(value.shopping_range,'men');assert.equal(value.price_snapshot,null);assert.equal(value.availability,null);
+ for(const bad of [page.replace('content="product"','content="website"'),page.replace(url,'https://www.barbour.com/another'),page.replace(name,'Unrelated shoes')])assert.equal((await verifyListing(url,name,async()=>new Response(bad,{headers:{'content-type':'text/html'}}))).status,'not_product');
+});
+test('retailer brand and department words in a title do not hide the matching product',async()=>{
+ const value=await verifyListing(url,'Barbour Men’s Transport Windowpane Waxed Jacket',async()=>html({...product,brand:{name:'Barbour'}}));
+ assert.equal(value.status,'verified');
+});

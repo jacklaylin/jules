@@ -1,3 +1,4 @@
+import { REPLAY_CASES, runReplay } from '../lib/replay.js';
 import { textWishlistAction } from '../lib/text-wishlist.js';
 import { searchProducts } from '../lib/search.js';
 import { createHash } from 'node:crypto';
@@ -9,7 +10,7 @@ import { imageType, MAX_IMAGE_BYTES } from '../lib/images.js';
 import { json, readJson, uuid } from '../lib/http.js';
 
 export const config = { api: { bodyParser: false }, maxDuration: 120 };
-export function createIdentificationTestHandler({env=process.env,auth=authorize,storeFactory=createStore,search=visualSearchProducts,textSearch=searchProducts,prepare=wishlistProducts}={}) {
+export function createIdentificationTestHandler({env=process.env,auth=authorize,storeFactory=createStore,search=visualSearchProducts,textSearch=searchProducts,prepare=wishlistProducts,replay=runReplay}={}) {
   return async (req,res) => {
     let stage='authorization';
     try {
@@ -18,6 +19,32 @@ export function createIdentificationTestHandler({env=process.env,auth=authorize,
       if(req.method!=='POST')return json(res,405,{error:'Use POST.'});
       if(env.WISHLIST_ENABLED!=='true'||!env.OPENAI_API_KEY||!env.SERPAPI_API_KEY)return json(res,503,{error:'Identification and wishlist must be configured.'});
       const input=await readJson(req,4300000);
+      if(input.action==='replay_manifest')return json(res,200,{cases:REPLAY_CASES.map(({id,name,message})=>({id,name,message}))});
+      if(input.action==='replay'){
+        let test=REPLAY_CASES.find(c=>c.id===input.case_id);
+        if(input.case_id==='latest_failure'){
+          const store=storeFactory(env),member=await store.wishlistMember(env.ADMIN_EMAIL.toLowerCase());
+          if(!member)return json(res,409,{error:'Owner membership required.'});
+          const {messages}=await store.messages(member.conversation_id),profile=await store.profile(member.conversation_id);
+          const position=messages.findLastIndex(m=>m.direction==='inbound');
+          if(position<0)return json(res,409,{error:'No incoming turn to replay.'});
+          const before=messages.slice(0,position);
+          const pending=before.findLast(m=>m.direction==='outbound'&&m.status==='sent'&&m.search_result?.identification_policy==='text_wishlist');
+          // Expectations are explicit; a replay cannot declare an arbitrary answer correct.
+          if(typeof input.brand!=='string'||!input.brand.trim()||input.brand.length>80||typeof input.model!=='string'||!input.model.trim()||input.model.length>80)return json(res,400,{error:'Set the expected brand and model for the captured turn.'});
+          const escape=value=>value.replace(/[^a-z0-9 ]/gi,'').trim().split(/\s+/).join('.*');
+          test={id:'latest_failure',name:'Latest private conversation turn',message:messages[position].body,history:before.slice(-19).map(({body,direction,status})=>({body,direction,status})),facts:profile.facts,state:pending?.search_result?.text_wishlist_state,brand:input.brand,model:escape(input.model),model_words:input.model};
+        }
+        if(input.case_id==='saved_failure'){
+          const saved=input.snapshot;
+          if(!saved||typeof saved.message!=='string'||saved.message.length>4000||!Array.isArray(saved.facts)||saved.facts.length>150||saved.facts.some(f=>!f||typeof f.field!=='string'||typeof f.key!=='string'||typeof f.value!=='string')||!Array.isArray(saved.history)||saved.history.length>19||saved.history.some(m=>typeof m.body!=='string'||m.body.length>4000||!['inbound','outbound'].includes(m.direction))||typeof saved.brand!=='string'||saved.brand.length>80||typeof saved.model!=='string'||saved.model.length>160)return json(res,400,{error:'Invalid saved replay.'});
+          // Saved replays use literal model words, not caller-controlled regular expressions.
+          test={...saved,id:'saved_failure',brand:saved.brand,model:(saved.model_words??saved.model).replace(/[^a-z0-9 ]/gi,'').trim().split(/\s+/).join('.*')};
+        }
+        if(!test)return json(res,400,{error:'Unknown replay case.'});
+        stage='reply_replay';
+        return json(res,200,{report:{...await replay(test,env),snapshot:test}});
+      }
       if(input.action==='text_search_diagnostic'){
         if(!['mini_auto','standard_auto','wishlist_mini','wishlist_standard','wishlist_current','latest_checks'].includes(input.mode))return json(res,400,{error:'Choose a diagnostic mode.'});
         if(input.mode==='latest_checks'){
