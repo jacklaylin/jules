@@ -5,6 +5,10 @@ const url='https://www.barbour.com/us/jacket.html';
 const name='Transport Windowpane Waxed Jacket';
 const html=product=>new Response('<script type="application/ld+json">'+JSON.stringify(product)+'</script>',{headers:{'content-type':'text/html'}});
 const product={'@type':'Product',name,offers:{'@type':'Offer',price:'700.00',priceCurrency:'USD',availability:'https://schema.org/OutOfStock'}};
+test('whole model token groups tolerate spacing while preserving numeric identity',async()=>{
+ for(const [requested,actual] of [['Speed Rock sneakers','Speedrock sneakers'],['XT-6 sneakers','XT6 sneakers'],['XT6 sneakers','XT-6 sneakers']])assert.equal((await verifyListing(url,requested,async()=>html({...product,name:actual}))).status,'verified');
+ for(const [requested,actual] of [['Air Max 90 sneakers','Airmax95 sneakers'],['XT-6 sneakers','XT60 sneakers']])assert.equal((await verifyListing(url,requested,async()=>html({...product,name:actual}))).status,'not_product');
+});
 test('live sold-out listings retain sourced prices and availability',async()=>{
  const value=await verifyListing(url,name,async()=>html(product));assert.equal(value.status,'verified');assert.equal(value.price_snapshot.amount,700);assert.equal(value.price_snapshot.source_url,url);assert.equal(value.availability,'OutOfStock');assert.ok(value.checked_at);
 });
