@@ -118,3 +118,12 @@ test('search retries are bounded and do not retry authentication or quota failur
     assert.equal(calls,[500,502,503,504].includes(status)?2:1);
   }
 });
+
+test('hosted search uses its own verified model rather than inheriting the conversation model',async()=>{
+ for(const override of [undefined,'gpt-4.1-mini']){
+  await searchProducts('Trail sneakers',[],{OPENAI_MODEL:'conversation-model',OPENAI_SEARCH_MODEL:override},async(url,options)=>{
+   assert.equal(JSON.parse(options.body).model,override??'gpt-4.1');
+   return response([{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify({intro:'No listing.',products:[],needs_review:true})}]}]);
+  });
+ }
+});
