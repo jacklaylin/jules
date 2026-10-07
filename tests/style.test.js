@@ -175,3 +175,5 @@ test('analysis reads only this owner’s live shopping memory and excludes old r
  let received;const h=handler(store,{env:{...env,MEMORY_ENABLED:'true'},analyze:async(_sources,_notes,_env,_fetcher,facts)=>{received=facts;return report();}});
  const r=res();await h(req({revision:0,action:'analyze',consent:true}),r);assert.equal(r.statusCode,200);assert.deepEqual(received,[{field:'brand',key:'Label',value:'Likes Label'}]);
 });
+
+test('generated cards cannot include explicit body commentary',()=>{assert.throws(()=>validateCards({cards:[{...rawCard,title:'Muscular precision',variants:{nice:'Your gym gains define the look.',balanced:'Your body type defines the look.',roast:'Your physique defines the look.'}}]},analysis(),[source]),/appearance comments/);});
