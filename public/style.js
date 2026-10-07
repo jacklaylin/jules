@@ -104,7 +104,7 @@ function renderCards() {
  report.cards.filter(card=>draft||card.accepted&&!card.hidden).forEach((card,index)=>{
   const article=node('article',null,'style-card');article.dataset.type=card.type;article.dataset.id=card.id;
   const theme=cardTheme(card);article.style.setProperty('--story-a',theme.a);article.style.setProperty('--story-b',theme.b);article.style.setProperty('--story-font',`"${theme.font}"`);
-  article.append(node('p',`${String(index+1).padStart(2,'0')} / ${card.private?'SHOPPING HISTORY · PRIVATE':'YOUR STYLE'}`,'card-number'),node('h3',card.title),node('p',cardText(card,state.data.tone),'card-copy'));
+  article.append(node('p',`${String(index+1).padStart(2,'0')} / ${card.type==='starter'?'YOUR STARTER PACK':card.private?'SHOPPING HISTORY · PRIVATE':'YOUR STYLE'}`,'card-number'),node('h3',card.title),node('p',cardText(card,state.data.tone),'card-copy'));
   if(!draft||card.type==='starter')article.append(collage(card));
   if(draft){
    const detail=node('details');detail.append(node('summary','Why Jules thinks this'),evidenceContent(card));article.append(detail);

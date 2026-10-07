@@ -5,7 +5,9 @@ export function cardTheme(card){const [a,b,font]=themes[card.type]||['#f2d9bd','
 export function cardVisuals(report,card){
  const observations=report.analysis.observations.filter(o=>card.observation_ids.includes(o.id));
  const ids=new Set(observations.flatMap(o=>o.source_ids));
- let crops=report.analysis.crops.map((c,index)=>({...c,index})).filter(c=>card.type==='starter'||(c.observation_ids?c.observation_ids.some(id=>card.observation_ids.includes(id)):ids.has(c.source_id))).slice(0,card.type==='starter'?6:3);
+ let crops=report.analysis.crops.map((c,index)=>({...c,index})).filter(c=>card.type==='starter'||(c.observation_ids?c.observation_ids.some(id=>card.observation_ids.includes(id)):ids.has(c.source_id)));
+ if(card.type==='colors'){const words=(card.title+' '+card.variants.balanced+' '+observations.map(o=>o.text).join(' ')).toLowerCase();const colors=['brown','khaki','olive','green','beige','black','white','navy','blue','pink','red','orange','yellow','purple','cream','gray','grey','tan','rust','burgundy'].filter(c=>new RegExp('\\b'+c+'(?:s)?\\b').test(words));const score=c=>colors.filter(color=>new RegExp('\\b'+color+'(?:s)?\\b').test(c.label.toLowerCase())).length;crops.sort((a,b)=>score(b)-score(a)||a.index-b.index);}
+ crops=crops.slice(0,card.type==='starter'?6:3);
  let ingredients=(report.analysis.ingredients||[]).filter(i=>card.type==='starter'||(card.type==='brands'?i.kind==='brand':i.observation_ids.some(id=>card.observation_ids.includes(id))));
  if(card.type==='starter'||card.type==='brands'){
   const brands=report.analysis.observations.filter(o=>o.preference?.field==='brand');

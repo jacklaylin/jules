@@ -24,7 +24,7 @@ export function renderShareCard({card,tone,crops=[],ingredients=[],signupURL,can
   if(!ctx)throw new Error('Image export is not supported in this browser.');
   const theme=cardTheme(card),bg=ctx.createLinearGradient(0,0,1080,1920);bg.addColorStop(0,theme.a);bg.addColorStop(1,theme.b);ctx.fillStyle=bg;ctx.fillRect(0,0,1080,1920);
   ctx.fillStyle='#161616';ctx.textBaseline='top';
-  ctx.font='24px Arial';ctx.fillText('MY STYLE / JULES',84,105);
+  ctx.font='24px Arial';ctx.fillText(card.type==='starter'?'MY STARTER PACK / JULES':'MY STYLE / JULES',84,105);
   let titleSize=90,titleLines;
   do{ctx.font=`${titleSize}px "${theme.font}"`;titleLines=wrapText(ctx,card.title,912);titleSize-=4;}while(titleLines.length>3&&titleSize>48);
   let y=drawLines(ctx,titleLines,84,210,(titleSize+4)*1.12)+52;

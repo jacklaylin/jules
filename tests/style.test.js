@@ -4,6 +4,7 @@ import {Readable} from 'node:stream';
 import {readFile} from 'node:fs/promises';
 import {createStyleHandler} from '../api/style.js';
 import {prepareSource,validateAnalysis,validateCards,receiptStats,eligibleCards,confirmReport,reportFacts,analyzeStyle,ensureCoreCards} from '../lib/style.js';
+import {cardVisuals} from '../public/style-visuals.js';
 import {cardText,wrapText} from '../public/style-export.js';
 import {createStore} from '../lib/store.js';
 import {receiveInInbox} from '../lib/inbox.js';
@@ -177,3 +178,9 @@ test('analysis reads only this owner’s live shopping memory and excludes old r
 });
 
 test('generated cards cannot include explicit body commentary',()=>{assert.throws(()=>validateCards({cards:[{...rawCard,title:'Muscular precision',variants:{nice:'Your gym gains define the look.',balanced:'Your body type defines the look.',roast:'Your physique defines the look.'}}]},analysis(),[source]),/appearance comments/);});
+
+test('color evidence prioritizes matching garment labels rather than upload order',()=>{
+ const rpt=report();rpt.analysis.crops=[{label:'Track top',source_id:source.id},{label:'Pants',source_id:source.id},{label:'Brown jacket',source_id:source.id},{label:'Brown pants',source_id:source.id}];
+ const visual=cardVisuals(rpt,{...rawCard,type:'colors',title:'Earth tones',variants:{balanced:'You wear a lot of brown.'}});
+ assert.deepEqual(visual.crops.slice(0,2).map(c=>c.label),['Brown jacket','Brown pants']);
+});
