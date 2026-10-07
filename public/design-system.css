@@ -6,7 +6,7 @@ button{cursor:pointer;background:transparent;border:0;color:inherit;padding:10px
 button:hover,a:hover{color:#2359ec}
 button:active{transform:translateY(2px)}
 :focus-visible{outline:2px solid #2359ec;outline-offset:5px}
-h1{font-weight:400;letter-spacing:-1.5px;font-size:36px;margin:0}
+h1{font-weight:400;letter-spacing:-1.5px;font-size:36px;line-height:1.15;margin:0}
 #login{max-width:400px;margin:9vh auto}
 #login h1{font-size:52px;line-height:1.05;margin:20px 0 45px}
 .eyebrow,#count,.label{font-size:11px;letter-spacing:1px;text-transform:uppercase}
