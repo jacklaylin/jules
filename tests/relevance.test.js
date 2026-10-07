@@ -52,3 +52,7 @@ test('complaints and negative mentions cannot switch the saved clothing range',(
  assert.equal(shoppingConstraints(facts,"Not women's, find men's sneakers").range,'men');
  assert.equal(shoppingConstraints(facts,"Find women's sneakers for my wife").range,'women');
 });
+
+test('verified opposite range cannot bypass the check through a localized or abbreviated name',()=>{
+ for(const name of ['Speedrock','Sneakers in tessuto','Scarpe sportive'])assert.equal(relevanceCheck({...men,name,listing_check:{shopping_range:'women'}},{range:'men'}).eligible,false);
+});
