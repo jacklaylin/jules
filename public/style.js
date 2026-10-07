@@ -1,5 +1,5 @@
-import {initWishlistTheme} from './wishlist-theme.js';
-initWishlistTheme();
+import {mountHeader} from './design-system.js';
+mountHeader('style');
 import {createSession} from './wishlist-session.js';
 import {cardText,renderShareCard,canvasBlob} from './style-export.js';
 const $=id=>document.getElementById(id);

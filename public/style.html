@@ -1,13 +1,13 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Your style · Jules</title><meta name="description" content="A personal style read from Jules. Your outfits, your habits, your starter pack."><meta property="og:title" content="Get your style read · Jules"><meta property="og:description" content="Your outfits, your habits, your starter pack."><link rel="stylesheet" href="/wishlist.css"><link rel="stylesheet" href="/style.css"><script type="module" src="/style.js"></script></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Your style · Jules</title><meta name="description" content="A personal style read from Jules. Your outfits, your habits, your starter pack."><meta property="og:title" content="Get your style read · Jules"><meta property="og:description" content="Your outfits, your habits, your starter pack."><link rel="stylesheet" href="/design-system.css"><link rel="stylesheet" href="/style.css"><script type="module" src="/style.js"></script></head>
 <body>
-<header class="masthead"><a class="wordmark" href="/wishlist" aria-label="Jules wishlist">jules</a><nav class="header-actions" aria-label="Your collection"><a href="/wishlist">Wishlist ↗</a><button id="logout" hidden>Log out ↗</button></nav></header>
+<header class="app-header"></header>
 <main>
 <section id="login" hidden><p class="eyebrow">A LITTLE SELF-REFLECTION</p><h1>You have a style.<br>Let's get into it.</h1><p class="intro">Show me what you wear, what you buy, and what catches your eye. I'll put the pieces together.</p><form id="login-form"><label for="email">Your invited email</label><input id="email" type="email" autocomplete="email" placeholder="you@example.com" required><button class="primary" type="submit">Send me a sign-in link ↗</button></form><p class="fine">The first version is for invited testers. Ask whoever introduced you to Jules for an invitation.</p></section>
 <p id="notice" role="status" aria-live="polite">Loading your style…</p>
 <div id="workspace" hidden>
-<div id="style-intro" class="page-heading"><div><p class="eyebrow">PERSONAL STYLE, WITH RECEIPTS</p><h1>Let's get<br>to know you.</h1></div><p class="intro">The outfits you wear. The ones you save. The things you keep coming back to.</p></div>
+<div id="style-intro" class="page-heading app-heading"><div><p class="eyebrow">PERSONAL STYLE, WITH RECEIPTS</p><h1>Let's get<br>to know you.</h1></div><p class="intro">The outfits you wear. The ones you save. The things you keep coming back to.</p></div>
 <div id="style-steps" class="steps" aria-label="How this works"><span>01 / Show me</span><span>02 / Check my read</span><span>03 / Make it yours</span></div>
 <section id="inputs" class="input-section">
 <div class="section-heading"><div><p class="eyebrow">01 / SHOW ME</p><h2>A few things to go on.</h2></div><p>Start with about five outfits from different days. Receipts and inspiration are optional.</p></div>
@@ -34,5 +34,5 @@
 </div>
 </main>
 <dialog id="export-dialog"><div class="dialog-heading"><h2>Your share card</h2><button id="export-close" aria-label="Close export preview">Close ✕</button></div><p>Only this preview is exported. Supporting evidence stays private.</p><label id="private-consent-label" class="check" hidden><input id="private-consent" type="checkbox"><span>Include this shopping-history card in my shared image.</span></label><label id="photo-consent-label" class="check" hidden><input id="photo-consent" type="checkbox"><span>Include the garment crops from my personal photos. I've checked them for anything private.</span></label><div id="export-preview"></div><div class="export-actions"><button id="download" class="primary">Download image ↓</button><button id="share">Share with a friend ↗</button><button id="copy-link">Copy signup link</button></div><p id="export-notice" role="status" aria-live="polite"></p></dialog>
-<dialog id="delete-dialog"><h2>Delete your style read?</h2><p>This removes your uploads, report, and preferences saved by this feature. Your wishlist and conversation stay available.</p><button id="delete-confirm" class="primary">Delete my style data</button><button id="delete-cancel">Keep it</button></dialog>
+<dialog id="delete-dialog"><h2>Delete your style read?</h2><p>This removes your uploads, report, and preferences saved by this feature. Your wishlist and conversation stay available.</p><div class="dialog-actions"><button id="delete-confirm" class="primary">Delete my style data</button><button id="delete-cancel">Keep it</button></div></dialog>
 </body></html>

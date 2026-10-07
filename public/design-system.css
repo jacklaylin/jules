@@ -1,0 +1,66 @@
+/* Shared Jules tokens, layout, type, controls, header, logo and interaction states. */
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+button,a,input{font:inherit}
+button{cursor:pointer;background:transparent;border:0;color:inherit;padding:10px 0;transition:color .18s,transform .18s}
+button:hover,a:hover{color:#2359ec}
+button:active{transform:translateY(2px)}
+:focus-visible{outline:2px solid #2359ec;outline-offset:5px}
+h1{font-weight:400;letter-spacing:-1.5px;font-size:36px;margin:0}
+#login{max-width:400px;margin:9vh auto}
+#login h1{font-size:52px;line-height:1.05;margin:20px 0 45px}
+.eyebrow,#count,.label{font-size:11px;letter-spacing:1px;text-transform:uppercase}
+form{display:grid;gap:12px}
+label{font-size:12px}
+form button{text-align:left;color:#2359ec}
+#count{color:#666}
+.label{display:block;color:#666;font-size:9px;line-height:1.6}
+#notice{font-size:13px;color:#555;line-height:1.6}
+dialog{height:fit-content;border:0;padding:28px;width:min(960px,95vw);max-height:90vh;box-shadow:0 12px 80px #0002}
+dialog::backdrop{background:#0003}
+@keyframes enter{from{opacity:0}to{opacity:1}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+dialog[open]{animation:detail-enter .28s cubic-bezier(.22,1,.36,1) both}
+dialog[open]::backdrop{animation:enter .22s ease both}
+@keyframes detail-enter{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+
+
+[data-neon="0"]{--neon-a:#ad00a6;--neon-b:#007c85;--neon-glow:#ad00a660}
+[data-neon="1"]{--neon-a:#497500;--neon-b:#007b91;--neon-glow:#49750060}
+[data-neon="2"]{--neon-a:#b34300;--neon-b:#b00092;--neon-glow:#b0009260}
+[data-neon="3"]{--neon-a:#008044;--neon-b:#7900bc;--neon-glow:#00804460}
+[data-neon="4"]{--neon-a:#806d00;--neon-b:#b50058;--neon-glow:#b5005860}
+[data-neon="5"]{--neon-a:#007c90;--neon-b:#777400;--neon-glow:#007c9060}
+button:not(.tile):not(#close)[data-neon]:active{background:linear-gradient(110deg,var(--neon-a),var(--neon-b));background-clip:text;-webkit-background-clip:text;color:transparent;filter:drop-shadow(0 0 3px var(--neon-glow))}
+@media(forced-colors:active){button:not(.tile):not(#close)[data-neon]:active{background:none;color:LinkText;filter:none}}
+@media(hover:hover) and (pointer:fine){button:not(.tile):not(#close)[data-neon]:hover{background:linear-gradient(110deg,var(--neon-a),var(--neon-b));background-clip:text;-webkit-background-clip:text;color:transparent;filter:drop-shadow(0 0 3px var(--neon-glow))}}
+@media(forced-colors:active){button:not(.tile):not(#close)[data-neon]:hover{background:none;color:LinkText;filter:none}}
+@font-face{font-family:"Mongule";src:url("/fonts/mongule.ttf") format("truetype");font-style:normal;font-weight:400;font-display:swap}
+@property --neon-a{syntax:"<color>";inherits:true;initial-value:#ad00a6}
+@property --neon-b{syntax:"<color>";inherits:true;initial-value:#007c85}
+:root{font-family:Arial,Helvetica,sans-serif;color:#161616;background:#fff;font-synthesis:none;--paper:#fff;--ink:#161616;--muted:#777;--line:#eee;--accent:#2359ec;--page-gutter:5vw;--page-top:42px;--header-height:100px;line-height:1.5}
+body{margin:0;padding-top:var(--header-height)}
+main{width:100%;max-width:none;margin:0;padding:var(--page-top) var(--page-gutter) 80px}
+h1,h2,h3{font-family:Arial,Helvetica,sans-serif;font-weight:400;margin:0}h2{font-size:30px;line-height:1.2;letter-spacing:-.035em}h3{font-size:26px;line-height:1.2;letter-spacing:-.035em}
+button,input,select,textarea{font:inherit}button,a{touch-action:manipulation;-webkit-tap-highlight-color:transparent}button:disabled{opacity:.45;cursor:default}
+label{display:block}input:not([type=checkbox]):not([type=radio]),select,textarea{display:block;width:100%;border:0;border-bottom:1px solid #999;background:#fff;border-radius:0;color:var(--ink);padding:14px 0;margin-top:7px}input[type=checkbox],input[type=radio]{accent-color:var(--accent);width:18px;height:18px;flex:none;padding:0}
+.primary{color:var(--accent)}.fine{font-size:12px;color:var(--muted)}.intro{font-size:16px;max-width:380px;color:#555}.check{display:flex;align-items:start;gap:10px;font-size:13px}.check input{margin-top:3px}
+.app-heading{display:flex;align-items:center;justify-content:space-between;gap:36px;margin-bottom:42px}
+.app-header{height:var(--header-height);position:fixed;top:0;left:var(--page-gutter);right:var(--page-gutter);z-index:10;margin:0;display:flex;align-items:center;justify-content:space-between;background:#fff;border-bottom:1px solid var(--line);transition:height .22s ease}
+.app-header.compact{height:50px}
+.wordmark{display:inline-block;font-family:Mongule,Arial,sans-serif;font-weight:400;font-size:52px;letter-spacing:0;line-height:1.15;text-decoration:none;color:transparent;flex:none;transition:font-size .22s ease,--neon-a .8s ease,--neon-b .8s ease}
+/* Padding gives the font's negative side bearing and descender room inside the paint box. */
+.wordmark-glyph{display:block;padding:.15em .2em;margin:-.15em -.2em;background:linear-gradient(110deg,var(--neon-a),var(--neon-b));background-clip:text;-webkit-background-clip:text;color:transparent;text-decoration:none}
+.app-header.compact .wordmark{font-size:34px}
+.header-actions{display:flex;align-items:center;gap:24px;font-size:16px;line-height:1.5}
+.header-actions a,.header-actions button{display:inline-block;font:inherit;padding:10px 0;border:0;background:transparent;color:inherit;text-decoration:none;white-space:nowrap;transition:color .18s,transform .18s}
+.header-actions a:hover,.header-actions button:hover{color:var(--accent)}.header-actions a:active{transform:translateY(2px)}
+.header-actions a[data-neon]:active{background:linear-gradient(110deg,var(--neon-a),var(--neon-b));background-clip:text;-webkit-background-clip:text;color:transparent;filter:drop-shadow(0 0 3px var(--neon-glow))}
+@media(hover:hover) and (pointer:fine){.header-actions a[data-neon]:hover{background:linear-gradient(110deg,var(--neon-a),var(--neon-b));background-clip:text;-webkit-background-clip:text;color:transparent;filter:drop-shadow(0 0 3px var(--neon-glow))}.wordmark:hover .wordmark-glyph{background-size:200% 100%;animation:wordmark-gradient 2.4s ease-in-out infinite alternate}}
+@keyframes wordmark-gradient{from{background-position:0% 50%}to{background-position:100% 50%}}
+@media(max-width:560px){:root{--header-height:76px;--page-top:30px}.app-header.compact{height:38px}.wordmark{font-size:44px}.app-header.compact .wordmark{font-size:28px}.header-actions{gap:20px;font-size:12px}h1{font-size:29px}.app-heading{margin-bottom:28px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+@media(forced-colors:active){.wordmark-glyph,.wordmark:hover .wordmark-glyph{background:none;color:CanvasText;animation:none}.header-actions a[data-neon]:hover,.header-actions a[data-neon]:active{background:none;color:LinkText;filter:none}}
+
+
+.dialog-actions{display:flex;align-items:center;gap:20px;flex-wrap:wrap}

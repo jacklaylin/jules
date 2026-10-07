@@ -1,5 +1,5 @@
-import {initWishlistTheme} from './wishlist-theme.js';
-initWishlistTheme();
+import {mountHeader} from './design-system.js';
+mountHeader('wishlist');
 import {createSession} from './wishlist-session.js';
 const $ = id => document.getElementById(id);
 const session=createSession({storage:localStorage,lock:work=>navigator.locks?navigator.locks.request('jules-wishlist-refresh',work):work()});
