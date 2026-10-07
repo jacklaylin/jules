@@ -66,6 +66,7 @@ function neonPress(event){const control=event.target.closest('button,a');if(cont
 document.addEventListener('pointerdown',neonPress);
 document.addEventListener('keydown',event=>{if(!event.repeat&&['Enter',' '].includes(event.key))neonPress(event);});
 document.addEventListener('pointerover',event=>{const control=event.target.closest('button,a');if(control&&!control.contains(event.relatedTarget))neonPress(event);});
+document.querySelector('.wordmark').dataset.neon=String(Math.floor(Math.random()*6));
 const header=document.querySelector('header');
 let headerTick=false;
 function updateHeader(){header.classList.toggle('compact',scrollY>8);headerTick=false;}

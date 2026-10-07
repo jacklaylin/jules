@@ -49,3 +49,13 @@ body{padding-top:100px}header{position:fixed;left:5vw;right:5vw;margin:0}header.
 #close[data-neon]:active .button-label{background:linear-gradient(110deg,var(--neon-a),var(--neon-b));background-clip:text;-webkit-background-clip:text;color:transparent;filter:drop-shadow(0 0 3px var(--neon-glow))}
 @media(hover:hover) and (pointer:fine){#close[data-neon]:hover .button-label{background:linear-gradient(110deg,var(--neon-a),var(--neon-b));background-clip:text;-webkit-background-clip:text;color:transparent;filter:drop-shadow(0 0 3px var(--neon-glow))}}
 @media(forced-colors:active){#close[data-neon]:active .button-label,#close[data-neon]:hover .button-label{background:none;color:ButtonText;filter:none}}
+
+/* The wordmark keeps its randomly chosen palette visible at rest. */
+.wordmark{background:linear-gradient(110deg,var(--neon-a,#ad00a6),var(--neon-b,#007c85));background-clip:text;-webkit-background-clip:text;color:transparent}
+@media(forced-colors:active){.wordmark{background:none;color:CanvasText}}
+
+/* Mongule by Arterfak Project — supplied license in /fonts/mongule-license.txt. */
+@font-face{font-family:"Mongule";src:url("/fonts/mongule.ttf") format("truetype");font-style:normal;font-weight:400;font-display:swap}
+header .wordmark{font-family:"Mongule",Arial,sans-serif;font-weight:400;font-size:52px;letter-spacing:0;line-height:1.1}
+header.compact .wordmark{font-size:34px;letter-spacing:0}
+@media(max-width:560px){header .wordmark{font-size:44px}header.compact .wordmark{font-size:28px}}
