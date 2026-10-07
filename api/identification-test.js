@@ -1,3 +1,4 @@
+import { textWishlistAction } from '../lib/text-wishlist.js';
 import { searchProducts } from '../lib/search.js';
 import { createHash } from 'node:crypto';
 import { authorize } from '../lib/auth.js';
@@ -18,9 +19,17 @@ export function createIdentificationTestHandler({env=process.env,auth=authorize,
       if(env.WISHLIST_ENABLED!=='true'||!env.OPENAI_API_KEY||!env.SERPAPI_API_KEY)return json(res,503,{error:'Identification and wishlist must be configured.'});
       const input=await readJson(req,4300000);
       if(input.action==='text_search_diagnostic'){
-        if(!['mini_auto','standard_auto'].includes(input.mode))return json(res,400,{error:'Choose a diagnostic mode.'});
+        if(!['mini_auto','standard_auto','wishlist_mini','wishlist_standard'].includes(input.mode))return json(res,400,{error:'Choose a diagnostic mode.'});
         stage='text_search_diagnostic';
-        const model=input.mode==='mini_auto'?'gpt-4.1-mini':'gpt-4.1';
+        const model=['mini_auto','wishlist_mini'].includes(input.mode)?'gpt-4.1-mini':'gpt-4.1';
+        if(input.mode.startsWith('wishlist_')){
+          const store=storeFactory(env),member=await store.wishlistMember(env.ADMIN_EMAIL.toLowerCase());
+          if(!member)return json(res,409,{error:'Owner membership required.'});
+          const {facts}=await store.profile(member.conversation_id);
+          let result;
+          const body=await textWishlistAction({action:'start',query:'Prada Speedrock sneakers'},{text:'I really want the Prada Speedrock sneakers',env:{...env,OPENAI_SEARCH_MODEL:model},facts,record:async value=>{result=value;},search:textSearch});
+          return json(res,200,{model,body,result});
+        }
         const result=await textSearch("Find men's Prada Speedrock leather and mesh sneakers, official product links",[],{...env,OPENAI_SEARCH_MODEL:model},fetch,{range:'men'});
         return json(res,200,{model,result});
       }
