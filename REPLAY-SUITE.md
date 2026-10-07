@@ -24,6 +24,8 @@ Automatic grading checks all emitted links against recorded verified listings, e
 - Explicit product metadata with a matching canonical URL and product title can establish a product page without JSON-LD. Missing commerce facts stay unknown.
 - Category pages, bot challenges, unsafe redirects, wrong products, and profile mismatches remain blocked.
 - Retry sourcing after rejected category, inaccessible, or profile-incompatible candidates once; preserve diagnostics. Unknown products do not trigger endless searches.
+- With the existing SerpApi key, failed text sources use one direct Google search rather than another model-selected source attempt. Only page-verified brand/model and department matches can be returned. Provider snippets do not establish commerce facts. This consumes one SerpApi search credit on recovery.
+- Category and unreadable pages remain sourcing failures, not department mismatches. Clear named-item desires consistently enter the wishlist selection flow.
 - Checked page titles label color variants, and matching SKUs deduplicate locale aliases. Distinct versions prompt version selection rather than a color question.
 
 Run deterministic tests with `npm test`. They include page layouts, mismatch rejection, source-gated replay grading, no-side-effect execution, and owner authorization. Live acceptance is reported separately.
