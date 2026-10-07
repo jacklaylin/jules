@@ -1,3 +1,4 @@
+import {trackedFetch as fetch} from './activity.js';
 const $ = id => document.getElementById(id);
 const money = value => value === null ? 'Unknown' : new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',minimumFractionDigits:2,maximumFractionDigits:4}).format(value);
 $('date').value = new Intl.DateTimeFormat('en-CA',{timeZone:'UTC',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());

@@ -1,3 +1,4 @@
+import {trackedFetch as fetch} from './activity.js';
 import {createSession} from './wishlist-session.js';
 const session=createSession({storage:localStorage,lock:work=>navigator.locks?navigator.locks.request('jules-wishlist-refresh',work):work()});
 const form=document.getElementById('test-form'),status=document.getElementById('status'),results=document.getElementById('results');

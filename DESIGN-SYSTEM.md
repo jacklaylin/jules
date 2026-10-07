@@ -17,3 +17,11 @@ The wishlist and personal style pages use `public/design-system.css` and `public
 For any repeated UI, extend the shared component or primitive and use it from both pages. Keep page-specific content and behavior in the page modules. Avoid importing one page's stylesheet into another, appending competing global overrides, or copying shared markup.
 
 Before deploying a shared style change, inspect both pages at desktop and phone sizes, including logo rest/hover, compact header, link navigation, form alignment, and dialogs. Check keyboard focus, no horizontal overflow, and browser errors. Automated application tests remain relevant when shared JavaScript changes.
+
+## Shared activity and feedback
+
+`public/activity.js` supplies `trackedFetch` to every consumer/operator page and `withActivity` for longer local workflows. The shared high-contrast status shows the current action and elapsed time, never guessed progress. Private image fetches use per-image placeholders instead of flashing the page status. Modules should import the tracked fetch and pass it into session refresh helpers.
+
+Style's final report uses a page-specific horizontal story composition inside the shared header and gutters. It fits the available dynamic viewport; longer copy and evidence remain readable in a dialog. Draft review keeps the full-width form layout. Each shopping preference is edited once by field/key and reused across all supporting cards.
+
+The story header pool is DM Serif Display, Space Grotesk, Bebas Neue, Caveat, and Arial Black. The first four are bundled from the official Google Fonts repository with their SIL Open Font Licenses in `public/fonts`; Arial Black uses the device font with an Arial fallback. Mongule remains the shared Jules wordmark. Gradients, font selection, source selection, and symbolic illustrations are shared by stories and PNG exports through `style-visuals.js`; exports require personal-photo opt-in.

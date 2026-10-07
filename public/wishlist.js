@@ -1,8 +1,9 @@
+import {trackedFetch as fetch} from './activity.js';
 import {mountHeader} from './design-system.js';
 mountHeader('wishlist');
 import {createSession} from './wishlist-session.js';
 const $ = id => document.getElementById(id);
-const session=createSession({storage:localStorage,lock:work=>navigator.locks?navigator.locks.request('jules-wishlist-refresh',work):work()});
+const session=createSession({fetcher:fetch,storage:localStorage,lock:work=>navigator.locks?navigator.locks.request('jules-wishlist-refresh',work):work()});
 let token=session.read()?.access_token||sessionStorage.getItem('jules_wishlist_token'), generation=0, detailVersion=0;
 const urls=new Set(), imageCache=new Map();
 const fragment=new URLSearchParams(location.hash.slice(1));

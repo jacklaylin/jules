@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {Readable} from 'node:stream';
 import {readFile} from 'node:fs/promises';
 import {createStyleHandler} from '../api/style.js';
-import {prepareSource,validateAnalysis,validateCards,receiptStats,eligibleCards,confirmReport,reportFacts,analyzeStyle} from '../lib/style.js';
+import {prepareSource,validateAnalysis,validateCards,receiptStats,eligibleCards,confirmReport,reportFacts,analyzeStyle,ensureCoreCards} from '../lib/style.js';
 import {cardText,wrapText} from '../public/style-export.js';
 import {createStore} from '../lib/store.js';
 import {receiveInInbox} from '../lib/inbox.js';
@@ -89,7 +89,7 @@ test('receipt statistics deduplicate records, match completed returns, and exclu
 test('conflicting user-confirmed preferences cannot silently overwrite each other',()=>{
   const original=report();original.cards.push({...original.cards[0],id:source.id});
   const reviews=original.cards.map((card,i)=>({id:card.id,accepted:true,hidden:false,correction:'',preferences:[{observation_id:'o1',accepted:true,value:i?'Prefers olive':'Prefers navy'}]}));
-  assert.throws(()=>confirmReport(original,reviews),/different versions/);
+  assert.throws(()=>confirmReport(original,reviews),/navy_knitwear.*different text/);
 });
 test('report validation rejects invented sources, receipt records from photos, inspiration crops and unsupported purchase cards',()=>{
   const a=analysis();assert.throws(()=>validateAnalysis({...a,observations:[{...observation,source_ids:[other]}]},[source]),/Unsupported/);
@@ -144,4 +144,34 @@ test('style text invitation bypasses model calls and reuses durable reply delive
   const delivery={space:{phone:'test-line'},message:{id:'test-message',sender:{id:'test-sender'},content:{text:'get to know my style'}}};
   const status=await receiveInInbox(delivery,env,{store,send:async()=>{},generate:()=>assert.fail()});
   assert.equal(status,'imessage_style_invitation_sent');assert.match(body,/https:\/\/shopper.invalid\/style/);
+});
+
+test('distinctive starter ingredients require evidence; invented references and colors are rejected',()=>{
+ const a=analysis(),ingredient={kind:'interest',label:'Cycling',color:null,icon:'bike',observation_ids:['o1']};
+ assert.equal(validateAnalysis({...a,ingredients:[ingredient]},[source]).ingredients[0].icon,'bike');
+ assert.throws(()=>validateAnalysis({...a,ingredients:[{...ingredient,observation_ids:['invented']}]},[source]),/ingredient/);
+ assert.throws(()=>validateAnalysis({...a,ingredients:[{...ingredient,color:'url(evil)'}]},[source]),/ingredient/);
+ assert.throws(()=>validateAnalysis({...a,crops:[{...a.crops[0],observation_ids:['invented']}]},[source]),/crop evidence/);
+});
+test('starter and explicit brand cards survive model omission without confirming new preferences',()=>{
+ const rpt=report();rpt.cards=[{...rpt.cards[0],type:'style'}];
+ rpt.analysis.observations.push({id:'brand',text:'User likes Label.',source_ids:['context'],confidence:'high',preference:{field:'brand',key:'Label',value:'Likes Label'}});
+ const enriched=ensureCoreCards(rpt);assert.ok(enriched.cards.some(c=>c.type==='starter'));assert.ok(enriched.cards.some(c=>c.type==='brands'));
+ assert.deepEqual(enriched.cards.find(c=>c.type==='starter').preferences,[]);assert.equal(enriched.cards.find(c=>c.type==='brands').preferences[0].accepted,false);assert.equal(enriched.cards.at(-1).accepted,false);
+ assert.deepEqual(ensureCoreCards(enriched),enriched);assert.deepEqual(ensureCoreCards(rpt),enriched);
+ rpt.status='confirmed';rpt.cards[0].accepted=true;
+ const existing=ensureCoreCards(rpt);assert.ok(existing.cards.some(c=>c.type==='starter'));assert.ok(!existing.cards.some(c=>c.type==='brands'));
+ assert.deepEqual(reportFacts(existing),reportFacts(rpt));
+});
+test('saved shopping preferences are evidence only when supplied; extraction receives them privately',async()=>{
+ const a=analysis(),brand={id:'b',text:'User likes Label.',source_ids:['saved-profile'],confidence:'high',preference:{field:'brand',key:'Label',value:'Likes Label'}};
+ assert.throws(()=>validateAnalysis({...a,observations:[brand]},[source]),/evidence/);
+ const facts=[{field:'brand',key:'Label',value:'Likes Label'}];
+ assert.equal(validateAnalysis({...a,observations:[brand]},[source],'',facts).observations[0].id,'b');
+ let call=0;await analyzeStyle([source],'',env,async(_url,options)=>{const body=JSON.parse(options.body);call++;if(call===1)assert.deepEqual(JSON.parse(body.input[0].content[0].text).saved_preferences,facts);return {ok:true,json:async()=>({status:'completed',output:[{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify(call===1?a:{cards:[rawCard]})}]}]})};},facts);
+});
+test('analysis reads only this owner’s live shopping memory and excludes old report feedback',async()=>{
+ const store=db();store.profile=async id=>{assert.equal(id,owner);return {facts:[{field:'brand',key:'Label',value:'Likes Label',source:'chat'},{field:'brand',key:'old',value:'Old',deleted:true},{field:'style',key:'old-read',value:'Old report',source:'style_report'},{field:'address',key:'home',value:'Not sent'}]};};
+ let received;const h=handler(store,{env:{...env,MEMORY_ENABLED:'true'},analyze:async(_sources,_notes,_env,_fetcher,facts)=>{received=facts;return report();}});
+ const r=res();await h(req({revision:0,action:'analyze',consent:true}),r);assert.equal(r.statusCode,200);assert.deepEqual(received,[{field:'brand',key:'Label',value:'Likes Label'}]);
 });

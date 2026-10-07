@@ -1,7 +1,7 @@
 import { createStore } from '../lib/store.js';
 import { wishlistUser } from '../lib/wishlist.js';
 import { json, readJson, uuid } from '../lib/http.js';
-import { TONES, prepareSource, analyzeStyle, confirmReport, reportFacts, cropSource, fail } from '../lib/style.js';
+import { ensureCoreCards, TONES, prepareSource, analyzeStyle, confirmReport, reportFacts, cropSource, fail } from '../lib/style.js';
 
 export const config={api:{bodyParser:false},maxDuration:120};
 export function createStyleHandler({env=process.env,storeFactory=createStore,auth=wishlistUser,analyze=analyzeStyle,prepare=prepareSource,crop=cropSource,fetcher=fetch}={}) {
@@ -15,6 +15,7 @@ export function createStyleHandler({env=process.env,storeFactory=createStore,aut
       if(access.status!==200)return json(res,access.status,{error:'Please sign in with your invited email.'});
       owner=access.conversation;
       const state=await store.styleSession(owner);
+      if(state.data.report?.status==='confirmed')state.data.report=ensureCoreCards(state.data.report);
       if(req.method==='GET') {
         const query=new URL(req.url,'https://local.invalid').searchParams;
         if(query.has('source')||query.has('crop')) {
@@ -85,7 +86,9 @@ export function createStyleHandler({env=process.env,storeFactory=createStore,aut
         const pending={...state.data,busy_until:new Date(Date.now()+150000).toISOString()};
         if(!await store.writeStyle(owner,state.revision,pending))throw fail('Your inputs changed. Reload before analyzing.',409);
         reservation={revision:state.revision+1,data:state.data};
-        const report=await analyze(sources,state.data.notes,env,fetcher);
+        const profile=env.MEMORY_ENABLED==='true'&&store.profile?await store.profile(owner):{facts:[]};
+        const facts=(profile.facts??[]).filter(f=>!f.deleted&&f.source!=='style_report'&&['style','brand','category','budget','size'].includes(f.field)).map(({field,key,value})=>({field,key,value}));
+        const report=await analyze(sources,state.data.notes,env,fetcher,facts);
         const data={...state.data,report,busy_until:null};
         if(!await store.writeStyle(owner,reservation.revision,data))throw fail('Your inputs changed during analysis. Reload to see the current version.',409);
         reservation=null;

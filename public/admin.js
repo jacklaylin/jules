@@ -1,3 +1,4 @@
+import {trackedFetch as fetch} from './activity.js';
 const $ = id => document.getElementById(id);
 let token = sessionStorage.getItem('jules_token');
 const fragment = new URLSearchParams(location.hash.slice(1));

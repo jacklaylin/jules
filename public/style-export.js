@@ -1,3 +1,4 @@
+import {cardTheme,drawSymbol} from './style-visuals.js';
 // The web card and flat image use the same approved copy. No external image URLs.
 export function cardText(card,tone) {return card.correction||card.variants[tone]||card.variants.balanced;}
 export function wrapText(ctx,text,width) {
@@ -17,29 +18,32 @@ export function wrapText(ctx,text,width) {
   return lines;
 }
 function drawLines(ctx,lines,x,y,lineHeight) {for(const line of lines){ctx.fillText(line,x,y);y+=lineHeight;}return y;}
-export function renderShareCard({card,tone,crops=[],signupURL,canvas=document.createElement('canvas')}) {
+export function renderShareCard({card,tone,crops=[],ingredients=[],signupURL,canvas=document.createElement('canvas')}) {
   canvas.width=1080;canvas.height=1920;
   const ctx=canvas.getContext('2d');
   if(!ctx)throw new Error('Image export is not supported in this browser.');
-  ctx.fillStyle='#fff';ctx.fillRect(0,0,1080,1920);
+  const theme=cardTheme(card),bg=ctx.createLinearGradient(0,0,1080,1920);bg.addColorStop(0,theme.a);bg.addColorStop(1,theme.b);ctx.fillStyle=bg;ctx.fillRect(0,0,1080,1920);
   ctx.fillStyle='#161616';ctx.textBaseline='top';
   ctx.font='24px Arial';ctx.fillText('MY STYLE / JULES',84,105);
   let titleSize=90,titleLines;
-  do{ctx.font=`${titleSize}px Arial`;titleLines=wrapText(ctx,card.title,912);titleSize-=4;}while(titleLines.length>3&&titleSize>48);
+  do{ctx.font=`${titleSize}px "${theme.font}"`;titleLines=wrapText(ctx,card.title,912);titleSize-=4;}while(titleLines.length>3&&titleSize>48);
   let y=drawLines(ctx,titleLines,84,210,(titleSize+4)*1.12)+52;
   const copy=cardText(card,tone);
-  let bodySize=48,bodyLines,available=1730-y-(crops.length?660:0);
+  let bodySize=48,bodyLines,available=1730-y-(crops.length||ingredients.length?820:0);
   do{ctx.font=`${bodySize}px Arial`;bodyLines=wrapText(ctx,copy,912);if(bodyLines.length*bodySize*1.4<=available)break;bodySize-=2;}while(bodySize>26);
   if(bodyLines.length*bodySize*1.4>available)throw new Error('This card is too long to export. Shorten your correction first.');
   y=drawLines(ctx,bodyLines,84,y,bodySize*1.4)+48;
-  if(crops.length) {
-    const w=288,h=244,gap=24;
-    crops.slice(0,6).forEach(({image,label},index)=>{
-      const x=84+(index%3)*(w+gap),top=y+Math.floor(index/3)*314;
-      ctx.fillStyle='#fafafa';ctx.fillRect(x,top,w,h);
-      const ratio=Math.min((w-24)/image.naturalWidth,(h-24)/image.naturalHeight),iw=image.naturalWidth*ratio,ih=image.naturalHeight*ratio;
-      ctx.drawImage(image,x+(w-iw)/2,top+(h-ih)/2,iw,ih);
-      ctx.fillStyle='#161616';ctx.font='22px Arial';drawLines(ctx,wrapText(ctx,label,w).slice(0,2),x,top+h+12,27);
+  const items=[...crops.slice(0,6).map(c=>({...c,kind:'photo'})),...ingredients].slice(0,6);
+  if(items.length){
+    const columns=items.length>4?3:2,rows=Math.ceil(items.length/columns),width=912/columns,height=Math.min(640/rows,300);
+    items.forEach((item,index)=>{
+      const x=84+(index%columns)*width,top=y+Math.floor(index/columns)*(height+42);
+      ctx.save();ctx.translate(x+width/2,top+height/2);ctx.rotate((index%2?-5:6)*Math.PI/180);
+      if(item.image){const img=item.image,ratio=Math.min((width-30)/img.naturalWidth,(height-35)/img.naturalHeight),iw=img.naturalWidth*ratio,ih=img.naturalHeight*ratio;ctx.shadowColor='#0002';ctx.shadowBlur=12;ctx.drawImage(img,-iw/2,-ih/2,iw,ih);}
+      else if(item.kind==='color'){ctx.fillStyle=item.color||theme.b;ctx.fillRect(-width*.33,-height*.3,width*.66,height*.6);}
+      else if(item.kind==='brand'||item.icon==='none'){ctx.fillStyle='#161616';ctx.font=`${Math.min(38,430/item.label.length)}px "Space Grotesk"`;drawLines(ctx,wrapText(ctx,item.label,width-30),-width/2+15,-25,42);}
+      else drawSymbol(ctx,item.icon,-width*.42,-height*.4,width*.84,height*.8);
+      ctx.restore();ctx.fillStyle='#161616';ctx.font='22px Arial';drawLines(ctx,wrapText(ctx,item.label,width-26).slice(0,2),x+12,top+height,25);
     });
   }
   ctx.strokeStyle='#eee';ctx.beginPath();ctx.moveTo(84,1760);ctx.lineTo(996,1760);ctx.stroke();
