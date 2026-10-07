@@ -97,3 +97,20 @@ test('shopper result layout removes technical labels, repeats no brand, and sepa
  assert.match(text,/Bonus: Example Long Coat\. A longer related style/);
  assert.ok(!text.includes('Example Example'));assert.ok(!text.includes('Likely match; unconfirmed'));assert.ok(!text.includes('These are sourced links'));
 });
+
+test('transient search server failure retries once with the same request',async()=>{
+  const requests=[];
+  const found=await searchProducts('Trail sneakers',[],{},async(url,options)=>{
+    requests.push(options);
+    return requests.length===1?{ok:false,status:500}:response([{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify({intro:'No verified listing.',products:[],needs_review:true})}]}]);
+  });
+  assert.equal(requests.length,2);assert.equal(requests[0].body,requests[1].body);
+  assert.notEqual(requests[0].signal,requests[1].signal);assert.equal(found.products.length,0);
+});
+test('search retries are bounded and do not retry authentication or quota failures',async()=>{
+  for(const status of [500,502,503,504,400,401,403,429]){
+    let calls=0;
+    await assert.rejects(searchProducts('Trail sneakers',[],{},async()=>{calls++;return {ok:false,status};}),/Product search failed/);
+    assert.equal(calls,[500,502,503,504].includes(status)?2:1);
+  }
+});

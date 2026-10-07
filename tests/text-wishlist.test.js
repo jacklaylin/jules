@@ -81,3 +81,12 @@ test('only exact, system-labeled saved sizes are reused; no guessing EU/US conve
   await textWishlistAction({action:'select',choice:'brown'},{state:{stage:'choice',options:[product]},env,record:h.record,inspect,facts:[{field:'size',key:'shoes/us_men',value:'12'}]});
   assert.equal(h.result.text_wishlist_state.size,null);
 });
+
+test('wishlist search failure produces a specific reply and never advances saving or alerts',async()=>{
+  const h=harness();
+  const reply=await textWishlistAction({action:'start',query:'Trail sneakers'},{env,record:h.record,search:async()=>{throw new Error('Product search failed');}});
+  assert.match(reply,/finish the search/);assert.doesNotMatch(reply,/prepare a reply|https:/);
+  assert.equal(h.result.status,'failed');assert.equal(h.result.text_wishlist_state,null);
+  assert.equal(h.result.user_confirmed,undefined);assert.equal(h.result.alert_request,undefined);
+  assert.deepEqual(h.result.products,[]);assert.equal(h.result.text_wishlist_diagnostics.stage,'search');
+});
