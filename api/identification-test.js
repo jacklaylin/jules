@@ -25,7 +25,9 @@ export function createIdentificationTestHandler({env=process.env,auth=authorize,
           if(!member)return json(res,409,{error:'Owner membership required.'});
           const {messages}=await store.messages(member.conversation_id);
           const latest=messages.findLast(m=>m.search_result?.text_wishlist_diagnostics);
-          return json(res,200,{checks:latest?.search_result?.text_wishlist_diagnostics??null});
+          const profile=await store.profile(member.conversation_id);
+          const reply=messages.findLast(m=>m.direction==='outbound'&&m.search_result?.identification_policy==='text_wishlist');
+          return json(res,200,{checks:latest?.search_result?.text_wishlist_diagnostics??null,range_facts:profile.facts.filter(f=>['gender','shopping_range'].includes(f.field)),last_request:messages.findLast(m=>m.direction==='inbound')?.body,options:reply?.search_result?.text_wishlist_state?.options});
         }
         stage='text_search_diagnostic';
         const model=input.mode==='wishlist_current'?(env.OPENAI_SEARCH_MODEL||'gpt-4.1'):['mini_auto','wishlist_mini'].includes(input.mode)?'gpt-4.1-mini':'gpt-4.1';

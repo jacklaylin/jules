@@ -45,3 +45,10 @@ test('old pending women’s results are resourced before selection and cannot be
   await textWishlistAction({action:'select',choice:'black'},{state:{stage:'choice',query:'Prada sneakers',options:[wrong]},facts,text:'black',env:{},record:async r=>{recorded=r;},search:async()=>{searched=true;return {products:[men]};}});
   assert.equal(searched,true);assert.equal(recorded.text_wishlist_state.options[0].listing_check.shopping_range,'men');assert.equal(recorded.user_confirmed,undefined);
 });
+test('complaints and negative mentions cannot switch the saved clothing range',()=>{
+ for(const text of ["not women's shoes", "you sent me women's shoes again", "she sent womens shoes again", "I don't want women's sneakers"]){
+  assert.equal(shoppingConstraints(facts,text).range,'men');
+ }
+ assert.equal(shoppingConstraints(facts,"Not women's, find men's sneakers").range,'men');
+ assert.equal(shoppingConstraints(facts,"Find women's sneakers for my wife").range,'women');
+});
