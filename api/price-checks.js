@@ -23,14 +23,14 @@ export function createPriceChecksHandler({env=process.env,storeFactory=createSto
         if(match&&await store.priceAlertCurrent(alert.id,alert.revision)){
           const conversation=await store.conversation(alert.conversation_id);
           const price=new Intl.NumberFormat('en-US',{style:'currency',currency:match.currency}).format(match.amount);
-          const body=`${alert.name} is down more than 10% to ${price}, and size ${alert.size} is available.\n${match.url}\nPrice and size checked just now; shipping and taxes may be extra.`;
           const baseline=alert.baselines.find(b=>priceDrop(b,match));
+          const body=`${alert.name} is down${baseline.drop_percent===0?'':' more than 10%'} to ${price}, and size ${alert.size} is available.\n${match.url}\nPrice and size checked just now; shipping and taxes may be extra.`;
           const fingerprint=createHash('sha256').update(JSON.stringify([baseline.key,baseline.currency,baseline.amount])).digest('hex').slice(0,24);
           const operation=`price-alert:${alert.id}:${alert.revision}:${fingerprint}`;
           const existing=await store.operation(operation);
           const result=existing?{status:existing.status,duplicate:true}:await deliverReply({store,send,conversation,operation,body,source:'operator',env});
           status=result.status;if(status==='sent'&&!result.duplicate)sent++;
-          if(status==='sent')nextBaselines=alert.baselines.map(b=>b.currency===match.currency?match:b);
+          if(status==='sent')nextBaselines=alert.baselines.map(b=>b.currency===match.currency?{...match,...(b.drop_percent===0?{drop_percent:0}:{})}:b);
         }
         await store.recordPriceCheck(alert.id,alert.revision,{status,checks},['sent','uncertain','sending'].includes(status),nextBaselines);
       }catch{failed++;console.log(JSON.stringify({event:'price_alert_check_failed',alert_id:alert.id}));}}));

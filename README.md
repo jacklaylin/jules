@@ -260,6 +260,12 @@ See `evals/IDENTIFICATION.md` for the 12-case evaluation, independent answer lab
 
 ## Automatic price alerts — local implementation, live acceptance pending
 
+### Text product wishes
+
+With `WISHLIST_ENABLED=true` and `SEARCH_ENABLED=true`, a statement such as “I really want [brand/model] sneakers” starts a sourced text selection. Jules presents up to three checked product listings, uses retailer-structured colors when present, and asks for a color or numbered selection. Missing colors and ambiguous model names are clarified instead of invented. Only a subsequent affirmative save/alert confirmation prepares a wishlist entry; “no” does not save it. Text entries have no association with an earlier inspiration photo. Repeated saves of the same product URL reuse the grid item.
+
+Text-created alerts use **any verified price drop**, checking every three days, while existing web-created alerts retain their more-than-10% rule. The chosen color must remain verified on each monitored page. Reuse saved shoe sizes only when they exactly match a retailer's system-labeled size; otherwise ask for the retailer's size label. A fresh in-stock, size-specific price is required before activation. Unsupported structured color/size evidence allows saving without an alert, never a false active-watch promise. Final “saved/alert on” acknowledgement follows successful persistence. No new migration or provider is required beyond the existing wishlist and price-alert setup below. Phone acceptance of the text flow remains pending.
+
 See [MILESTONE-8.md](MILESTONE-8.md) for setup and acceptance. Apply `db/009_price_alerts.sql`, set `PRICE_ALERTS_ENABLED=true` and a private random `CRON_SECRET` in Vercel, then deploy. The daily scheduled endpoint checks each due alert every three days using retailer structured data; no AI search runs on every check.
 
 Wishlist bells require a retailer-sourced size before activation. Baselines use the lowest verified in-stock price for that size across the supplied links, separately per currency. A drop must exceed 10%; higher merchant prices falling but remaining above the lowest do not qualify. Accepted texts include the qualifying link and lower the reference for future alerts. Missing size-bound price/stock evidence prevents activation or notification. Live retailer coverage, database functions, persistence, and phone delivery must still be verified.
