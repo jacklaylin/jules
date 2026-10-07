@@ -1,6 +1,6 @@
 # Personal style / starter pack MVP
 
-Implemented for the invited pilot. Production database migration, feature flag, and exact `/style` sign-in redirect were configured on October 7, 2026. Real-input and iPhone acceptance remain pending.
+Implemented for the invited pilot. Production database migration, feature flag, and exact `/style` sign-in redirect were configured on October 7, 2026. Release `a160e6a` deployed successfully to https://jules-gamma.vercel.app/style. The existing signed-in session loads the private upload screen with no browser errors; unauthenticated API requests return 401. Real-input and iPhone acceptance remain pending.
 
 ## Behavior
 
