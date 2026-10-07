@@ -23,7 +23,9 @@ async function run(inputs){
   let done=0;const repeats=Number($('runs').value);
   for(const input of inputs)for(let i=0;i<repeats&&!stopping;i++){
    $('status').textContent=`Running ${input.case_id}, repeat ${i+1}/${repeats}…`;
-   show((await request({action:'replay',...input})).report);done++;
+   const started=Date.now();
+   try{show((await request({action:'replay',...input})).report);done++;}
+   catch(error){show({id:input.case_id,name:cases.find(c=>c.id===input.case_id)?.name||input.case_id,passed:false,failures:['replay_request_failed'],elapsed_ms:Date.now()-started,links:0,body:'Replay request failed. No response was available to grade.',repeat:i+1});stopping=true;throw error;}
   }
   $('status').textContent=`${stopping?'Stopped. ':''}${done} runs completed. ${reports.filter(r=>r.passed).length}/${reports.length} passed across this report. Nothing sent or saved.`;
  }catch(error){$('status').textContent=error.message;}finally{buttons.forEach(id=>$(id).disabled=false);$('stop').disabled=true;}

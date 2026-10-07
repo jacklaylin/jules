@@ -27,3 +27,5 @@ Automatic grading checks all emitted links against recorded verified listings, e
 - Checked page titles label color variants, and matching SKUs deduplicate locale aliases. Distinct versions prompt version selection rather than a color question.
 
 Run deterministic tests with `npm test`. They include page layouts, mismatch rejection, source-gated replay grading, no-side-effect execution, and owner authorization. Live acceptance is reported separately.
+
+Request failures are recorded as failed runs and stop the queue. They are not automatically retried: the server may still have consumed API credits even when the browser loses the response.
