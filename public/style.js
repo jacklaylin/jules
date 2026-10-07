@@ -8,14 +8,14 @@ const $=id=>document.getElementById(id);
 const session=createSession({fetcher:fetch,storage:localStorage,lock:work=>navigator.locks?navigator.locks.request('jules-wishlist-refresh',work):work()});
 let token=session.read()?.access_token||sessionStorage.getItem('jules_wishlist_token'),state=null,busy=false,generation=0,storyIndex=0;
 let exporting=null,exportVersion=0,exportBlob=null;
-const urls=new Set();
+const urls=new Set(),photos=new Map();
 const fragment=new URLSearchParams(location.hash.slice(1));
 if(fragment.has('access_token')){token=fragment.get('access_token');session.save({access_token:token,refresh_token:fragment.get('refresh_token'),expires_at:Number(fragment.get('expires_at'))||Date.now()/1000+(Number(fragment.get('expires_in'))||3600)});sessionStorage.removeItem('jules_wishlist_token');}
 if(location.hash)history.replaceState(null,'','/style');
 let noticeTimer,analysisPoll;const notice=text=>{clearTimeout(noticeTimer);$('notice').textContent=text;if(text&&document.body.classList.contains('story-mode'))noticeTimer=setTimeout(()=>$('notice').textContent='',8000);};
 function node(tag,text,cls){const el=document.createElement(tag);if(text)el.textContent=text;if(cls)el.className=cls;return el;}
 function button(text,work){const el=node('button',text);el.type='button';el.onclick=work;return el;}
-function clear(){generation++;exportVersion++;urls.forEach(URL.revokeObjectURL);urls.clear();$('sources').replaceChildren();$('cards').replaceChildren();$('export-preview').replaceChildren();$('export-dialog').close();exportBlob=null;exporting=null;state=null;}
+function clear(){generation++;exportVersion++;urls.forEach(URL.revokeObjectURL);urls.clear();photos.clear();$('sources').replaceChildren();$('cards').replaceChildren();$('export-preview').replaceChildren();$('export-dialog').close();exportBlob=null;exporting=null;state=null;}
 function login(){clearTimeout(analysisPoll);document.body.classList.remove('story-mode');clear();token=null;session.clear();sessionStorage.removeItem('jules_wishlist_token');$('workspace').hidden=true;$('login').hidden=false;$('logout').hidden=true;}
 async function authFetch(url,options={}) {
   try{token=await session.token()||token;}catch(error){if(!session.read())login();throw error;}
@@ -36,7 +36,7 @@ async function work(fn,label='Working on your style') {
   try{await withActivity(label,fn);}catch(e){if(e.inline)feedback('review-feedback',e.message,true);else{notice(e.message);$('notice').scrollIntoView({block:'nearest'});}}
   finally{busy=false;$('workspace').setAttribute('aria-busy','false');controls.forEach(({el,disabled})=>{if(el.isConnected)el.disabled=disabled;});if(state){const pending=Date.parse(state.data.busy_until)>Date.now();if(pending)$('workspace').querySelectorAll('button,input,select,textarea').forEach(el=>el.disabled=true);$('analyze').disabled=pending||!state.sources.some(s=>s.kind==='outfit');}}
 }
-async function blobURL(query){const response=await authFetch('/api/style'+query);if(!response.ok)throw new Error('Could not load this image.');const url=URL.createObjectURL(await response.blob());urls.add(url);return url;}
+async function blobURL(query){if(photos.has(query))return photos.get(query);const v=generation;const pending=(async()=>{const response=await authFetch('/api/style'+query);if(!response.ok)throw new Error('Could not load this image.');const blob=await response.blob();if(v!==generation)throw new Error('Your report changed.');const url=URL.createObjectURL(blob);urls.add(url);return url;})();photos.set(query,pending);try{return await pending;}catch(error){if(photos.get(query)===pending)photos.delete(query);throw error;}}
 function privatePhoto(query,alt) {
   const img=node('img');img.alt=alt;const v=generation;
   blobURL(query).then(url=>{if(v===generation)img.src=url;}).catch(()=>{img.alt='Image unavailable';});return img;
@@ -119,7 +119,7 @@ function renderCards() {
  requestAnimationFrame(()=>{$('cards').scrollTo({left:storyIndex*($('cards').clientWidth+16),behavior:'instant'});syncStory();});
 }
 function render() {
-  generation++;exportVersion++;urls.forEach(URL.revokeObjectURL);urls.clear();
+  generation++;exportVersion++;urls.forEach(URL.revokeObjectURL);urls.clear();photos.clear();
   $('login').hidden=true;$('workspace').hidden=false;$('logout').hidden=false;
   $('context').value=state.data.notes??'';
   for(const r of document.querySelectorAll('input[name=tone]'))r.checked=r.value===state.data.tone;
