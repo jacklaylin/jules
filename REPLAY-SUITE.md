@@ -19,6 +19,7 @@ Automatic grading checks all emitted links against recorded verified listings, e
 ## Less brittle page checks
 
 - Product-bound structured data takes precedence over recommendation products elsewhere in the HTML. Ambiguous unbound multi-product pages still fail.
+- ProductGroup data can establish a product when its page-bound size variants share one color. Size variants do not establish stock in the user's size, and differing colors remain ambiguous.
 - Ignore retailer brand/department filler in title comparison; keep meaningful model/material words.
 - Explicit product metadata with a matching canonical URL and product title can establish a product page without JSON-LD. Missing commerce facts stay unknown.
 - Category pages, bot challenges, unsafe redirects, wrong products, and profile mismatches remain blocked.

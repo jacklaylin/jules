@@ -33,4 +33,6 @@ test('unknown models and ambiguous families have separate expectations',()=>{
  assert.equal(scoreReplay(unknown,{body:'Try again.'}).passed,false);
  assert.equal(scoreReplay(variants,{body:'Which version, v5 or v6, do you mean?'}).passed,true);
  assert.equal(scoreReplay(variants,{body:'Here you go.'}).passed,false);
+ assert.equal(scoreReplay(variants,{body:'The 990 has several versions. Are you looking for something retro, runner-style, or fashion-focused?'}).passed,true);
+ assert.equal(scoreReplay(variants,{body:'The 990 has several versions. What is your budget?'}).passed,false);
 });
