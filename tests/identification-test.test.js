@@ -31,3 +31,11 @@ test('in-progress test is not automatically reissued',async()=>{
   const store={wishlistMember:async()=>({conversation_id:'owner'}),reserveIdentificationTest:async(c,k,q,hash)=>({created:false,record:{conversation_id:c,search_result:{test_status:'running',test_hash:hash}}})};
   const response=res();await createIdentificationTestHandler({env,auth:async()=>200,storeFactory:()=>store,search:()=>assert.fail()})(req(input),response);assert.equal(response.statusCode,409);
 });
+test('owner text diagnostic uses fixed public query and never saves or sends messages',async()=>{
+ let calls=0;
+ const handler=createIdentificationTestHandler({env,auth:async()=>200,storeFactory:()=>assert.fail(),textSearch:async(query,images,settings,fetcher,constraints)=>{
+ calls++;assert.match(query,/men's Prada/);assert.deepEqual(images,[]);assert.equal(settings.OPENAI_SEARCH_TOOL_CHOICE,'auto');assert.equal(settings.OPENAI_SEARCH_MODEL,'gpt-4.1');assert.equal(constraints.range,'men');return {products:[]};
+ }});
+ const response=res();await handler(req({action:'text_search_diagnostic',mode:'standard_auto',query:'ignored private text'}),response);assert.equal(response.statusCode,200);assert.equal(calls,1);
+ const invalid=res();await handler(req({action:'text_search_diagnostic',mode:'arbitrary'}),invalid);assert.equal(invalid.statusCode,400);assert.equal(calls,1);
+});

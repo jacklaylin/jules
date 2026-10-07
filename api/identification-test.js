@@ -1,3 +1,4 @@
+import { searchProducts } from '../lib/search.js';
 import { createHash } from 'node:crypto';
 import { authorize } from '../lib/auth.js';
 import { createStore } from '../lib/store.js';
@@ -7,7 +8,7 @@ import { imageType, MAX_IMAGE_BYTES } from '../lib/images.js';
 import { json, readJson, uuid } from '../lib/http.js';
 
 export const config = { api: { bodyParser: false }, maxDuration: 120 };
-export function createIdentificationTestHandler({env=process.env,auth=authorize,storeFactory=createStore,search=visualSearchProducts,prepare=wishlistProducts}={}) {
+export function createIdentificationTestHandler({env=process.env,auth=authorize,storeFactory=createStore,search=visualSearchProducts,textSearch=searchProducts,prepare=wishlistProducts}={}) {
   return async (req,res) => {
     let stage='authorization';
     try {
@@ -16,6 +17,13 @@ export function createIdentificationTestHandler({env=process.env,auth=authorize,
       if(req.method!=='POST')return json(res,405,{error:'Use POST.'});
       if(env.WISHLIST_ENABLED!=='true'||!env.OPENAI_API_KEY||!env.SERPAPI_API_KEY)return json(res,503,{error:'Identification and wishlist must be configured.'});
       const input=await readJson(req,4300000);
+      if(input.action==='text_search_diagnostic'){
+        if(!['mini_auto','standard_auto'].includes(input.mode))return json(res,400,{error:'Choose a diagnostic mode.'});
+        stage='text_search_diagnostic';
+        const model=input.mode==='mini_auto'?'gpt-4.1-mini':'gpt-4.1';
+        const result=await textSearch("Find men's Prada Speedrock leather and mesh sneakers, official product links",[],{...env,OPENAI_SEARCH_MODEL:model,OPENAI_SEARCH_TOOL_CHOICE:'auto'},fetch,{range:'men'});
+        return json(res,200,{model,result});
+      }
       if(!uuid(input.operation)||typeof input.query!=='string'||!input.query.trim()||input.query.length>1000||input.provider_sharing!==true||typeof input.image!=='string'||!input.image||input.image.length>4194304||!/^[A-Za-z0-9+/]+={0,2}$/.test(input.image))return json(res,400,{error:'Provide an operation, request, image, and provider-sharing approval.'});
       const bytes=Buffer.from(input.image,'base64');
       if(bytes.length>MAX_IMAGE_BYTES)return json(res,413,{error:'Image must be under 3 MB.'});
