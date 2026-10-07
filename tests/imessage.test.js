@@ -19,6 +19,21 @@ function request(value = payload, timestamp = String(now / 1000)) {
 function processor(send = async () => {}) {
   return createProcessor({ send, now: () => now, log: () => {} });
 }
+test('threaded inbound text reaches the handler once and quoted target is never new input',async()=>{
+ let calls=0;
+ const process=createProcessor({now:()=>now,log:()=>{},handle:async delivery=>{calls++;assert.equal(delivery.message.content.text,'Ivory or black I think');assert.deepEqual(delivery.message.attachments,[]);return 'handled';}});
+ const value={...payload,message:{...payload.message,content:{type:'reply',content:{type:'text',text:'Ivory or black I think'},target:{id:'prior-message',content:{type:'text',text:'Which version?'}}}}};
+ assert.equal(await process(...request(value)),200);assert.equal(await process(...request(value)),200);assert.equal(calls,1);
+});
+test('threaded reactions stay ignored and threaded attachments respect image enablement',async()=>{
+ let calls=0;const process=createProcessor({now:()=>now,log:()=>{},handle:async()=>{calls++;return 'handled';}});
+ const value={...payload,message:{...payload.message,content:{type:'reply',content:{type:'reaction',emoji:'👍'}}}};
+ assert.equal(await process(...request(value)),200);assert.equal(calls,0);
+ value.message.content.content={type:'attachment',id:'image-id',mimeType:'image/jpeg'};
+ assert.equal(await process(...request(value)),200);assert.equal(calls,0);
+ const args=request(value);args[2]={...env,IMAGES_ENABLED:'true'};
+ assert.equal(await process(...args),200);assert.equal(calls,1);
+});
 test('hello sends exact greeting through the signed shared line', async () => {
   const sent = [];
   const status = await processor(async (...args) => sent.push(args))(...request());
