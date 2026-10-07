@@ -184,3 +184,16 @@ test('color evidence prioritizes matching garment labels rather than upload orde
  const visual=cardVisuals(rpt,{...rawCard,type:'colors',title:'Earth tones',variants:{balanced:'You wear a lot of brown.'}});
  assert.deepEqual(visual.crops.slice(0,2).map(c=>c.label),['Brown jacket','Brown pants']);
 });
+
+test('specialized outfit contexts stay tentative and save scoped preferences only after confirmation',()=>{
+ const a=analysis();a.outfit_contexts=[{source_id:source.id,activity:'cycling',basis:'gear',confidence:'medium',dedicated:true}];a.observations[0].wear_context='cycling';
+ validateAnalysis(a,[source]);
+ assert.throws(()=>validateAnalysis({...a,outfit_contexts:[{...a.outfit_contexts[0],confidence:'high'}]},[source]),/Unsupported outfit context/);
+ assert.throws(()=>validateAnalysis(a,[{...source,kind:'inspiration'}]),/outfit context/);
+ const cards=validateCards({cards:[rawCard]},a,[source]);assert.match(cards[0].preferences[0].value,/^For cycling:/);assert.match(cards[0].preferences[0].key,/context\/cycling/);
+ const r={...report(),analysis:a,cards};assert.equal(reportFacts(r).length,0);
+ const confirmed=confirmReport(r,cards.map(c=>({id:c.id,accepted:true,hidden:false,correction:'',preferences:c.preferences.map(p=>({...p,accepted:true}))})));
+ assert.match(reportFacts(confirmed)[0].value,/^For cycling:/);
+ assert.equal(cardVisuals(r,{...cards[0],type:'style'}).crops.length,0);
+ assert.equal(cardVisuals(r,cards[0]).crops.length,1);
+});

@@ -74,12 +74,20 @@ function collage(card){
   else fig.append(symbolCanvas(item.icon));
   fig.append(node('figcaption',item.kind==='brand'?'From your style notes':item.label));gallery.append(fig);
  }
+ gallery.dataset.count=gallery.children.length;
+ for(const figure of gallery.children){
+  const enabled=()=>matchMedia('(hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference)').matches;
+  figure.onpointermove=e=>{if(!enabled()||e.pointerType!=='mouse')return;const box=figure.getBoundingClientRect();const x=Math.max(-1,Math.min(1,(e.clientX-box.left)/box.width*2-1)),y=Math.max(-1,Math.min(1,(e.clientY-box.top)/box.height*2-1));figure.dataset.hover='true';figure.style.setProperty('--pointer-turn',`${x*3}deg`);figure.style.setProperty('--pointer-x',`${-y*4}deg`);figure.style.setProperty('--pointer-y',`${x*4}deg`);};
+  figure.onpointerleave=()=>{delete figure.dataset.hover;figure.style.removeProperty('--pointer-turn');figure.style.removeProperty('--pointer-x');figure.style.removeProperty('--pointer-y');};
+ }
  return gallery;
 }
 function evidenceContent(card){
  const content=node('div');content.append(node('h3',card.title),node('p',cardText(card,state.data.tone),'card-copy'),collage(card));
  for(const o of state.data.report.analysis.observations.filter(o=>card.observation_ids.includes(o.id))){
   content.append(node('p',o.text),node('p',o.confidence==='low'?'Tentative interpretation':'From your submitted evidence','fine'));
+  if(o.wear_context)content.append(node('p','Worn for: '+o.wear_context,'fine'));
+  for(const context of state.data.report.analysis.outfit_contexts||[])if(o.source_ids.includes(context.source_id))content.append(node('p',`${context.basis==='gear'?'Likely activity (confirm)':'Activity'}: ${context.activity}`,'fine'));
   for(const id of o.source_ids){if(id==='context'||id==='saved-profile'){content.append(node('p',id==='context'?'Your style notes':'Your saved shopping preferences','fine'));continue;}const source=state.sources.find(s=>s.id===id);if(!source)continue;
    content.append(button('View '+source.kind,()=>work(async()=>{const url=await blobURL('?source='+id);const a=node('a');a.href=url;a.target='_blank';a.rel='noopener';if(source.mime_type==='application/pdf')a.download='receipt.pdf';a.click();})));
   }
@@ -104,8 +112,8 @@ function renderCards() {
  report.cards.filter(card=>draft||card.accepted&&!card.hidden).forEach((card,index)=>{
   const article=node('article',null,'style-card');article.dataset.type=card.type;article.dataset.id=card.id;
   const theme=cardTheme(card);article.style.setProperty('--story-a',theme.a);article.style.setProperty('--story-b',theme.b);article.style.setProperty('--story-font',`"${theme.font}"`);
-  article.append(node('p',`${String(index+1).padStart(2,'0')} / ${card.type==='starter'?'YOUR STARTER PACK':card.private?'SHOPPING HISTORY · PRIVATE':'YOUR STYLE'}`,'card-number'),node('h3',card.title),node('p',cardText(card,state.data.tone),'card-copy'));
-  if(!draft||card.type==='starter')article.append(collage(card));
+  const copy=node('div',null,'story-copy');copy.append(node('p',`${String(index+1).padStart(2,'0')} / ${card.type==='starter'?'YOUR STARTER PACK':card.private?'SHOPPING HISTORY · PRIVATE':'YOUR STYLE'}`,'card-number'),node('h3',card.title),node('p',cardText(card,state.data.tone),'card-copy'));article.append(copy);
+  if(!draft||card.type==='starter'){const visual=collage(card);article.dataset.visuals=visual.children.length?'true':'false';article.append(visual);}
   if(draft){
    const detail=node('details');detail.append(node('summary','Why Jules thinks this'),evidenceContent(card));article.append(detail);
    const review=node('div',null,'review'),set=node('fieldset');set.append(node('legend','Does this fit?'));

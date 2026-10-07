@@ -41,7 +41,7 @@ export function renderShareCard({card,tone,crops=[],ingredients=[],signupURL,can
       ctx.save();ctx.translate(x+width/2,top+height/2);ctx.rotate((index%2?-5:6)*Math.PI/180);
       if(item.image){const img=item.image,ratio=Math.min((width-30)/img.naturalWidth,(height-35)/img.naturalHeight),iw=img.naturalWidth*ratio,ih=img.naturalHeight*ratio;ctx.shadowColor='#0002';ctx.shadowBlur=12;ctx.drawImage(img,-iw/2,-ih/2,iw,ih);}
       else if(item.kind==='color'){ctx.fillStyle=item.color||theme.b;ctx.fillRect(-width*.33,-height*.3,width*.66,height*.6);}
-      else if(item.kind==='brand'||item.icon==='none'){ctx.fillStyle='#161616';ctx.font=`${Math.min(38,430/item.label.length)}px "Space Grotesk"`;drawLines(ctx,wrapText(ctx,item.label,width-30),-width/2+15,-25,42);}
+      else if(item.kind==='brand'||item.icon==='none'){ctx.fillStyle='#161616';ctx.font=`${Math.min(38,430/item.label.length)}px Arial`;drawLines(ctx,wrapText(ctx,item.label,width-30),-width/2+15,-25,42);}
       else drawSymbol(ctx,item.icon,-width*.42,-height*.4,width*.84,height*.8);
       ctx.restore();ctx.fillStyle='#161616';ctx.font='22px Arial';drawLines(ctx,wrapText(ctx,item.label,width-26).slice(0,2),x+12,top+height,25);
     });
