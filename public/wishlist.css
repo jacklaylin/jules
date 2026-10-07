@@ -65,3 +65,16 @@ header.compact .wordmark{font-size:34px;letter-spacing:0}
 .card-state{display:block;font-size:11px;color:#666;margin-top:8px}.sourcing-state{font-size:13px;font-weight:600}.sourcing-note{font-size:13px;color:#666;line-height:1.5}.identity-sources{font-size:13px;font-weight:500;margin-top:24px}
 
 .carousel-view .photo img{object-fit:contain}.identity-sources a{display:block;margin:10px 0}
+
+/* A slow color sweep only while hovering over the logo. */
+@media(hover:hover) and (pointer:fine){
+ .wordmark:hover{background-size:200% 100%;animation:wordmark-gradient 2.4s ease-in-out infinite alternate}
+}
+@keyframes wordmark-gradient{from{background-position:0% 50%}to{background-position:100% 50%}}
+@media(prefers-reduced-motion:reduce){.wordmark:hover{animation:none;background-size:100% 100%}}
+@media(forced-colors:active){.wordmark:hover{background:none;animation:none;color:CanvasText}}
+
+/* Typed colors interpolate smoothly when the logo selects a new palette. */
+@property --neon-a{syntax:"<color>";inherits:true;initial-value:#ad00a6}
+@property --neon-b{syntax:"<color>";inherits:true;initial-value:#007c85}
+header .wordmark{transition:font-size .22s ease,letter-spacing .22s ease,--neon-a .8s ease,--neon-b .8s ease}
