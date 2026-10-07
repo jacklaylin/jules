@@ -34,7 +34,7 @@ test('in-progress test is not automatically reissued',async()=>{
 test('owner text diagnostic uses fixed public query and never saves or sends messages',async()=>{
  let calls=0;
  const handler=createIdentificationTestHandler({env,auth:async()=>200,storeFactory:()=>assert.fail(),textSearch:async(query,images,settings,fetcher,constraints)=>{
- calls++;assert.match(query,/men's Prada/);assert.deepEqual(images,[]);assert.equal(settings.OPENAI_SEARCH_TOOL_CHOICE,'auto');assert.equal(settings.OPENAI_SEARCH_MODEL,'gpt-4.1');assert.equal(constraints.range,'men');return {products:[]};
+ calls++;assert.match(query,/men's Prada/);assert.deepEqual(images,[]);assert.equal(settings.OPENAI_SEARCH_MODEL,'gpt-4.1');assert.equal(constraints.range,'men');return {products:[]};
  }});
  const response=res();await handler(req({action:'text_search_diagnostic',mode:'standard_auto',query:'ignored private text'}),response);assert.equal(response.statusCode,200);assert.equal(calls,1);
  const invalid=res();await handler(req({action:'text_search_diagnostic',mode:'arbitrary'}),invalid);assert.equal(invalid.statusCode,400);assert.equal(calls,1);

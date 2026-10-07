@@ -17,9 +17,9 @@ test('product links require completed live search and retrieved source URLs; inv
 test('unsafe links cannot be exposed as product sources',()=>{
   for(const value of ['javascript:alert(1)','http://retailer.example/item','https://localhost/item','https://127.0.0.1/item','https://user:secret@retailer.example/item','https://retailer.invalid/item'])assert.equal(publicURL(value),null);
 });
-test('product sourcing sends the referenced image, requires live web search, and retains citations with timestamp',async()=>{
+test('product sourcing sends the referenced image, validates live web search, and retains citations with timestamp',async()=>{
   const found=await searchProducts('Find this waxed jacket',[{mime_type:'image/jpeg',data:'fake-image-bytes'}],{OPENAI_API_KEY:'fake'},async(endpoint,options)=>{
-    const request=JSON.parse(options.body);assert.equal(request.tools[0].type,'web_search');assert.equal(request.tool_choice,'required');
+    const request=JSON.parse(options.body);assert.equal(request.tools[0].type,'web_search');assert.equal(request.tool_choice,'auto');
     assert.equal(request.include[0],'web_search_call.action.sources');assert.equal(request.store,false);
     assert.equal(request.input[0].content[1].type,'input_image');return response(output);
   });

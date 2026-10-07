@@ -21,7 +21,7 @@ export function createIdentificationTestHandler({env=process.env,auth=authorize,
         if(!['mini_auto','standard_auto'].includes(input.mode))return json(res,400,{error:'Choose a diagnostic mode.'});
         stage='text_search_diagnostic';
         const model=input.mode==='mini_auto'?'gpt-4.1-mini':'gpt-4.1';
-        const result=await textSearch("Find men's Prada Speedrock leather and mesh sneakers, official product links",[],{...env,OPENAI_SEARCH_MODEL:model,OPENAI_SEARCH_TOOL_CHOICE:'auto'},fetch,{range:'men'});
+        const result=await textSearch("Find men's Prada Speedrock leather and mesh sneakers, official product links",[],{...env,OPENAI_SEARCH_MODEL:model},fetch,{range:'men'});
         return json(res,200,{model,result});
       }
       if(!uuid(input.operation)||typeof input.query!=='string'||!input.query.trim()||input.query.length>1000||input.provider_sharing!==true||typeof input.image!=='string'||!input.image||input.image.length>4194304||!/^[A-Za-z0-9+/]+={0,2}$/.test(input.image))return json(res,400,{error:'Provide an operation, request, image, and provider-sharing approval.'});
