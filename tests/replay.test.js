@@ -1,9 +1,17 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {REPLAY_CASES,runReplay,scoreReplay} from '../lib/replay.js';
+import {namedWishlistQuery} from '../lib/wishlist-intent.js';
 const sample=REPLAY_CASES[0];
 const url='https://www.nike.com/t/air-max-90-shoes/EXAMPLE';
 const p={brand:'Nike',name:'Air Max 90 sneakers',url,match:'likely_match',sourcing_status:'store_found',listing_check:{status:'verified',shopping_range:'men',color:'Black',product_name:'Air Max 90'}};
+test('clear named wishlist requests do not depend on the model choosing between two sourcing tools',async()=>{
+ for(const text of ['I really want the Prada Speedrock sneakers.','i want asics gel kayano 14 shoes'])assert.ok(namedWishlistQuery(text));
+ for(const text of ['I want shoes for a wedding','I want some new sneakers','brown','yes','I want a jacket'])assert.equal(namedWishlistQuery(text),null);
+ const scenario=REPLAY_CASES.find(c=>c.id==='prada-spacing');
+ const report=await runReplay(scenario,{OPENAI_API_KEY:'test',SEARCH_ENABLED:'true'},{fetcher:async()=>{throw Error('Router should not call the model');},search:async()=>({products:[{...p,brand:'Prada',name:'Speedrock sneakers',listing_check:{...p.listing_check,product_name:'Speedrock sneakers'}}]})});
+ assert.equal(report.tool,'text_wishlist');assert.equal(report.passed,true);
+});
 test('shoe acceptance requires supported product links or a meaningful variant clarification',()=>{
  assert.equal(scoreReplay(sample,{body:'Here is Air Max 90.\n'+url,result:{products:[p]}}).passed,true);
  assert.equal(scoreReplay(sample,{body:'Do you want the leather or mesh version?'}).passed,true);
