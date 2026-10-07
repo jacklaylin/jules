@@ -92,6 +92,7 @@ test('wishlist titles use supported identities or observed item descriptions',as
  const row={reply_id:id,item_id:id,target:'jacket',brand:'Barbour',name:'Transport Jacket',links:[]};
  assert.equal(groupWishlist([{...row,match:'likely_match'}])[0].name,'Barbour Transport Jacket');
  assert.equal(groupWishlist([{...row,match:'similar',item_description:'waxed dark green jacket'}])[0].name,'Waxed dark green jacket');
+ assert.equal(groupWishlist([{...row,brand:'JW Anderson',name:'Wool intarsia jacquard polo sweater',match:'similar',correction_source:'owner_verified_listing'}])[0].name,'JW Anderson Wool intarsia jacquard polo sweater');
  assert.equal(groupWishlist([{...row,display_name:'Founder confirmed jacket'}])[0].name,'Founder confirmed jacket');
  assert.equal(groupWishlist([{...row,brand:'Barbour',name:'Barbour Transport Jacket',match:'likely_match'}])[0].name,'Barbour Transport Jacket');
 });
