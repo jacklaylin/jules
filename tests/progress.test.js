@@ -13,6 +13,12 @@ test('reactions acknowledge identification, recommendations, and uncaptained ima
   assert.equal(progressEmoji(message('Thanks')), null);
   assert.equal(progressEmoji(message('I really want the Prada Speedrock sneakers.')), '👀');
   assert.equal(progressEmoji(message('I want the ASICS GEL-KAYANO 14')), '👀');
+  assert.equal(progressEmoji(message('I love this outfit', [{}])), '😍');
+  assert.equal(progressEmoji(message('Love this look')), '😍');
+  assert.equal(progressEmoji(message('I really like this', [{}])), '😍');
+  assert.equal(progressEmoji(message('outfit inspo', [{}])), '😍');
+  assert.equal(progressEmoji(message('I don’t like this outfit', [{}])), '👀');
+  assert.equal(progressEmoji(message('Find the jacket in this outfit I love', [{}])), '🔎');
 });
 
 test('typing and reactions use the incoming line and message; failures allow cleanup', async () => {
