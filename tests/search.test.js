@@ -84,7 +84,11 @@ test('prose from hosted search is structured separately while original sources s
   let calls=0;
   const found=await searchProducts('Find similar jackets',[],{OPENAI_API_KEY:'fake'},async(endpoint,options)=>{
     const request=JSON.parse(options.body);
-    if(++calls===1)return response([{type:'web_search_call',status:'completed',action:{sources:[{url}]}},{type:'message',role:'assistant',content:[{type:'output_text',text:'A real jacket listing: '+url}]}]);
+    if(++calls===1){
+      assert.equal(request.text,undefined);assert.equal(request.tools[0].type,'web_search');
+      assert.match(request.instructions,/Do not format JSON/);
+      return response([{type:'web_search_call',status:'completed',action:{sources:[{url}]}},{type:'message',role:'assistant',content:[{type:'output_text',text:'A real jacket listing: '+url}]}]);
+    }
     assert.equal(request.tools,undefined);assert.equal(request.text.format.type,'json_schema');
     return response([{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify({...result,products:[result.products[0],{...result.products[0],url:'https://retailer.example/invented'}]})}]}]);
   });
