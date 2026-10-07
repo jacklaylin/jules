@@ -90,3 +90,19 @@ test('wishlist search failure produces a specific reply and never advances savin
   assert.equal(h.result.user_confirmed,undefined);assert.equal(h.result.alert_request,undefined);
   assert.deepEqual(h.result.products,[]);assert.equal(h.result.text_wishlist_diagnostics.stage,'search');
 });
+
+test('failed category or unreadable candidates trigger one targeted product-page search',async()=>{
+ const h=harness();let calls=0;
+ const reply=await textWishlistAction({action:'start',query:'Example Trail sneaker'},{env,record:h.record,search:async(query)=>{
+  calls++;
+  if(calls===1)return {products:[{...product,url:'https://www.prada.com/category',sourcing_status:'store_not_found',listing_check:undefined,listing_checks:[{status:'not_product'}]}]};
+  assert.match(query,/individual product detail pages/);assert.match(query,/Exclude: https:\/\/www.prada.com\/category/);
+  return {products:[product]};
+ }});
+ assert.equal(calls,2);assert.match(reply,/Brown/);assert.equal(h.result.text_wishlist_state.stage,'choice');assert.equal(h.result.user_confirmed,undefined);
+});
+test('repeated unreadable candidates stop after one refinement without inventing product details',async()=>{
+ const h=harness();let calls=0;
+ const reply=await textWishlistAction({action:'start',query:'Example Trail sneaker'},{env,record:h.record,search:async()=>{calls++;return {products:[{...product,sourcing_status:'store_not_found',listing_check:{status:'check_failed'}}]};}});
+ assert.equal(calls,2);assert.match(reply,/couldn’t verify/);assert.equal(h.result.text_wishlist_state,null);assert.equal(h.result.user_confirmed,undefined);assert.doesNotMatch(reply,/400|Brown|https:/);
+});
