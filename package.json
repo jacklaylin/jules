@@ -15,7 +15,7 @@
     ]
   },
   "dependencies": {
-    "@sparticuz/chromium": "^153.0.0",
+    "@sparticuz/chromium-min": "153.0.0",
     "@spectrum-ts/core": "10.0.0",
     "@spectrum-ts/imessage": "10.0.0",
     "heic-convert": "2.1.0",
