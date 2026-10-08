@@ -269,7 +269,9 @@ test('file extraction is identical with or without self-description, and context
  assert.throws(()=>validateCards({cards:[{...rawCard,type:'style',observation_ids:['context-notes']}]},a,[source]),/needs evidence/);
 });
 test('an unsupported optional crop is omitted while valid file-derived insights survive',async()=>{
- const a=analysis();a.crops[0].observation_ids=['o1'];a.crops.push({...a.crops[0],observation_ids:['invented']});let call=0;
+ const a=analysis();a.crops[0].observation_ids=['o1'];a.crops.push({...a.crops[0],observation_ids:['invented']});
+ a.outfit_contexts=[{source_id:source.id,activity:'likely cycling',basis:'gear',confidence:'medium',dedicated:true},{source_id:source.id,activity:'cycling',basis:'gear',confidence:'high',dedicated:true}];
+ a.purchases=[{source_ids:[source.id]}];let call=0;
  const result=await analyzeStyle([source],'',env,async()=>({ok:true,json:async()=>({status:'completed',output:[{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify(++call===1?a:{cards:[rawCard]})}]}]})}));
- assert.equal(result.analysis.observations[0].text,observation.text);assert.equal(result.analysis.crops.length,1);assert.equal(result.status,'draft');
+ assert.equal(result.analysis.observations[0].text,observation.text);assert.equal(result.analysis.crops.length,1);assert.equal(result.analysis.outfit_contexts.length,1);assert.equal(result.analysis.purchases.length,0);assert.equal(result.status,'draft');
 });
