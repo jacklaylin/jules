@@ -1,3 +1,5 @@
+import {repairWishlistPhotos} from '../lib/wishlist-photos.js';
+import {fetchListingPhotos} from '../lib/product-photos.js';
 import {verifyListing,verifyWishlistRows} from '../lib/listings.js';
 import { inspectAlertLinks, baselineOffers, readSizeOffers, lowestAvailable } from '../lib/price-alerts.js';
 import { createStore } from '../lib/store.js';
@@ -6,7 +8,7 @@ import { authorize } from '../lib/auth.js';
 import { json, readJson, uuid } from '../lib/http.js';
 
 export const config = { api: { bodyParser: false }, maxDuration: 120 };
-export function createWishlistHandler({ env = process.env, storeFactory = createStore, auth = wishlistUser, admin = authorize, fetcher = fetch, verify = verifyListing, inspect = inspectAlertLinks } = {}) {
+export function createWishlistHandler({ env = process.env, storeFactory = createStore, auth = wishlistUser, admin = authorize, fetcher = fetch, verify = verifyListing, inspect = inspectAlertLinks, photos = fetchListingPhotos } = {}) {
   return async (req, res) => {
     try {
       if (env.WISHLIST_ENABLED !== 'true') return json(res, 503, { error: 'Wishlist is not available yet.' });
@@ -75,7 +77,8 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
       const groupId = query.get('group');
       if (groupId && !uuid(groupId)) return json(res,400,{error:'Invalid item.'});
       if (!id || groupId) {
-        const groups = groupWishlist(await verifyWishlistRows(await store.wishlistEntries(access.conversation),fetcher,verify));
+        const rows=await repairWishlistPhotos(await store.wishlistEntries(access.conversation),{conversation:access.conversation,store,photos:(url,name)=>photos(url,name,fetcher)});
+        const groups = groupWishlist(await verifyWishlistRows(rows,fetcher,verify));
         if(env.PRICE_ALERTS_ENABLED==='true'){
           const alerts=await store.priceAlerts(access.conversation);
           for(const group of groups){const alert=alerts.find(a=>a.group_id===group.id);group.price_alert=alert?{active:alert.active,size:alert.size,last_checked_at:alert.last_checked_at,notified:alert.notified}:null;group.alerts_enabled=true;}
