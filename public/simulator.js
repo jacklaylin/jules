@@ -20,8 +20,8 @@ function render(){
     const meta=document.createElement('span');meta.className='message-meta';meta.textContent=(message.created_at?new Date(message.created_at).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}):'')+(message.direction==='inbound'?' · You':' · Jules');group.append(bubble,meta);$('chat').append(group);
   }
   $('chat').scrollTop=$('chat').scrollHeight;
-  $('test-items').replaceChildren();$('test-count').textContent=(snapshot?.items?.length??0)+' items';
-  for(const item of snapshot?.items??[]){
+  $('test-items').replaceChildren();$('test-count').textContent=(snapshot?.wishlist_live?.length??snapshot?.items?.length??0)+' items';
+  for(const item of snapshot?.wishlist_live??snapshot?.items??[]){
     const card=document.createElement('div');card.className='test-item';
     const title=document.createElement('strong');title.textContent=item.name??'Saved item';card.append(title);
     for(const link of item.links??[]){try{const url=new URL(link.url);if(url.protocol!=='https:'||url.username||url.password)continue;const a=document.createElement('a');a.href=url.href;a.target='_blank';a.rel='noopener noreferrer';a.textContent=url.hostname.replace(/^www\./,'')+' ↗';card.append(a);}catch{}}
@@ -29,7 +29,7 @@ function render(){
   }
   $('actions').replaceChildren();
   const latest=turns.at(-1);
-  const labels={memory:'Profile learning',profile_updated:'Profile updated',shopping_outcome:'Intent',wishlist_saved:'Saved to test wishlist',delivery:'Test delivery',alert_enabled:'Test price alert enabled',feedback_saved:'Feedback saved'};
+  const labels={memory:'Profile learning',profile_updated:'Profile updated',shopping_outcome:'Intent',wishlist_saved:'Saved to your wishlist',delivery:'Test delivery',alert_enabled:'Test price alert enabled',feedback_saved:'Feedback saved'};
   for(const e of latest?.events??[]){const p=document.createElement('p');p.className='action-receipt';p.textContent=(labels[e.type]??e.type)+(e.status?' · '+e.status:'')+(e.urls?' · '+e.urls.length+' items':'')+(e.type==='shopping_outcome'?' · '+(e.result.intent_action??e.result.identification_policy)+(e.result.intent_decision?' / '+e.result.intent_decision:''):'');$('actions').append(p);}
   if(latest){const details=document.createElement('details'),summary=document.createElement('summary'),pre=document.createElement('pre');summary.textContent='Full turn diagnostics';pre.textContent=JSON.stringify({...latest,snapshot:undefined},null,2);details.append(summary,pre);$('actions').append(details);}
   $('state').textContent=JSON.stringify({wishlist:snapshot?.items??[],profile:snapshot?.profile?.facts??[],alerts:snapshot?.alerts??[]},null,2);
@@ -53,7 +53,7 @@ $('composer').onsubmit=async event=>{
     $('status').textContent=`${(result.elapsed_ms/1000).toFixed(1)}s · ${result.outcome.includes('uncertain')?'Delivery failed in simulation; inspect saved state.':'Test message sent.'}`;preserve();
   }catch(error){$('status').textContent=error.message;}finally{busy=false;for(const id of ['send','attach','reset','import'])$(id).disabled=false;}
 };
-$('reset').onclick=()=>{snapshot=undefined;turns=[];preserve();render();$('status').textContent='New test conversation.';};
+$('reset').onclick=()=>{snapshot={messages:[],profile:{facts:[],version:0},items:[],alerts:[],images:[],wishlist_live:snapshot?.wishlist_live??[]};turns=[];preserve();render();$('status').textContent='New test conversation.';};
 $('toggle-diagnostics').onclick=()=>{const show=$('diagnostics').hidden;$('diagnostics').hidden=!show;$('simulator-layout').classList.toggle('diagnostics-open',show);$('toggle-diagnostics').setAttribute('aria-expanded',String(show));};
 $('attach').onclick=()=>$('image').click();
 $('image').onchange=()=>{const file=$('image').files[0];$('attachment').hidden=!file;$('attachment-name').textContent=file?.name??'';};
@@ -63,5 +63,5 @@ $('message').onkeydown=event=>{if(event.key==='Enter'&&!event.shiftKey&&!event.i
 $('download').onclick=()=>{const link=document.createElement('a'),url=URL.createObjectURL(new Blob([JSON.stringify({kind:'jules-chat-simulator',created_at:new Date().toISOString(),snapshot,turns},null,2)],{type:'application/json'}));link.href=url;link.download='jules-chat-simulator.json';link.click();URL.revokeObjectURL(url);};
 $('import').onchange=async()=>{try{const file=$('import').files[0];if(!file||file.size>4000000)throw Error('Use a simulator report under 4 MB.');const report=JSON.parse(await file.text());if(report.kind!=='jules-chat-simulator'||!Array.isArray(report.snapshot?.messages)||!Array.isArray(report.turns))throw Error('Use a report exported by this simulator.');snapshot=report.snapshot;turns=report.turns;render();preserve();$('status').textContent='Conversation resumed. Send a follow-up to run the real logic again.';}catch(error){$('status').textContent=error.message;}};
 $('logout').onclick=async()=>{try{const token=await session.token();const response=await trackedFetch('/api/wishlist',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({action:'logout'})});if(!response.ok)throw Error('Could not log out. Try again.');session.clear();sessionStorage.removeItem('jules_wishlist_token');sessionStorage.removeItem('jules_token');sessionStorage.removeItem('jules_simulator');location.href='/wishlist';}catch(error){$('status').textContent=error.message;}};
-session.token().then(token=>{if(token){void enableTestChat(token);$('logout').hidden=false;}else{$('status').textContent='Sign in through your wishlist, then return to Test chat.';}}).catch(()=>{$('status').textContent='Sign in through your wishlist, then return to Test chat.';});
+session.token().then(async token=>{if(token){void enableTestChat(token);$('logout').hidden=false;const response=await trackedFetch('/api/chat-simulator',{headers:{Authorization:'Bearer '+token}},'Loading your wishlist');const data=await response.json();if(!response.ok)throw Error(data.error);snapshot??={messages:[],profile:{facts:[],version:0},items:[],alerts:[],images:[]};snapshot.wishlist_live=data.items;render();}else{$('status').textContent='Sign in through your wishlist, then return to Test chat.';}}).catch(error=>{$('status').textContent=error.message;});
 render();
