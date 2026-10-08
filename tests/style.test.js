@@ -275,3 +275,8 @@ test('an unsupported optional crop is omitted while valid file-derived insights 
  const result=await analyzeStyle([source],'',env,async()=>({ok:true,json:async()=>({status:'completed',output:[{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify(++call===1?a:{cards:[rawCard]})}]}]})}));
  assert.equal(result.analysis.observations[0].text,observation.text);assert.equal(result.analysis.crops.length,1);assert.equal(result.analysis.outfit_contexts.length,1);assert.equal(result.analysis.purchases.length,0);assert.equal(result.status,'draft');
 });
+test('technical observation citations are removed from copy without removing ordinary parentheses',()=>{
+ const a=analysis(),card={...rawCard,variants:{nice:'Navy knitwear (o1).',balanced:'Navy knitwear (especially sweaters).',roast:'Navy knitwear (o1).'}};
+ const cards=validateCards({cards:[card]},a,[source]);assert.equal(cards[0].variants.nice,'Navy knitwear.');assert.equal(cards[0].variants.balanced,card.variants.balanced);
+ const updated=ensureCoreCards({...report(),cards:[{...report().cards[0],variants:card.variants}]});assert.equal(updated.cards[0].variants.roast,'Navy knitwear.');
+});

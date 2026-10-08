@@ -76,7 +76,8 @@ function collage(card){
   if(item.kind!=='color'&&(item.kind==='brand'||item.icon==='none'))fig.append(node('div',item.label,'ingredient-label'));
   else if(item.kind==='color'){const chip=node('div',null,'color-chip');if(item.color)chip.style.background=item.color;fig.append(chip);}
   else fig.append(symbolCanvas(item.icon));
-  fig.append(node('figcaption',item.kind==='brand'?'From your style notes':item.label));gallery.append(fig);
+  const fromFile=state.data.report.analysis.observations.some(o=>item.observation_ids?.includes(o.id)&&o.basis==='file');
+  fig.append(node('figcaption',item.kind==='brand'?(fromFile?'From your uploads':'From your style notes'):item.label));gallery.append(fig);
  }
  gallery.dataset.count=gallery.children.length;
  for(const figure of gallery.children){
@@ -89,7 +90,8 @@ function collage(card){
 function evidenceContent(card){
  const content=node('div');content.append(node('h3',card.title),node('p',cardText(card,state.data.tone),'card-copy'),collage(card));
  for(const o of state.data.report.analysis.observations.filter(o=>card.observation_ids.includes(o.id))){
-  content.append(node('p',o.text),node('p',o.basis==='context'?'You told Jules':o.confidence==='low'?'Tentative interpretation':o.basis==='file'?'Read from your uploaded files':'From your submitted evidence','fine'));
+  const text=state.sources.reduce((text,source)=>text.replaceAll(source.id,''),o.text).replace(/ {2,}/g,' ');
+  content.append(node('p',text),node('p',o.basis==='context'?'You told Jules':o.confidence==='low'?'Tentative interpretation':o.basis==='file'?'Read from your uploaded files':'From your submitted evidence','fine'));
   if(o.wear_context)content.append(node('p','Worn for: '+o.wear_context,'fine'));
   for(const context of state.data.report.analysis.outfit_contexts||[])if(o.source_ids.includes(context.source_id))content.append(node('p',`${context.basis==='gear'?'Likely activity (confirm)':'Activity'}: ${context.activity}`,'fine'));
   for(const id of o.source_ids){if(id==='context'||id==='saved-profile'){content.append(node('p',id==='context'?'Your style notes':'Your saved shopping preferences','fine'));continue;}const source=state.sources.find(s=>s.id===id);if(!source)continue;
