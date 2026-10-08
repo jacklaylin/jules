@@ -41,6 +41,30 @@ test('a save that declines monitoring completes without offering the rejected ac
   assert.equal(result.replies[0].includes('?'),false);
 });
 
+test('a missing-wishlist complaint inspects persisted items and cannot start another search',async()=>{
+  const saved=await simulateTurn(input,env,deps({...interpretation,offer_alerts:false}));
+  let evidence;
+  const status=await simulateTurn({text:"i don't see it in my wishlist",snapshot:saved.snapshot},env,{
+    ...deps(interpretation),generate:(messages,settings,_fetch,memory)=>generateReply(messages,settings,
+      async(_url,request)=>{evidence=JSON.parse(JSON.parse(request.body).input[0].content);return model({action:'wishlist_status',response:'That link is in the test wishlist beside chat. Your real wishlist is unchanged.'})();},
+      {...memory,wishlistAction:()=>assert.fail('A status complaint must not source or save')}),
+  });
+  assert.equal(evidence.saved_wishlist.execution.mode,'simulator');
+  assert.equal(evidence.saved_wishlist.items.length,1);
+  assert.equal(status.snapshot.items.length,1);assert.equal(status.snapshot.alerts.length,0);
+  assert.ok(status.events.some(e=>e.type==='shopping_outcome'&&e.result.identification_policy==='wishlist_status'));
+  assert.equal(status.events.some(e=>e.type==='wishlist_saved'),false);
+});
+
+test('simulator seeds a copy of the owner profile and preserves test overrides without production writes',async()=>{
+  const handler=createSimulatorHandler({env:{...env,ADMIN_EMAIL:'fixture@example.test',SUPABASE_URL:'fixture'},auth:async()=>200,
+    storeFactory:()=>({wishlistMember:async()=>({conversation_id:'fixture-owner'}),profile:async()=>({facts:[{field:'gender',key:'identity',value:'man'},{field:'size',key:'suit/unknown',value:'50R'}]})}),
+    simulate:async input=>{assert.equal(input.snapshot.profile_seeded,true);assert.equal(input.snapshot.profile.facts[0].value,'man');assert.equal(input.snapshot.profile.facts[1].value,'52R');return {snapshot:input.snapshot};}});
+  const request={method:'POST',headers:{'content-type':'application/json'},async *[Symbol.asyncIterator](){yield JSON.stringify({text:'Find trousers',snapshot:{messages:[],items:[],alerts:[],images:[],profile:{version:0,facts:[{field:'size',key:'suit/unknown',value:'52R'}]}}});}};
+  const response={setHeader(){},end(value){this.body=JSON.parse(value);}};
+  await handler(request,response);assert.equal(response.statusCode,200);
+});
+
 test('simulator persists profile changes through production remember and inbox contracts',async()=>{
   const result=await simulateTurn({text:'I wear suit size 50R'},env,{
     generate:async(_m,_e,_f,memory)=>{assert.equal(memory.facts[0].value,'50R');return 'I’ll use that suit size.';},

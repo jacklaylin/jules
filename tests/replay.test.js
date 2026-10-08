@@ -16,8 +16,8 @@ test('shoe acceptance requires supported product links or a meaningful variant c
 test('actual reply dispatcher and wishlist actions run without a persistence or delivery dependency',async()=>{
  let calls=0;
  const report=await runReplay(sample,{OPENAI_API_KEY:'test',SEARCH_ENABLED:'true',WISHLIST_ENABLED:'true'},{fetcher:async(endpoint,options)=>{
-  calls++;const request=JSON.parse(options.body);assert.equal(request.tools.some(t=>t.name==='text_wishlist'),true);
-  return {ok:true,json:async()=>({status:'completed',output:[{type:'function_call',name:'text_wishlist',arguments:JSON.stringify({action:'start',query:'Nike Air Max 90',choice:''})}]})};
+  calls++;const request=JSON.parse(options.body);assert.equal(request.text.format.type,'json_schema');
+  return {ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({action:'start',query:'Nike Air Max 90',choice:''})}]}]})};
  },search:async()=>({products:[p]})});
  assert.equal(calls,1);assert.equal(report.tool,'text_wishlist');assert.equal(report.passed,true);assert.equal(report.result.user_confirmed,undefined);assert.equal(report.result.text_wishlist_state.stage,'choice');
 });

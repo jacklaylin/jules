@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {listingProduct} from '../lib/product-photos.js';
 import {verifyListing} from '../lib/listings.js';
-import {structuredJSON,pradaProductDetails} from '../lib/structured-product.js';
+import {structuredJSON,pradaProductDetails,productShoppingRange} from '../lib/structured-product.js';
 import {textWishlistAction} from '../lib/text-wishlist.js';
 const name='Speedrock leather and mesh fabric sneakers';
 const sku='2EE468_3ZM0_F0002_F_G000';
@@ -14,6 +14,12 @@ const product={'@type':'Product',name,sku,url,offers:{price:'1170',availability:
 const html='<script type="application/ld+json">'+JSON.stringify(product).replaceAll('"','&quot;')+'</script>'+
   `<a href="${url}" title="Black" data-element="colorpicker-dot"></a><a href="${navy}" title="Navy" data-element="colorpicker-dot"></a>`+
   '<script id="__NUXT_DATA__" type="application/json">[{"currentIso":1},"USD"]</script>';
+test('product-bound seasonal department metadata identifies womenswear independently of navigation',()=>{
+  const page='https://www.driesvannoten.com/en-us/products/262-010932-4210';
+  assert.equal(productShoppingRange('<nav>MEN WOMEN</nav>',page,{name:'Crepe skirt pants',brand:'AW26 WOMEN'}),'women');
+  assert.equal(productShoppingRange('<nav>WOMEN</nav>',page,{name:'Cotton trousers',brand:{name:'AW26 MEN'}}),'men');
+  assert.equal(productShoppingRange('<nav>WOMEN</nav>',page,{name:'Cotton trousers',brand:'Dries Van Noten'}),null);
+});
 test('entity-encoded Prada product metadata is parsed without weakening product-page checks',()=>{
   assert.equal(listingProduct(html,name).sku,sku);
   assert.ok(!listingProduct(html,'Unrelated hiking boots'));

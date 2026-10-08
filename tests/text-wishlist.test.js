@@ -33,10 +33,10 @@ test('color changes or missing retailer color invalidate size-price monitoring',
   const result=await readSizeOffers({url:product.url,name:product.name,color:'Brown'},async()=>new Response(html,{headers:{'Content-Type':'text/html'}}));
   assert.equal(result.status,'color_unverified');assert.deepEqual(result.offers,[]);
 });
-test('AI exposes text wishlist only when connected and dispatches tool without inventing prose',async()=>{
+test('connected text chat interprets intent through the structured model and dispatches without invented prose',async()=>{
   const result=await generateReply([{direction:'inbound',body:'I really want those sneakers'}],{OPENAI_API_KEY:'test',SEARCH_ENABLED:'true'},async(url,options)=>{
-    const body=JSON.parse(options.body);assert.ok(body.tools.some(t=>t.name==='text_wishlist'));assert.match(body.instructions,/I really want/);
-    return {ok:true,json:async()=>({status:'completed',output:[{type:'function_call',name:'text_wishlist',arguments:JSON.stringify({action:'start',query:'Trail sneaker',choice:''})}]})};
+    const body=JSON.parse(options.body);assert.equal(body.text.format.type,'json_schema');
+    return {ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({action:'start',query:'Trail sneaker',choice:''})}]}]})};
   },{wishlistAction:async args=>{assert.equal(args.action,'start');return 'Sourced options';}});
   assert.equal(result,'Sourced options');
 });

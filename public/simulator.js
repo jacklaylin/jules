@@ -20,6 +20,13 @@ function render(){
     const meta=document.createElement('span');meta.className='message-meta';meta.textContent=(message.created_at?new Date(message.created_at).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}):'')+(message.direction==='inbound'?' · You':' · Jules');group.append(bubble,meta);$('chat').append(group);
   }
   $('chat').scrollTop=$('chat').scrollHeight;
+  $('test-items').replaceChildren();$('test-count').textContent=(snapshot?.items?.length??0)+' items';
+  for(const item of snapshot?.items??[]){
+    const card=document.createElement('div');card.className='test-item';
+    const title=document.createElement('strong');title.textContent=item.name??'Saved item';card.append(title);
+    for(const link of item.links??[]){try{const url=new URL(link.url);if(url.protocol!=='https:'||url.username||url.password)continue;const a=document.createElement('a');a.href=url.href;a.target='_blank';a.rel='noopener noreferrer';a.textContent=url.hostname.replace(/^www\./,'')+' ↗';card.append(a);}catch{}}
+    $('test-items').append(card);
+  }
   $('actions').replaceChildren();
   const latest=turns.at(-1);
   const labels={memory:'Profile learning',profile_updated:'Profile updated',shopping_outcome:'Intent',wishlist_saved:'Saved to test wishlist',delivery:'Test delivery',alert_enabled:'Test price alert enabled',feedback_saved:'Feedback saved'};
