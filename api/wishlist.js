@@ -15,6 +15,18 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
       const store = storeFactory(env);
       if (req.method === 'POST') {
         const input = await readJson(req, 16384);
+        if (['remove','restore'].includes(input.action)) {
+          const access=await auth(req.headers,env,store,fetcher);
+          if(access.status!==200)return json(res,access.status,{error:'Please sign in with your invited email.'});
+          if(!uuid(input.group))return json(res,400,{error:'Invalid item.'});
+          const groups=groupWishlist(await store.wishlistEntries(access.conversation,{includeRemoved:true}));
+          const item=groups.find(group=>group.id===input.group);
+          if(!item)return json(res,404,{error:'Item not found.'});
+          // Stop alerts before hiding the item; restoring leaves alerts off.
+          if(input.action==='remove')await store.disablePriceAlert(access.conversation,item.id);
+          await store.setWishlistRemoved(access.conversation,item.entries,input.action==='remove');
+          return json(res,200,{ok:true});
+        }
         if (['alert-options','alert-enable','alert-disable'].includes(input.action)) {
           if(env.PRICE_ALERTS_ENABLED!=='true')return json(res,503,{error:'Price alerts are not enabled yet.'});
           const access=await auth(req.headers,env,store,fetcher);
@@ -87,7 +99,7 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
           const item = groups.find(g=>g.id===groupId);
           return item ? json(res,200,{item}) : json(res,404,{error:'Item not found.'});
         }
-        return json(res,200,{items:groups.map(({links,...group})=>group)});
+        return json(res,200,{items:groups.map(({links,entries,...group})=>group)});
       }
       if (!uuid(id)) return json(res,400,{error:'Invalid item.'});
       if(query.get('image')==='reference'){const index=query.get('index');if(!/^[01]$/.test(index??''))return json(res,400,{error:'Invalid photo.'});return image(res,await store.wishlistPhoto(access.conversation,id,Number(index)));}
