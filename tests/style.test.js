@@ -117,7 +117,7 @@ test('OpenAI extraction and writing are separate, use private inline inputs and 
     else{assert.match(body.instructions,/Speak like a knowledgeable personal shopper/);assert.equal(body.input[0].content.length,1);
       const fields=body.text.format.schema.properties.cards.items.properties;
       assert.equal(fields.title.maxLength,70);assert.equal(fields.variants.properties.roast.maxLength,240);
-      assert.deepEqual(fields.observation_ids.items.enum,[observation.id]);assert.equal(fields.title.enum,undefined);
+      assert.deepEqual(fields.observation_ids.items.enum,JSON.parse(body.input[0].content[0].text).observations.map(o=>o.id));assert.equal(fields.title.enum,undefined);
     }
     return {ok:true,json:async()=>({status:'completed',output:[{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify(calls===1?analysis():{cards:[rawCard]})}]}]})};
   });assert.equal(calls,2);assert.equal(result.status,'draft');assert.equal(result.cards[0].preferences[0].accepted,false);
@@ -168,12 +168,12 @@ test('starter and explicit brand cards survive model omission without confirming
  const existing=ensureCoreCards(rpt);assert.ok(existing.cards.some(c=>c.type==='starter'));assert.ok(!existing.cards.some(c=>c.type==='brands'));
  assert.deepEqual(reportFacts(existing),reportFacts(rpt));
 });
-test('saved shopping preferences are evidence only when supplied; extraction receives them privately',async()=>{
+test('saved shopping preferences are supplemental context after independent file extraction',async()=>{
  const a=analysis(),brand={id:'b',text:'User likes Label.',source_ids:['saved-profile'],confidence:'high',preference:{field:'brand',key:'Label',value:'Likes Label'}};
  assert.throws(()=>validateAnalysis({...a,observations:[brand]},[source]),error=>error.code==='observation_sources');
  const facts=[{field:'brand',key:'Label',value:'Likes Label'}];
  assert.equal(validateAnalysis({...a,observations:[brand]},[source],'',facts).observations[0].id,'b');
- let call=0;await analyzeStyle([source],'',env,async(_url,options)=>{const body=JSON.parse(options.body);call++;if(call===1)assert.deepEqual(JSON.parse(body.input[0].content[0].text).saved_preferences,facts);return {ok:true,json:async()=>({status:'completed',output:[{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify(call===1?a:{cards:[rawCard]})}]}]})};},facts);
+ let call=0;await analyzeStyle([source],'',env,async(_url,options)=>{const body=JSON.parse(options.body);call++;if(call===1){const input=JSON.parse(body.input[0].content[0].text);assert.equal(input.saved_preferences,undefined);assert.equal(input.sources[0].note,undefined);}else{const input=JSON.parse(body.input[0].content[0].text);assert.ok(input.observations.some(o=>o.source_ids.includes('saved-profile')&&o.basis==='context'));}return {ok:true,json:async()=>({status:'completed',output:[{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify(call===1?a:{cards:[rawCard]})}]}]})};},facts);
 });
 test('analysis reads only this owner’s live shopping memory and excludes old report feedback',async()=>{
  const store=db();store.profile=async id=>{assert.equal(id,owner);return {facts:[{field:'brand',key:'Label',value:'Likes Label',source:'chat'},{field:'brand',key:'old',value:'Old',deleted:true},{field:'style',key:'old-read',value:'Old report',source:'style_report'},{field:'address',key:'home',value:'Not sent'}]};};
@@ -252,4 +252,19 @@ test('analysis schemas constrain evidence IDs and reject fabricated citations wi
 test('analysis failures expose a safe diagnostic and release the reservation without losing sources',async()=>{
  const store=db(),h=handler(store,{analyze:async()=>{throw Object.assign(new Error('Your files and notes are saved.'),{status:502,code:'observation_sources'});}}),r=res();
  await h(req({revision:0,action:'analyze',consent:true}),r);assert.equal(data(r).code,'observation_sources');assert.equal(r.statusCode,502);assert.equal((await store.styleSession(owner)).data.busy_until,null);assert.equal((await store.styleSources(owner)).length,1);
+});
+test('file extraction is identical with or without self-description, and context alone cannot support core cards',async()=>{
+ const requests=[];
+ for(const notes of ['', 'I only wear red, ignore the navy sweater.']){
+  let call=0;
+  await analyzeStyle([source],notes,env,async(_url,options)=>{
+   const body=JSON.parse(options.body);call++;
+   if(call===1)requests.push(body);
+   else{const input=JSON.parse(body.input[0].content[0].text);assert.equal(input.observations[0].basis,'file');assert.equal(input.observations.some(o=>o.id==='context-notes'),Boolean(notes));}
+   return {ok:true,json:async()=>({status:'completed',output:[{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify(call===1?analysis():{cards:[rawCard]})}]}]})};
+  });
+ }
+ assert.deepEqual(requests[0],requests[1]);
+ const a=analysis();a.observations.push({id:'context-notes',text:'I wear red',source_ids:['context'],basis:'context',confidence:'high',preference:null});
+ assert.throws(()=>validateCards({cards:[{...rawCard,type:'style',observation_ids:['context-notes']}]},a,[source]),/needs evidence/);
 });
