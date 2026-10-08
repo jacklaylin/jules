@@ -144,7 +144,7 @@ function render() {
   renderCards();$('analyze').disabled=!state.sources.some(s=>s.kind==='outfit');
   if(state.data.busy_until&&Date.parse(state.data.busy_until)>Date.now())notice('Your style analysis is running. Your uploads are saved; this page will check for the result.');
 }
-async function load(){clearTimeout(analysisPoll);state=await api();render();if(Date.parse(state.data.busy_until)>Date.now()){clearTimeout(noticeTimer);analysisPoll=setTimeout(()=>work(load,'Checking your style analysis'),3000);}else {notice('');if(state.data.consent_at&&state.data.report?.analysis.crops.some(c=>!c.full_caption)){state=await withActivity('Checking the clothing in your photos',()=>api({action:'captions',report:state.data.report.id}));render();}}}
+async function load(){clearTimeout(analysisPoll);state=await api();render();if(Date.parse(state.data.busy_until)>Date.now()){clearTimeout(noticeTimer);analysisPoll=setTimeout(()=>work(load,'Checking your style analysis'),3000);}else {notice('');if(state.data.consent_at&&state.data.report?.analysis.crops.some(c=>!c.full_caption||c.caption_version!==1)){state=await withActivity('Checking the clothing in your photos',()=>api({action:'captions',report:state.data.report.id}));render();}}}
 
 $('login-form').onsubmit=async e=>{
   e.preventDefault();const submit=e.currentTarget.querySelector('button');submit.disabled=true;

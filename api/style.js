@@ -61,11 +61,11 @@ export function createStyleHandler({env=process.env,storeFactory=createStore,aut
       if(state.data.busy_until && Date.parse(state.data.busy_until)>Date.now())throw fail('Your analysis is still running. Give it a moment, then reload.',409);
       if(input.action==='captions') {
         if(!state.data.consent_at||!state.data.report||input.report!==state.data.report.id)throw fail('Reload your style read before checking photo captions.',409);
-        if(!state.data.report.analysis.crops.some(c=>!c.full_caption))return json(res,200,{...state,sources:await store.styleSources(owner),signup_url:signupURL(env)});
+        if(!state.data.report.analysis.crops.some(c=>!c.full_caption||c.caption_version!==1))return json(res,200,{...state,sources:await store.styleSources(owner),signup_url:signupURL(env)});
         const pending={...state.data,busy_until:new Date(Date.now()+60000).toISOString()};
         if(!await store.writeStyle(owner,state.revision,pending))throw fail('Your style read changed. Reload before continuing.',409);
         reservation={revision:state.revision+1,data:state.data};
-        const ids=new Set(state.data.report.analysis.crops.filter(c=>!c.full_caption).map(c=>c.source_id));
+        const ids=new Set(state.data.report.analysis.crops.filter(c=>!c.full_caption||c.caption_version!==1).map(c=>c.source_id));
         const sources=await Promise.all([...ids].map(id=>store.styleSource(owner,id)));
         const report=await caption(state.data.report,sources.filter(Boolean),env,fetcher);
         const updated={...state.data,report,busy_until:null};

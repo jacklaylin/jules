@@ -325,7 +325,7 @@ test('photo captions read distinct full images without old labels or notes and p
 test('caption backfill preserves cards and saved preferences and becomes a no-op after checking',async()=>{
  const store=db(),rpt=report();rpt.status='confirmed';const facts=[{field:'brand',key:'label',value:'Loved brand'}];
  await store.writeStyle(owner,0,{...((await store.styleSession(owner)).data),report:rpt},{facts});let calls=0;
- const h=handler(store,{caption:async(r,sources)=>{calls++;assert.equal(sources.length,1);return {...r,analysis:{...r.analysis,crops:r.analysis.crops.map(c=>({...c,full_caption:'Navy knit with pale trousers'}))}};}});
+ const h=handler(store,{caption:async(r,sources)=>{calls++;assert.equal(sources.length,1);return {...r,analysis:{...r.analysis,crops:r.analysis.crops.map(c=>({...c,full_caption:'Navy knit with pale trousers',caption_version:1}))}};}});
  let r=res();await h(req({revision:1,action:'captions',report:rpt.id}),r);assert.equal(r.statusCode,200);assert.equal(data(r).data.report.status,'confirmed');assert.deepEqual(data(r).data.report.cards,rpt.cards);assert.deepEqual(store.facts(),facts);
  const revision=data(r).revision;r=res();await h(req({revision,action:'captions',report:rpt.id}),r);assert.equal(r.statusCode,200);assert.equal(calls,1);assert.equal(data(r).revision,revision);
 });
