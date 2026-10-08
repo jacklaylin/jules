@@ -242,7 +242,8 @@ test('analysis schemas constrain evidence IDs and reject fabricated citations wi
  assert.equal(analysisSchemaFor([source]).properties.purchases.maxItems,0);
  const props=schema.properties,obs=props.observations.items.properties;
  for(const field of [obs.text,obs.preference.anyOf[0].properties.key,obs.preference.anyOf[0].properties.value,props.crops.items.properties.label,props.ingredients.items.properties.label,props.outfit_contexts.items.properties.activity,props.purchases.items.properties.brand])assert.equal(field.enum,undefined,'Only IDs may inherit the observation-ID enum');
- assert.deepEqual(props.crops.items.properties.label,{type:'string'});
+ assert.deepEqual(props.crops.items.properties.label,{type:'string',minLength:1,maxLength:60});
+ assert.equal(props.purchases.items.properties.currency.pattern,'^[A-Z]{3}$');assert.equal(props.purchases.items.properties.date.pattern,'^\\d{4}-\\d{2}-\\d{2}$');
  assert.deepEqual(props.ingredients.items.properties.observation_ids.items,{type:'string'});
  const duplicated=analysis();duplicated.observations[0].source_ids=[source.id,source.id];assert.deepEqual(validateAnalysis(duplicated,[source]).observations[0].source_ids,[source.id]);
  const broken=analysis();broken.observations[0].source_ids=['invented-source'];assert.throws(()=>validateAnalysis(broken,[source]),error=>error.code==='observation_sources'&&/files and notes are saved/.test(error.message));
