@@ -33,6 +33,13 @@ test('simulator failure injection preserves production failure behavior and capt
   assert.equal(uncertain.snapshot.messages.at(-1).status,'uncertain');
 });
 
+test('a save that declines monitoring completes without offering the rejected action again',async()=>{
+  const result=await simulateTurn(input,env,deps({...interpretation,offer_alerts:false}));
+  assert.equal(result.snapshot.items.length,1);assert.equal(result.snapshot.alerts.length,0);
+  assert.equal(result.snapshot.messages.at(-1).search_result.text_wishlist_state,null);
+  assert.equal(result.replies[0].includes('?'),false);
+});
+
 test('simulator persists profile changes through production remember and inbox contracts',async()=>{
   const result=await simulateTurn({text:'I wear suit size 50R'},env,{
     generate:async(_m,_e,_f,memory)=>{assert.equal(memory.facts[0].value,'50R');return 'I’ll use that suit size.';},
