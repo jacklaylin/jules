@@ -130,4 +130,4 @@ a[data-neon]:hover .link-copy strong,a[data-neon]:hover .link-copy .retailer{col
 .remove-item.beside-bell{right:60px}
 .remove-item:disabled{opacity:.5;cursor:wait}
 .undo-remove{margin-left:16px;color:white!important;background:transparent!important;text-decoration:underline;padding:4px;min-height:36px}
-@media(hover:hover) and (pointer:fine){.remove-item{opacity:0;pointer-events:none}.product-card:hover .remove-item,.product-card:focus-within .remove-item{opacity:1;pointer-events:auto}}
+@media(min-width:561px) and (hover:hover) and (pointer:fine){.remove-item{opacity:0;pointer-events:none}.product-card:hover .remove-item,.product-card:focus-within .remove-item{opacity:1;pointer-events:auto}}
