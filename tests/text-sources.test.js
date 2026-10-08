@@ -44,3 +44,9 @@ test('retrieved collection recovery works independently of a search provider and
  const wrongBrand=await recoverCollectionSources([candidate],fetcher,{},async url=>({status:'verified',url,product_brand:'Other',product_name:'Scout Deck Shoe'}));
  assert.equal(wrongBrand.products.length,0);
 });
+test('a retrieved official collection can recover a named candidate even when formatting omitted that page',async()=>{
+ const product={url:'https://unsupported.example/products/scout-deck',brand:'mfpen',name:'Scout Deck Shoe',match:'likely_match'};
+ let reads=0;
+ const result=await recoverCollectionSources([product],async()=>{reads++;return new Response('<a href="/products/scout-deck-shoe-scratched-black">Scout Deck Shoe</a>',{headers:{'content-type':'text/html'}});},{},async url=>({status:'verified',url,product_brand:'mfpen',product_name:'Scout Deck Shoe'}),['https://mfpen.com/collections/footwear','https://satisfyrunning.com/collections/scout-deck','https://untrusted.example/collections/scout-deck']);
+ assert.equal(reads,1);assert.equal(result.products.length,1);assert.equal(result.products[0].url,'https://mfpen.com/products/scout-deck-shoe-scratched-black');
+});
