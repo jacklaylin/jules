@@ -91,7 +91,7 @@ test('website photos require matching structured product data and trusted asset 
  await assert.rejects(fetchListingPhotos('https://barbour.com.evil.example/a','Jacket',()=>assert.fail()));
  const png=await sharp({create:{width:500,height:700,channels:3,background:'white'}}).png().toBuffer();
  const images=await fetchListingPhotos('https://www.barbour.com/jacket','Transport Windowpane Waxed Jacket',async(url,options)=>{
- assert.equal(options.redirect,'error');return url.endsWith('.jpg')?new Response(png,{headers:{'content-type':'image/png'}}):new Response(make(data),{headers:{'content-type':'text/html'}});
+ assert.equal(options.redirect,url.endsWith('.jpg')?'manual':'error');return url.endsWith('.jpg')?new Response(png,{headers:{'content-type':'image/png'}}):new Response(make(data),{headers:{'content-type':'text/html'}});
  });
  assert.equal(images.length,1);assert.equal(images[0].source_url,'https://www.barbour.com/jacket');assert.equal((await sharp(Buffer.from(images[0].data,'base64')).metadata()).width,500);
 });

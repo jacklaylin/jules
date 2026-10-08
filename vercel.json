@@ -40,7 +40,7 @@
   ],
   "functions": {
     "api/**/*.js": {
-      "includeFiles": "VOICE.md",
+      "includeFiles": "{VOICE.md,node_modules/@sparticuz/chromium/bin/**}",
       "maxDuration": 120
     }
   }

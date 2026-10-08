@@ -94,3 +94,12 @@ test('verified shopping options lead the reply while failed source checks stay s
  const body=formatSearch({products:[{brand:'Example',name:'Jacket',url,sourcing_status:'store_found',reason:'',listing_check:{status:'verified',availability:'OutOfStock'}},{brand:'Example',name:'Jacket',url:failed,sourcing_status:'store_not_found',identity_sources:[{url:failed}]}]});
  assert.ok(body.includes(url));assert.ok(!body.includes(failed));assert.match(body,/Other retrieved sources/);assert.match(body,/another color or a similar item/);
 });
+
+test('blocked pages recover through a rendered browser and page-bound groups use sale prices rather than struck prices',async()=>{
+ const group={'@type':'ProductGroup',name:'Straight-Leg Cotton Trousers',brand:{name:'DRIES VAN NOTEN'},hasVariant:[{name:'Straight-Leg Cotton Trousers - brown - IT 44',color:'brown',image:['https://www.mrporter.com/variants/images/item/in/w2000.jpg'],offers:{url,availability:'https://schema.org/InStock',priceSpecification:[{price:'368.00',priceCurrency:'USD'},{price:'735.00',priceCurrency:'USD',priceType:'https://schema.org/StrikethroughPrice'}]}}]};
+ let renders=0;
+ const check=await verifyListing(url,null,async()=>new Response('blocked',{status:403}),async()=>{renders++;return {url,html:'<script type="application/ld+json">'+JSON.stringify(group)+'</script>'};});
+ assert.equal(renders,1);assert.equal(check.status,'verified');assert.equal(check.retrieval,'browser');assert.equal(check.product_name,group.name);assert.equal(check.price_snapshot.amount,368);
+ const missing=await verifyListing(url,null,async()=>new Response('missing',{status:404}),()=>assert.fail('Missing product must not be resurrected'));
+ assert.equal(missing.status,'unavailable');
+});

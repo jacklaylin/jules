@@ -15,9 +15,11 @@
     ]
   },
   "dependencies": {
+    "@sparticuz/chromium": "^153.0.0",
     "@spectrum-ts/core": "10.0.0",
     "@spectrum-ts/imessage": "10.0.0",
     "heic-convert": "2.1.0",
+    "puppeteer-core": "^25.12.0",
     "sharp": "0.34.5"
   }
 }

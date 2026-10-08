@@ -1,3 +1,4 @@
+import {enrichWishlistItem} from '../lib/wishlist-details.js';
 import {repairWishlistPhotos} from '../lib/wishlist-photos.js';
 import {fetchListingPhotos} from '../lib/product-photos.js';
 import {verifyListing,verifyWishlistRows} from '../lib/listings.js';
@@ -15,6 +16,11 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
       const store = storeFactory(env);
       if (req.method === 'POST') {
         const input = await readJson(req, 16384);
+        if(input.action==='enrich'){
+          const access=await auth(req.headers,env,store,fetcher);if(access.status!==200)return json(res,access.status,{error:'Please sign in with your invited email.'});
+          if(!uuid(input.item))return json(res,400,{error:'Invalid item.'});
+          return json(res,200,await enrichWishlistItem(store,access.conversation,input.item,{verify:(url,name)=>verify(url,name,fetcher),photos:(url,name)=>photos(url,name,fetcher)}));
+        }
         if (['remove','restore'].includes(input.action)) {
           const access=await auth(req.headers,env,store,fetcher);
           if(access.status!==200)return json(res,access.status,{error:'Please sign in with your invited email.'});
