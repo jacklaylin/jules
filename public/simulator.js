@@ -40,8 +40,10 @@ $('composer').onsubmit=async event=>{
     const input={text,snapshot,failure:$('failure').value,...(file?{image:await readFile(file)}:{})};
     const response=await trackedFetch('/api/chat-simulator',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify(input)},'Jules is thinking');
     const result=await response.json();if(!response.ok)throw Error(result.error);
-    snapshot=result.snapshot;turns.push({...result,snapshot:undefined,input:{text,failure:input.failure}});render();preserve();
-    $('message').value='';$('message').style.height='';$('image').value='';$('attachment').hidden=true;$('status').textContent=`${(result.elapsed_ms/1000).toFixed(1)}s · ${result.outcome.includes('uncertain')?'Delivery failed in simulation; inspect saved state.':'Test message sent.'}`;
+    snapshot=result.snapshot;turns.push({...result,snapshot:undefined,input:{text,failure:input.failure}});render();
+    if($('message').value===text){$('message').value='';$('message').style.height='';}
+    if($('image').files[0]===file){$('image').value='';$('attachment').hidden=true;}
+    $('status').textContent=`${(result.elapsed_ms/1000).toFixed(1)}s · ${result.outcome.includes('uncertain')?'Delivery failed in simulation; inspect saved state.':'Test message sent.'}`;preserve();
   }catch(error){$('status').textContent=error.message;}finally{busy=false;for(const id of ['send','attach','reset','import'])$(id).disabled=false;}
 };
 $('reset').onclick=()=>{snapshot=undefined;turns=[];preserve();render();$('status').textContent='New test conversation.';};
