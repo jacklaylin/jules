@@ -268,3 +268,8 @@ test('file extraction is identical with or without self-description, and context
  const a=analysis();a.observations.push({id:'context-notes',text:'I wear red',source_ids:['context'],basis:'context',confidence:'high',preference:null});
  assert.throws(()=>validateCards({cards:[{...rawCard,type:'style',observation_ids:['context-notes']}]},a,[source]),/needs evidence/);
 });
+test('an unsupported optional crop is omitted while valid file-derived insights survive',async()=>{
+ const a=analysis();a.crops[0].observation_ids=['o1'];a.crops.push({...a.crops[0],observation_ids:['invented']});let call=0;
+ const result=await analyzeStyle([source],'',env,async()=>({ok:true,json:async()=>({status:'completed',output:[{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify(++call===1?a:{cards:[rawCard]})}]}]})}));
+ assert.equal(result.analysis.observations[0].text,observation.text);assert.equal(result.analysis.crops.length,1);assert.equal(result.status,'draft');
+});
