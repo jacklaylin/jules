@@ -20,8 +20,8 @@ test('natural input is interpreted by the model into referenced options, not rou
  for(const message of ['Ivory or black I think','Both neutrals appeal to me','Everything except the navy pair','The first two are on my radar']){
   let result,calls=0;
   const body=await generateReply([{direction:'outbound',status:'sent',body:'Which version do you like?'},{direction:'inbound',body:message}],{OPENAI_API_KEY:'fake',SEARCH_ENABLED:'true'},async(url,request)=>{
-   calls++;const input=JSON.parse(request.body);assert.ok(input.instructions.includes('subset'));assert.ok(JSON.stringify(input.input).includes(message));
-   return {ok:true,json:async()=>({status:'completed',output:[{type:'function_call',name:'text_wishlist',arguments:JSON.stringify({action:'selection',decision:'interest',option_indices:[0,1],consent:'none',size_choices:[]})}]})};
+   calls++;const input=JSON.parse(request.body);assert.ok(input.instructions.includes('subset'));assert.ok(JSON.stringify(input.input).includes(message));assert.equal(input.text.format.type,'json_schema');
+   return {ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({action:'selection',decision:'interest',option_indices:[0,1],consent:'none',size_choices:[]})}]}]})};
   },{wishlistState:state,wishlistAction:args=>textWishlistAction(args,{state,text:message,facts,env,inspect,record:async r=>{result=r;},search:()=>assert.fail()})});
   assert.equal(calls,1);assert.equal(result.text_wishlist_state.selected_set.length,2);assert.ok(body.includes('both'));assert.doesNotMatch(body,/https:/);
  }
