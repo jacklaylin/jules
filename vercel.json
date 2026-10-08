@@ -3,6 +3,10 @@
   "crons": [{ "path": "/api/price-checks", "schedule": "0 13 * * *" }],
   "rewrites": [
     {
+      "source": "/simulator",
+      "destination": "/simulator.html"
+    },
+    {
       "source": "/style",
       "destination": "/style.html"
     },

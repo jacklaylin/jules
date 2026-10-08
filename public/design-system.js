@@ -5,7 +5,16 @@ export function mountHeader(page){
  const nav=document.createElement('nav');nav.className='header-actions';nav.setAttribute('aria-label','Your collection');
  const link=document.createElement('a');link.href=page==='wishlist'?'/style':'/wishlist';link.textContent=page==='wishlist'?'Your style ↗':'Wishlist ↗';
  const logout=document.createElement('button');logout.id='logout';logout.type='button';logout.hidden=true;logout.textContent='Log out ↗';
- nav.append(link,logout);header.replaceChildren(brand,nav);initTheme();
+ const testChat=document.createElement('a');testChat.id='test-chat-link';testChat.href='/simulator';testChat.textContent='Test chat ↗';testChat.hidden=true;
+ nav.append(link,testChat,logout);header.replaceChildren(brand,nav);initTheme();
+}
+let testChatToken,permissionRevision=0;
+export async function enableTestChat(token){
+ const link=document.getElementById('test-chat-link');if(!link)return;
+ if(token===testChatToken)return;
+ testChatToken=token;const revision=++permissionRevision;link.hidden=true;
+ if(!token)return;
+ try{const response=await fetch('/api/chat-simulator',{headers:{Authorization:'Bearer '+token},cache:'no-store'});if(revision===permissionRevision)link.hidden=!response.ok;}catch{if(revision===permissionRevision)link.hidden=true;}
 }
 function initTheme(){
 function neonPress(event){const control=event.target.closest('button,a');if(control&&!control.disabled)control.dataset.neon=String(Math.floor(Math.random()*6));}

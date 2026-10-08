@@ -21,6 +21,7 @@ test('simulator runs real inbox save, consent, confirmation and later decline wi
   assert.equal(second.snapshot.items.length,1);assert.equal(second.snapshot.alerts.length,0);
   assert.equal(second.snapshot.messages.length,4);
   assert.equal(second.snapshot.messages.at(-1).search_result.text_wishlist_state,null);
+  assert.equal(second.events.some(e=>e.type==='wishlist_saved'),false);
 });
 
 test('simulator failure injection preserves production failure behavior and captured diagnostics',async()=>{
@@ -65,4 +66,7 @@ test('simulator requires owner authorization before invoking a model and never c
   assert.equal(denied.statusCode,403);assert.equal(called,0);
   const allowed=res();await createSimulatorHandler({env,auth:async()=>200,simulate:async()=>{called++;return {replies:['Fixture']};}})(req(),allowed);
   assert.equal(allowed.statusCode,200);assert.equal(called,1);
+  const navigation=res();const get=req();get.method='GET';
+  await createSimulatorHandler({env,auth:async()=>200,simulate:()=>assert.fail('Navigation cannot run a model')})(get,navigation);
+  assert.equal(navigation.statusCode,200);assert.equal(navigation.body.owner,true);
 });

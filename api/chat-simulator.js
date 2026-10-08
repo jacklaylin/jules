@@ -7,6 +7,7 @@ export function createSimulatorHandler({env=process.env,auth=authorize,simulate=
     try{
       const access=await auth(req.headers,env);
       if(access!==200)return json(res,access,{error:'Owner sign-in required.'});
+      if(req.method==='GET')return json(res,200,{owner:true});
       if(req.method!=='POST')return json(res,405,{error:'Use POST.'});
       if(!env.OPENAI_API_KEY)return json(res,503,{error:'Conversation model is not configured.'});
       const input=await readJson(req,4300000);

@@ -1,5 +1,5 @@
 import {trackedFetch as fetch} from './activity.js';
-import {mountHeader} from './design-system.js';
+import {mountHeader,enableTestChat} from './design-system.js';
 mountHeader('wishlist');
 import {createSession} from './wishlist-session.js';
 const $ = id => document.getElementById(id);
@@ -11,7 +11,7 @@ if(fragment.has('access_token')){token=fragment.get('access_token');session.save
 if(location.hash)history.replaceState(null,'','/wishlist');
 const message=text=>{$('notice').textContent=text;};
 function clear(){generation++;detailVersion++;urls.forEach(URL.revokeObjectURL);urls.clear();imageCache.clear();$('grid').replaceChildren();$('detail-content').replaceChildren();$('detail').close();$('alert-picker').close();alertSelection=null;}
-function login(){clear();token=null;session.clear();sessionStorage.removeItem('jules_wishlist_token');$('login').hidden=false;$('collection').hidden=true;$('logout').hidden=true;}
+function login(){clear();token=null;enableTestChat(null);session.clear();sessionStorage.removeItem('jules_wishlist_token');$('login').hidden=false;$('collection').hidden=true;$('logout').hidden=true;}
 async function authorizedFetch(query='',options={}){
  try{token=await session.token()||token;}catch(e){if(!session.read())login();throw e;}
  const send=()=>fetch('/api/wishlist'+query,{...options,headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{})},cache:'no-store'});
@@ -66,7 +66,7 @@ async function detail(id){
 }
 async function load(){
  clear();$('login').hidden=true;$('collection').hidden=false;$('logout').hidden=false;$('empty').hidden=true;$('count').textContent='';$('grid').setAttribute('aria-busy','true');for(let i=0;i<4;i++){const tile=node('div',null,'tile');tile.setAttribute('aria-hidden','true');tile.append(skeleton('photo'),skeleton('skeleton-card-title'),skeleton('skeleton-price'));$('grid').append(tile);}
- let items;try{({items}=await api());}catch(e){$('grid').replaceChildren();throw e;}finally{$('grid').setAttribute('aria-busy','false');}
+ let items;try{({items}=await api());void enableTestChat(token);}catch(e){$('grid').replaceChildren();throw e;}finally{$('grid').setAttribute('aria-busy','false');}
  $('grid').replaceChildren();$('login').hidden=true;$('collection').hidden=false;$('logout').hidden=false;$('empty').hidden=items.length>0;$('count').textContent=items.length+' '+(items.length===1?'ITEM':'ITEMS');
  for(const item of items){const card=node('div',null,'product-card');const tile=node('button',null,'tile');tile.type='button';tile.append(item.has_image?photo(`?item=${item.image_item}&image=product`,item.name):node('div',item.photo_status==='retry_pending'?'Photo pending':'Image unavailable','photo'),node('strong',item.name),node('span',priceRange(item.price_ranges),'card-price'));if(item.sourcing_status==='store_not_found')tile.append(node('span','Product identified · Store not found','card-state'));tile.onclick=()=>detail(item.id);card.append(tile);if(item.alerts_enabled)card.append(alertToggle(item));card.append(removeButton(item,card));$('grid').append(card);}message('');
 }

@@ -1,5 +1,5 @@
 import {trackedFetch as fetch,withActivity} from './activity.js';
-import {mountHeader} from './design-system.js';
+import {mountHeader,enableTestChat} from './design-system.js';
 mountHeader('style');
 import {createSession} from './wishlist-session.js';
 import {cardText,renderShareCard,canvasBlob} from './style-export.js';
@@ -17,7 +17,7 @@ let noticeTimer,analysisPoll;const notice=text=>{clearTimeout(noticeTimer);$('no
 function node(tag,text,cls){const el=document.createElement(tag);if(text)el.textContent=text;if(cls)el.className=cls;return el;}
 function button(text,work){const el=node('button',text);el.type='button';el.onclick=work;return el;}
 function clear(){generation++;exportVersion++;urls.forEach(URL.revokeObjectURL);urls.clear();photos.clear();$('sources').replaceChildren();$('cards').replaceChildren();$('export-preview').replaceChildren();$('export-dialog').close();exportBlob=null;exporting=null;state=null;}
-function login(){clearTimeout(analysisPoll);document.body.classList.remove('story-mode');clear();token=null;session.clear();sessionStorage.removeItem('jules_wishlist_token');$('workspace').hidden=true;$('login').hidden=false;$('logout').hidden=true;}
+function login(){clearTimeout(analysisPoll);document.body.classList.remove('story-mode');clear();token=null;enableTestChat(null);session.clear();sessionStorage.removeItem('jules_wishlist_token');$('workspace').hidden=true;$('login').hidden=false;$('logout').hidden=true;}
 async function authFetch(url,options={}) {
   try{token=await session.token()||token;}catch(error){if(!session.read())login();throw error;}
   const send=()=>fetch(url,{...options,headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{})},cache:'no-store'});
@@ -136,6 +136,7 @@ function renderCards() {
 function render() {
   generation++;exportVersion++;urls.forEach(URL.revokeObjectURL);urls.clear();photos.clear();
   $('login').hidden=true;$('workspace').hidden=false;$('logout').hidden=false;
+  void enableTestChat(token);
   $('context').value=state.data.notes??'';
   for(const r of document.querySelectorAll('input[name=tone]'))r.checked=r.value===state.data.tone;
   const hasReport=Boolean(state.data.report);

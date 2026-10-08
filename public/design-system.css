@@ -58,7 +58,7 @@ label{display:block}input:not([type=checkbox]):not([type=radio]),select,textarea
 .header-actions a[data-neon]:active{background:linear-gradient(110deg,var(--neon-a),var(--neon-b));background-clip:text;-webkit-background-clip:text;color:transparent;filter:drop-shadow(0 0 3px var(--neon-glow))}
 @media(hover:hover) and (pointer:fine){.header-actions a[data-neon]:hover{background:linear-gradient(110deg,var(--neon-a),var(--neon-b));background-clip:text;-webkit-background-clip:text;color:transparent;filter:drop-shadow(0 0 3px var(--neon-glow))}.wordmark:hover .wordmark-glyph{background-size:200% 100%;animation:wordmark-gradient 2.4s ease-in-out infinite alternate}}
 @keyframes wordmark-gradient{from{background-position:0% 50%}to{background-position:100% 50%}}
-@media(max-width:560px){:root{--header-height:76px;--page-top:30px}.app-header.compact{height:38px}.wordmark{font-size:44px}.app-header.compact .wordmark{font-size:28px}.header-actions{gap:20px;font-size:12px}h1{font-size:29px}.app-heading{margin-bottom:28px}}
+@media(max-width:560px){:root{--header-height:76px;--page-top:30px}.app-header.compact{height:38px}.wordmark{font-size:44px}.app-header.compact .wordmark{font-size:28px}.header-actions{gap:12px;font-size:12px}h1{font-size:29px}.app-heading{margin-bottom:28px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 @media(forced-colors:active){.wordmark-glyph,.wordmark:hover .wordmark-glyph{background:none;color:CanvasText;animation:none}.header-actions a[data-neon]:hover,.header-actions a[data-neon]:active{background:none;color:LinkText;filter:none}}
 
