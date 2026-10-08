@@ -90,12 +90,12 @@ function collage(card){
 function evidenceContent(card){
  const content=node('div');content.append(node('h3',card.title),node('p',cardText(card,state.data.tone),'card-copy'),collage(card));
  for(const o of state.data.report.analysis.observations.filter(o=>card.observation_ids.includes(o.id))){
-  const text=state.sources.reduce((text,source)=>text.replaceAll(source.id,''),o.text).replace(/ {2,}/g,' ');
+  const text=state.sources.reduce((text,source,index)=>text.replaceAll(source.id,'#'+(index+1)),o.text);
   content.append(node('p',text),node('p',o.basis==='context'?'You told Jules':o.confidence==='low'?'Tentative interpretation':o.basis==='file'?'Read from your uploaded files':'From your submitted evidence','fine'));
   if(o.wear_context)content.append(node('p','Worn for: '+o.wear_context,'fine'));
   for(const context of state.data.report.analysis.outfit_contexts||[])if(o.source_ids.includes(context.source_id))content.append(node('p',`${context.basis==='gear'?'Likely activity (confirm)':'Activity'}: ${context.activity}`,'fine'));
   for(const id of o.source_ids){if(id==='context'||id==='saved-profile'){content.append(node('p',id==='context'?'Your style notes':'Your saved shopping preferences','fine'));continue;}const source=state.sources.find(s=>s.id===id);if(!source)continue;
-   content.append(button('View '+source.kind,()=>work(async()=>{const url=await blobURL('?source='+id);const a=node('a');a.href=url;a.target='_blank';a.rel='noopener';if(source.mime_type==='application/pdf')a.download='receipt.pdf';a.click();})));
+   content.append(button('View '+source.kind+' #'+(state.sources.indexOf(source)+1),()=>work(async()=>{const url=await blobURL('?source='+id);const a=node('a');a.href=url;a.target='_blank';a.rel='noopener';if(source.mime_type==='application/pdf')a.download='receipt.pdf';a.click();})));
   }
  }
  return content;
