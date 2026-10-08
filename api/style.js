@@ -32,7 +32,7 @@ export function createStyleHandler({env=process.env,storeFactory=createStore,aut
             if(!entry||query.get('report')!==state.data.report.id)throw fail('This report changed. Reload before exporting.',409);
             source=await store.styleSource(owner,entry.source_id);
             if(!source||source.kind!=='outfit'||source.mime_type!=='image/jpeg')throw fail('Image not found.',404);
-            bytes=await crop(source,entry.box);
+            bytes=await crop(source,entry.verified===true?entry.box:[0,0,1,1]);
           }
           res.statusCode=200;res.setHeader('Content-Type',source.mime_type);res.setHeader('Cache-Control','no-store');
           res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Content-Disposition',source.mime_type==='application/pdf'?'attachment; filename="receipt.pdf"':'inline');

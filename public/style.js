@@ -4,6 +4,7 @@ mountHeader('style');
 import {createSession} from './wishlist-session.js';
 import {cardText,renderShareCard,canvasBlob} from './style-export.js';
 import {cardTheme,cardVisuals,symbolCanvas,HEADER_FONTS} from './style-visuals.js';
+import {brandAssetFor} from './brand-assets.js';
 const $=id=>document.getElementById(id);
 const session=createSession({fetcher:fetch,storage:localStorage,lock:work=>navigator.locks?navigator.locks.request('jules-wishlist-refresh',work):work()});
 let token=session.read()?.access_token||sessionStorage.getItem('jules_wishlist_token'),state=null,busy=false,generation=0,storyIndex=0;
@@ -73,11 +74,11 @@ function collage(card){
  const {crops,ingredients}=cardVisuals(state.data.report,card),gallery=node('div',null,'story-collage');
  for(const c of crops){const fig=node('figure');fig.append(privatePhoto(`?crop=${c.index}&report=${state.data.report.id}`,c.label),node('figcaption',c.label));gallery.append(fig);}
  for(const item of ingredients.slice(0,Math.max(0,6-gallery.children.length))){const fig=node('figure');
-  if(item.kind!=='color'&&(item.kind==='brand'||item.icon==='none'))fig.append(node('div',item.label,'ingredient-label'));
+  if(item.kind==='brand'){const asset=brandAssetFor(item.label);if(!asset)continue;const img=node('img');img.src=asset.src;img.alt=item.label+' logo';img.onerror=()=>fig.remove();fig.append(img);}
+  else if(item.kind!=='color'&&item.icon==='none')fig.append(node('div',item.label,'ingredient-label'));
   else if(item.kind==='color'){const chip=node('div',null,'color-chip');if(item.color)chip.style.background=item.color;fig.append(chip);}
   else fig.append(symbolCanvas(item.icon));
-  const fromFile=state.data.report.analysis.observations.some(o=>item.observation_ids?.includes(o.id)&&o.basis==='file');
-  fig.append(node('figcaption',item.kind==='brand'?(fromFile?'From your uploads':'From your style notes'):item.label));gallery.append(fig);
+  fig.append(node('figcaption',item.label));gallery.append(fig);
  }
  gallery.dataset.count=gallery.children.length;
  for(const figure of gallery.children){
@@ -233,7 +234,12 @@ async function updateExport() {
     }
     if(v!==exportVersion||!exporting)return;
     await Promise.all(HEADER_FONTS.map(font=>document.fonts.load(`48px "${font}"`)));await document.fonts.ready;
-    const canvas=renderShareCard({card:exporting.card,tone:exporting.tone,crops:images,ingredients:cardVisuals(state.data.report,exporting.card).ingredients,signupURL:state.signup_url});
+    const ingredients=[];
+    for(const item of cardVisuals(state.data.report,exporting.card).ingredients){
+      if(item.kind==='brand'){const asset=brandAssetFor(item.label);if(!asset)continue;try{const image=new Image();image.src=asset.src;await image.decode();ingredients.push({...item,image});}catch{/* Omit unavailable logos; never replace them with text. */}}
+      else ingredients.push(item);
+    }
+    const canvas=renderShareCard({card:exporting.card,tone:exporting.tone,crops:images,ingredients,signupURL:state.signup_url});
     const blob=await canvasBlob(canvas);if(v!==exportVersion)return;
     exportBlob=blob;$('export-notice').textContent='Ready to share.';$('export-preview').replaceChildren(canvas);$('download').disabled=false;$('share').disabled=!state.signup_url;
   }catch(e){if(v===exportVersion)$('export-notice').textContent=e.message;}

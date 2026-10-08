@@ -47,14 +47,14 @@ export function renderShareCard({card,tone,crops=[],ingredients=[],signupURL,can
   do{ctx.font=`${bodySize}px Arial`;bodyLines=wrapText(ctx,copy,912);if(bodyLines.length*bodySize*1.4<=available)break;bodySize-=2;}while(bodySize>26);
   if(bodyLines.length*bodySize*1.4>available)throw new Error('This card is too long to export. Shorten your correction first.');
   y=drawLines(ctx,bodyLines,84,y,bodySize*1.4)+48;
-  const items=[...crops.slice(0,6).map(c=>({...c,kind:'photo'})),...ingredients].slice(0,6);
+  const items=[...crops.slice(0,6).map(c=>({...c,kind:'photo'})),...ingredients.filter(i=>i.kind!=='brand'||i.image)].slice(0,6);
   if(items.length){
     const layout=shareCollageLayout(items,{y,height:1720-y});
     for(const {item,x,y:cy,width,height,angle} of layout){
       ctx.save();ctx.translate(x,cy);ctx.rotate(angle);
       if(item.image){ctx.shadowColor='#0003';ctx.shadowBlur=20;ctx.shadowOffsetY=12;ctx.drawImage(item.image,-width/2,-height/2,width,height);}
       else if(item.kind==='color'){ctx.fillStyle=item.color||theme.b;ctx.fillRect(-width/2,-height/2,width,height);}
-      else if(item.kind==='brand'||item.icon==='none'){ctx.fillStyle='#161616';ctx.font=`${Math.min(70,width/item.label.length*1.6)}px Arial`;drawLines(ctx,wrapText(ctx,item.label,width),-width/2,-height/4,60);}
+      else if(item.icon==='none'){ctx.fillStyle='#161616';ctx.font=`${Math.min(70,width/item.label.length*1.6)}px Arial`;drawLines(ctx,wrapText(ctx,item.label,width),-width/2,-height/4,60);}
       else drawSymbol(ctx,item.icon,-width/2,-height/2,width,height);
       ctx.restore();
     }

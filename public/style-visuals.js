@@ -1,4 +1,5 @@
 // One visual vocabulary for private stories and exported images.
+import {brandAssetFor} from './brand-assets.js';
 export const HEADER_FONTS=['Clash Display','Panchang','Comico','Array','Styro','Boxing','Teko'];
 const themes={style:['#e5e4fc','#f2cbb9',0],starter:['#fff0bf','#d4e8d9',0],brands:['#edcbe0','#ded8ff',2],colors:['#e7cbb5','#c8d8ba',3],formula:['#d0e2fb','#f2d5ca',6],modes:['#ffdfab','#f0c9e6',4],gap:['#dcf0bd','#c6e5ec',5]};
 export function cardTheme(card){const [a,b,index]=themes[card.type]||['#f2d9bd','#e3d9f5',1];return {a,b,font:HEADER_FONTS[index]};}
@@ -10,12 +11,15 @@ export function cardVisuals(report,card){
  if(card.type==='colors'){const words=(card.title+' '+card.variants.balanced+' '+observations.map(o=>o.text).join(' ')).toLowerCase();const colors=['brown','khaki','olive','green','beige','black','white','navy','blue','pink','red','orange','yellow','purple','cream','gray','grey','tan','rust','burgundy'].filter(c=>new RegExp('\\b'+c+'(?:s)?\\b').test(words));const score=c=>colors.filter(color=>new RegExp('\\b'+color+'(?:s)?\\b').test(c.label.toLowerCase())).length;crops.sort((a,b)=>score(b)-score(a)||a.index-b.index);}
  crops=crops.slice(0,card.type==='starter'?6:3);
  let ingredients=(report.analysis.ingredients||[]).filter(i=>card.type==='starter'||(card.type==='brands'?i.kind==='brand':i.observation_ids.some(id=>card.observation_ids.includes(id))));
- if(card.type==='starter'||card.type==='brands'){
-  const brands=report.analysis.observations.filter(o=>o.preference?.field==='brand');
-  for(const o of brands.filter(o=>/likes?|loves?|prefers?|favou?rite/i.test(o.preference.value)&&!/avoid|dislike|doesn.t|not |don.t/i.test(o.preference.value)))if(!ingredients.some(i=>i.kind==='brand'&&i.label.toLowerCase()===o.preference.key.toLowerCase()))ingredients.push({kind:'brand',label:o.preference.key,icon:'none',observation_ids:[o.id]});
+ ingredients=ingredients.filter(i=>i.kind!=='brand'||brandAssetFor(i.label));
+ if(card.type==='brands')crops=[];
+ if(card.type==='starter'){
+  // Garments lead the identity collage; the dedicated labels card carries the brand list.
+  crops=crops.slice(0,4);
+  ingredients=[...ingredients.filter(i=>i.kind!=='brand'),...ingredients.filter(i=>i.kind==='brand').slice(0,1)].slice(0,6-crops.length);
  }
- if(card.type==='starter'){ingredients=ingredients.slice(0,5);crops=crops.slice(0,Math.max(1,6-ingredients.length));}
- return {crops,ingredients:ingredients.slice(0,card.type==='starter'?6-crops.length:3)};
+ crops=crops.map(c=>({...c,label:c.verified===true?c.label:'Outfit photo'}));
+ return {crops,ingredients:ingredients.slice(0,card.type==='starter'?6-crops.length:card.type==='brands'?6:3)};
 }
 // Symbolic illustrations, never product identification or an assertion of ownership.
 export function drawSymbol(ctx,icon,x,y,w,h){

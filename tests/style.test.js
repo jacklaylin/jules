@@ -184,7 +184,7 @@ test('analysis reads only this owner’s live shopping memory and excludes old r
 test('generated cards cannot include explicit body commentary',()=>{assert.throws(()=>validateCards({cards:[{...rawCard,title:'Muscular precision',variants:{nice:'Your gym gains define the look.',balanced:'Your body type defines the look.',roast:'Your physique defines the look.'}}]},analysis(),[source]),/appearance comments/);});
 
 test('color evidence prioritizes matching garment labels rather than upload order',()=>{
- const rpt=report();rpt.analysis.crops=[{label:'Track top',source_id:source.id},{label:'Pants',source_id:source.id},{label:'Brown jacket',source_id:source.id},{label:'Brown pants',source_id:source.id}];
+ const rpt=report();rpt.analysis.crops=[{label:'Track top',source_id:source.id,verified:true},{label:'Pants',source_id:source.id,verified:true},{label:'Brown jacket',source_id:source.id,verified:true},{label:'Brown pants',source_id:source.id,verified:true}];
  const visual=cardVisuals(rpt,{...rawCard,type:'colors',title:'Earth tones',variants:{balanced:'You wear a lot of brown.'}});
  assert.deepEqual(visual.crops.slice(0,2).map(c=>c.label),['Brown jacket','Brown pants']);
 });
@@ -279,4 +279,31 @@ test('technical observation citations are removed from copy without removing ord
  const a=analysis(),card={...rawCard,variants:{nice:'Navy knitwear (o1).',balanced:'Navy knitwear (especially sweaters).',roast:'Navy knitwear (o1).'}};
  const cards=validateCards({cards:[card]},a,[source]);assert.equal(cards[0].variants.nice,'Navy knitwear.');assert.equal(cards[0].variants.balanced,card.variants.balanced);
  const updated=ensureCoreCards({...report(),cards:[{...report().cards[0],variants:card.variants}]});assert.equal(updated.cards[0].variants.roast,'Navy knitwear.');
+});
+test('unchecked crops use the full source image and neutral captions; checked crops retain their bounds',async()=>{
+ for(const verified of [false,true]){
+  const store=db(),rpt=report();rpt.analysis.crops[0].verified=verified;
+  await store.writeStyle(owner,0,{...((await store.styleSession(owner)).data),report:rpt});
+  let box;const h=handler(store,{crop:async(_source,bounds)=>{box=bounds;return Buffer.from('image');}}),r=res();
+  await h(req(null,'GET','/api/style?crop=0&report='+rpt.id),r);assert.equal(r.statusCode,200);assert.deepEqual(box,verified?rpt.analysis.crops[0].box:[0,0,1,1]);
+  assert.equal(cardVisuals(rpt,rpt.cards[0]).crops[0].label,verified?'Navy sweater':'Outfit photo');
+ }
+});
+test('starter packs prioritize clothing and activity details while the label card gets actual logo assets',async()=>{
+ const rpt=report();rpt.analysis.crops=Array.from({length:5},(_,i)=>({...rpt.analysis.crops[0],label:'Garment '+i,verified:true}));
+ rpt.analysis.ingredients=[...['Sown Again','Oakley','Adidas Originals','SSENSE','Unknown Label'].map(label=>({kind:'brand',label,icon:'none',observation_ids:['o1']})),{kind:'object',label:'Cycling',icon:'bike',observation_ids:['o1']}];
+ const starter=cardVisuals(rpt,{...rawCard,type:'starter'}),brands=cardVisuals(rpt,{...rawCard,type:'brands'});
+ assert.equal(starter.crops.length,4);assert.ok(starter.ingredients.some(i=>i.icon==='bike'));assert.equal(starter.ingredients.filter(i=>i.kind==='brand').length,1);
+ assert.equal(brands.crops.length,0);assert.equal(brands.ingredients.length,4);
+ const {brandAssetFor}=await import('../public/brand-assets.js');assert.equal(brandAssetFor('Unknown Label'),null);
+ for(const i of brands.ingredients){const asset=brandAssetFor(i.label);assert.ok(asset);const bytes=await readFile(new URL('../public'+asset.src,import.meta.url));const {default:sharp}=await import('sharp');assert.ok((await sharp(bytes).metadata()).width>0);}
+});
+test('the writer checks actual rendered crop pixels against originals before a crop is marked verified',async()=>{
+ const {default:sharp}=await import('sharp');const original=await sharp({create:{width:100,height:160,channels:3,background:'navy'}}).jpeg().toBuffer();
+ const s={...source,data:original.toString('base64')},a=analysis();a.crops[0].observation_ids=['o1'];let call=0;
+ const rpt=await analyzeStyle([s],'',env,async(_url,options)=>{
+  const body=JSON.parse(options.body);call++;
+  if(call===2){const images=body.input[0].content.filter(c=>c.type==='input_image');assert.equal(images.length,2);assert.equal(images[0].image_url,'data:image/jpeg;base64,'+s.data);assert.notEqual(images[1].image_url,images[0].image_url);assert.ok(body.text.format.schema.required.includes('crop_checks'));}
+  return {ok:true,json:async()=>({status:'completed',output:[{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify(call===1?a:{cards:[rawCard],crop_checks:[{index:0,visible:true}]})}]}]})};
+ });assert.equal(rpt.analysis.crops[0].verified,true);
 });
