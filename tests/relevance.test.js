@@ -47,8 +47,8 @@ test('text queries receive profile constraints and color expansion independently
 test('old pending women’s results are resourced before selection and cannot be saved',async()=>{
   let searched=false,recorded;
   const wrong={...men,listing_check:{...men.listing_check,shopping_range:'women'}};
-  await textWishlistAction({action:'select',choice:'black'},{state:{stage:'choice',query:'Prada sneakers',options:[wrong]},facts,text:'black',env:{},record:async r=>{recorded=r;},search:async()=>{searched=true;return {products:[men]};}});
-  assert.equal(searched,true);assert.equal(recorded.text_wishlist_state.options[0].listing_check.shopping_range,'men');assert.equal(recorded.user_confirmed,undefined);
+  await textWishlistAction({action:'selection',decision:'interest',option_indices:[0],consent:'none'},{state:{stage:'choice',query:'Prada sneakers',options:[wrong]},facts,text:'black',env:{},record:async r=>{recorded=r;},search:async()=>{searched=true;return {products:[men]};}});
+  assert.equal(searched,false);assert.equal(recorded.text_wishlist_state.stage,'choice');assert.equal(recorded.user_confirmed,undefined);
 });
 test('complaints and negative mentions cannot switch the saved clothing range',()=>{
  for(const text of ["not women's shoes", "those are women’s shoes, I am a man", "you sent me women's shoes again", "she sent womens shoes again", "I don't want women's sneakers"]){

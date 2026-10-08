@@ -6,11 +6,11 @@ Acceptance: asking about a shoe yields sourced, individually checked product-pag
 
 Follow the conversation operating principle in `AGENTS.md` and PRD Section 4.1. A single sentence reproducer is not sufficient coverage for an interpretation bug. Test varied language across complete turns: choose one, a subset, all, none, tentative preferences, exclusions, corrections, and a topic change. Assert the intended selected set, preserved context, useful next step, and consent scope rather than matching trigger phrases or exact response wording. A response that repeats the full list or forces one choice after the user expresses interest in several is a failure. Technical URL and evidence checks remain deterministic.
 
-Existing phrase-based reaction and wishlist routing, single-selection handling, and wording-based clarification grading still need to be refactored to meet this principle. This document establishes the required behavior; it does not claim the current runtime already satisfies it.
+Wishlist selection now uses model-resolved option references, selected sets, and scoped consent. Feedback acknowledgements do not erase pending product state. The live suite includes subset, exclusion, all, and none turns; grading checks the resulting set and next action rather than reply wording. Phrase-based reaction handling and some older clarification grading still need refactoring to meet this principle.
 
 1. Open `/replay.html` signed in as the owner.
 2. Replay the latest reported turn with the expected brand/model, and download its private snapshot. The snapshot uses the current profile: it cannot reconstruct the profile at the time of an older failure. Keep these reports outside Git.
-3. Run all eight synthetic cases, across Nike, ASICS, New Balance, Salomon, and Prada; include correction, explicit recipient, misspelling/spacing, ambiguous versions, and unknown models.
+3. Run all synthetic sourcing and selection cases, across Nike, ASICS, New Balance, Salomon, and Prada; include correction, explicit recipient, misspelling/spacing, ambiguous versions, unknown models, subsets, exclusions, all, and none.
 4. Run the affected case three times and repeat the suite after deployment. Each run reports pass/fail, reasons, returned reply, checked products, elapsed time, request count, and token usage. Dollar cost is explicitly unknown; billing may include search tool fees not inferable from tokens alone.
 5. Report observed successes/failures. Passing unit tests or one unrelated live success is not evidence that a reported bug is fixed. Do not ask the founder to keep texting for sourcing validation.
 
