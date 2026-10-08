@@ -113,10 +113,11 @@ test('connected simulator saves to the server-resolved wishlist before confirmin
 
 test('connected simulator ignores imported test items and reports authoritative real wishlist state without writing',async()=>{
   const fake=await simulateTurn(input,env,deps({...interpretation,offer_alerts:false}));let evidence;
+  fake.snapshot.messages.push({direction:'outbound',status:'sent',body:'These are only in the simulator, not your actual wishlist.',search_result:{identification_policy:'wishlist_status'}});
   const live={wishlistEntries:async()=>[{item_id:'real',reply_id:'real-reply',text_origin:true,name:'Real coat',links:[{url:'https://www.mrporter.com/en-us/mens/product/coat/2'}]}]};
   const result=await simulateTurn({text:'What is saved?',snapshot:fake.snapshot},env,{...deps(interpretation),wishlistStore:live,wishlistConversation:'owner',
     generate:(messages,settings,_fetch,memory)=>generateReply(messages,settings,async(_url,request)=>{
-      evidence=JSON.parse(JSON.parse(request.body).input[0].content);return model({action:'wishlist_status',response:'Your coat is saved in your wishlist.'})();
+      evidence=JSON.parse(JSON.parse(request.body).input[0].content);assert.ok(!evidence.recent_conversation.some(m=>m.text.includes('only in the simulator')));return model({action:'wishlist_status',response:'Your coat is saved in your wishlist.'})();
     },memory)});
   assert.equal(evidence.saved_wishlist.execution.mode,'production');
   assert.equal(evidence.saved_wishlist.items.length,1);assert.equal(evidence.saved_wishlist.items[0].links[0].url,'https://www.mrporter.com/en-us/mens/product/coat/2');
