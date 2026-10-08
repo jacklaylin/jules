@@ -76,6 +76,46 @@ test('higher product evidence selects identity before an official retailer for a
 test('a specific identity survives without a recommended merchant, while contradictions still reject it',async()=>{
  const deps={plan:async()=>({scope:'item',items:[target],omitted:[]}),verifyListing:async url=>({status:'verified',url,checked_at:'2026-10-06T00:00:00Z',price_snapshot:null}),crop:async()=>({}),retrieve:async()=>[candidates[2]],compare:async()=>({candidates:[{...assessment('3'),is_product_listing:false}]})};
  const result=await visualSearchProducts('Find this jacket',[{}],{},null,deps);
- assert.equal(result.status,'identified_no_store');assert.equal(result.products[0].sourcing_status,'store_not_found');assert.deepEqual(result.products[0].merchant_options,[]);assert.match(formatSearch(result),/haven’t found a store/);
+ assert.equal(result.status,'identified_no_store');assert.equal(result.products[0].sourcing_status,'store_not_found');assert.deepEqual(result.products[0].merchant_options,[]);assert.match(formatSearch(result),/Identification source/);
  assert.equal(assessCandidates(candidates,{candidates:[{...assessment('3'),is_product_listing:false,contradictions:['wrong closure']}]},false,true).length,0);
+});
+
+test('readable screenshot product text is sourced before a garment-only Lens search',async()=>{
+ const named={...target,visible_product_text:'Example Brand Model 12 White',search_mode:'exact'};
+ const found={brand:'Example Brand',name:'Model 12',url:'https://barbour.com/item',match:'likely_match',sourcing_status:'store_found',listing_check:{status:'verified'}};
+ const result=await visualSearchProducts('Find this',[{}],{},null,{plan:async()=>({scope:'item',items:[named],omitted:[]}),
+ searchText:async query=>{assert.equal(query,named.visible_product_text);return {products:[found]};},corroborate:async(t,original,products)=>{assert.equal(t,named);return products;},retrieve:()=>assert.fail('Must use existing screenshot information first'),verifyListing:async url=>({status:'verified',url})});
+ assert.equal(result.products[0].garment,'jacket');assert.equal(result.diagnostics[0].recovery,'screenshot_text');
+});
+test('failed screenshot retrieval falls back to Lens without discarding a supported identity',async()=>{
+ const result=await visualSearchProducts('Find this',[{}],{},null,{plan:async()=>({scope:'item',items:[{...target,visible_product_text:'Example model',search_mode:'exact'}],omitted:[]}),
+ searchText:async()=>{throw Error('unavailable');},crop:async()=>({}),retrieve:async()=>candidates,compare:async()=>({candidates:[assessment('1')]}),verifyListing:async url=>({status:'verified',url})});
+ assert.equal(result.products.length,1);assert.equal(result.products[0].url,candidates[0].url);
+});
+test('identified products without a buying link trigger a bounded alternate merchant search',async()=>{
+ let searched=0;
+ const found={brand:'Barbour',name:'Checked Jacket',url:candidates[0].url,match:'likely_match',sourcing_status:'store_found',listing_check:{status:'verified'}};
+ const result=await visualSearchProducts('Find this',[{}],{},null,{plan:async()=>({scope:'item',items:[target],omitted:[]}),crop:async()=>({}),retrieve:async()=>[candidates[2]],compare:async()=>({candidates:[{...assessment('3'),is_product_listing:false}]}),
+ searchText:async()=>{searched++;return {products:[found]};},corroborate:async(_t,_i,products)=>products,verifyListing:async url=>({status:'verified',url})});
+ assert.equal(searched,1);assert.equal(result.products[0].url,candidates[0].url);assert.equal(result.diagnostics[0].recovery,'merchant_search');
+});
+
+import {corroborateTextSources,planVisualSearch} from '../lib/visual-search.js';
+test('planning reads product text outside the crop and uses model-interpreted alternative permission',async()=>{
+ const expected={scope:'item',question:'',items:[{...target,description:'white waffle long sleeve',visible_product_text:'Example Brand Model 12',search_mode:'exact'}],omitted:[]};
+ const plan=await planVisualSearch('Could you locate this?',[{mime_type:'image/png',data:'synthetic'}],{},async(_u,o)=>{
+  const body=JSON.parse(o.body);assert.ok(body.instructions.includes('outside the garment'));assert.ok(body.input[0].content.some(c=>c.type==='input_image'));
+  assert.ok(body.text.format.schema.properties.items.items.required.includes('visible_product_text'));
+  return {ok:true,json:async()=>({status:'completed',output:[{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify(expected)}]}]})};
+ });
+ assert.equal(plan.items[0].visible_product_text,expected.items[0].visible_product_text);
+ assert.throws(()=>validatePlan({...expected,items:[{...expected.items[0],visible_product_text:'x'.repeat(501)}]},1));
+});
+test('screenshot corroboration rejects invented references, contradictions and unrequested substitutes',async()=>{
+ const products=[{brand:'Example',name:'Model 12',url:candidates[0].url,sourcing_status:'store_found',listing_check:{status:'verified'}}];
+ const response=matches=>async()=>({ok:true,json:async()=>({status:'completed',output:[{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify({matches})}]}]})});
+ const match={index:0,match:'likely_match',visible_evidence:'Example Model 12',contradictions:[]};
+ for(const bad of [{...match,index:8},{...match,visible_evidence:''},{...match,contradictions:['different model']},{...match,match:'similar'}])assert.equal((await corroborateTextSources({...target,search_mode:'exact'},{mime_type:'image/png',data:'synthetic'},products,{},response([bad]))).length,0);
+ assert.equal((await corroborateTextSources({...target,search_mode:'exact'},{mime_type:'image/png',data:'synthetic'},products,{},response([match,match]))).length,1);
+ assert.equal((await corroborateTextSources({...target,search_mode:'similar'},{mime_type:'image/png',data:'synthetic'},products,{},response([{...match,match:'similar'}])))[0].match,'similar');
 });

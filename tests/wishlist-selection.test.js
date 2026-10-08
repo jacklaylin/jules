@@ -18,12 +18,12 @@ test('structured selection represents one, a subset, all, and none without forci
 });
 test('natural input is interpreted by the model into referenced options, not routed by wording rules',async()=>{
  for(const message of ['Ivory or black I think','Both neutrals appeal to me','Everything except the navy pair','The first two are on my radar']){
-  let result,calls=0;
+  let result,calls=0; const acknowledgments=[];
   const body=await generateReply([{direction:'outbound',status:'sent',body:'Which version do you like?'},{direction:'inbound',body:message}],{OPENAI_API_KEY:'fake',SEARCH_ENABLED:'true'},async(url,request)=>{
    calls++;const input=JSON.parse(request.body);assert.ok(input.instructions.includes('subset'));assert.ok(JSON.stringify(input.input).includes(message));assert.equal(input.text.format.type,'json_schema');
    return {ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({action:'selection',decision:'interest',option_indices:[0,1],consent:'none',size_choices:[]})}]}]})};
-  },{wishlistState:state,wishlistAction:args=>textWishlistAction(args,{state,text:message,facts,env,inspect,record:async r=>{result=r;},search:()=>assert.fail()})});
-  assert.equal(calls,1);assert.equal(result.text_wishlist_state.selected_set.length,2);assert.ok(body.includes('both'));assert.doesNotMatch(body,/https:/);
+  },{wishlistState:state,acknowledge:async intent=>acknowledgments.push(intent),wishlistAction:args=>textWishlistAction(args,{state,text:message,facts,env,inspect,record:async r=>{result=r;},search:()=>assert.fail()})});
+  assert.equal(calls,1);assert.deepEqual(acknowledgments.map(a=>a.action),['selection']);assert.equal(result.text_wishlist_state.selected_set.length,2);assert.ok(body.includes('both'));assert.doesNotMatch(body,/https:/);
  }
 });
 test('multi-item save and reminders require a scoped offer and validated available size baselines',async()=>{

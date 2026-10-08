@@ -73,3 +73,18 @@ test('short model names and product-bound unisex subtitles remain verifiable',as
  const value=await verifyListing(salomon,'Salomon XT-6',async()=>new Response(page,{headers:{'content-type':'text/html'}}));assert.equal(value.status,'verified');assert.equal(value.shopping_range,'unisex');
  assert.equal((await verifyListing(salomon,'Salomon XT-4',async()=>new Response(page,{headers:{'content-type':'text/html'}}))).status,'not_product');
 });
+
+test('supported official stores verify individual products while collection pages remain ineligible',async()=>{
+ for(const domain of ['mfpen.com','satisfyrunning.com']){
+  const page='https://'+domain+'/products/example-model';
+  assert.equal((await verifyListing(page,name,async()=>html({...product,url:page}))).status,'verified');
+  assert.equal((await verifyListing('https://'+domain+'/collections/footwear',name,async()=>html({'@type':'CollectionPage',name,mainEntity:product}))).status,'not_product');
+ }
+});
+test('no-store replies separate identification sources, failed checks and useful next steps',async()=>{
+ const {formatSearch}=await import('../lib/search.js');
+ for(const status of ['unsupported','check_failed','not_product']){
+  const body=formatSearch({products:[{brand:'Example',name:'Jacket',match:'likely_match',sourcing_status:'store_not_found',identity_sources:[{url}],listing_checks:[{status}]}]});
+  assert.ok(body.includes(url));assert.match(body,/Identification source.*unverified/);assert.match(body,/another color or a similar item/);assert.doesNotMatch(body,/store I can recommend/);
+ }
+});

@@ -3,22 +3,13 @@ import assert from 'node:assert/strict';
 import { beginProgress, progressEmoji } from '../lib/photon.js';
 import { receiveInInbox } from '../lib/inbox.js';
 
-test('reactions acknowledge identification, recommendations, and uncaptained images', () => {
-  const message = (text, attachments = []) => ({ content: { text }, attachments });
-  assert.equal(progressEmoji(message('Find the jacket in this image')), '🔎');
-  assert.equal(progressEmoji(message('What is this jacket?')), '🔎');
-  assert.equal(progressEmoji(message('Can you recommend shoes?')), '💭');
-  assert.equal(progressEmoji(message('What should I wear?')), '💭');
-  assert.equal(progressEmoji(message('[Image]', [{}])), '👀');
-  assert.equal(progressEmoji(message('Thanks')), null);
-  assert.equal(progressEmoji(message('I really want the Prada Speedrock sneakers.')), '👀');
-  assert.equal(progressEmoji(message('I want the ASICS GEL-KAYANO 14')), '👀');
-  assert.equal(progressEmoji(message('I love this outfit', [{}])), '😍');
-  assert.equal(progressEmoji(message('Love this look')), '😍');
-  assert.equal(progressEmoji(message('I really like this', [{}])), '😍');
-  assert.equal(progressEmoji(message('outfit inspo', [{}])), '😍');
-  assert.equal(progressEmoji(message('I don’t like this outfit', [{}])), '👀');
-  assert.equal(progressEmoji(message('Find the jacket in this outfit I love', [{}])), '🔎');
+test('reactions follow structured intent rather than message phrases', () => {
+  assert.equal(progressEmoji({action:'search'}), '🔎');
+  assert.equal(progressEmoji({action:'start'}), '👀');
+  for (const decision of ['interest','confirm']) assert.equal(progressEmoji({action:'selection',decision}), '👍');
+  for (const decision of ['decline','clarify']) assert.equal(progressEmoji({action:'selection',decision}), null);
+  assert.equal(progressEmoji({action:'conversation'}), null);
+  assert.equal(progressEmoji({content:{text:'Find this outfit I love'}}), null);
 });
 
 test('typing and reactions use the incoming line and message; failures allow cleanup', async () => {
@@ -35,6 +26,8 @@ test('typing and reactions use the incoming line and message; failures allow cle
   } }, { SPECTRUM_PROJECT_ID: 'test-project', SPECTRUM_PROJECT_SECRET: 'test-secret' }, {
     provider, connect: async () => ({ stop: async () => calls.push('disconnect') }), log: () => {},
   });
+  await stop.react({action:'search'});
+  await stop.react({action:'search'});
   await stop();
   assert.deepEqual(calls, ['start', 'reaction', 'stop', 'disconnect']);
 });
