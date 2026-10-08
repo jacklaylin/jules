@@ -214,10 +214,10 @@ test('category batches can upload beyond twelve and all saved files reach analys
 });
 test('style source pagination retains category metadata and reads every page for analysis',async()=>{
  const paths=[];const store=createStore({SUPABASE_URL:'https://db.invalid',SUPABASE_SERVICE_ROLE_KEY:'test'},async url=>{
-  const u=new URL(url);paths.push(u);const offset=Number(u.searchParams.get('offset'));return {ok:true,text:async()=>JSON.stringify(Array.from({length:offset===0?100:3},(_,i)=>({id:offset+i,kind:'outfit'})))};
+  const u=new URL(url);paths.push(u);const offset=Number(u.searchParams.get('offset'));return {ok:true,text:async()=>JSON.stringify(Array.from({length:Math.min(Number(u.searchParams.get('limit')),103-offset)},(_,i)=>({id:offset+i,kind:'outfit'})))};
  });
- const sources=await store.styleSources(owner,true);assert.equal(sources.length,103);assert.equal(paths.length,2);
- assert.equal(paths[1].searchParams.get('offset'),'100');assert.match(paths[0].searchParams.get('select'),/data$/);assert.equal(paths[0].searchParams.get('conversation_id'),'eq.'+owner);
+ const sources=await store.styleSources(owner,true);assert.equal(sources.length,103);assert.equal(paths.length,21);
+ assert.equal(paths[1].searchParams.get('offset'),'5');assert.match(paths[0].searchParams.get('select'),/data$/);assert.equal(paths[0].searchParams.get('conversation_id'),'eq.'+owner);
 });
 
 test('freeform exports scale images to remaining space and keep them above the footer',async()=>{
