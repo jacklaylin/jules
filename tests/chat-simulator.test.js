@@ -59,7 +59,7 @@ test('a missing-wishlist complaint inspects persisted items and cannot start ano
 test('simulator seeds a copy of the owner profile and preserves test overrides without production writes',async()=>{
   const handler=createSimulatorHandler({env:{...env,ADMIN_EMAIL:'fixture@example.test',SUPABASE_URL:'fixture'},auth:async()=>200,
     storeFactory:()=>({wishlistMember:async()=>({conversation_id:'fixture-owner'}),wishlistEntries:async()=>[],profile:async()=>({facts:[{field:'gender',key:'identity',value:'man'},{field:'size',key:'suit/unknown',value:'50R'}]})}),
-    simulate:async input=>{assert.equal(input.snapshot.profile_seeded,true);assert.equal(input.snapshot.profile.facts[0].value,'man');assert.equal(input.snapshot.profile.facts[1].value,'52R');return {snapshot:input.snapshot};}});
+    simulate:async(input,_env,dependencies)=>{assert.equal(dependencies.wishlistConversation,'fixture-owner');assert.ok(dependencies.wishlistStore);assert.equal(input.snapshot.profile_seeded,true);assert.equal(input.snapshot.profile.facts[0].value,'man');assert.equal(input.snapshot.profile.facts[1].value,'52R');return {snapshot:input.snapshot};}});
   const request={method:'POST',headers:{'content-type':'application/json'},async *[Symbol.asyncIterator](){yield JSON.stringify({text:'Find trousers',snapshot:{messages:[],items:[],alerts:[],images:[],profile:{version:0,facts:[{field:'size',key:'suit/unknown',value:'52R'}]}}});}};
   const response={setHeader(){},end(value){this.body=JSON.parse(value);}};
   await handler(request,response);assert.equal(response.statusCode,200);
