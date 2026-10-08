@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {Readable} from 'node:stream';
 import {readFile} from 'node:fs/promises';
 import {createStyleHandler} from '../api/style.js';
-import {prepareSource,validateAnalysis,validateCards,receiptStats,eligibleCards,confirmReport,reportFacts,analyzeStyle,ensureCoreCards} from '../lib/style.js';
+import {prepareSource,validateAnalysis,validateCards,receiptStats,eligibleCards,confirmReport,reportFacts,analyzeStyle,captionStylePhotos,ensureCoreCards} from '../lib/style.js';
 import {cardVisuals} from '../public/style-visuals.js';
 import {cardText,wrapText} from '../public/style-export.js';
 import {createStore} from '../lib/store.js';
@@ -286,7 +286,7 @@ test('unchecked crops use the full source image and neutral captions; checked cr
   await store.writeStyle(owner,0,{...((await store.styleSession(owner)).data),report:rpt});
   let box;const h=handler(store,{crop:async(_source,bounds)=>{box=bounds;return Buffer.from('image');}}),r=res();
   await h(req(null,'GET','/api/style?crop=0&report='+rpt.id),r);assert.equal(r.statusCode,200);assert.deepEqual(box,verified?rpt.analysis.crops[0].box:[0,0,1,1]);
-  assert.equal(cardVisuals(rpt,rpt.cards[0]).crops[0].label,verified?'Navy sweater':'Outfit photo');
+  assert.equal(cardVisuals(rpt,rpt.cards[0]).crops[0].label,verified?'Navy sweater':'Photo details pending');
  }
 });
 test('starter packs prioritize clothing and activity details while the label card gets actual logo assets',async()=>{
@@ -304,6 +304,34 @@ test('the writer checks actual rendered crop pixels against originals before a c
  const rpt=await analyzeStyle([s],'',env,async(_url,options)=>{
   const body=JSON.parse(options.body);call++;
   if(call===2){const images=body.input[0].content.filter(c=>c.type==='input_image');assert.equal(images.length,2);assert.equal(images[0].image_url,'data:image/jpeg;base64,'+s.data);assert.notEqual(images[1].image_url,images[0].image_url);assert.ok(body.text.format.schema.required.includes('crop_checks'));}
-  return {ok:true,json:async()=>({status:'completed',output:[{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify(call===1?a:{cards:[rawCard],crop_checks:[{index:0,visible:true}]})}]}]})};
- });assert.equal(rpt.analysis.crops[0].verified,true);
+  return {ok:true,json:async()=>({status:'completed',output:[{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify(call===1?a:{cards:[rawCard],crop_checks:[{index:0,visible:true,full_caption:'Navy sweater with cream trousers'}]})}]}]})};
+ });assert.equal(rpt.analysis.crops[0].verified,true);assert.equal(rpt.analysis.crops[0].full_caption,'Navy sweater with cream trousers');
+});
+
+test('photo captions read distinct full images without old labels or notes and preserve confirmed report content',async()=>{
+ const rpt=report();rpt.status='confirmed';rpt.analysis.crops.push({...rpt.analysis.crops[0]});
+ const checked=await captionStylePhotos(rpt,[source],env,async(_url,options)=>{
+  const body=JSON.parse(options.body),content=body.input[0].content;
+  assert.equal(content.filter(v=>v.type==='input_image').length,1);
+  assert.equal(content[1].image_url,'data:image/jpeg;base64,'+source.data);
+  assert.doesNotMatch(JSON.stringify(content),/Navy sweater|My staple|everyday/);
+  return {ok:true,json:async()=>({status:'completed',output:[{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify({captions:[{source_id:source.id,text:'Striped track jacket with cream trousers'}]})}]}]})};
+ });
+ assert.deepEqual(checked.cards,rpt.cards);assert.equal(checked.status,'confirmed');assert.equal(rpt.analysis.crops[0].full_caption,undefined);
+ assert.ok(checked.analysis.crops.every(c=>c.full_caption==='Striped track jacket with cream trousers'));
+ assert.equal(cardVisuals(checked,checked.cards[0]).crops[0].label,'Striped track jacket with cream trousers');
+ await assert.rejects(()=>captionStylePhotos(rpt,[source],env,async()=>({ok:true,json:async()=>({status:'completed',output:[{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify({captions:[{source_id:other,text:'Invented source'}]})}]}]})})),/Could not check/);
+});
+test('caption backfill preserves cards and saved preferences and becomes a no-op after checking',async()=>{
+ const store=db(),rpt=report();rpt.status='confirmed';const facts=[{field:'brand',key:'label',value:'Loved brand'}];
+ await store.writeStyle(owner,0,{...((await store.styleSession(owner)).data),report:rpt},{facts});let calls=0;
+ const h=handler(store,{caption:async(r,sources)=>{calls++;assert.equal(sources.length,1);return {...r,analysis:{...r.analysis,crops:r.analysis.crops.map(c=>({...c,full_caption:'Navy knit with pale trousers'}))}};}});
+ let r=res();await h(req({revision:1,action:'captions',report:rpt.id}),r);assert.equal(r.statusCode,200);assert.equal(data(r).data.report.status,'confirmed');assert.deepEqual(data(r).data.report.cards,rpt.cards);assert.deepEqual(store.facts(),facts);
+ const revision=data(r).revision;r=res();await h(req({revision,action:'captions',report:rpt.id}),r);assert.equal(r.statusCode,200);assert.equal(calls,1);assert.equal(data(r).revision,revision);
+});
+test('deletion during caption checking prevents a stale report from being restored',async()=>{
+ const store=db(),rpt=report();await store.writeStyle(owner,0,{...((await store.styleSession(owner)).data),report:rpt});
+ let release,started;const ready=new Promise(resolve=>started=resolve),gate=new Promise(resolve=>release=resolve);
+ const h=handler(store,{caption:async r=>{started();await gate;return r;}}),r=res(),running=h(req({revision:1,action:'captions',report:rpt.id}),r);await ready;
+ const deleted=res();await h(req({revision:2,action:'delete'}),deleted);assert.equal(deleted.statusCode,200);release();await running;assert.equal(r.statusCode,409);assert.equal((await store.styleSession(owner)).data.report,null);
 });

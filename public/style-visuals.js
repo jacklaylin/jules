@@ -18,7 +18,7 @@ export function cardVisuals(report,card){
   crops=crops.slice(0,4);
   ingredients=[...ingredients.filter(i=>i.kind!=='brand'),...ingredients.filter(i=>i.kind==='brand').slice(0,1)].slice(0,6-crops.length);
  }
- crops=crops.map(c=>({...c,label:c.verified===true?c.label:'Outfit photo'}));
+ crops=crops.map(c=>({...c,label:c.verified===true?c.label:c.full_caption||'Photo details pending'}));
  return {crops,ingredients:ingredients.slice(0,card.type==='starter'?6-crops.length:card.type==='brands'?6:3)};
 }
 // Symbolic illustrations, never product identification or an assertion of ownership.

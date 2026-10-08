@@ -1,10 +1,10 @@
 import { createStore } from '../lib/store.js';
 import { wishlistUser } from '../lib/wishlist.js';
 import { json, readJson, uuid } from '../lib/http.js';
-import { ensureCoreCards, TONES, prepareSource, analyzeStyle, confirmReport, reportFacts, cropSource, fail } from '../lib/style.js';
+import { ensureCoreCards, TONES, prepareSource, analyzeStyle, captionStylePhotos, confirmReport, reportFacts, cropSource, fail } from '../lib/style.js';
 
 export const config={api:{bodyParser:false},maxDuration:120};
-export function createStyleHandler({env=process.env,storeFactory=createStore,auth=wishlistUser,analyze=analyzeStyle,prepare=prepareSource,crop=cropSource,fetcher=fetch}={}) {
+export function createStyleHandler({env=process.env,storeFactory=createStore,auth=wishlistUser,analyze=analyzeStyle,caption=captionStylePhotos,prepare=prepareSource,crop=cropSource,fetcher=fetch}={}) {
   return async(req,res)=>{
     let store,owner,reservation;
     try {
@@ -59,6 +59,21 @@ export function createStyleHandler({env=process.env,storeFactory=createStore,aut
         return json(res,200,{revision:state.revision+1,data:{notes:'',tone:'balanced',report:null},sources:[],signup_url:signupURL(env)});
       }
       if(state.data.busy_until && Date.parse(state.data.busy_until)>Date.now())throw fail('Your analysis is still running. Give it a moment, then reload.',409);
+      if(input.action==='captions') {
+        if(!state.data.consent_at||!state.data.report||input.report!==state.data.report.id)throw fail('Reload your style read before checking photo captions.',409);
+        if(!state.data.report.analysis.crops.some(c=>!c.full_caption))return json(res,200,{...state,sources:await store.styleSources(owner),signup_url:signupURL(env)});
+        const pending={...state.data,busy_until:new Date(Date.now()+60000).toISOString()};
+        if(!await store.writeStyle(owner,state.revision,pending))throw fail('Your style read changed. Reload before continuing.',409);
+        reservation={revision:state.revision+1,data:state.data};
+        const ids=new Set(state.data.report.analysis.crops.filter(c=>!c.full_caption).map(c=>c.source_id));
+        const sources=await Promise.all([...ids].map(id=>store.styleSource(owner,id)));
+        const report=await caption(state.data.report,sources.filter(Boolean),env,fetcher);
+        const updated={...state.data,report,busy_until:null};
+        if(!await store.writeStyle(owner,reservation.revision,updated))throw fail('Your style read changed while checking captions. Reload to see it.',409);
+        reservation=null;
+        console.log(JSON.stringify({event:'style_photo_captions_checked',photos:ids.size}));
+        return json(res,200,{revision:state.revision+2,data:updated,sources:await store.styleSources(owner),signup_url:signupURL(env)});
+      }
       if(input.action==='upload') {
         if(input.consent!==true)throw fail('Approve private storage and OpenAI analysis before uploading.');
         const source=await prepare(input);
