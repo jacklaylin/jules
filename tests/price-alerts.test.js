@@ -112,3 +112,11 @@ test('Prada inventory binds size system, product SKU and stock instead of guessi
  assert.equal(offers[0].amount,1170);assert.ok(!offers.some(o=>o.size==='US men 12'||o.size==='EU 45'));
  assert.deepEqual(pradaSizeOffers(html,page.replace(sku,'OTHER'),{},'now'),[]);
 });
+
+test('a known size price remains a baseline while out of stock, but cannot trigger a stock claim',async()=>{
+ const {initialPriceBaselines}=await import('../lib/price-alerts.js');
+ const initial=initialPriceBaselines([offer(100,'M',false)]);
+ assert.equal(initial[0].available,false);assert.equal(priceDrop({...initial[0],drop_percent:0},offer(90,'M',false)),false);
+ assert.equal(priceDrop({...initial[0],drop_percent:0},offer(90)),true);
+ assert.equal(initialPriceBaselines([offer(50,'M',false),offer(100)])[0].amount,100);
+});
