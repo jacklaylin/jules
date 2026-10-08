@@ -101,3 +101,14 @@ test('pending watch establishes a verified baseline then detects drops without n
  offers=[offer(100)];await handler(cronReq,response());assert.equal(sends,0);assert.equal(statuses.at(-1),'baseline_established');assert.equal(alert.baselines[0].amount,100);
  offers=[offer(95)];await handler(cronReq,response());assert.equal(sends,1);assert.equal(alert.baselines[0].amount,95);
 });
+
+test('Prada inventory binds size system, product SKU and stock instead of guessing from shared offers',async()=>{
+ const {pradaSizeOffers}=await import('../lib/price-alerts.js');
+ const sku='2EE469_D7C_F0002_F_G000',page='https://www.prada.com/us/en/p/example/'+sku;
+ const values=[{partNumber:1,sizeCodes:2},sku,[3,4],{identifier:5,partNumberSize:6,value:7,colorProductId:1,online:8,inventoryStatus:9,availableQuantity:10},{identifier:11,partNumberSize:12,value:13,colorProductId:1,online:14,inventoryStatus:15,availableQuantity:16},'0301',sku+'_0301','11',true,'Available',3,'0302',sku+'_0302','12',false,'Unavailable',0,{code:18,labelToShow:19},'03','prnux_sizepicker_uk'];
+ const html='<script id="__NUXT_DATA__" type="application/json">'+JSON.stringify(values)+'</script>';
+ const offers=pradaSizeOffers(html,page,{name:'Shoes',offers:{price:1170,priceCurrency:'USD'}},'now');
+ assert.equal(offers.length,2);assert.equal(offers[0].size,'UK 11');assert.equal(offers[0].available,true);assert.equal(offers[1].available,false);
+ assert.equal(offers[0].amount,1170);assert.ok(!offers.some(o=>o.size==='US men 12'||o.size==='EU 45'));
+ assert.deepEqual(pradaSizeOffers(html,page.replace(sku,'OTHER'),{},'now'),[]);
+});

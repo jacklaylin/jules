@@ -121,3 +121,9 @@ test('identified items keep evidence separate from store links and promote produ
  assert.equal(groupWishlist(rows)[0].image_item,other);assert.equal(groupWishlist(rows)[0].photo_count,2);
  const groups=groupWishlist([{...rows[1],sourcing_status:'store_not_found',identity_sources:entries[0].identity_sources}]);assert.equal(groups[0].sourcing_status,'store_not_found');assert.deepEqual(groups[0].links,[]);assert.deepEqual(groups[0].price_ranges,[]);
 });
+
+test('approved text saves retain validated links without repeating them in the confirmation',async()=>{
+ const saved=await wishlistProducts({identification_policy:'text_wishlist',user_confirmed:true,products:[{...product,merchant_options:[]}]},'I’ll add it to your wishlist.',[],{},async()=>Buffer.from('photo'));
+ assert.equal(saved.length,1);assert.equal(saved[0].links[0].url,product.url);assert.equal(saved[0].image.mime_type,'image/jpeg');
+ assert.deepEqual(await wishlistProducts({identification_policy:'text_wishlist',products:[product]},'I’ll add it.',[],{},async()=>Buffer.from('photo')),[]);
+});
