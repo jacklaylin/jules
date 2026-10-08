@@ -27,7 +27,7 @@ async function authFetch(url,options={}) {
 }
 async function api(input) {
   const response=await authFetch('/api/style',input?{method:'POST',body:JSON.stringify({...input,revision:state.revision})}:{});
-  const value=await response.json();if(!response.ok)throw new Error(value.error||'Please try again.');return value;
+  const value=await response.json();if(!response.ok)throw Object.assign(new Error(value.error||'Please try again.'),{code:value.code});return value;
 }
 async function work(fn,label='Working on your style') {
   if(busy)return;busy=true;$('workspace').setAttribute('aria-busy','true');
@@ -182,11 +182,12 @@ $('upload-form').onsubmit=e=>{e.preventDefault();work(async()=>{
 });};
 $('context-form').onsubmit=e=>{e.preventDefault();work(async()=>{try{state=await api({action:'context',notes:$('context').value});render();feedback('context-feedback','Notes saved.');notice('');}catch(e){feedback('context-feedback',e.message,true);}});};
 $('analyze').onclick=()=>work(async()=>{
+  feedback('analysis-feedback','');delete $('analysis-feedback').dataset.errorCode;
   if(!state.data.consent_at&&!$('consent').checked){fieldError($('consent'),'Approve private storage and OpenAI analysis to continue.');return;}
   if($('context').value.trim()!==state.data.notes){state=await api({action:'context',notes:$('context').value});}
   notice('Reading your outfits and receipts, then putting your report together…');
   try{state=await api({action:'analyze',consent:true});render();notice('Check my read before we save any preferences.');$('report-section').scrollIntoView({behavior:'instant',block:'start'});}
-  catch(e){try{state=await api();render();}catch{}throw e;}
+  catch(e){try{state=await api();render();}catch{}feedback('analysis-feedback',e.message,true);if(e.code)$('analysis-feedback').dataset.errorCode=e.code;notice('');$('analysis-feedback').scrollIntoView({block:'center'});}
 });
 for(const radio of document.querySelectorAll('input[name=tone]'))radio.onchange=()=>work(async()=>{
   const tone=radio.value;state=await api({action:'tone',tone});

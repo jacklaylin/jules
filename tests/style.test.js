@@ -93,7 +93,7 @@ test('conflicting user-confirmed preferences cannot silently overwrite each othe
   assert.throws(()=>confirmReport(original,reviews),/navy_knitwear.*different text/);
 });
 test('report validation rejects invented sources, receipt records from photos, inspiration crops and unsupported purchase cards',()=>{
-  const a=analysis();assert.throws(()=>validateAnalysis({...a,observations:[{...observation,source_ids:[other]}]},[source]),/Unsupported/);
+  const a=analysis();assert.throws(()=>validateAnalysis({...a,observations:[{...observation,source_ids:[other]}]},[source]),error=>error.code==='observation_sources');
   assert.throws(()=>validateAnalysis({...a,purchases:[{source_ids:[source.id],order_key:'a',item_key:'b',retailer:'Shop',brand:'Label',category:'knitwear',event:'purchase',for_self:true,amount:null,currency:null,discounted:null,date:null}]},[source]),/receipt/);
   assert.throws(()=>validateAnalysis({...a,crops:[{label:'Shirt',source_id:source.id,box:[0,0,1,1]}]},[{...source,kind:'inspiration'}]),/crop/);
   assert.throws(()=>validateCards({cards:[{...rawCard,type:'returns'}]},a,[source]),/unsupported/);
@@ -166,7 +166,7 @@ test('starter and explicit brand cards survive model omission without confirming
 });
 test('saved shopping preferences are evidence only when supplied; extraction receives them privately',async()=>{
  const a=analysis(),brand={id:'b',text:'User likes Label.',source_ids:['saved-profile'],confidence:'high',preference:{field:'brand',key:'Label',value:'Likes Label'}};
- assert.throws(()=>validateAnalysis({...a,observations:[brand]},[source]),/evidence/);
+ assert.throws(()=>validateAnalysis({...a,observations:[brand]},[source]),error=>error.code==='observation_sources');
  const facts=[{field:'brand',key:'Label',value:'Likes Label'}];
  assert.equal(validateAnalysis({...a,observations:[brand]},[source],'',facts).observations[0].id,'b');
  let call=0;await analyzeStyle([source],'',env,async(_url,options)=>{const body=JSON.parse(options.body);call++;if(call===1)assert.deepEqual(JSON.parse(body.input[0].content[0].text).saved_preferences,facts);return {ok:true,json:async()=>({status:'completed',output:[{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify(call===1?a:{cards:[rawCard]})}]}]})};},facts);
@@ -229,4 +229,18 @@ test('freeform exports scale images to remaining space and keep them above the f
 test('observations may cite more than twelve uploaded sources',()=>{
  const sources=Array.from({length:16},(_,i)=>({...source,id:'source-'+i})),a=analysis();a.crops=[];a.observations[0].source_ids=sources.map(s=>s.id);
  assert.equal(validateAnalysis(a,sources),a);
+});
+
+test('analysis schemas constrain evidence IDs and reject fabricated citations with safe diagnostics',async()=>{
+ const {analysisSchemaFor}=await import('../lib/style.js');const schema=analysisSchemaFor([source,receipt],'notes',[{field:'brand',key:'brand',value:'likes'}]);
+ assert.deepEqual(schema.$defs.source.enum,[source.id,receipt.id,'context','saved-profile']);assert.deepEqual(schema.$defs.outfit.enum,[source.id]);assert.deepEqual(schema.$defs.receipt.enum,[receipt.id]);
+ assert.equal(schema.properties.observations.items.properties.source_ids.items.$ref,'#/$defs/source');assert.equal(schema.properties.observations.items.properties.text.maxLength,650);assert.equal(schema.properties.observations.items.properties.id.enum.length,18);
+ assert.equal(analysisSchemaFor([source]).properties.purchases.maxItems,0);
+ const duplicated=analysis();duplicated.observations[0].source_ids=[source.id,source.id];assert.deepEqual(validateAnalysis(duplicated,[source]).observations[0].source_ids,[source.id]);
+ const broken=analysis();broken.observations[0].source_ids=['invented-source'];assert.throws(()=>validateAnalysis(broken,[source]),error=>error.code==='observation_sources'&&/files and notes are saved/.test(error.message));
+ const tooLong=analysis();tooLong.observations[0].text='x'.repeat(651);assert.throws(()=>validateAnalysis(tooLong,[source]),error=>error.code==='observation_text');
+});
+test('analysis failures expose a safe diagnostic and release the reservation without losing sources',async()=>{
+ const store=db(),h=handler(store,{analyze:async()=>{throw Object.assign(new Error('Your files and notes are saved.'),{status:502,code:'observation_sources'});}}),r=res();
+ await h(req({revision:0,action:'analyze',consent:true}),r);assert.equal(data(r).code,'observation_sources');assert.equal(r.statusCode,502);assert.equal((await store.styleSession(owner)).data.busy_until,null);assert.equal((await store.styleSources(owner)).length,1);
 });

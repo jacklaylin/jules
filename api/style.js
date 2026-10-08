@@ -109,8 +109,8 @@ export function createStyleHandler({env=process.env,storeFactory=createStore,aut
       if(reservation) {
         try{await store.writeStyle(owner,reservation.revision,{...reservation.data,busy_until:null});}catch{/* Expired lock is recoverable. */}
       }
-      console.log(JSON.stringify({event:'style_request_failed',status:error.status??503}));
-      return json(res,error.status??503,{error:error.status?error.message:'Could not finish that step. Your saved inputs are intact; reload before trying again.'});
+      console.log(JSON.stringify({event:'style_request_failed',status:error.status??503,...(error.code?{reason:error.code}:{})}));
+      return json(res,error.status??503,{error:error.status?error.message:'Could not finish that step. Your saved inputs are intact; reload before trying again.',...(error.code?{code:error.code}:{})});
     }
   };
 }
