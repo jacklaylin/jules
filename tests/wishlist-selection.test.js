@@ -36,7 +36,7 @@ test('multi-item save and reminders require a scoped offer and validated availab
  const noConsent=await act({decision:'confirm',option_indices:[0,1],consent:'none'},offer);assert.equal(noConsent.result.user_confirmed,undefined);
  const explicit=await act({decision:'confirm',option_indices:[0,1],consent:'wishlist',consent_context:'explicit_request'});assert.equal(explicit.result.products.length,2);assert.equal(explicit.result.user_confirmed,true);
  const unoffered=await act({decision:'confirm',option_indices:[0,1],consent:'wishlist',consent_context:'answer_to_offer'});assert.equal(unoffered.result.user_confirmed,undefined);
- const unavailable=await act({decision:'confirm',option_indices:[0,1],consent:'wishlist_alerts'},offer,{inspect:async()=>({sizes:['EU 45'],checks:[]})});assert.equal(unavailable.result.user_confirmed,undefined);
+ const unavailable=await act({decision:'confirm',option_indices:[0,1],consent:'wishlist_alerts'},offer,{inspect:async()=>({sizes:['EU 45'],checks:[]})});assert.equal(unavailable.result.user_confirmed,true);assert.equal(unavailable.result.alert_requests.length,2);assert.deepEqual(unavailable.result.alert_requests[0].baselines,[]);
  const needSize=await act({decision:'confirm',option_indices:[0,1],consent:'wishlist_alerts'},offer,{facts:[]});assert.equal(needSize.next.stage,'size_set');assert.equal(needSize.result.user_confirmed,undefined);
 });
 test('clarification and corrections preserve context and cannot perform unoffered actions',async()=>{
@@ -55,4 +55,22 @@ test('multi-variant completion attaches reminders to their corresponding saved w
  const calls=[];
  const body=await finishTextWishlist({operation:'op',conversationId:'c',result,env:{},store:{wishlistReplyId:async()=> 'reply',wishlistEntries:async()=>options.slice(0,2).map((p,i)=>({reply_id:'reply',item_id:String(i),text_origin:true,name:p.name,brand:p.brand,links:[{url:p.url}]})),enablePriceAlert:async args=>{calls.push(args);return {active:true};}}});
  assert.equal(calls.length,2);assert.notEqual(calls[0].p_item,calls[1].p_item);assert.ok(body.includes('2'));
+});
+
+test('known profile sizes save approved watches despite unreadable retailer stock',async()=>{
+ const offer=(await act({option_indices:[0,1]})).next;
+ const r=await act({decision:'confirm',option_indices:[0,1],consent:'wishlist_alerts'},offer,{inspect:async()=>({sizes:[],checks:[]})});
+ assert.equal(r.result.user_confirmed,true);assert.equal(r.result.alert_requests.length,2);
+ assert.ok(r.result.alert_requests.every(w=>w.size==='EU 45'&&w.baselines.length===0));
+ assert.doesNotMatch(r.body,/Which.*size|Should I/);
+});
+test('size clarification retains approval and resumes it without another consent question',async()=>{
+ const offer=(await act({option_indices:[0,1]})).next;
+ const pending=await act({decision:'confirm',option_indices:[0,1],consent:'wishlist_alerts'},offer,{facts:[],inspect:async()=>({sizes:[],checks:[]})});
+ assert.equal(pending.next.confirmed_consent,'wishlist_alerts');
+ const finished=await act({decision:'interest',option_indices:[0,1]},pending.next,{inspect:async()=>({sizes:[],checks:[]})});
+ assert.equal(finished.result.user_confirmed,true);assert.equal(finished.result.alert_requests.length,2);
+ assert.doesNotMatch(finished.body,/Should I|Which.*size/);
+ const changed=await act({decision:'interest',option_indices:[2]},pending.next);
+ assert.equal(changed.result.user_confirmed,undefined);
 });

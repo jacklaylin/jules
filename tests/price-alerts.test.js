@@ -90,3 +90,14 @@ test('uncertain sends are not resent; cancelled alerts do not send',async()=>{
  await handler(cronReq,response());await handler(cronReq,response());assert.equal(sends,1);
  store.operations.clear();store.priceAlertCurrent=async()=>false;await handler(cronReq,response());assert.equal(sends,1);
 });
+
+test('pending watch establishes a verified baseline then detects drops without notifying about unknown stock',async()=>{
+ const store=cronStore();const alert=(await store.claimPriceAlerts())[0];alert.baselines=[];
+ alert.links=[{url,requested_sizes:['M','UK M']}];
+ store.claimPriceAlerts=async()=>[alert];let offers=[],sends=0,statuses=[];
+ store.recordPriceCheck=async(_id,_revision,result,_notified,baselines)=>{statuses.push(result.status);if(baselines)alert.baselines=baselines;};
+ const handler=createPriceChecksHandler({env:{CRON_SECRET:'test-cron-secret',PRICE_ALERTS_ENABLED:'true'},storeFactory:()=>store,inspect:async()=>({checks:[{offers}]}),send:async()=>{sends++;}});
+ await handler(cronReq,response());assert.equal(sends,0);assert.equal(statuses.at(-1),'awaiting_availability');
+ offers=[offer(100)];await handler(cronReq,response());assert.equal(sends,0);assert.equal(statuses.at(-1),'baseline_established');assert.equal(alert.baselines[0].amount,100);
+ offers=[offer(95)];await handler(cronReq,response());assert.equal(sends,1);assert.equal(alert.baselines[0].amount,95);
+});

@@ -15,16 +15,20 @@ export function createPriceChecksHandler({env=process.env,storeFactory=createSto
       const store=storeFactory(env),alerts=await store.claimPriceAlerts();let sent=0,failed=0;
       for(let offset=0;offset<alerts.length;offset+=5)await Promise.all(alerts.slice(offset,offset+5).map(async alert=>{try{
         const {checks}=await inspect(alert.links);
-        const current=lowestAvailable(baselineOffers(checks,alert.size).filter(c=>alert.links.some(l=>l.url===c.url)));
+        const current=lowestAvailable([...new Map((alert.links.flatMap(l=>l.requested_sizes??[alert.size])).flatMap(size=>baselineOffers(checks,size)).map(o=>[o.url+o.key+o.currency,o])).values()].filter(c=>alert.links.some(l=>l.url===c.url)));
         const match=current.find(c=>alert.baselines.some(b=>priceDrop(b,c)));
         let status='no_drop';
         if(!checks.some(c=>c.offers.length))status='needs_review';
         let nextBaselines;
+        if(!alert.baselines.length){
+          status=current.length?'baseline_established':'awaiting_availability';
+          if(current.length)nextBaselines=current.map(o=>({...o,drop_percent:0}));
+        }
         if(match&&await store.priceAlertCurrent(alert.id,alert.revision)){
           const conversation=await store.conversation(alert.conversation_id);
           const price=new Intl.NumberFormat('en-US',{style:'currency',currency:match.currency}).format(match.amount);
           const baseline=alert.baselines.find(b=>priceDrop(b,match));
-          const body=`${alert.name} is down${baseline.drop_percent===0?'':' more than 10%'} to ${price}, and size ${alert.size} is available.\n${match.url}\nPrice and size checked just now; shipping and taxes may be extra.`;
+          const body=`${alert.name} is down${baseline.drop_percent===0?'':' more than 10%'} to ${price}, and size ${match.size} is available.\n${match.url}\nPrice and size checked just now; shipping and taxes may be extra.`;
           const fingerprint=createHash('sha256').update(JSON.stringify([baseline.key,baseline.currency,baseline.amount])).digest('hex').slice(0,24);
           const operation=`price-alert:${alert.id}:${alert.revision}:${fingerprint}`;
           const existing=await store.operation(operation);
