@@ -16,3 +16,20 @@ test('direct recovery rejects provider errors and empty brand evidence',async()=
  const result=await recoverTextSources('Prada Speedrock',{SERPAPI_API_KEY:'fake'},async()=>({ok:true,json:async()=>({organic_results:[{link:'https://www.prada.com/us/en/p/model/sku'}]})}),{},async url=>({status:'verified',url,product_name:'Speedrock'}));
  assert.equal(result.products.length,0);
 });
+import {collectionProductLinks} from '../lib/text-sources.js';
+test('collection recovery follows matching same-origin product links and rejects invented or unsafe destinations',async()=>{
+ const page='https://mfpen.com/collections/footwear',product='https://mfpen.com/products/scout-deck-shoe-scratched-black';
+ const html='<a href="/products/scout-deck-shoe-scratched-black">Scout Deck Shoe Scratched Black</a><a href="https://mfpen.com.evil.example/products/scout-deck">Scout Deck</a><a href="/collections/scout-deck">Scout Deck</a><a href="/products/another-shirt">Shirt</a>';
+ const found=await collectionProductLinks(page,'mfpen Scout Deck Shoe Scratched Black',async()=>new Response(html,{headers:{'content-type':'text/html'}}));
+ assert.deepEqual(found,[product]);
+ assert.deepEqual(await collectionProductLinks('https://unknown.example/collections/all','Scout Deck',()=>assert.fail()),[]);
+});
+test('known product identity scopes recovery to its registered official store, not a guessed domain',async()=>{
+ let query;
+ const page='https://mfpen.com/collections/footwear',product='https://mfpen.com/products/scout-deck-shoe-scratched-black';
+ const result=await recoverTextSources('mfpen Scout Deck Shoe',{SERPAPI_API_KEY:'fake'},async url=>{
+  if(url.startsWith('https://serpapi.com/')){query=new URL(url).searchParams.get('q');return {ok:true,json:async()=>({organic_results:[{link:page}]})};}
+  return new Response('<a href="/products/scout-deck-shoe-scratched-black">Scout Deck Shoe</a>',{headers:{'content-type':'text/html'}});
+ },{},async url=>url===product?{status:'verified',url,product_brand:'mfpen',product_name:'Scout Deck Shoe'}:{status:'not_product'},{brand:'mfpen',name:'Scout Deck Shoe'});
+ assert.ok(query.startsWith('site:mfpen.com '));assert.equal(result.products[0].url,product);
+});

@@ -16,3 +16,11 @@ Reviewed all five saved reports with the surrounding conversation and persisted 
 Read-only live checks using the actual page verifier successfully verified the mfpen Scout Deck Shoe and SATISFY MothTech Waffle Long Tee product pages. The pages did not establish a clothing department; that remains unknown and profile eligibility checks remain intact. These checks do not establish size-specific availability, universal search accuracy, or a qualifying price alert.
 
 Deployment and repeated live-model replay results are recorded below after completion. Phone tapback receipt and the original private screenshot still require separate end-to-end acceptance; unit tests are not proof of those outcomes. No schema change is required.
+
+### First deployed replay cycle
+
+Commit `44af81e` deployed successfully. Three tentative-subset replays passed: they preserved both chosen variants, advanced to a scoped wishlist/reminder offer, and repeated no links. Three SATISFY runs returned verified official product pages but failed the replay gate because replies also included unverified identification-source links. Three mfpen runs failed: retrieval selected unsupported retailer domains, despite an independently verified official product page.
+
+These failed runs prompted further changes: show verified shopping options first and keep failed checks separate; offer alternatives when all checked options are sold out; use the same transparent failure response in text-wishlist sourcing; scope direct recovery to the identified brand's registered official domain; and follow at most three matching same-origin product links from each of at most two retrieved supported collection pages. All resulting product links still require verification. Do not construct product slugs or accept unsupported domains. This is bounded recovery for a retrieved page, not a catalog crawler.
+
+The updated deterministic suite passes 237 tests. The original failed replay cycle is retained in the private report; final replay results follow separately.

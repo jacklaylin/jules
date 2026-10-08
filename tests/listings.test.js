@@ -88,3 +88,9 @@ test('no-store replies separate identification sources, failed checks and useful
   assert.ok(body.includes(url));assert.match(body,/Identification source.*unverified/);assert.match(body,/another color or a similar item/);assert.doesNotMatch(body,/store I can recommend/);
  }
 });
+test('verified shopping options lead the reply while failed source checks stay separate',async()=>{
+ const {formatSearch}=await import('../lib/search.js');
+ const failed='https://www.ssense.com/product/unverified';
+ const body=formatSearch({products:[{brand:'Example',name:'Jacket',url,sourcing_status:'store_found',reason:'',listing_check:{status:'verified',availability:'OutOfStock'}},{brand:'Example',name:'Jacket',url:failed,sourcing_status:'store_not_found',identity_sources:[{url:failed}]}]});
+ assert.ok(body.includes(url));assert.ok(!body.includes(failed));assert.match(body,/Other retrieved sources/);assert.match(body,/another color or a similar item/);
+});
