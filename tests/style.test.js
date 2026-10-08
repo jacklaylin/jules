@@ -197,3 +197,36 @@ test('specialized outfit contexts stay tentative and save scoped preferences onl
  assert.equal(cardVisuals(r,{...cards[0],type:'style'}).crops.length,0);
  assert.equal(cardVisuals(r,cards[0]).crops.length,1);
 });
+
+test('category batches can upload beyond twelve and all saved files reach analysis',async()=>{
+ const store=db(),h=handler(store,{prepare:async input=>({...source,id:crypto.randomUUID(),kind:input.kind})});
+ for(let i=0;i<15;i++){
+  const response=res();await h(req({revision:i,action:'upload',kind:i<13?'outfit':'inspiration',consent:true}),response);
+  assert.equal(response.statusCode,200);assert.equal(data(response).sources.length,i+2);
+ }
+ const sources=await store.styleSources(owner);assert.equal(sources.length,16);assert.equal(sources.filter(s=>s.kind==='outfit').length,14);
+ let analyzed=0;const analyzeHandler=handler(store,{analyze:async inputs=>{analyzed=inputs.length;return report();}});
+ const response=res();await analyzeHandler(req({revision:15,action:'analyze',consent:true}),response);assert.equal(response.statusCode,200);assert.equal(analyzed,16);
+});
+test('style source pagination retains category metadata and reads every page for analysis',async()=>{
+ const paths=[];const store=createStore({SUPABASE_URL:'https://db.invalid',SUPABASE_SERVICE_ROLE_KEY:'test'},async url=>{
+  const u=new URL(url);paths.push(u);const offset=Number(u.searchParams.get('offset'));return {ok:true,text:async()=>JSON.stringify(Array.from({length:offset===0?100:3},(_,i)=>({id:offset+i,kind:'outfit'})))};
+ });
+ const sources=await store.styleSources(owner,true);assert.equal(sources.length,103);assert.equal(paths.length,2);
+ assert.equal(paths[1].searchParams.get('offset'),'100');assert.match(paths[0].searchParams.get('select'),/data$/);assert.equal(paths[0].searchParams.get('conversation_id'),'eq.'+owner);
+});
+
+test('freeform exports scale images to remaining space and keep them above the footer',async()=>{
+ const {shareCollageLayout}=await import('../public/style-export.js');
+ const items=[{image:{naturalWidth:400,naturalHeight:600}},{image:{naturalWidth:600,naturalHeight:400}}];
+ for(const height of [600,950]){
+  const layout=shareCollageLayout(items,{y:770,width:912,height});assert.ok(layout[0].height>layout[1].height);assert.ok(layout[0].width*layout[0].height>layout[1].width*layout[1].height);assert.notEqual(layout[0].y,layout[1].y);
+  for(const item of layout){const c=Math.abs(Math.cos(item.angle)),s=Math.abs(Math.sin(item.angle)),half=(item.width*s+(item.height+54)*c)/2;assert.ok(item.y-half>=770);assert.ok(item.y+half<=770+height);}
+ }
+ assert.ok(shareCollageLayout(items,{y:770,height:950})[0].height>shareCollageLayout(items,{y:770,height:600})[0].height);
+});
+
+test('observations may cite more than twelve uploaded sources',()=>{
+ const sources=Array.from({length:16},(_,i)=>({...source,id:'source-'+i})),a=analysis();a.crops=[];a.observations[0].source_ids=sources.map(s=>s.id);
+ assert.equal(validateAnalysis(a,sources),a);
+});

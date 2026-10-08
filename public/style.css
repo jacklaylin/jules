@@ -1,6 +1,5 @@
 @font-face{font-family:"Clash Display";src:url("/fonts/clash-display.woff2");font-weight:100 900;font-display:swap}
 @font-face{font-family:"Panchang";src:url("/fonts/panchang.woff2");font-weight:100 900;font-display:swap}
-@font-face{font-family:"Pally";src:url("/fonts/pally.woff2");font-weight:100 900;font-display:swap}
 @font-face{font-family:"Comico";src:url("/fonts/comico.woff2");font-weight:100 900;font-display:swap}
 @font-face{font-family:"Array";src:url("/fonts/array.woff2");font-weight:100 900;font-display:swap}
 @font-face{font-family:"Styro";src:url("/fonts/styro.woff2");font-weight:100 900;font-display:swap}
@@ -100,7 +99,7 @@ body.story-mode{height:100dvh;overflow:hidden}.story-mode main{height:calc(100dv
  .story-mode [data-type=starter] .story-collage figure:nth-child(n){grid-column:auto;grid-row:auto}
  .story-mode .story-collage figure{--rest-angle:-2deg;transform:rotate(var(--rest-angle));min-height:0}
  .story-mode .story-collage figure:nth-child(even){--rest-angle:2deg;transform:rotate(var(--rest-angle))}
- .story-mode .story-collage img,.story-mode .story-collage canvas,.story-mode [data-type=starter] .story-collage figure:first-child img{width:100%;height:calc(100% - 40px);min-height:0;max-height:none}
+ .story-mode .story-collage img,.story-mode .story-collage canvas,.story-mode [data-type=starter] .story-collage figure:first-child img{width:auto;height:auto;min-height:0;max-height:calc(100% - 40px);max-width:100%;flex-shrink:0}
  .story-mode .story-collage figcaption{font-size:13px;margin-top:12px}
  .story-mode .ingredient-label{font-size:clamp(26px,3vw,48px)}
  .story-mode .color-chip{height:140px;width:140px}
@@ -113,3 +112,5 @@ body.story-mode{height:100dvh;overflow:hidden}.story-mode main{height:calc(100dv
  .story-collage figure[data-hover=true]{transform:perspective(900px) translateY(-7px) rotate(calc(var(--rest-angle,-2deg) + var(--pointer-turn,0deg))) rotateX(var(--pointer-x,0deg)) rotateY(var(--pointer-y,0deg)) scale(1.025)!important;z-index:1}
  .story-collage figure[data-hover=true] img,.story-collage figure[data-hover=true] canvas{filter:drop-shadow(0 12px 12px #0003)}
 }
+
+.upload-categories legend{margin-bottom:14px}.upload-categories label{display:flex;align-items:center;gap:8px}.source-category{margin:32px 0}.source-category h3{font-size:18px}#upload-progress{width:100%;height:10px;accent-color:var(--accent)}

@@ -12,15 +12,16 @@
 <section id="inputs" class="input-section">
 <div class="section-heading"><div><p class="eyebrow">01 / SHOW ME</p><h2>A few things to go on.</h2></div><p>Start with about five outfits from different days. Receipts and inspiration are optional.</p></div>
 <form id="upload-form" class="upload-form" novalidate>
-<label>What are you adding?<select id="kind"><option value="outfit">An outfit I wear</option><option value="inspiration">Style inspiration</option><option value="receipt">Purchase receipts</option></select></label>
-<label>Occasion, if relevant<input id="occasion" maxlength="80" placeholder="Everyday, work, going out…"></label>
-<label class="wide">Anything I should know?<input id="source-note" maxlength="600" placeholder="A favorite piece, what you like, whether a purchase was for you…"></label>
-<label class="file-label wide">Choose photos or receipts<input id="files" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif,application/pdf" multiple required><span>JPEG, PNG, WebP, HEIC; PDF for receipts. Up to 12 files total. PDFs and HEIC under 3 MB.</span></label>
+<fieldset id="kind" class="upload-categories wide"><legend>Choose a category for this batch</legend><label><input type="radio" name="upload-kind" value="outfit" checked>My outfits</label><label><input type="radio" name="upload-kind" value="inspiration">Inspiration</label><label><input type="radio" name="upload-kind" value="receipt">Purchase receipts</label></fieldset>
+<label>Occasion for this batch (optional)<input id="occasion" maxlength="80" placeholder="Everyday, work, going out…"></label>
+<label class="wide">Notes for this batch (optional)<input id="source-note" maxlength="600" placeholder="A favorite piece, what you like, whether a purchase was for you…"></label>
+<label class="file-label wide">Select a batch of files<input id="files" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif,application/pdf" multiple required><span>JPEG, PNG, WebP, HEIC; PDF for receipts. Select as many files as you like in this category. Photos under 20 MB; PDFs and HEIC under 3 MB.</span></label>
 <label class="check wide"><input id="consent" type="checkbox" required><span>Save these privately and send them to OpenAI to analyze my clothing, purchases, notes, and saved shopping preferences. My report and photos stay private until I choose what to share.</span></label>
 <p class="fine wide">You can remove files or delete this style read and its confirmed preferences. Avoid uploading payment details, addresses, or other information you don't want processed. No operator review is required for this flow.</p>
-<p id="upload-feedback" class="feedback wide" role="status" aria-live="polite"></p><button class="primary" type="submit">Add to my style ↗</button>
+<p id="selected-files" class="fine wide" role="status"></p><progress id="upload-progress" class="wide" hidden max="1" value="0" aria-label="Files uploaded"></progress>
+<p id="upload-feedback" class="feedback wide" role="status" aria-live="polite"></p><button class="primary" type="submit">Upload outfits ↗</button>
 </form>
-<div id="sources" class="source-grid"></div>
+<div id="sources" class="source-groups"></div>
 <form id="context-form" class="context-form"><label for="context">What do you reach for, and what do you want to try?</label><textarea id="context" maxlength="2000" rows="3" placeholder="My most-worn pieces are… I like this influencer's layering… I'm happy to spend more on…"></textarea><p id="context-feedback" class="feedback" role="status"></p><button type="submit">Save my notes</button></form>
 <div class="analyze-row"><button id="analyze" class="primary">Give me my style read ↗</button><p class="fine">This uses your uploads, notes, saved shopping preferences, and OpenAI credits. You'll check the interpretation before any preferences are remembered.</p></div>
 </section>

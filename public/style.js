@@ -43,13 +43,17 @@ function privatePhoto(query,alt) {
 }
 function renderSources() {
   $('sources').replaceChildren();
-  for(const s of state.sources) {
+  for(const kind of ['outfit','inspiration','receipt']){
+   const sources=state.sources.filter(s=>s.kind===kind);if(!sources.length)continue;
+   const group=node('section',null,'source-category'),grid=node('div',null,'source-grid');group.append(node('h3',`${categoryNames[kind]} · ${sources.length}`),grid);$('sources').append(group);
+  for(const s of sources) {
     const tile=node('article',null,'source-tile');
     tile.append(s.mime_type==='application/pdf'?node('div','Receipt PDF','pdf-tile'):privatePhoto('?source='+s.id,s.kind==='outfit'?'Your outfit':s.kind==='inspiration'?'Style inspiration':'Receipt'));
     tile.append(node('p',({outfit:'Your outfit',inspiration:'Inspiration',receipt:'Receipt'})[s.kind]+(s.occasion?' / '+s.occasion:'')));
     if(s.note)tile.append(node('p',s.note));
     tile.append(button('Remove',()=>work(async()=>{state=await api({action:'remove',source:s.id});render();notice('Removed. The old report and its preferences have been cleared.');})));
-    $('sources').append(tile);
+    grid.append(tile);
+  }
   }
 }
 function checkbox(text,checked=false) {
@@ -156,18 +160,25 @@ async function encodeFile(file) {
   const ratio=Math.min(1,1800/image.width,2200/image.height),canvas=document.createElement('canvas');canvas.width=Math.round(image.width*ratio);canvas.height=Math.round(image.height*ratio);canvas.getContext('2d').drawImage(image,0,0,canvas.width,canvas.height);image.close();
   const data=canvas.toDataURL('image/jpeg',.88).split(',')[1];if(data.length>4194304)throw new Error('This photo is still too large. Try a smaller copy.');return data;
 }
+const categoryNames={outfit:'Outfits',inspiration:'Inspiration',receipt:'Purchase receipts'};
+const selectedKind=()=>$('kind').querySelector('input:checked').value;
+function updateUploadCategory(){
+ const kind=selectedKind();$('upload-form').querySelector('button[type=submit]').textContent='Upload '+categoryNames[kind].toLowerCase()+' ↗';
+ $('files').accept='image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif'+(kind==='receipt'?',application/pdf':'');
+ $('selected-files').textContent=$('files').files.length?`${$('files').files.length} files selected for ${categoryNames[kind].toLowerCase()}. Notes and occasion apply to this whole batch.`:'';
+}
+$('kind').onchange=updateUploadCategory;$('files').onchange=updateUploadCategory;updateUploadCategory();
 $('upload-form').onsubmit=e=>{e.preventDefault();work(async()=>{
-  const files=[...$('files').files],kind=$('kind').value,occasion=$('occasion').value,note=$('source-note').value;
+  const files=[...$('files').files],kind=selectedKind(),occasion=$('occasion').value,note=$('source-note').value;
   clearErrors();feedback('upload-feedback','');
   if(!files.length){fieldError($('files'),'Choose at least one file.');return;}
-  if(files.length+state.sources.length>12){fieldError($('files'),'You can add up to 12 files total. Remove a saved file first.');return;}
   if(kind!=='receipt'&&files.some(f=>f.type==='application/pdf'||/\.pdf$/i.test(f.name))){fieldError($('files'),'PDFs are for receipts. Choose a photo, or change the type to Purchase receipts.');return;}
   if(!$('consent').checked){fieldError($('consent'),'Approve private storage and analysis before uploading.');return;}
-  let count=0;
-  try{for(const file of files){notice(`Saving ${count+1} of ${files.length}…`);state=await api({action:'upload',kind,occasion,note,data:await encodeFile(file),consent:true});count++;}}
-  catch(error){feedback('upload-feedback',`${count} saved. ${files[count]?.name||'The upload'}: ${error.message}`,true);try{const remaining=new DataTransfer();files.slice(count).forEach(f=>remaining.items.add(f));$('files').files=remaining.files;}catch{$('files').value='';}return;}
-  finally{render();}
-  $('upload-form').reset();feedback('upload-feedback',`${count} ${count===1?'file':'files'} saved privately. Add another batch or get your style read.`);notice('');
+  let count=0;const progress=$('upload-progress');progress.max=files.length;progress.value=0;progress.hidden=false;
+  try{for(const file of files){feedback('upload-feedback',`Saving ${categoryNames[kind].toLowerCase()}: ${count+1} of ${files.length}…`);notice(`Saving ${count+1} of ${files.length}…`);state=await api({action:'upload',kind,occasion,note,data:await encodeFile(file),consent:true});count++;progress.value=count;}}
+  catch(error){feedback('upload-feedback',`${count} saved. ${files[count]?.name||'The upload'}: ${error.message}`,true);try{const remaining=new DataTransfer();files.slice(count).forEach(f=>remaining.items.add(f));$('files').files=remaining.files;}catch{$('files').value='';}updateUploadCategory();notice('');return;}
+  finally{render();progress.hidden=true;}
+  $('upload-form').reset();$('kind').querySelector(`[value=${kind}]`).checked=true;$('consent').checked=true;updateUploadCategory();feedback('upload-feedback',`${count} ${categoryNames[kind].toLowerCase()} saved privately. Choose another category or get your style read.`);notice('');
 });};
 $('context-form').onsubmit=e=>{e.preventDefault();work(async()=>{try{state=await api({action:'context',notes:$('context').value});render();feedback('context-feedback','Notes saved.');notice('');}catch(e){feedback('context-feedback',e.message,true);}});};
 $('analyze').onclick=()=>work(async()=>{

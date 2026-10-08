@@ -61,7 +61,6 @@ export function createStyleHandler({env=process.env,storeFactory=createStore,aut
       if(state.data.busy_until && Date.parse(state.data.busy_until)>Date.now())throw fail('Your analysis is still running. Give it a moment, then reload.',409);
       if(input.action==='upload') {
         if(input.consent!==true)throw fail('Approve private storage and OpenAI analysis before uploading.');
-        if((await store.styleSources(owner)).length>=12)throw fail('You can add up to 12 files. Remove one before adding another.');
         const source=await prepare(input);
         const data={...state.data,report:null,busy_until:null,consent_at:new Date().toISOString()};
         console.log(JSON.stringify({event:'style_source_added',kind:source.kind}));

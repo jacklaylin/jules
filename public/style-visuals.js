@@ -1,6 +1,6 @@
 // One visual vocabulary for private stories and exported images.
-export const HEADER_FONTS=['Clash Display','Panchang','Pally','Comico','Array','Styro','Boxing','Teko'];
-const themes={style:['#e5e4fc','#f2cbb9',0],starter:['#fff0bf','#d4e8d9',2],brands:['#edcbe0','#ded8ff',3],colors:['#e7cbb5','#c8d8ba',4],formula:['#d0e2fb','#f2d5ca',7],modes:['#ffdfab','#f0c9e6',5],gap:['#dcf0bd','#c6e5ec',6]};
+export const HEADER_FONTS=['Clash Display','Panchang','Comico','Array','Styro','Boxing','Teko'];
+const themes={style:['#e5e4fc','#f2cbb9',0],starter:['#fff0bf','#d4e8d9',0],brands:['#edcbe0','#ded8ff',2],colors:['#e7cbb5','#c8d8ba',3],formula:['#d0e2fb','#f2d5ca',6],modes:['#ffdfab','#f0c9e6',4],gap:['#dcf0bd','#c6e5ec',5]};
 export function cardTheme(card){const [a,b,index]=themes[card.type]||['#f2d9bd','#e3d9f5',1];return {a,b,font:HEADER_FONTS[index]};}
 export function cardVisuals(report,card){
  const observations=report.analysis.observations.filter(o=>card.observation_ids.includes(o.id));

@@ -18,6 +18,20 @@ export function wrapText(ctx,text,width) {
   return lines;
 }
 function drawLines(ctx,lines,x,y,lineHeight) {for(const line of lines){ctx.fillText(line,x,y);y+=lineHeight;}return y;}
+// Freeform anchors scale to the space left by the copy, rather than fixed rows.
+export function shareCollageLayout(items,{x=84,y,width=912,height}){
+ const anchors=items.length===1?[[.5,.48,.94,.88,-3]]:items.length===2?[[.34,.45,.69,.90,-4],[.73,.64,.49,.57,6]]:items.length===3?[[.32,.45,.62,.88,-4],[.77,.25,.43,.48,5],[.72,.76,.50,.36,-6]]:[[.30,.41,.59,.73,-5],[.78,.19,.39,.36,6],[.76,.57,.46,.44,-4],[.28,.85,.42,.23,4],[.73,.88,.32,.20,7],[.53,.32,.29,.23,-8]];
+ return items.map((item,i)=>{
+  const [ax,ay,aw,ah,turn]=anchors[i],angle=turn*Math.PI/180;
+  const aspect=item.image?item.image.naturalWidth/item.image.naturalHeight:item.kind==='color'?1:1.5;
+  let w=Math.min(width*aw,(height*ah-54)*aspect),h=w/aspect;
+  const c=Math.abs(Math.cos(angle)),sn=Math.abs(Math.sin(angle));
+  const fit=Math.min(1,(width-20)/(w*c+(h+54)*sn),(height-20)/(w*sn+(h+54)*c));w*=fit;h*=fit;
+  const halfW=(w*c+(h+54)*sn)/2,halfH=(w*sn+(h+54)*c)/2;
+  return {item,x:x+Math.max(halfW+10,Math.min(width-halfW-10,width*ax)),y:y+Math.max(halfH+10,Math.min(height-halfH-10,height*ay)),width:w,height:h,angle};
+ });
+}
+
 export function renderShareCard({card,tone,crops=[],ingredients=[],signupURL,canvas=document.createElement('canvas')}) {
   canvas.width=1080;canvas.height=1920;
   const ctx=canvas.getContext('2d');
@@ -35,16 +49,21 @@ export function renderShareCard({card,tone,crops=[],ingredients=[],signupURL,can
   y=drawLines(ctx,bodyLines,84,y,bodySize*1.4)+48;
   const items=[...crops.slice(0,6).map(c=>({...c,kind:'photo'})),...ingredients].slice(0,6);
   if(items.length){
-    const columns=items.length>4?3:2,rows=Math.ceil(items.length/columns),width=912/columns,height=Math.min(640/rows,300);
-    items.forEach((item,index)=>{
-      const x=84+(index%columns)*width,top=y+Math.floor(index/columns)*(height+42);
-      ctx.save();ctx.translate(x+width/2,top+height/2);ctx.rotate((index%2?-5:6)*Math.PI/180);
-      if(item.image){const img=item.image,ratio=Math.min((width-30)/img.naturalWidth,(height-35)/img.naturalHeight),iw=img.naturalWidth*ratio,ih=img.naturalHeight*ratio;ctx.shadowColor='#0002';ctx.shadowBlur=12;ctx.drawImage(img,-iw/2,-ih/2,iw,ih);}
-      else if(item.kind==='color'){ctx.fillStyle=item.color||theme.b;ctx.fillRect(-width*.33,-height*.3,width*.66,height*.6);}
-      else if(item.kind==='brand'||item.icon==='none'){ctx.fillStyle='#161616';ctx.font=`${Math.min(38,430/item.label.length)}px Arial`;drawLines(ctx,wrapText(ctx,item.label,width-30),-width/2+15,-25,42);}
-      else drawSymbol(ctx,item.icon,-width*.42,-height*.4,width*.84,height*.8);
-      ctx.restore();ctx.fillStyle='#161616';ctx.font='22px Arial';drawLines(ctx,wrapText(ctx,item.label,width-26).slice(0,2),x+12,top+height,25);
-    });
+    const layout=shareCollageLayout(items,{y,height:1720-y});
+    for(const {item,x,y:cy,width,height,angle} of layout){
+      ctx.save();ctx.translate(x,cy);ctx.rotate(angle);
+      if(item.image){ctx.shadowColor='#0003';ctx.shadowBlur=20;ctx.shadowOffsetY=12;ctx.drawImage(item.image,-width/2,-height/2,width,height);}
+      else if(item.kind==='color'){ctx.fillStyle=item.color||theme.b;ctx.fillRect(-width/2,-height/2,width,height);}
+      else if(item.kind==='brand'||item.icon==='none'){ctx.fillStyle='#161616';ctx.font=`${Math.min(70,width/item.label.length*1.6)}px Arial`;drawLines(ctx,wrapText(ctx,item.label,width),-width/2,-height/4,60);}
+      else drawSymbol(ctx,item.icon,-width/2,-height/2,width,height);
+      ctx.restore();
+    }
+    // Labels follow the actual asset edge and remain readable above overlaps.
+    for(const {item,x,y:cy,width,height,angle} of layout){
+      ctx.save();ctx.translate(x,cy);ctx.rotate(angle);ctx.fillStyle='#161616';ctx.font='22px Arial';
+      const lines=wrapText(ctx,item.label,Math.max(width,150)).slice(0,2),labelWidth=Math.max(...lines.map(line=>ctx.measureText(line).width));
+      ctx.fillStyle='#fffC';ctx.fillRect(-width/2-5,height/2+8,labelWidth+10,lines.length*25+4);ctx.fillStyle='#161616';drawLines(ctx,lines,-width/2,height/2+12,25);ctx.restore();
+    }
   }
   ctx.strokeStyle='#eee';ctx.beginPath();ctx.moveTo(84,1760);ctx.lineTo(996,1760);ctx.stroke();
   const gradient=ctx.createLinearGradient(84,1800,270,1872);gradient.addColorStop(0,'#ad00a6');gradient.addColorStop(1,'#007c85');ctx.fillStyle=gradient;ctx.font='72px Mongule, Arial';ctx.fillText('jules',84,1800);

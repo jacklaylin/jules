@@ -16,7 +16,7 @@ OpenAI extracts observations, receipt records and garment crop bounds. Code comp
 
 - Existing Vercel functions, Supabase/Postgres, managed sign-in, OpenAI Responses API, and Sharp. No new production account, API key, service, or package dependency.
 - `style_sources`: owner-scoped JPEGs or receipt PDFs plus labels. JPEG/PNG/WebP/HEIC uploads normalize to JPEG and strip EXIF/location metadata. Private receipt viewing downloads the PDF; no public source URLs.
-- `style_sessions`: notes, revision, current evidence/report snapshot, and expiring analysis reservation. Upload limit: 12 files, 3 MB each after normalization. Browser resizes photos before upload.
+- `style_sessions`: notes, revision, current evidence/report snapshot, and expiring analysis reservation. Category batches have no file-count cap; each file remains under 3 MB after normalization. `db/011_style_bulk_uploads.sql` removes the original database cap and was applied to production on October 7, 2026. Browser resizes photos before upload.
 - Report confirmation and selected taste facts save atomically. Inferences remain unconfirmed until selected. Chat facts and operator edits survive. Brand/category budgets and brand/size-system exceptions retain structured keys.
 - Changing inputs clears the report and preferences saved by this feature. Deletion removes uploads, report and its style-memory entries, retaining a revision tombstone so in-flight analysis cannot resurrect them. Independent chat/operator facts remain.
 - Browser export is 1080 × 1920. Web and image use the same approved copy. Including personal garment crops or shopping-history cards requires separate explicit approval. Evidence and receipts never enter the export.
@@ -57,3 +57,5 @@ Local provider/database credentials are unavailable. Production configuration is
 8. Tester B cannot fetch Tester A's files/report/crops by changing IDs. Revoked/expired sessions fail.
 9. Change inputs or delete while another tab has an analysis/preview. Old results cannot overwrite the new revision; stale downloads/shares require a fresh preview. Independent chat/operator facts survive deletion.
 10. Interrupt generation: saved inputs remain, duplicate analysis is blocked, and the reservation expires if a function is terminated.
+
+Category-batch iteration: tested a 14-image inspiration upload in the local browser fixture, successful reset/category grouping, database uploads beyond 12 in PGlite, and pagination so every saved source reaches analysis. Individual files upload sequentially to retain per-file size limits and resume remaining files after partial failure. Export composition now scales to remaining space with varied image sizes and staggered overlap; captions follow actual asset edges. Pally is removed from active fonts.

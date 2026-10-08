@@ -687,3 +687,7 @@ Founder-authorized improvements: shared readable loading across pages, inline va
 Keep the intake form for the tester experiment. A later iteration should accept mixed photo batches and one conversational description, then ask only for missing information. Inbox scanning, Instagram account integration, and virtual closet population remain future work. New brand/interest extraction requires a new analysis; stored confirmed reads get a starter collage from their existing approved evidence without paid regeneration or new memory confirmation.
 
 Founder follow-up: larger right-side desktop evidence collages with subtle pointer hover; chosen header palette Clash Display, Panchang, Pally, Comico, Array, Styro, Boxing, Teko. Specialized outfits may support tentative activity interests and conditional wear contexts, requiring confirmation. They must not establish everyday uniforms or frequency. Store activity context structurally and scope confirmed shopping preferences accordingly; retain previous reports until the user rebuilds them.
+
+Founder follow-up: remove the 12-file limit and support bulk uploads by category, with batch-wide optional notes/occasion, progress, resumable partial failures, and saved files grouped by category.
+
+Founder follow-up: remove Pally from active font choices. Keep image captions close to their visible assets; exported collages should fill the remaining space beneath text with varied sizes, freeform placement and modest overlap, rather than a strict grid.

@@ -1,4 +1,4 @@
-Fontshare fonts: Clash Display, Panchang, Pally, Comico, Array, Styro, Boxing.
+Fontshare fonts: Clash Display, Panchang, Comico, Array, Styro, Boxing.
 Official family and license pages: https://www.fontshare.com/fonts/<family-slug>
 Licensed under the ITF Free Font License. Self-hosted by Jules for its website and generated style images.
 Font files must not be sold, modified, or distributed as a standalone font collection.
