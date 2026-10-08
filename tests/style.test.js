@@ -114,7 +114,11 @@ test('OpenAI extraction and writing are separate, use private inline inputs and 
   const result=await analyzeStyle([source,{...receipt,mime_type:'application/pdf',data:'JVBERi0='}],'I like navy.',env,async(_url,options)=>{
     const body=JSON.parse(options.body);assert.equal(body.store,false);assert.equal(body.text.format.strict,true);calls++;
     if(calls===1){assert.equal(body.input[0].content.some(c=>c.type==='input_file'),true);assert.match(body.instructions,/untrusted data/);}
-    else{assert.match(body.instructions,/Speak like a knowledgeable personal shopper/);assert.equal(body.input[0].content.length,1);}
+    else{assert.match(body.instructions,/Speak like a knowledgeable personal shopper/);assert.equal(body.input[0].content.length,1);
+      const fields=body.text.format.schema.properties.cards.items.properties;
+      assert.equal(fields.title.maxLength,70);assert.equal(fields.variants.properties.roast.maxLength,240);
+      assert.deepEqual(fields.observation_ids.items.enum,[observation.id]);assert.equal(fields.title.enum,undefined);
+    }
     return {ok:true,json:async()=>({status:'completed',output:[{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify(calls===1?analysis():{cards:[rawCard]})}]}]})};
   });assert.equal(calls,2);assert.equal(result.status,'draft');assert.equal(result.cards[0].preferences[0].accepted,false);
 });
@@ -236,6 +240,10 @@ test('analysis schemas constrain evidence IDs and reject fabricated citations wi
  assert.deepEqual(schema.$defs.source.enum,[source.id,receipt.id,'context','saved-profile']);assert.deepEqual(schema.$defs.outfit.enum,[source.id]);assert.deepEqual(schema.$defs.receipt.enum,[receipt.id]);
  assert.equal(schema.properties.observations.items.properties.source_ids.items.$ref,'#/$defs/source');assert.equal(schema.properties.observations.items.properties.text.maxLength,650);assert.equal(schema.properties.observations.items.properties.id.enum.length,18);
  assert.equal(analysisSchemaFor([source]).properties.purchases.maxItems,0);
+ const props=schema.properties,obs=props.observations.items.properties;
+ for(const field of [obs.text,obs.preference.anyOf[0].properties.key,obs.preference.anyOf[0].properties.value,props.crops.items.properties.label,props.ingredients.items.properties.label,props.outfit_contexts.items.properties.activity,props.purchases.items.properties.brand])assert.equal(field.enum,undefined,'Only IDs may inherit the observation-ID enum');
+ assert.deepEqual(props.crops.items.properties.label,{type:'string'});
+ assert.deepEqual(props.ingredients.items.properties.observation_ids.items,{type:'string'});
  const duplicated=analysis();duplicated.observations[0].source_ids=[source.id,source.id];assert.deepEqual(validateAnalysis(duplicated,[source]).observations[0].source_ids,[source.id]);
  const broken=analysis();broken.observations[0].source_ids=['invented-source'];assert.throws(()=>validateAnalysis(broken,[source]),error=>error.code==='observation_sources'&&/files and notes are saved/.test(error.message));
  const tooLong=analysis();tooLong.observations[0].text='x'.repeat(651);assert.throws(()=>validateAnalysis(tooLong,[source]),error=>error.code==='observation_text');
