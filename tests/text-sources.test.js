@@ -33,3 +33,14 @@ test('known product identity scopes recovery to its registered official store, n
  },{},async url=>url===product?{status:'verified',url,product_brand:'mfpen',product_name:'Scout Deck Shoe'}:{status:'not_product'},{brand:'mfpen',name:'Scout Deck Shoe'});
  assert.ok(query.startsWith('site:mfpen.com '));assert.equal(result.products[0].url,product);
 });
+import {recoverCollectionSources} from '../lib/text-sources.js';
+test('retrieved collection recovery works independently of a search provider and preserves verification failures',async()=>{
+ const candidate={url:'https://mfpen.com/collections/footwear',brand:'mfpen',name:'Scout Deck Shoe',match:'likely_match'};
+ const fetcher=async()=>new Response('<a href="/products/scout-deck-shoe-scratched-black">Scout Deck Shoe</a>',{headers:{'content-type':'text/html'}});
+ const success=await recoverCollectionSources([candidate],fetcher,{},async url=>({status:'verified',url,product_brand:'mfpen',product_name:'Scout Deck Shoe'}));
+ assert.equal(success.products.length,1);assert.equal(success.products[0].sourcing_status,'store_found');
+ const failed=await recoverCollectionSources([candidate],fetcher,{},async()=>({status:'check_failed'}));
+ assert.equal(failed.products.length,0);assert.equal(failed.collection_checks[0].check.status,'check_failed');
+ const wrongBrand=await recoverCollectionSources([candidate],fetcher,{},async url=>({status:'verified',url,product_brand:'Other',product_name:'Scout Deck Shoe'}));
+ assert.equal(wrongBrand.products.length,0);
+});

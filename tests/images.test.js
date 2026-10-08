@@ -76,3 +76,10 @@ test('HEIC conversion errors and oversized conversion output stay on the fallbac
   await assert.rejects(readImage(attachment(bytes,'image/heic'),async()=>{throw new Error('Invalid HEIC');}));
   await assert.rejects(readImage(attachment(bytes,'image/heic'),async()=>Buffer.alloc(MAX_IMAGE_BYTES+1)));
 });
+test('attachment failures expose bounded diagnostic codes without provider messages or private bytes',async()=>{
+ await assert.rejects(readImage(null),{code:'attachment_missing'});
+ await assert.rejects(readImage(attachment(png,'image/gif')),{code:'unsupported_type'});
+ await assert.rejects(readImage(attachment(png,'image/png',MAX_IMAGE_BYTES+1)),{code:'image_too_large'});
+ await assert.rejects(readImage(attachment(png,'image/jpeg')),{code:'invalid_image_bytes'});
+ await assert.rejects(readImage(attachment(Buffer.alloc(0))),{code:'empty_image'});
+});
