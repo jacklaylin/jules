@@ -4,10 +4,21 @@ import sharp from 'sharp';
 import {verifyListing} from '../lib/listings.js';
 import {wishlistProducts,groupWishlist} from '../lib/wishlist.js';
 import {repairWishlistPhotos} from '../lib/wishlist-photos.js';
+import {enrichWishlistItem} from '../lib/wishlist-details.js';
+import {sameReferenceProductURL} from '../lib/indexed-product.js';
 const url='https://independent-shop.example.org/products/rib-shirt';
 // Synthetic Shopify-style evidence, not a real offer.
 const page=JSON.stringify({'@type':'ProductGroup',name:'Rib Shirt',brand:{name:'Fixture Brand'},url,hasVariant:[['red','20','InStock'],['blue','20','OutOfStock']].map(([variant,price,stock])=>({'@type':'Product',name:'Rib Shirt - '+variant,image:'https://independent-cdn.example.org/'+variant+'.jpg',offers:{url:url+'?variant='+variant,price,priceCurrency:'USD',availability:'https://schema.org/'+stock}}))});
 const html='<script type="application/ld+json">'+page+'</script>';
+test('neutral references tolerate exact localized redirects while explicit markets and variants stay distinct',async()=>{
+ const localized=url.replace('/products/','/en-ca/products/');
+ assert.equal(sameReferenceProductURL(url,localized),true);
+ for(const other of [localized+'?variant=blue',localized.replace('rib-shirt','other-shirt'),localized.replace('independent-shop','other-shop')])assert.equal(sameReferenceProductURL(url,other),false);
+ assert.equal(sameReferenceProductURL(url.replace('/products/','/en-us/products/'),localized),false);
+ let update;const price={amount:28,currency:'CAD',source_url:localized,checked_at:new Date().toISOString()};
+ const result=await enrichWishlistItem({wishlistItem:async()=>({product:{url,image:{data:'existing'},links:[{url,user_saved:true}]}}),correctWishlistProduct:async(_c,_id,value)=>{update=value;},saveWishlistPhotos:async()=>{}},'owner','item',{verify:async()=>({status:'verified',url:localized,product_name:'Rib Shirt',price_snapshot:price})});
+ assert.equal(result.status,'ready');assert.equal(update.links[0].url,localized);assert.equal(update.links[0].user_source_url,url);assert.equal(update.links[0].price_snapshot,price);
+});
 test('new supplied links outside the ranking registry persist sourced name, price and CDN photos',async()=>{
  const bytes=await sharp({create:{width:10,height:10,channels:3,background:'white'}}).jpeg().toBuffer();
  const fetcher=async value=>new Response(value.includes('.jpg')?bytes:html,{headers:{'content-type':value.includes('.jpg')?'image/jpeg':'text/html'}});
