@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Readable} from 'node:stream';
-import {createSignupHandler,normalizeSignupPhone} from '../api/signup.js';
+import {createSignupHandler,normalizeSignupPhone} from '../lib/public-signup.js';
 import {SIGNUP_VERSION,SIGNUP_CONSENT} from '../public/signup-consent.js';
 import {demoState,DEMO_DURATION} from '../public/landing-timeline.js';
 const env={PUBLIC_SIGNUP_ENABLED:'true',SITE_ORIGIN:'https://jules.example',SUPABASE_SERVICE_ROLE_KEY:'test-secret'};
@@ -27,4 +27,10 @@ test('rate limits and database failures do not claim a saved signup',async()=>{f
 test('optional Messages link uses only the configured verified-format line',async()=>{const res=response();await handler(undefined,{JULES_PUBLIC_LINE:'+14155550124'})(request(),res);assert.equal(res.data.text_url,'sms:+14155550124');});
 test('timeline scrubs forward and backward consistently and reduced motion shows final state',()=>{
  assert.equal(demoState(4).typing,true);assert.equal(demoState(5.2).typing,false);assert.equal(demoState(13).chapter,1);assert.equal(demoState(22.4).chapter,2);assert.equal(demoState(2).chapter,0);assert.equal(demoState(-100).time,0);assert.equal(demoState(999).time,DEMO_DURATION);assert.equal(demoState(0,true).progress,1);assert.equal(demoState(0,true).typing,false);
+});
+test('the public signup route shares an existing function without exposing private wishlist actions',async()=>{
+ const {createWishlistHandler}=await import('../api/wishlist.js');
+ const run=createWishlistHandler({env:{...env,WISHLIST_ENABLED:'false'},storeFactory:()=>{throw new Error('unexpected private access');}});
+ const config=response();await run({method:'GET',url:'/api/wishlist?public_signup=1',headers:{}},config);assert.equal(config.statusCode,200);assert.equal(config.data.enabled,true);
+ const privateResponse=response();await run({method:'GET',url:'/api/wishlist',headers:{}},privateResponse);assert.equal(privateResponse.statusCode,503);
 });

@@ -7,11 +7,14 @@ import { createStore } from '../lib/store.js';
 import { wishlistUser, sessionHash, groupWishlist } from '../lib/wishlist.js';
 import { authorize } from '../lib/auth.js';
 import { json, readJson, uuid } from '../lib/http.js';
+import {createSignupHandler} from '../lib/public-signup.js';
 
 export const config = { api: { bodyParser: false }, maxDuration: 120 };
 export function createWishlistHandler({ env = process.env, storeFactory = createStore, auth = wishlistUser, admin = authorize, fetcher = fetch, verify = verifyListing, inspect = inspectAlertLinks, photos = fetchListingPhotos } = {}) {
+  const signup=createSignupHandler({env,storeFactory});
   return async (req, res) => {
     try {
+      if(new URL(req.url,'https://jules.invalid').searchParams.get('public_signup')==='1')return signup(req,res);
       if (env.WISHLIST_ENABLED !== 'true') return json(res, 503, { error: 'Wishlist is not available yet.' });
       const store = storeFactory(env);
       if (req.method === 'POST') {
