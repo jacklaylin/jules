@@ -43,8 +43,10 @@ body.landing-page{padding-top:0}
 .demo-delivered{text-align:center;font-size:2.9cqw;color:#8e8e93;margin:1cqw 0 0}
 .typing{display:flex;gap:1.2cqw;padding:3.4cqw 4cqw}.typing span{width:2.1cqw;height:2.1cqw;background:#939397;border-radius:50%;animation:demo-type 1.1s infinite alternate}.typing span:nth-child(2){animation-delay:.2s}.typing span:nth-child(3){animation-delay:.4s}
 @keyframes demo-type{to{opacity:.4;transform:translateY(-3px)}}
-.demo-enter{animation:demo-enter .35s ease-out;transform-origin:bottom left}.demo-enter.sent{transform-origin:bottom right}
-@keyframes demo-enter{from{opacity:0;transform:translateY(10px) scale(.95)}}
+.demo-enter{animation:demo-enter .45s var(--ease-out-expo) both;transform-origin:bottom left}.demo-enter.sent{transform-origin:bottom right}
+@keyframes demo-enter{from{opacity:0;transform:translateY(14px) scale(.92)}to{opacity:1;transform:none}}
+.typing-enter{animation:typing-enter .35s ease-out both}
+@keyframes typing-enter{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 .phone-input{display:flex;align-items:center;gap:2.3cqw;padding:2cqw 3.5cqw 0;color:#8e8e93;flex:none}
 .compose-plus{display:grid;place-items:center;width:8.5cqw;height:8.5cqw;background:#eeeef0;border-radius:50%;flex:none}.compose-plus svg{width:5.5cqw;height:5.5cqw}
 .imessage-field{flex:1;height:9cqw;border:1px solid #c9c9cc;border-radius:6cqw;padding:0 3cqw;font:4.1cqw var(--font-ios);display:flex;align-items:center;justify-content:space-between}.microphone{width:3.8cqw;height:5.4cqw;fill:currentColor}
