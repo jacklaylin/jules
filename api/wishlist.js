@@ -1,7 +1,7 @@
 import {enrichWishlistItem} from '../lib/wishlist-details.js';
 import {repairWishlistPhotos} from '../lib/wishlist-photos.js';
 import {fetchListingPhotos,fetchProductAssets} from '../lib/product-photos.js';
-import {verifyListing,verifyWishlistRows} from '../lib/listings.js';
+import {verifyListing} from '../lib/listings.js';
 import { inspectAlertLinks, baselineOffers, readSizeOffers, lowestAvailable } from '../lib/price-alerts.js';
 import { createStore } from '../lib/store.js';
 import { wishlistUser, sessionHash, groupWishlist } from '../lib/wishlist.js';
@@ -16,6 +16,11 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
       const store = storeFactory(env);
       if (req.method === 'POST') {
         const input = await readJson(req, 16384);
+        if(input.action==='recover-photos'){
+          const access=await auth(req.headers,env,store,fetcher);if(access.status!==200)return json(res,access.status,{error:'Please sign in with your invited email.'});
+          const rows=await repairWishlistPhotos(await store.wishlistEntries(access.conversation),{conversation:access.conversation,store,photos:(url,name)=>photos(url,name,fetcher)});
+          return json(res,200,{items:groupWishlist(rows).map(({links,entries,...group})=>group)});
+        }
         if(input.action==='enrich'){
           const access=await auth(req.headers,env,store,fetcher);if(access.status!==200)return json(res,access.status,{error:'Please sign in with your invited email.'});
           if(!uuid(input.item))return json(res,400,{error:'Invalid item.'});
@@ -88,17 +93,20 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
         return json(res, 400, { error: 'Unknown action.' });
       }
       if (req.method !== 'GET') { res.setHeader('Allow','GET, POST'); return json(res,405,{error:'Method not allowed.'}); }
+      const authStarted=performance.now();
       const access = await auth(req.headers, env, store, fetcher);
+      const authDuration=performance.now()-authStarted;
       if (access.status !== 200) return json(res, access.status, {error:'Please sign in with your invited email.'});
       const query = new URL(req.url, 'https://local.invalid').searchParams;
       const id = query.get('item');
       const groupId = query.get('group');
       if (groupId && !uuid(groupId)) return json(res,400,{error:'Invalid item.'});
       if (!id || groupId) {
-        const rows=await repairWishlistPhotos(await store.wishlistEntries(access.conversation),{conversation:access.conversation,store,photos:(url,name)=>photos(url,name,fetcher)});
-        const groups = groupWishlist(await verifyWishlistRows(rows,fetcher,verify));
+        const started=performance.now();
+        const [rows,alerts]=await Promise.all([store.wishlistEntries(access.conversation),env.PRICE_ALERTS_ENABLED==='true'?store.priceAlerts(access.conversation):Promise.resolve([])]);
+        const groups = groupWishlist(rows);
+        res.setHeader('Server-Timing',`auth;dur=${authDuration.toFixed(1)}, wishlist;dur=${(performance.now()-started).toFixed(1)}`);
         if(env.PRICE_ALERTS_ENABLED==='true'){
-          const alerts=await store.priceAlerts(access.conversation);
           for(const group of groups){const alert=alerts.find(a=>a.group_id===group.id);group.price_alert=alert?{active:alert.active,size:alert.size,last_checked_at:alert.last_checked_at,notified:alert.notified}:null;group.alerts_enabled=true;}
         }
         if (groupId) {
@@ -118,9 +126,8 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
         if (!uuid(source) || !item.wishlist_encounters.some(e=>e.source_image_id===source)) return json(res,404,{error:'Image not found.'});
         return image(res,await store.image(source));
       }
-      const [checked]=await verifyWishlistRows([item.product],fetcher,verify);
-      const { image: bytes, additional_images: references, ...product } = checked;
-      return json(res,200,{item:{id:item.id,saved_at:item.saved_at,product,encounters:await Promise.all(item.wishlist_encounters.map(async e=>{const [checked]=await verifyWishlistRows([e.product],fetcher,verify);return {source_image_id:e.source_image_id,found_at:e.messages?.created_at,links:checked.links,match:e.product.match,reason:e.product.reason};}))}});
+      const { image: bytes, additional_images: references, ...product } = item.product;
+      return json(res,200,{item:{id:item.id,saved_at:item.saved_at,product,encounters:item.wishlist_encounters.map(e=>({source_image_id:e.source_image_id,found_at:e.messages?.created_at,links:e.product.links,match:e.product.match,reason:e.product.reason}))}});
     } catch { console.log(JSON.stringify({event:'wishlist_request_failed'})); return json(res,503,{error:'Could not load your wishlist. Please try again.'}); }
   };
 }

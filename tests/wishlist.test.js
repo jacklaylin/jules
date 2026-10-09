@@ -66,7 +66,7 @@ test('groups candidate links under the source item and keeps jacket and bag sepa
  const {groupWishlist}=await import('../lib/wishlist.js');
  const base={reply_id:id,source_image_id:other,item_id:id,has_image:'image/jpeg',message_images:{messages:{created_at:'2026-10-05T12:00:00Z'}},messages:{created_at:'2026-10-06T12:00:00Z'},brand:'Example'};
  const rows=[{...base,name:'First jacket',links:[{url:'https://shop.example.com/one'}]},{...base,item_id:other,name:'Second coat',links:[{url:'https://shop.example.com/two'}]},{...base,target:'bag',name:'Third item',links:[{url:'https://shop.example.com/bag'}]}];
- const groups=groupWishlist(rows);assert.equal(groups.length,2);const jacket=groups.find(g=>g.name==='Jacket');assert.equal(jacket.links.length,2);assert.equal(jacket.sent_at,'2026-10-05T12:00:00Z');assert.equal(jacket.image_item,id);assert.deepEqual(jacket.price_ranges,[]);
+ const groups=groupWishlist(rows);assert.equal(groups.length,2);const jacket=groups.find(g=>g.name==='Example First jacket');assert.equal(jacket.links.length,2);assert.equal(jacket.sent_at,'2026-10-05T12:00:00Z');assert.equal(jacket.image_item,id);assert.deepEqual(jacket.price_ranges,[]);
  assert.equal(groupWishlist([...rows,rows[0]])[0].links.length,2);
  const ranked=rows.slice(0,2).map((row,i)=>({...row,candidate_rank:i}));assert.equal(groupWishlist(ranked.reverse())[0].links[0].url,'https://shop.example.com/one');
  assert.equal(groupWishlist([{...rows[0],source_image_id:id},rows[0]]).length,2);
@@ -87,11 +87,12 @@ test('group detail and list use metadata only and remain scoped to the authentic
  res=response();await handler(request('GET',`/api/wishlist?group=${id}`),res);assert.equal(res.statusCode,404);
 });
 
-test('wishlist titles use supported identities or observed item descriptions',async()=>{
+test('wishlist titles consistently describe the saved product, with observed descriptions only as fallback',async()=>{
  const {groupWishlist}=await import('../lib/wishlist.js');
  const row={reply_id:id,item_id:id,target:'jacket',brand:'Barbour',name:'Transport Jacket',links:[]};
+ assert.equal(groupWishlist([{...row,name:null,item_description:'waxed jacket'}])[0].name,'Waxed jacket');
  assert.equal(groupWishlist([{...row,match:'likely_match'}])[0].name,'Barbour Transport Jacket');
- assert.equal(groupWishlist([{...row,match:'similar',item_description:'waxed dark green jacket'}])[0].name,'Waxed dark green jacket');
+ assert.equal(groupWishlist([{...row,match:'similar',item_description:'waxed dark green jacket'}])[0].name,'Barbour Transport Jacket');
  assert.equal(groupWishlist([{...row,brand:'JW Anderson',name:'Wool intarsia jacquard polo sweater',match:'similar',correction_source:'owner_verified_listing'}])[0].name,'JW Anderson Wool intarsia jacquard polo sweater');
  assert.equal(groupWishlist([{...row,display_name:'Founder confirmed jacket'}])[0].name,'Founder confirmed jacket');
  assert.equal(groupWishlist([{...row,brand:'Barbour',name:'Barbour Transport Jacket',match:'likely_match'}])[0].name,'Barbour Transport Jacket');
@@ -126,4 +127,20 @@ test('approved text saves retain validated links without repeating them in the c
  const saved=await wishlistProducts({identification_policy:'text_wishlist',user_confirmed:true,products:[{...product,merchant_options:[]}]},'I’ll add it to your wishlist.',[],{},async()=>Buffer.from('photo'));
  assert.equal(saved.length,1);assert.equal(saved[0].links[0].url,product.url);assert.equal(saved[0].image.mime_type,'image/jpeg');
  assert.deepEqual(await wishlistProducts({identification_policy:'text_wishlist',products:[product]},'I’ll add it.',[],{},async()=>Buffer.from('photo')),[]);
+});
+
+test('passive list and PDP reads preserve saved evidence without retailer checks or photo repair',async()=>{
+ const {groupWishlist}=await import('../lib/wishlist.js');
+ const snapshot={amount:1170,currency:'USD',source_url:product.url,checked_at:'2026-10-08T00:00:00Z'};
+ const rows=[{item_id:id,reply_id:id,target:'shoes',name:'Speedrock sneakers',brand:'Prada',match:'similar',links:[{url:product.url,price_snapshot:snapshot,availability:'InStock'}]}];
+ let external=0;
+ const forbidden=async()=>{external++;throw Error('Retailer must not be on the read path');};
+ const handler=createWishlistHandler({env,auth:async()=>({status:200,conversation:id}),verify:forbidden,photos:forbidden,storeFactory:()=>({wishlistEntries:async()=>rows,wishlistItem:async()=>({id,product:{...rows[0],image:{data:'private'}},wishlist_encounters:[{product:rows[0]}]}),saveWishlistPhotos:forbidden})});
+ for(const query of ['',`?group=${groupWishlist(rows)[0].id}`,`?item=${id}`]){
+  const res=response();await handler(request('GET','/api/wishlist'+query),res);assert.equal(res.statusCode,200);
+  const data=JSON.parse(res.value);
+  if(!query){assert.equal(data.items[0].name,'Prada Speedrock sneakers');assert.equal(data.items[0].price_checked_at,snapshot.checked_at);assert.deepEqual(data.items[0].price_ranges,[{currency:'USD',min:1170,max:1170}]);}
+  if(query.startsWith('?group'))assert.deepEqual(data.item.links[0].price,snapshot);
+ }
+ assert.equal(external,0);
 });

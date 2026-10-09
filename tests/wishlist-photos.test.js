@@ -1,4 +1,5 @@
 import {test} from 'node:test';
+import {Readable} from 'node:stream';
 import assert from 'node:assert/strict';
 import {repairWishlistPhotos} from '../lib/wishlist-photos.js';
 import {createWishlistHandler} from '../api/wishlist.js';
@@ -28,12 +29,15 @@ test('recovery is bounded and a failing first batch does not starve later items'
  const first=await repairWishlistPhotos(rows,{conversation:'owned',store,now,photos:async()=>{calls++;throw Error();}});assert.equal(calls,2);
  await repairWishlistPhotos(first,{conversation:'owned',store,now:now+1000,photos:async()=>{calls++;return [photo];}});assert.equal(calls,3);assert.equal(store.items.get('c').product.image,photo);
 });
-test('wishlist loads recover photos only after authentication and include the repaired image in the returned card',async()=>{
+test('wishlist reads never block on photos; separate recovery requires authentication',async()=>{
  const store=fixture();store.wishlistEntries=async()=>[{...product,item_id:'a',reply_id:'reply'}];let downloads=0;
  const handler=createWishlistHandler({env:{WISHLIST_ENABLED:'true'},storeFactory:()=>store,auth:async headers=>headers.authorization?{status:200,conversation:'owned'}:{status:401},photos:async()=>{downloads++;return [photo];},verify:async()=>({status:'unavailable'})});
  const res=()=>({setHeader(){},end(body){this.body=body;}});
  const denied=res();await handler({method:'GET',url:'/api/wishlist',headers:{}},denied);assert.equal(denied.statusCode,401);assert.equal(downloads,0);
- const allowed=res();await handler({method:'GET',url:'/api/wishlist',headers:{authorization:'test'}},allowed);assert.equal(allowed.statusCode,200);assert.equal(JSON.parse(allowed.body).items[0].has_image,true);assert.equal(downloads,1);
+ const allowed=res();await handler({method:'GET',url:'/api/wishlist',headers:{authorization:'test'}},allowed);assert.equal(allowed.statusCode,200);assert.equal(JSON.parse(allowed.body).items[0].has_image,false);assert.equal(downloads,0);
+ const post=authorization=>Object.assign(Readable.from([JSON.stringify({action:'recover-photos'})]),{method:'POST',url:'/api/wishlist',headers:{authorization,'content-type':'application/json'}});
+ const deniedPost=res();await handler(post(undefined),deniedPost);assert.equal(deniedPost.statusCode,401);assert.equal(downloads,0);
+ const recovered=res();await handler(post('test'),recovered);assert.equal(recovered.statusCode,200);assert.equal(JSON.parse(recovered.body).items[0].has_image,true);assert.equal(downloads,1);
 });
 test('photo persistence updates every encounter by reply ID and leaves item identity and links intact',async()=>{
  const requests=[];const store=createStore({SUPABASE_URL:'https://db.example',SUPABASE_SERVICE_ROLE_KEY:'fake'},async(url,options)=>{
