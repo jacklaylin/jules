@@ -32,7 +32,8 @@ body.landing-page{padding-top:0}
 .video-icon{color:var(--aqua);width:7.3cqw;height:5.5cqw;justify-self:end}
 .demo-chat{padding:3cqw 4cqw 4cqw;overflow-y:auto;scrollbar-width:none;flex:1;min-height:0;display:flex;flex-direction:column;gap:1.8cqw}.demo-chat::-webkit-scrollbar{display:none}
 .chat-date{text-align:center;color:#8e8e93;font-size:2.9cqw;line-height:1.4;margin:0 0 3cqw;flex:none}
-.demo-bubble{max-width:84%;padding:2.3cqw 3.3cqw;border-radius:4.7cqw;font:4.3cqw/1.3 var(--font-ios);position:relative;flex:none;isolation:isolate}
+/* iMessage text metrics: 17/22 type, 7/13 insets, intrinsic short bubbles. */
+.demo-bubble{width:fit-content;max-width:78%;min-width:0;padding:1.78cqw 3.3cqw;border-radius:4.7cqw;font:400 4.33cqw/5.6cqw var(--font-ios);white-space:pre-wrap;overflow-wrap:anywhere;word-break:normal;text-align:start;position:relative;flex:none;isolation:isolate}
 .sent{align-self:flex-end;background:var(--aqua);color:#fff}.received{align-self:flex-start;background:#e9e9eb;color:#000}
 .demo-bubble.group-end::before,.demo-bubble.group-end::after{content:'';position:absolute;bottom:0;height:4.7cqw;z-index:-1}
 .demo-bubble.sent.group-end::before{right:-1.8cqw;width:5cqw;background:var(--aqua);border-bottom-left-radius:4cqw}
