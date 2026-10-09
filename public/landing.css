@@ -6,7 +6,7 @@ body.landing-page{padding-top:0}
 .pitch::before{width:300px;height:300px;background:var(--bubblegum);opacity:.22;left:-70px;top:90px}
 .pitch::after{width:270px;height:220px;background:var(--butter);opacity:.2;left:24%;bottom:16%}
 .pitch h1{font-size:clamp(66px,8.6vw,124px);line-height:.93;white-space:nowrap}
-.pitch h1 .logo{font-size:inherit;vertical-align:-.17em}
+.pitch h1 .logo{font-size:inherit;vertical-align:-.27em}
 .landing-intro{font-size:20px;line-height:1.5;max-width:490px;margin:30px 0}
 .landing-actions{display:flex;gap:12px;flex-wrap:wrap}
 .story-controls{margin-top:36px}
@@ -17,9 +17,9 @@ body.landing-page{padding-top:0}
 .story-controls>.eyebrow{margin:8px 0 0}
 .phone-demo{justify-self:center;min-width:0;display:flex;flex-direction:column;align-items:center}
 /* Keep the entire device in proportion, including its chrome, at every size. */
-.phone{--phone-width:min(380px,calc((100dvh - 90px) * .461));width:var(--phone-width);height:calc(var(--phone-width) * 852 / 393);aspect-ratio:393/852;flex:none;background:#171717;padding:0;border-radius:14% / 6.46%;box-shadow:0 28px 65px #17120f26,inset 0 0 0 1px #ffffff25;container-type:inline-size;position:relative}
+.phone{--phone-width:min(380px,calc((100dvh - 90px) * .461));width:var(--phone-width);height:calc(var(--phone-width) * 852 / 393);aspect-ratio:393/852;flex:none;background:#171717;padding:0;--phone-bezel:calc(var(--phone-width) * .02);border-radius:calc(var(--phone-width) * .14);box-shadow:0 28px 65px #17120f26,inset 0 0 0 1px #ffffff25;container-type:inline-size;position:relative}
 .phone::before{content:'';position:absolute;left:-2px;top:24%;height:6%;width:2px;border-radius:2px;background:#373737;box-shadow:0 38px #373737}
-.phone-screen{position:absolute;inset:2%;height:auto;min-height:0;border-radius:12.5% / 5.7%;background:#fff;overflow:hidden;display:flex;flex-direction:column;font-family:var(--font-ios);color:#000}
+.phone-screen{position:absolute;inset:var(--phone-bezel);height:auto;min-height:0;border-radius:calc(var(--phone-width) * .12);background:#fff;overflow:hidden;display:flex;flex-direction:column;font-family:var(--font-ios);color:#000}
 .phone-status{height:14cqw;flex:none;position:relative;display:flex;align-items:center;justify-content:space-between;padding:0 6.8cqw;font:600 4.1cqw var(--font-ios);background:#f9f9f9}
 .island{position:absolute;left:50%;top:3.1cqw;transform:translateX(-50%);width:30cqw;height:8.5cqw;background:#000;border-radius:6cqw}
 .status-icons{display:flex;align-items:center;gap:1.6cqw;color:#000}
