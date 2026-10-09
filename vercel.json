@@ -2,6 +2,8 @@
   "outputDirectory": "public",
   "crons": [{ "path": "/api/price-checks", "schedule": "0 13 * * *" }],
   "rewrites": [
+    {"source":"/signup","destination":"/signup.html"},
+    {"source":"/login","destination":"/login.html"},
     {
       "source": "/simulator",
       "destination": "/simulator.html"

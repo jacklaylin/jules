@@ -39,7 +39,13 @@ Desktop stories use the full width with text and an evidence collage. Phones kee
 
 ## Deferred
 
-Landing page, scroll-driven demonstration, new feed screens, new nine-cell starter-pack layouts, additional Wrapped moments, marquee placement and navigation to unbuilt destinations. Never ship the brief's example prices, stock, store counts, style-match percentages, wear counts, delivery or purchasing claims as facts.
+New feed screens, new nine-cell starter-pack layouts, additional Wrapped moments, animated marquee placement and navigation to unbuilt destinations. Never ship the brief's example prices, stock, store counts, style-match percentages, wear counts, delivery or purchasing claims as facts.
+
+## Public landing page
+
+The public `/` page now follows the brief's pinned viewport and scroll-driven iMessage demonstration, with responsive composition in `public/landing.css`. `public/landing-timeline.js` supplies deterministic progress, chapters and typing states for scroll and autoplay. Reduced motion displays the complete conversation; the text transcript is also available without JavaScript. Example requests and the schematic inspiration image are explicitly illustrative, with no invented commerce results or purchasing claims.
+
+`mountPublicHeader` in the shared JavaScript hydrates public-page logos, while the shared gel links and header navigation primitives serve `/`, `/signup` and `/login`. Public signup collects private consent records only; outbound welcome messages are not enabled. See `LANDING-PAGE.md` for setup and remaining launch requirements.
 
 ## Verification before shared changes ship
 

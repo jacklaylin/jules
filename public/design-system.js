@@ -1,5 +1,9 @@
 import {createLogo,initBrandActivity} from './brand-ui.js';
 let menu,menuButton,nav,header,menuCount,wishlistCount=null;
+export function mountPublicHeader(){
+ for(const link of document.querySelectorAll('.public-header .wordmark'))link.replaceChildren(createLogo());
+ initBrandActivity();
+}
 export function mountHeader(page){
  header=document.querySelector('.app-header');
  const brand=document.createElement('a');brand.className='wordmark';brand.href='/wishlist';brand.setAttribute('aria-label','Jules wishlist');brand.append(createLogo());
