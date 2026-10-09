@@ -6,6 +6,7 @@ import {inferImportedMarket,shoppingMarket,saveImportedMarket} from '../lib/shop
 import {enrichWishlistItem} from '../lib/wishlist-details.js';
 import {selectionOutcome} from '../lib/wishlist-selection.js';
 import {createStore} from '../lib/store.js';
+import {repairWishlistPhotos} from '../lib/wishlist-photos.js';
 const url='https://shop.example.org/products/shirt';
 const product={'@type':'Product',name:'Shirt',url,image:'https://shop.example.org/default.jpg',offers:{price:71,priceCurrency:'CAD',url}};
 const html=(p,country='US')=>`<script>Shopify.country = "${country}";</script><script type="application/ld+json">${JSON.stringify(p)}</script>`;
@@ -59,4 +60,21 @@ test('legacy context is retrieved around the owned original save even beyond the
  });
  const context=await store.wishlistConversationContext('owner',[reply]);
  assert.ok(urls.every(u=>u.includes('conversation_id=eq.owner')));assert.ok(urls[1].includes('created_at=lte.2026-10-01'));assert.equal(context[0].body,'Blue please');
+});
+test('failed older repairs enter a persisted cooldown so later items can be recovered',async()=>{
+ const now=Date.now(),items=new Map(['first','second','third'].map(id=>[id,{url:url+'/'+id,name:'Shirt',details_revision:2,market_country:'US',image:{data:'existing'},links:[{url:url+'/'+id}]}])),attempts=[];
+ const store={wishlistItem:async(_c,id)=>({product:items.get(id)}),saveWishlistPhotos:async(_c,id,u)=>Object.assign(items.get(id),u),correctWishlistProduct:async(_c,id,u)=>Object.assign(items.get(id),u)};
+ const rows=()=>[...items].map(([id,p])=>({item_id:id,has_image:true,...p}));
+ const verify=async u=>{attempts.push(u);if(!u.endsWith('third'))throw Error('Interpretation unavailable');return {status:'verified',url:u,product_name:'Shirt'};};
+ await repairWishlistPhotos(rows(),{conversation:'owner',store,verify,now});await repairWishlistPhotos(rows(),{conversation:'owner',store,verify,now:now+1000});
+ assert.equal(attempts.length,3);assert.equal(items.get('third').details_revision,3);assert.equal(items.get('first').photo_attempted_revision,3);
+});
+test('database photo repair writes the cooldown revision to both item and encounter snapshots',async()=>{
+ const writes=[];
+ const store=createStore({SUPABASE_URL:'https://fixture.invalid',SUPABASE_SERVICE_ROLE_KEY:'fixture'},async(_u,options)=>{
+  if(options.method==='GET')return new Response(JSON.stringify([{product:{name:'Shirt'},wishlist_encounters:[{reply_id:'reply',product:{name:'Shirt'}}]}]));
+  writes.push(JSON.parse(options.body));return new Response('null');
+ });
+ await store.saveWishlistPhotos('owner','item',{photo_attempted_revision:3,photo_attempted_at:'2026-10-09T00:00:00Z'});
+ assert.equal(writes.length,2);assert.ok(writes.every(w=>w.product.photo_attempted_revision===3));
 });
