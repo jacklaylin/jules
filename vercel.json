@@ -43,5 +43,6 @@
       "includeFiles": "VOICE.md",
       "maxDuration": 120
     }
-  }
+  },
+  "regions": ["yul1"]
 }
