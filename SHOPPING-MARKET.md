@@ -1,0 +1,13 @@
+# Country, currency and color evidence
+
+Sourcing reads the user's structured `country/primary` and `currency/primary` facts. Explicit user statements/corrections outrank imported evidence. The current prototype defaults to the US market when no profile evidence is present; that fallback is not a claim of inferred residence.
+
+Gmail import integration: model extraction must retain cited delivery/billing **country codes** separately from transaction currency, with source IDs, exact supporting quotes and deduplicated order keys. Call `saveImportedMarket` with extracted signals and their prepared sources. It validates source quotes, requires at least two independent orders and a dominant 70% signal, persists only country/currency summaries and source references, and preserves explicit corrections. Merchant location, email language, phone prefix and a foreign purchase do not establish residence. Conflicting or sparse evidence remains unknown. Do not retain street addresses in the shopping profile.
+
+The Gmail archive work currently lives in private extraction experiments, outside the deployed application. This integration boundary does not make Gmail importing a deployed feature. Country/currency extraction and the importer call still need to be incorporated into that pipeline before archive-derived location can populate live profiles.
+
+Retailer verification requests the profile market, using Shopify localization where available. Prices are accepted only in the requested currency, never converted or relabeled. Country/currency participate in listing caches and country scopes web search. Existing wishlist imports are repaired in bounded batches and the wishlist filters prices to the user's requested currency while recovery runs.
+
+Color options come from actual retailer product metadata and bound variant photos. The model interprets requested colors in the conversation against these observed options; code validates the resulting index and retrieved variant. There are no product-specific color mappings or conversational keyword routes. A color representative never establishes a selected size or size availability. Saving retains selected color and variant URL. Legacy recovery uses the original save's conversation/reply identity, replaces the full photo set, and retains uncertainty if no unique selection is supported.
+
+Validation: synthetic tests cover server-country mismatch, currency rejection, independent country/currency import evidence, duplicated orders, conflicting locations, explicit corrections, variant selection, original reply scope and replacement of mismatched photos. Live retailer verification confirms exact variant imagery and sourced US pricing. Production recovery must be checked separately after deployment.

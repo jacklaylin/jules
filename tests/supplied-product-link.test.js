@@ -12,7 +12,7 @@ test('Satisfy uses the requested US storefront without overriding an explicit ma
 test('a complete retailer result preserves genuine USD evidence and skips slower shopping providers',async()=>{
  const html='<script type="application/ld+json">'+JSON.stringify({'@type':'Product',name:'TheROCKER Sterling Blue',brand:'SATISFY',image:'https://satisfyrunning.com/photo.jpg',offers:{price:'290',priceCurrency:'USD'}})+'</script>';
  const check=await verifyListing(url,null,async(address,options)=>{
-  assert.equal(address,url);assert.equal(options.headers.get('Cookie'),'localization=US');return new Response(html,{headers:{'content-type':'text/html'}});
+  assert.equal(address,url);assert.ok(options.headers.get('Cookie').includes('localization=US'));return new Response(html,{headers:{'content-type':'text/html'}});
  },async()=>assert.fail('Complete HTML requires no browser'),{SERPAPI_API_KEY:'test-only'},{recoveryOnly:true});
  assert.equal(check.status,'verified');assert.equal(check.price_snapshot.currency,'USD');assert.equal(check.price_snapshot.amount,290);
 });

@@ -1,3 +1,4 @@
+import {marketEnvironment} from '../lib/shopping-market.js';
 import {enrichWishlistItem} from '../lib/wishlist-details.js';
 import {repairWishlistPhotos} from '../lib/wishlist-photos.js';
 import {fetchListingPhotos,fetchProductAssets} from '../lib/product-photos.js';
@@ -21,13 +22,15 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
         const input = await readJson(req, 16384);
         if(input.action==='recover-photos'){
           const access=await auth(req.headers,env,store,fetcher);if(access.status!==200)return json(res,access.status,{error:'Please sign in with your invited email.'});
-          const rows=await repairWishlistPhotos(await store.wishlistEntries(access.conversation),{conversation:access.conversation,store,verify:(url,name)=>verify(url,name,fetcher,undefined,env),photos:(url,name)=>photos(url,name,fetcher),assets:(urls,url)=>fetchProductAssets(urls,url,fetcher)});
-          return json(res,200,{items:groupWishlist(rows).map(({links,entries,...group})=>group)});
+          const marketEnv=marketEnvironment((await store.profile?.(access.conversation))?.facts??[],env);
+          const rows=await repairWishlistPhotos(await store.wishlistEntries(access.conversation),{conversation:access.conversation,store,env:marketEnv,verify:(url,name)=>verify(url,name,fetcher,undefined,marketEnv),photos:(url,name)=>photos(url,name,fetcher),assets:(urls,url)=>fetchProductAssets(urls,url,fetcher)});
+          return json(res,200,{items:groupWishlist(rows,{currency:marketEnv.SHOPPING_CURRENCY,country:marketEnv.SHOPPING_COUNTRY}).map(({links,entries,...group})=>group)});
         }
         if(input.action==='enrich'){
           const access=await auth(req.headers,env,store,fetcher);if(access.status!==200)return json(res,access.status,{error:'Please sign in with your invited email.'});
           if(!uuid(input.item))return json(res,400,{error:'Invalid item.'});
-          const {update,...result}=await enrichWishlistItem(store,access.conversation,input.item,{verify:(url,name)=>verify(url,name,fetcher,undefined,env),photos:(url,name)=>photos(url,name,fetcher),assets:(urls,url)=>fetchProductAssets(urls,url,fetcher)});
+          const marketEnv=marketEnvironment((await store.profile?.(access.conversation))?.facts??[],env);
+          const {update,...result}=await enrichWishlistItem(store,access.conversation,input.item,{env:marketEnv,verify:(url,name)=>verify(url,name,fetcher,undefined,marketEnv),photos:(url,name)=>photos(url,name,fetcher),assets:(urls,url)=>fetchProductAssets(urls,url,fetcher)});
           return json(res,200,result);
         }
         if (['remove','restore'].includes(input.action)) {
@@ -108,7 +111,8 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
       if (!id || groupId) {
         const started=performance.now();
         const [rows,alerts]=await Promise.all([store.wishlistEntries(access.conversation),env.PRICE_ALERTS_ENABLED==='true'?store.priceAlerts(access.conversation):Promise.resolve([])]);
-        const groups = groupWishlist(rows);
+        const marketEnv=marketEnvironment((await store.profile?.(access.conversation))?.facts??[],env);
+        const groups = groupWishlist(rows,{currency:marketEnv.SHOPPING_CURRENCY,country:marketEnv.SHOPPING_COUNTRY});
         res.setHeader('Server-Timing',`auth;dur=${authDuration.toFixed(1)}, wishlist;dur=${(performance.now()-started).toFixed(1)}`);
         if(env.PRICE_ALERTS_ENABLED==='true'){
           for(const group of groups){const alert=alerts.find(a=>a.group_id===group.id);group.price_alert=alert?{active:alert.active,size:alert.size,last_checked_at:alert.last_checked_at,notified:alert.notified}:null;group.alerts_enabled=true;}
