@@ -43,7 +43,7 @@ New feed screens, new nine-cell starter-pack layouts, additional Wrapped moments
 
 ## Public landing page
 
-The public `/` page now follows the brief's pinned viewport and scroll-driven iMessage demonstration, with responsive composition in `public/landing.css`. `public/landing-timeline.js` supplies deterministic progress, chapters and typing states for scroll and autoplay. Reduced motion displays the complete conversation; the text transcript is also available without JavaScript. Example requests and the schematic inspiration image are explicitly illustrative, with no invented commerce results or purchasing claims.
+The public `/` page now follows the brief's pinned viewport and scroll-driven iMessage demonstration, with responsive composition in `public/landing.css`. `public/landing-timeline.js` supplies deterministic progress, chapters and typing states for scroll and the progress control. Reduced motion displays the complete conversation; an inline screen-reader transcript is also available without JavaScript. Example requests and the licensed sneaker photograph are explicitly illustrative, with no invented commerce results or purchasing claims.
 
 `mountPublicHeader` in the shared JavaScript hydrates public-page logos, while the shared gel links and header navigation primitives serve `/`, `/signup` and `/login`. Public signup collects private consent records only; outbound welcome messages are not enabled. See `LANDING-PAGE.md` for setup and remaining launch requirements.
 

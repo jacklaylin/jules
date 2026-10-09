@@ -1,8 +1,8 @@
 # Public Jules landing page
 
-Implemented locally: `/` follows the supplied design brief with a pinned viewport and scroll-driven iMessage example, autoplay/pause, chapters, backward scrubbing, an accessible transcript, and reduced-motion behavior. `/signup` collects a number and explicit consent. `/login` uses the existing invited-email magic-link flow and takes signed-in users to the wishlist.
+Implemented locally: `/` follows the supplied design brief with a pinned viewport and scroll-driven iMessage example, chapters, backward scrubbing, an accessible transcript, and reduced-motion behavior. `/signup` collects a number and explicit consent. `/login` uses the existing invited-email magic-link flow and takes signed-in users to the wishlist.
 
-The demo uses an original schematic sneaker illustration. It describes supported sourcing behavior without invented inventory, shipping, retailer prices, or purchasing claims. Its budget is an example user request, not a product price. Replace the illustration with founder-approved photography if desired.
+The demo uses a real, free-use Pexels sneaker photograph; source and license are recorded in `docs/assets/demo-sneakers.md`. It describes supported sourcing behavior without invented inventory, shipping, retailer prices, or purchasing claims. Its budget is an example user request, not a product price. The device dimensions remain fixed throughout the timeline; only the message area scrolls.
 
 ## Enable the signup form
 
