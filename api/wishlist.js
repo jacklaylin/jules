@@ -1,6 +1,6 @@
 import {enrichWishlistItem} from '../lib/wishlist-details.js';
 import {repairWishlistPhotos} from '../lib/wishlist-photos.js';
-import {fetchListingPhotos} from '../lib/product-photos.js';
+import {fetchListingPhotos,fetchProductAssets} from '../lib/product-photos.js';
 import {verifyListing,verifyWishlistRows} from '../lib/listings.js';
 import { inspectAlertLinks, baselineOffers, readSizeOffers, lowestAvailable } from '../lib/price-alerts.js';
 import { createStore } from '../lib/store.js';
@@ -19,7 +19,7 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
         if(input.action==='enrich'){
           const access=await auth(req.headers,env,store,fetcher);if(access.status!==200)return json(res,access.status,{error:'Please sign in with your invited email.'});
           if(!uuid(input.item))return json(res,400,{error:'Invalid item.'});
-          return json(res,200,await enrichWishlistItem(store,access.conversation,input.item,{verify:(url,name)=>verify(url,name,fetcher),photos:(url,name)=>photos(url,name,fetcher)}));
+          return json(res,200,await enrichWishlistItem(store,access.conversation,input.item,{verify:(url,name)=>verify(url,name,fetcher,undefined,env),photos:(url,name)=>photos(url,name,fetcher),assets:(urls,url)=>fetchProductAssets(urls,url,fetcher)}));
         }
         if (['remove','restore'].includes(input.action)) {
           const access=await auth(req.headers,env,store,fetcher);
