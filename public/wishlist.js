@@ -80,7 +80,7 @@ async function load(){
  if(target?.id)void detail(target.id);else if(target?.missing)message('This item is not available in your signed-in wishlist.');
 }
 
-async function recoverPhotos(items,version){
+async function recoverPhotos(items,version,pass=0){
  if(!items.some(item=>!item.has_image||item.details_pending))return;
  try{
   const recovered=await api('',{method:'POST',quiet:true,body:JSON.stringify({action:'recover-photos'})});
@@ -96,6 +96,7 @@ async function recoverPhotos(items,version){
    const price=card?.querySelector('.card-price');if(price)price.textContent=priceRange(item.price_ranges);
    if($('detail').open&&$('detail-content').dataset.group===item.id)void detail(item.id);
   }
+  if(pass<4&&(recovered.items??[]).some(item=>!item.has_image||item.details_pending))void recoverPhotos(recovered.items,version,pass+1);
  }catch{/* Saved items stay visible; photo recovery retries on a later visit. */}
 }
 
