@@ -1,11 +1,10 @@
-import {createLogo} from './brand-ui.js';
-import {mountPublicHeader} from './design-system.js';
+import {createLogo,initBrandActivity} from './brand-ui.js';
 import {demoState,DEMO_DURATION} from './landing-timeline.js';
-const logo=document.getElementById('headline-logo');logo.replaceChildren(createLogo());mountPublicHeader();
+const logo=document.getElementById('headline-logo');logo.replaceChildren(createLogo());initBrandActivity();
 const motion=matchMedia('(prefers-reduced-motion: reduce)'),chat=document.getElementById('demo-chat'),messages=[...chat.querySelectorAll('[data-at]')],typing=document.getElementById('demo-typing'),slider=document.getElementById('demo-progress'),watch=document.getElementById('watch');
 let time=0,frame=0,playing=false,lastStamp,scrollFrame=0;
 document.documentElement.classList.add('demo-ready');
-function render(t){time=t;const state=demoState(t,motion.matches);for(const message of messages){const visible=Number(message.dataset.at)<=state.time;if(visible&&message.hidden&&!motion.matches)message.classList.add('demo-enter');else message.classList.remove('demo-enter');message.hidden=!visible;}typing.hidden=!state.typing;document.querySelectorAll('[data-chapter]').forEach(el=>el.classList.toggle('active',Number(el.dataset.chapter)===state.chapter));slider.value=Math.round(state.time*10);chat.scrollTop=chat.scrollHeight;}
+function render(t){time=t;const state=demoState(t,motion.matches);for(const message of messages){const visible=Number(message.dataset.at)<=state.time;if(visible&&message.hidden&&!motion.matches)message.classList.add('demo-enter');else message.classList.remove('demo-enter');message.hidden=!visible;}const visibleBubbles=messages.filter(message=>!message.hidden&&message.matches('.demo-bubble,.demo-photo'));visibleBubbles.forEach((message,index)=>{const next=visibleBubbles[index+1];message.classList.toggle('group-end',!next||message.classList.contains('sent')!==next.classList.contains('sent'));});typing.hidden=!state.typing;document.querySelectorAll('[data-chapter]').forEach(el=>el.classList.toggle('active',Number(el.dataset.chapter)===state.chapter));slider.value=Math.round(state.time*10);chat.scrollTop=chat.scrollHeight;}
 function stop(){playing=false;cancelAnimationFrame(frame);watch.textContent=motion.matches?'Demo complete':'Watch it work ↓';}
 function autoplay(stamp){if(!playing)return;const elapsed=Math.min((stamp-lastStamp)/1000,.1);lastStamp=stamp;render(Math.min(DEMO_DURATION,time+elapsed));if(time>=DEMO_DURATION)stop();else frame=requestAnimationFrame(autoplay);}
 watch.onclick=()=>{if(motion.matches)return;if(playing){stop();return;}playing=true;render(0);lastStamp=performance.now();watch.textContent='Pause demo';frame=requestAnimationFrame(autoplay);};
