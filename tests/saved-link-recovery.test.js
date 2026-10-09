@@ -22,8 +22,8 @@ test('neutral references tolerate exact localized redirects while explicit marke
 test('new supplied links outside the ranking registry persist sourced name, price and CDN photos',async()=>{
  const bytes=await sharp({create:{width:10,height:10,channels:3,background:'white'}}).jpeg().toBuffer();
  const fetcher=async value=>new Response(value.includes('.jpg')?bytes:html,{headers:{'content-type':value.includes('.jpg')?'image/jpeg':'text/html'}});
- const [item]=await wishlistProducts({identification_policy:'text_wishlist',user_confirmed:true,products:[{url,name:'Item from independent-shop',reference_provenance:'user_link'}]},'',[],{},undefined,{env:{},fetcher});
- assert.equal(item.name,'Rib Shirt');assert.equal(item.links[0].price_snapshot.amount,20);assert.equal(item.links[0].availability,null);assert.equal(item.photo_status,'ready');assert.ok(item.image.data);
+ const [item]=await wishlistProducts({identification_policy:'text_wishlist',user_confirmed:true,products:[{url,name:'Item from independent-shop',reference_provenance:'user_link',sourcing_status:'store_not_found'}]},'',[],{},undefined,{env:{},fetcher});
+ assert.equal(item.sourcing_status,'store_found');assert.equal(item.name,'Rib Shirt');assert.equal(item.links[0].price_snapshot.amount,20);assert.equal(item.links[0].availability,null);assert.equal(item.photo_status,'ready');assert.ok(item.image.data);
 });
 test('variant-bound metadata cannot use another variant price or photo',async()=>{
  const selected=await verifyListing(url+'?variant=blue',null,async()=>new Response(html,{headers:{'content-type':'text/html'}}),undefined,{});
