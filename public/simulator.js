@@ -1,6 +1,7 @@
 import {mountHeader,enableTestChat} from './design-system.js';
 import {createSession} from './wishlist-session.js';
 import {trackedFetch} from './activity.js';
+import {readSimulatorResponse} from './simulator-response.js';
 mountHeader('simulator');
 const session=createSession({storage:localStorage,lock:work=>navigator.locks?navigator.locks.request('jules-wishlist-refresh',work):work()});
 const $=id=>document.getElementById(id);
@@ -47,12 +48,12 @@ $('composer').onsubmit=async event=>{
     if(!token)throw Error('Sign in through your wishlist first, then return here.');
     const input={text,snapshot,failure:$('failure').value,...(file?{image:await readFile(file)}:{})};
     const response=await trackedFetch('/api/chat-simulator',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify(input)},'Jules is thinking');
-    const result=await response.json();if(!response.ok)throw Error(result.error);
+    const result=await readSimulatorResponse(response,{turn:true});
     snapshot=result.snapshot;turns.push({...result,snapshot:undefined,input:{text,failure:input.failure}});render();
     if($('message').value===text){$('message').value='';$('message').style.height='';}
     if($('image').files[0]===file){$('image').value='';$('attachment').hidden=true;}
     $('status').textContent=`${(result.elapsed_ms/1000).toFixed(1)}s · ${result.outcome.includes('uncertain')?'Delivery failed in simulation; inspect saved state.':'Test message sent.'}`;preserve();
-  }catch(error){$('status').textContent=error.message;}finally{typing.remove();busy=false;for(const id of ['send','attach','reset','import'])$(id).disabled=false;}
+  }catch(error){turns.push({outcome:'failed',error:error.message,input:{text,failure:$('failure').value}});preserve();render();$('status').textContent=error.message;}finally{typing.remove();busy=false;for(const id of ['send','attach','reset','import'])$(id).disabled=false;}
 };
 $('reset').onclick=()=>{snapshot={messages:[],profile:{facts:[],version:0},items:[],alerts:[],images:[],wishlist_live:snapshot?.wishlist_live??[]};turns=[];preserve();render();$('status').textContent='New test conversation.';};
 $('toggle-diagnostics').onclick=()=>{const show=$('diagnostics').hidden;$('diagnostics').hidden=!show;$('simulator-layout').classList.toggle('diagnostics-open',show);$('toggle-diagnostics').setAttribute('aria-expanded',String(show));};
@@ -64,5 +65,5 @@ $('message').onkeydown=event=>{if(event.key==='Enter'&&!event.shiftKey&&!event.i
 $('download').onclick=()=>{const link=document.createElement('a'),url=URL.createObjectURL(new Blob([JSON.stringify({kind:'jules-chat-simulator',created_at:new Date().toISOString(),snapshot,turns},null,2)],{type:'application/json'}));link.href=url;link.download='jules-chat-simulator.json';link.click();URL.revokeObjectURL(url);};
 $('import').onchange=async()=>{try{const file=$('import').files[0];if(!file||file.size>4000000)throw Error('Use a simulator report under 4 MB.');const report=JSON.parse(await file.text());if(report.kind!=='jules-chat-simulator'||!Array.isArray(report.snapshot?.messages)||!Array.isArray(report.turns))throw Error('Use a report exported by this simulator.');snapshot=report.snapshot;turns=report.turns;render();preserve();$('status').textContent='Conversation resumed. Send a follow-up to run the real logic again.';}catch(error){$('status').textContent=error.message;}};
 $('logout').onclick=async()=>{try{const token=await session.token();const response=await trackedFetch('/api/wishlist',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({action:'logout'})});if(!response.ok)throw Error('Could not log out. Try again.');session.clear();sessionStorage.removeItem('jules_wishlist_token');sessionStorage.removeItem('jules_token');sessionStorage.removeItem('jules_simulator');location.href='/wishlist';}catch(error){$('status').textContent=error.message;}};
-session.token().then(async token=>{if(token){void enableTestChat(token);$('logout').hidden=false;const response=await trackedFetch('/api/chat-simulator',{headers:{Authorization:'Bearer '+token}},'Loading your wishlist');const data=await response.json();if(!response.ok)throw Error(data.error);snapshot??={messages:[],profile:{facts:[],version:0},items:[],alerts:[],images:[]};snapshot.wishlist_live=data.items;render();}else{$('status').textContent='Sign in through your wishlist, then return to Test chat.';}}).catch(error=>{$('status').textContent=error.message;});
+session.token().then(async token=>{if(token){void enableTestChat(token);$('logout').hidden=false;const response=await trackedFetch('/api/chat-simulator',{headers:{Authorization:'Bearer '+token}},'Loading your wishlist');const data=await readSimulatorResponse(response);snapshot??={messages:[],profile:{facts:[],version:0},items:[],alerts:[],images:[]};snapshot.wishlist_live=data.items;render();}else{$('status').textContent='Sign in through your wishlist, then return to Test chat.';}}).catch(error=>{$('status').textContent=error.message;});
 render();
