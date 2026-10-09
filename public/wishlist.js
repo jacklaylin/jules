@@ -17,6 +17,7 @@ async function authorizedFetch(query='',options={}){
  try{token=await session.token()||token;}catch(e){if(!session.read())login();throw e;}
  const send=()=>(quiet?globalThis.fetch:fetch)('/api/wishlist'+query,{...requestOptions,headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{})},cache:'no-store'});
  let response=await send();
+ if(!query&&(!options.method||options.method==='GET'))$('collection').dataset.serverTiming=response.headers.get('Server-Timing')||'';
  if(response.status===401&&session.read()?.refresh_token){try{token=await session.token(true);response=await send();}catch(e){if(!session.read())login();throw e;}}
  return response;
 }
