@@ -2,13 +2,15 @@ import {trackedFetch as fetch} from './activity.js';
 import {mountHeader,enableTestChat,updateWishlistCount} from './design-system.js';
 mountHeader('wishlist');
 import {createSession} from './wishlist-session.js';
+import {rememberWishlistTarget,consumeWishlistTarget} from './wishlist-deep-link.js';
 const $ = id => document.getElementById(id);
 const session=createSession({fetcher:fetch,storage:localStorage,lock:work=>navigator.locks?navigator.locks.request('jules-wishlist-refresh',work):work()});
 let token=session.read()?.access_token||sessionStorage.getItem('jules_wishlist_token'), generation=0, detailVersion=0;
 const urls=new Set(), imageCache=new Map(), itemCache=new Map();
 const fragment=new URLSearchParams(location.hash.slice(1));
 if(fragment.has('access_token')){token=fragment.get('access_token');session.save({access_token:token,refresh_token:fragment.get('refresh_token'),expires_at:Number(fragment.get('expires_at'))||Date.now()/1000+(Number(fragment.get('expires_in'))||3600)});sessionStorage.removeItem('jules_wishlist_token');}
-if(location.hash)history.replaceState(null,'','/wishlist');
+if(location.hash)history.replaceState(null,'','/wishlist'+location.search);
+rememberWishlistTarget(location.search,localStorage);
 const message=text=>{$('notice').textContent=text;};
 function clear(){generation++;detailVersion++;urls.forEach(URL.revokeObjectURL);urls.clear();imageCache.clear();itemCache.clear();$('grid').replaceChildren();$('detail-content').replaceChildren();$('detail').close();$('alert-picker').close();alertSelection=null;}
 function login(){updateWishlistCount(null);clear();token=null;enableTestChat(null);session.clear();sessionStorage.removeItem('jules_wishlist_token');$('login').hidden=false;$('collection').hidden=true;$('logout').hidden=true;}
@@ -74,6 +76,8 @@ async function load(){
  let items;try{({items}=await api());if(version!==generation)return;void enableTestChat(token);}catch(e){$('grid').replaceChildren();throw e;}finally{$('grid').setAttribute('aria-busy','false');}
  $('grid').replaceChildren();$('login').hidden=true;$('collection').hidden=false;$('logout').hidden=false;$('empty').hidden=items.length>0;$('count').textContent=items.length+' '+(items.length===1?'ITEM':'ITEMS');updateWishlistCount(items.length);
  for(const item of items){itemCache.set(item.id,item);const card=node('div',null,'product-card');card.dataset.group=item.id;const tile=node('button',null,'tile');tile.type='button';tile.append(item.has_image?photo(`?item=${item.image_item}&image=product`,item.name):pendingPhoto(item.photo_status==='retry_pending'),node('strong',item.name),node('span',priceRange(item.price_ranges),'card-price'));if(item.sourcing_status==='store_not_found')tile.append(node('span','Product identified · Store not found','card-state'));tile.onclick=()=>detail(item.id);card.append(tile,removeButton(item,card));if(item.alerts_enabled)card.append(alertToggle(item));$('grid').append(card);}message('');requestAnimationFrame(()=>{if(version===generation)$('collection').dataset.readyMs=performance.now().toFixed(1);});void recoverPhotos(items,generation);
+ const target=consumeWishlistTarget(items,localStorage);
+ if(target?.id)void detail(target.id);else if(target?.missing)message('This item is not available in your signed-in wishlist.');
 }
 
 async function recoverPhotos(items,version){

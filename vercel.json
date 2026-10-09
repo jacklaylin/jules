@@ -41,6 +41,7 @@
     }
   ],
   "functions": {
+    "api/image.js": {"includeFiles":"public/brand/wordmark.svg","maxDuration":30},
     "api/**/*.js": {
       "includeFiles": "VOICE.md",
       "maxDuration": 120

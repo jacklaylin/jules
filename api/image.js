@@ -1,9 +1,11 @@
+import { createPreviewHandler } from '../lib/wishlist-preview-handler.js';
 import { authorize } from '../lib/auth.js';
 import { createStore } from '../lib/store.js';
 import { json, uuid } from '../lib/http.js';
-export function createImageHandler({auth=authorize,storeFactory=createStore,env=process.env}={}) {
+export function createImageHandler({auth=authorize,storeFactory=createStore,env=process.env,previewHandler=createPreviewHandler({env})}={}) {
   return async (req,res) => {
     try {
+      if (new URL(req.url,'https://local.invalid').searchParams.get('preview')==='1') return previewHandler(req,res);
       const access=await auth(req.headers,env);
       if (access!==200) return json(res,access,{error:'Please sign in with the owner account.'});
       if (req.method!=='GET') { res.setHeader('Allow','GET'); return json(res,405,{error:'Method not allowed.'}); }
