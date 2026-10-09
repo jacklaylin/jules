@@ -108,7 +108,7 @@ test('website photos require matching structured product data and trusted asset 
  assert.deepEqual(listingPhotos(make(data),'Transport Windowpane Waxed Jacket'),['https://www.barbour.com/jacket.jpg']);
  assert.deepEqual(listingPhotos(make({...data,name:'Other jacket'}),'Transport Windowpane Waxed Jacket'),[]);
  assert.deepEqual(listingPhotos('<meta property="og:image" content="https://www.barbour.com/category.jpg">','Jacket'),[]);
- await assert.rejects(fetchListingPhotos('https://barbour.com.evil.example/a','Jacket',()=>assert.fail()));
+ await assert.rejects(fetchListingPhotos('https://barbour.com.evil.invalid/a','Jacket',()=>assert.fail()));
  const png=await sharp({create:{width:500,height:700,channels:3,background:'white'}}).png().toBuffer();
  const images=await fetchListingPhotos('https://www.barbour.com/jacket','Transport Windowpane Waxed Jacket',async(url,options)=>{
  assert.equal(options.redirect,url.endsWith('.jpg')?'manual':'error');return url.endsWith('.jpg')?new Response(png,{headers:{'content-type':'image/png'}}):new Response(make(data),{headers:{'content-type':'text/html'}});

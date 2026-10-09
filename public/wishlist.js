@@ -62,6 +62,7 @@ function previewPhoto(entry){
 }
 function links(entries){const box=node('div',null,'links');for(const entry of entries??[]){try{const u=new URL(entry.url);if(u.protocol!=='https:'||u.username||u.password)continue;const a=node('a',null,'link-preview');a.href=u.href;a.target='_blank';a.rel='noopener noreferrer';const copy=node('div',null,'link-copy');copy.append(node('span',entry.retailer||u.hostname,'retailer'),node('strong',entry.name),node('span',(entry.verification_status==='unverified'?'Saved link · price and stock unverified':entry.price?money(entry.price.amount,entry.price.currency)+(entry.price.evidence_level==='indexed'?' · indexed price · sizes unconfirmed':''):entry.verification_status==='indexed'?'Current price and sizes unconfirmed':'Price unavailable')+(['OutOfStock','SoldOut'].includes(entry.availability)?' · Sold out when checked':'')+' ↗','link-action'));if(entry.image_item||entry.preview_image_url)a.append(previewPhoto(entry));else a.append(node('div','No preview','photo'));a.append(copy);box.append(a);}catch{}}return box;}
 async function detail(id){
+ $('detail-content').dataset.group=id;
  const openedAt=performance.now();const version=++detailVersion;message('');$('detail-content').setAttribute('aria-busy','true');const saved=itemCache.get(id);if(saved){const summary=node('div',null,'info');summary.append(node('h2',saved.name),node('p',priceRange(saved.price_ranges),'price-range'),node('p',`Sent ${date(saved.sent_at)}`,'sent-date'));$('detail-content').replaceChildren(photoCarousel(saved),summary);}else $('detail-content').replaceChildren(...detailSkeleton());$('detail').showModal();document.body.classList.add('detail-open');requestAnimationFrame(()=>{if(version===detailVersion)$('detail-content').dataset.summaryMs=(performance.now()-openedAt).toFixed(1);});
  try{const {item}=await api('?group='+encodeURIComponent(id));if(version!==detailVersion||!$('detail').open)return;const info=node('div',null,'info');info.tabIndex=0;info.setAttribute('role','region');info.setAttribute('aria-label','Product details and links');info.append(node('h2',item.name));if(item.sourcing_status==='store_not_found'){info.append(node('p','Product identified · Store not found','sourcing-state'),node('p','I haven’t found a store I can recommend for this item.','sourcing-note'));}info.append(node('p',priceRange(item.price_ranges),'price-range'),node('p',`Sent ${date(item.sent_at)}`,'sent-date'),links(item.links));if(item.sourcing_status==='store_not_found'&&item.identity_sources?.length){info.append(node('h3','Identification sources'));const refs=node('div',null,'identity-sources');for(const reference of item.identity_sources){try{const u=new URL(reference.url);if(u.protocol!=='https:'||u.username||u.password)continue;const a=node('a',reference.name||u.hostname);a.href=u.href;a.target='_blank';a.rel='noopener noreferrer';refs.append(a);}catch{}}info.append(refs);}
  if(item.price_checked_at)info.append(node('p',`Price checked ${date(item.price_checked_at)}. Price and availability may have changed.`,'price-note'));
@@ -76,15 +77,20 @@ async function load(){
 }
 
 async function recoverPhotos(items,version){
- if(!items.some(item=>!item.has_image))return;
+ if(!items.some(item=>!item.has_image||item.details_pending))return;
  try{
   const recovered=await api('',{method:'POST',quiet:true,body:JSON.stringify({action:'recover-photos'})});
   if(version!==generation)return;
   for(const update of recovered.items??[]){
-   const item=itemCache.get(update.id);if(!item||item.has_image||!update.has_image)continue;
+   const item=itemCache.get(update.id);if(!item)continue;
+   const changed=item.has_image!==update.has_image||item.name!==update.name||JSON.stringify(item.price_ranges)!==JSON.stringify(update.price_ranges);
    Object.assign(item,update);
+   if(!changed)continue;
    const card=[...$('grid').children].find(card=>card.dataset.group===item.id);
-   card?.querySelector('.tile .photo')?.replaceWith(photo(`?item=${item.image_item}&image=product`,item.name));
+   card?.querySelector('.tile .photo')?.replaceWith(item.has_image?photo(`?item=${item.image_item}&image=product`,item.name):pendingPhoto(item.photo_status==='retry_pending'));
+   const title=card?.querySelector('.tile strong');if(title)title.textContent=item.name;
+   const price=card?.querySelector('.card-price');if(price)price.textContent=priceRange(item.price_ranges);
+   if($('detail').open&&$('detail-content').dataset.group===item.id)void detail(item.id);
   }
  }catch{/* Saved items stay visible; photo recovery retries on a later visit. */}
 }

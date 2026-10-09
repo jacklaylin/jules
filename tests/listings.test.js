@@ -17,7 +17,7 @@ test('redirects are checked at the destination; category, missing, wrong product
  const category=await verifyListing(url,name,async()=>++calls===1?new Response(null,{status:302,headers:{location:'/us/jackets'}}):html({'@type':'CollectionPage',name:'Jackets'}));assert.equal(category.status,'not_product');assert.equal(calls,2);
  for(const response of [new Response('missing',{status:404}),html({...product,name:'Other Coat'}),html([product,{...product,name:'Recommendation'}]),html([{'@type':'CollectionPage'},product])])assert.notEqual((await verifyListing(url,name,async()=>response)).status,'verified');
  const unsafe=await verifyListing(url,name,async()=>new Response(null,{status:302,headers:{location:'https://127.0.0.1/private'}}));assert.equal(unsafe.status,'invalid_redirect');
- assert.equal((await verifyListing('https://unknown.example/item',name,()=>assert.fail())).status,'unsupported');assert.equal((await verifyListing(url,name,async()=>{throw new Error('blocked');})).status,'check_failed');
+ assert.equal((await verifyListing('https://unknown.invalid/item',name,()=>assert.fail())).status,'unsupported');assert.equal((await verifyListing(url,name,async()=>{throw new Error('blocked');})).status,'check_failed');
 });
 test('missing, ambiguous and malformed retailer prices are checked but never invented',async()=>{
  for(const offers of [{},{price:'1,510',priceCurrency:'USD'},{price:-1,priceCurrency:'USD'},{price:'10',priceCurrency:'usd'},[{price:10,priceCurrency:'USD'},{price:20,priceCurrency:'USD'}]]){

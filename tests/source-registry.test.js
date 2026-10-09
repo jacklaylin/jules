@@ -9,7 +9,7 @@ const page=()=>new Response('<script type="application/ld+json">'+JSON.stringify
 test('starter registry contains 100 brands and 20 retailers with safe explicit domains and no fast fashion or big box entries',()=>{
  assert.equal(BRANDS.length,100);assert.equal(TRUSTED_RETAILERS.length,20);
  for(const scope of ['official','preferred']){assert.ok(sourceDomains(scope).length<=100);for(const domain of sourceDomains(scope)){assert.match(domain,/^[a-z0-9.-]+\.[a-z]+$/);assert.equal(merchantURL('https://'+domain+'/product/test'),'https://'+domain+'/product/test');}}
- for(const domain of ['walmart.com','target.com','zara.com','hm.com','shein.com','temu.com'])assert.equal(merchantURL('https://'+domain+'/item'),null);
+ for(const domain of ['walmart.com','target.com','zara.com','hm.com','shein.com','temu.com']){assert.ok(!sourceDomains('official').includes(domain));assert.ok(!sourceDomains('preferred').includes(domain));assert.equal(retailerFor('https://'+domain+'/item').tier,'unreviewed');}
  assert.equal(retailerFor('https://kith.com/products/nike','Nike').tier,'preferred');assert.equal(retailerFor('https://kith.com/products/kith','Kith').tier,'official');
  assert.equal(retailerFor('https://gucci.com.evil.example/item','Gucci').tier,'unreviewed');assert.equal(retailerFor('https://gucci.com/item','Not Gucci').tier,'unreviewed');
  assert.equal(retailerFor('https://ralphlauren.com/item','Polo Ralph Lauren').tier,'official');

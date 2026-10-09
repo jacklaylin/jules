@@ -21,13 +21,14 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
         const input = await readJson(req, 16384);
         if(input.action==='recover-photos'){
           const access=await auth(req.headers,env,store,fetcher);if(access.status!==200)return json(res,access.status,{error:'Please sign in with your invited email.'});
-          const rows=await repairWishlistPhotos(await store.wishlistEntries(access.conversation),{conversation:access.conversation,store,photos:(url,name)=>photos(url,name,fetcher)});
+          const rows=await repairWishlistPhotos(await store.wishlistEntries(access.conversation),{conversation:access.conversation,store,verify:(url,name)=>verify(url,name,fetcher,undefined,env),photos:(url,name)=>photos(url,name,fetcher),assets:(urls,url)=>fetchProductAssets(urls,url,fetcher)});
           return json(res,200,{items:groupWishlist(rows).map(({links,entries,...group})=>group)});
         }
         if(input.action==='enrich'){
           const access=await auth(req.headers,env,store,fetcher);if(access.status!==200)return json(res,access.status,{error:'Please sign in with your invited email.'});
           if(!uuid(input.item))return json(res,400,{error:'Invalid item.'});
-          return json(res,200,await enrichWishlistItem(store,access.conversation,input.item,{verify:(url,name)=>verify(url,name,fetcher,undefined,env),photos:(url,name)=>photos(url,name,fetcher),assets:(urls,url)=>fetchProductAssets(urls,url,fetcher)}));
+          const {update,...result}=await enrichWishlistItem(store,access.conversation,input.item,{verify:(url,name)=>verify(url,name,fetcher,undefined,env),photos:(url,name)=>photos(url,name,fetcher),assets:(urls,url)=>fetchProductAssets(urls,url,fetcher)});
+          return json(res,200,result);
         }
         if (['remove','restore'].includes(input.action)) {
           const access=await auth(req.headers,env,store,fetcher);

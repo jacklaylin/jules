@@ -22,7 +22,7 @@ test('collection recovery follows matching same-origin product links and rejects
  const html='<a href="/products/scout-deck-shoe-scratched-black">Scout Deck Shoe Scratched Black</a><a href="https://mfpen.com.evil.example/products/scout-deck">Scout Deck</a><a href="/collections/scout-deck">Scout Deck</a><a href="/products/another-shirt">Shirt</a>';
  const found=await collectionProductLinks(page,'mfpen Scout Deck Shoe Scratched Black',async()=>new Response(html,{headers:{'content-type':'text/html'}}));
  assert.deepEqual(found,[product]);
- assert.deepEqual(await collectionProductLinks('https://unknown.example/collections/all','Scout Deck',()=>assert.fail()),[]);
+ assert.deepEqual(await collectionProductLinks('https://unknown.invalid/collections/all','Scout Deck',()=>assert.fail()),[]);
 });
 test('known product identity scopes recovery to its registered official store, not a guessed domain',async()=>{
  let query;
