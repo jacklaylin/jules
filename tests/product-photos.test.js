@@ -6,6 +6,17 @@ import { sendGreeting } from '../lib/photon.js';
 import { receiveInInbox } from '../lib/inbox.js';
 
 const photoURL = 'https://encrypted-tbn0.gstatic.com/images?q=test';
+test('SSENSE photo sourcing uses observed Open Graph images instead of unresolved CDN templates',async()=>{
+  const url='https://www.ssense.com/en-us/men/product/satisfy/gray-mothtech-waffle-long-t-shirt/19506071';
+  const image='https://img.ssensemedia.com/images/w_640/262733M213012_1/satisfy-gray-mothtech-waffle-long-t-shirt.jpg';
+  const product={'@type':'Product',name:'Gray MothTech Waffle Long T-shirt',brand:{name:'Satisfy'},url,image:image.replace('w_640','__IMAGE_PARAMS__')};
+  const html='<script type="application/ld+json">'+JSON.stringify(product)+'</script><meta property="og:image" content="'+image+'">';
+  assert.deepEqual(listingPhotos(html,'Satisfy Gray MothTech Waffle Long T-shirt',url),[image]);
+  assert.deepEqual(listingPhotos(html,'Leather Running Shorts',url),[]);
+  const bytes=await sharp({create:{width:8,height:8,channels:3,background:'white'}}).jpeg().toBuffer();
+  const images=await fetchListingPhotos(url,product.name,async target=>target===url?new Response(html,{headers:{'content-type':'text/html'}}):new Response(bytes,{headers:{'content-type':'image/jpeg'}}));
+  assert.equal(images.length,1);assert.equal(images[0].asset_url,image);assert.equal(images[0].source_url,url);
+});
 test('product photos allow only compared Google thumbnails and reject unsafe, oversized, and invalid downloads', async () => {
   for (const url of ['http://encrypted-tbn0.gstatic.com/a', 'https://encrypted-tbn0.gstatic.com.evil.test/a', 'https://user@encrypted-tbn0.gstatic.com/a', 'https://127.0.0.1/a']) {
     assert.equal(productPhotoURL(url), null);

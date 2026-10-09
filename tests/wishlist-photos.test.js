@@ -13,12 +13,12 @@ test('recovered items fetch and persist their photos; existing images are preser
  const rows=await repairWishlistPhotos([{item_id:'a'},{item_id:'b',has_image:'image/jpeg'}],{conversation:'owned',store,now,photos:async(url,name)=>{calls++;assert.equal(url,product.url);assert.equal(name,product.name);return [photo];}});
  assert.equal(calls,1);assert.equal(rows[0].has_image,'image/jpeg');assert.equal(store.items.get('a').product.image,photo);assert.equal(store.writes[0].update.photo_status,'ready');
 });
-test('download failure keeps the item and retries after a day, without repeated requests on refresh',async()=>{
+test('download failure keeps the item and retries after five minutes, without repeated requests on refresh',async()=>{
  const store=fixture();let calls=0;const photos=async()=>{calls++;throw Error('retailer unavailable');};
  let rows=await repairWishlistPhotos([{item_id:'a'}],{conversation:'owned',store,now,photos});
  assert.equal(rows[0].photo_status,'retry_pending');assert.equal(store.items.get('a').product.url,product.url);
  rows=await repairWishlistPhotos(rows,{conversation:'owned',store,now:now+1000,photos});assert.equal(calls,1);
- await repairWishlistPhotos(rows,{conversation:'owned',store,now:now+86400001,photos:async()=>[photo]});assert.equal(store.items.get('a').product.image,photo);
+ await repairWishlistPhotos(rows,{conversation:'owned',store,now:now+300001,photos:async()=>[photo]});assert.equal(store.items.get('a').product.image,photo);
 });
 test('a stored item image repairs missing encounter metadata without another retailer download',async()=>{
  const store=fixture();store.items.get('a').product.image=photo;
