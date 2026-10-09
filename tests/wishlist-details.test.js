@@ -28,3 +28,12 @@ test('a new supplied-link save collects the actual name, price and product photo
  const [item]=await wishlistProducts({identification_policy:'text_wishlist',user_confirmed:true,products:[{url,name:'Item from mrporter.com',reference_provenance:'user_link'}]},'',[],{});
  assert.equal(item.name,'Cotton Trousers');assert.equal(item.brand,'Dries Van Noten');assert.equal(item.links[0].price_snapshot.amount,368);assert.equal(item.links[0].verification_status,'verified');assert.ok(item.image.data);assert.equal(item.photo_status,'ready');
 });
+
+test('persisted detail repairs update text-link encounters using reply identity even without a source image',async()=>{
+ const {createStore}=await import('../lib/store.js');const calls=[];
+ const store=createStore({SUPABASE_URL:'https://fixture.invalid',SUPABASE_SERVICE_ROLE_KEY:'fixture'},async(url,options)=>{
+ calls.push({url,options});return new Response(JSON.stringify(options.method==='GET'?[{product:{url,name:'Old'},wishlist_encounters:[{reply_id:'reply',source_image_id:null,product:{url,name:'Old'}}]}]:null));});
+ await store.correctWishlistProduct('owner','item',{name:'Trousers'});
+ const patch=calls.find(c=>c.url.includes('wishlist_encounters?'));
+ assert.ok(patch.url.includes('reply_id=eq.reply'));assert.ok(!patch.url.includes('source_image_id=eq.null'));assert.equal(JSON.parse(patch.options.body).product.name,'Trousers');
+});
