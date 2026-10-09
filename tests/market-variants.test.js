@@ -22,6 +22,13 @@ test('retailer option metadata supplies colors and bound photos without product-
  const options=shopifyColorOptions('<script>context={product: '+JSON.stringify(data)+'};</script>',url,product);
  assert.deepEqual(options.map(c=>c.color),['Ocean','Clay']);assert.equal(options[0].image,'https://shop.example.org/ocean.jpg');assert.ok(options[1].url.endsWith('variant=3'));
 });
+test('sparse retailer HTML recovers exact colors from the public product endpoint, including non-default sizes',async()=>{
+ const group={'@type':'ProductGroup',name:'Shirt',hasVariant:[1,2].map(id=>({'@type':'Product',name:'Shirt - Ocean / '+(id===1?'S':'M'),image:'https://shop.example.org/ocean.jpg',offers:{url:url+'?variant='+id,price:48,priceCurrency:'USD'}}))};
+ const data={title:'Shirt',options:[{name:'Color',position:1},{name:'Size',position:2}],variants:[1,2].map(id=>({id,options:['Ocean',id===1?'S':'M'],featured_image:{src:'https://shop.example.org/ocean.jpg'}}))};
+ const requests=[];
+ const check=await verifyListing(url+'?variant=2',null,async u=>{requests.push(u);const api=new URL(u).pathname.endsWith('.js');return new Response(api?JSON.stringify(data):html(group),{headers:{'content-type':api?'application/json':'text/html'}});},undefined,{});
+ assert.equal(check.color,'Ocean');assert.equal(check.color_options.length,1);assert.ok(requests.some(u=>u.includes('/shirt.js')));assert.equal(check.product_images[0],'https://shop.example.org/ocean.jpg');
+});
 test('model-selected color persists through interest and subsequent scoped save without assuming a size',async()=>{
  const option={name:'Shirt',url,reference_provenance:'user_link',listing_check:{status:'verified',product_name:'Shirt',color_options:[{color:'Ocean',url:url+'?variant=1'}]}};
  const args={decision:'interest',option_indices:[0],color_choices:[{option_index:0,color_index:0}],consent:'none'};
@@ -67,7 +74,7 @@ test('failed older repairs enter a persisted cooldown so later items can be reco
  const rows=()=>[...items].map(([id,p])=>({item_id:id,has_image:true,...p}));
  const verify=async u=>{attempts.push(u);if(!u.endsWith('third'))throw Error('Interpretation unavailable');return {status:'verified',url:u,product_name:'Shirt'};};
  await repairWishlistPhotos(rows(),{conversation:'owner',store,verify,now});await repairWishlistPhotos(rows(),{conversation:'owner',store,verify,now:now+1000});
- assert.equal(attempts.length,3);assert.equal(items.get('third').details_revision,3);assert.equal(items.get('first').photo_attempted_revision,3);
+ assert.equal(attempts.length,3);assert.equal(items.get('third').details_revision,4);assert.equal(items.get('first').photo_attempted_revision,4);
 });
 test('database photo repair writes the cooldown revision to both item and encounter snapshots',async()=>{
  const writes=[];
