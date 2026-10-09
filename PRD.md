@@ -707,3 +707,7 @@ The current integration uses the existing SerpAPI account for Google organic sea
 - **Field-level refresh and monitoring:** Refresh price and size-stock evidence independently from stable names and images. Enable a watch only when its required evidence and configuration exist; keep waiting, failed and active states distinct. A stale/indexed price alone must not fire a price-drop message.
 
 These integrations require explicit assignment and, where applicable, external account/access setup. Jules must continue to provide supported partial results while those sources are unavailable; no human sourcing fallback is planned.
+
+### October 9 iteration: supplied links and storefront context
+
+Read supplied product links before conversational interpretation so Jules can use the available identity, images and price without treating missing optional fields as a request for repeated save permission. Saving remains independent of price/stock verification. For the founder's USD request, market-neutral Satisfy links use the retailer's US storefront context throughout retrieval and monitoring; preserve explicitly supplied markets and genuine sourced currencies, and never invent a conversion. Require an explicit supported action or natural conversation outcome for search-enabled turns; accepted search offers and brand clues should execute sourcing in the same turn.

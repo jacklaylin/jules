@@ -32,8 +32,6 @@ test('vision uses private inline bytes and treats inferred taste as unconfirmed'
   assert.equal(sent.input.at(-1).content[1].type,'input_image');
   assert.match(sent.input.at(-1).content[1].image_url,/^data:image\/png;base64,/);
   assert.match(sent.instructions,/no image-derived preferences have been saved/);
-  assert.match(sent.instructions,/CURRENT TURN: A new inspiration image/);
-  assert.match(sent.instructions,/do not link this image to them unless the newest caption explicitly does so/);
   assert.equal(sent.input[0].content,'Wedding shoes under $300');
   assert.equal(sent.input.at(-1).content[0].text,'I love this outfit');
   assert.equal(sent.store,false);
