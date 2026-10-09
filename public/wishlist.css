@@ -107,3 +107,10 @@ button.tile:active{transform:translateY(-1px)}}
 @media(max-width:800px){#grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 14px}.wishlist-page .heading{display:block;margin-bottom:28px}.wishlist-page .heading h1{font-size:clamp(50px,16vw,68px);margin-bottom:12px}.wishlist-heading-mobile{display:inline}.wishlist-heading-desktop{display:none}.wishlist-page .heading h1{text-transform:none}.tile strong{font-size:14px;margin-inline:4px}.card-price{font-size:10px;margin-inline:4px}.tile{padding:8px 8px 20px}.tile .photo{aspect-ratio:3/4}.alert-toggle{top:18px;right:18px}.photo-pending .orb{--s:34px}.photo-pending .photo-status{font-size:9px}.wishlist-page main{padding-top:30px}}
 
 @media(max-width:800px){.remove-item{top:18px;left:18px}}
+
+/* Compose existing shared inputs and buttons without redefining controls. */
+.wishlist-filters{display:grid;grid-template-columns:minmax(200px,2fr) minmax(140px,1fr) minmax(140px,1fr) auto;align-items:end;gap:16px;margin-bottom:32px}
+.wishlist-filters>label{min-width:0}
+.wishlist-filters>button{margin-bottom:2px}
+#no-matches{padding:32px 0;color:var(--text-2)}
+@media(max-width:800px){.wishlist-filters{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 12px}.wishlist-search{grid-column:1/-1}.wishlist-filters>button{justify-self:start;grid-column:1/-1}}
