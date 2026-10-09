@@ -1,3 +1,4 @@
+import {drawWordmark} from './brand-mark.js';
 import {cardTheme,drawSymbol} from './style-visuals.js';
 // The web card and flat image use the same approved copy. No external image URLs.
 export function cardText(card,tone) {return card.correction||card.variants[tone]||card.variants.balanced;}
@@ -36,15 +37,15 @@ export function renderShareCard({card,tone,crops=[],ingredients=[],signupURL,can
   canvas.width=1080;canvas.height=1920;
   const ctx=canvas.getContext('2d');
   if(!ctx)throw new Error('Image export is not supported in this browser.');
-  const theme=cardTheme(card),bg=ctx.createLinearGradient(0,0,1080,1920);bg.addColorStop(0,theme.a);bg.addColorStop(1,theme.b);ctx.fillStyle=bg;ctx.fillRect(0,0,1080,1920);
-  ctx.fillStyle='#161616';ctx.textBaseline='top';
-  ctx.font='24px Arial';ctx.fillText(card.type==='starter'?'MY STARTER PACK / JULES':'MY STYLE / JULES',84,105);
+  const theme=cardTheme(card);ctx.fillStyle=theme.a;ctx.fillRect(0,0,1080,1920);
+  ctx.fillStyle='#17120F';ctx.textBaseline='top';
+  ctx.font='500 24px "JetBrains Mono"';ctx.fillText(card.type==='starter'?'MY STARTER PACK / JULES':'MY STYLE / JULES',84,105);
   let titleSize=90,titleLines;
-  do{ctx.font=`${titleSize}px "${theme.font}"`;titleLines=wrapText(ctx,card.title,912);titleSize-=4;}while(titleLines.length>3&&titleSize>48);
+  do{ctx.font=`${theme.weight} ${titleSize}px "${theme.font}"`;titleLines=wrapText(ctx,card.title,912);titleSize-=4;}while(titleLines.length>3&&titleSize>48);
   let y=drawLines(ctx,titleLines,84,210,(titleSize+4)*1.12)+52;
   const copy=cardText(card,tone);
   let bodySize=48,bodyLines,available=1730-y-(crops.length||ingredients.length?820:0);
-  do{ctx.font=`${bodySize}px Arial`;bodyLines=wrapText(ctx,copy,912);if(bodyLines.length*bodySize*1.4<=available)break;bodySize-=2;}while(bodySize>26);
+  do{ctx.font=`${bodySize}px "Bricolage Grotesque"`;bodyLines=wrapText(ctx,copy,912);if(bodyLines.length*bodySize*1.4<=available)break;bodySize-=2;}while(bodySize>26);
   if(bodyLines.length*bodySize*1.4>available)throw new Error('This card is too long to export. Shorten your correction first.');
   y=drawLines(ctx,bodyLines,84,y,bodySize*1.4)+48;
   const items=[...crops.slice(0,6).map(c=>({...c,kind:'photo'})),...ingredients.filter(i=>i.kind!=='brand'||i.image)].slice(0,6);
@@ -54,20 +55,20 @@ export function renderShareCard({card,tone,crops=[],ingredients=[],signupURL,can
       ctx.save();ctx.translate(x,cy);ctx.rotate(angle);
       if(item.image){ctx.shadowColor='#0003';ctx.shadowBlur=20;ctx.shadowOffsetY=12;ctx.drawImage(item.image,-width/2,-height/2,width,height);}
       else if(item.kind==='color'){ctx.fillStyle=item.color||theme.b;ctx.fillRect(-width/2,-height/2,width,height);}
-      else if(item.icon==='none'){ctx.fillStyle='#161616';ctx.font=`${Math.min(70,width/item.label.length*1.6)}px Arial`;drawLines(ctx,wrapText(ctx,item.label,width),-width/2,-height/4,60);}
+      else if(item.icon==='none'){ctx.fillStyle='#17120F';ctx.font=`${Math.min(70,width/item.label.length*1.6)}px "Bricolage Grotesque"`;drawLines(ctx,wrapText(ctx,item.label,width),-width/2,-height/4,60);}
       else drawSymbol(ctx,item.icon,-width/2,-height/2,width,height);
       ctx.restore();
     }
     // Labels follow the actual asset edge and remain readable above overlaps.
     for(const {item,x,y:cy,width,height,angle} of layout){
-      ctx.save();ctx.translate(x,cy);ctx.rotate(angle);ctx.fillStyle='#161616';ctx.font='22px Arial';
+      ctx.save();ctx.translate(x,cy);ctx.rotate(angle);ctx.fillStyle='#17120F';ctx.font='500 22px "JetBrains Mono"';
       const lines=wrapText(ctx,item.label,Math.max(width,150)).slice(0,2),labelWidth=Math.max(...lines.map(line=>ctx.measureText(line).width));
-      ctx.fillStyle='#fffC';ctx.fillRect(-width/2-5,height/2+8,labelWidth+10,lines.length*25+4);ctx.fillStyle='#161616';drawLines(ctx,lines,-width/2,height/2+12,25);ctx.restore();
+      ctx.fillStyle='#fffC';ctx.fillRect(-width/2-5,height/2+8,labelWidth+10,lines.length*25+4);ctx.fillStyle='#17120F';drawLines(ctx,lines,-width/2,height/2+12,25);ctx.restore();
     }
   }
-  ctx.strokeStyle='#eee';ctx.beginPath();ctx.moveTo(84,1760);ctx.lineTo(996,1760);ctx.stroke();
-  const gradient=ctx.createLinearGradient(84,1800,270,1872);gradient.addColorStop(0,'#ad00a6');gradient.addColorStop(1,'#007c85');ctx.fillStyle=gradient;ctx.font='72px Mongule, Arial';ctx.fillText('jules',84,1800);
-  ctx.fillStyle='#161616';ctx.font='22px Arial';ctx.fillText('Want your own style read?',330,1808);
+  ctx.strokeStyle='#E8E4E0';ctx.beginPath();ctx.moveTo(84,1760);ctx.lineTo(996,1760);ctx.stroke();
+  drawWordmark(ctx,84,1790,88);
+  ctx.fillStyle='#17120F';ctx.font='500 22px "JetBrains Mono"';ctx.fillText('Want your own style read?',330,1808);
   if(signupURL){const u=new URL(signupURL);ctx.fillText(u.host+u.pathname,330,1840);}
   return canvas;
 }

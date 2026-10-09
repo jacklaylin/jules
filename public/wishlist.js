@@ -1,5 +1,5 @@
 import {trackedFetch as fetch} from './activity.js';
-import {mountHeader,enableTestChat} from './design-system.js';
+import {mountHeader,enableTestChat,updateWishlistCount} from './design-system.js';
 mountHeader('wishlist');
 import {createSession} from './wishlist-session.js';
 const $ = id => document.getElementById(id);
@@ -11,7 +11,7 @@ if(fragment.has('access_token')){token=fragment.get('access_token');session.save
 if(location.hash)history.replaceState(null,'','/wishlist');
 const message=text=>{$('notice').textContent=text;};
 function clear(){generation++;detailVersion++;urls.forEach(URL.revokeObjectURL);urls.clear();imageCache.clear();$('grid').replaceChildren();$('detail-content').replaceChildren();$('detail').close();$('alert-picker').close();alertSelection=null;}
-function login(){clear();token=null;enableTestChat(null);session.clear();sessionStorage.removeItem('jules_wishlist_token');$('login').hidden=false;$('collection').hidden=true;$('logout').hidden=true;}
+function login(){updateWishlistCount(null);clear();token=null;enableTestChat(null);session.clear();sessionStorage.removeItem('jules_wishlist_token');$('login').hidden=false;$('collection').hidden=true;$('logout').hidden=true;}
 async function authorizedFetch(query='',options={}){
  try{token=await session.token()||token;}catch(e){if(!session.read())login();throw e;}
  const send=()=>fetch('/api/wishlist'+query,{...options,headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{})},cache:'no-store'});
@@ -25,6 +25,7 @@ async function api(query='', options={}){
 }
 function node(tag,text,cls){const el=document.createElement(tag);if(text)el.textContent=text;if(cls)el.className=cls;return el;}
 const date=value=>new Date(value).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
+function pendingPhoto(pending){const frame=node('div',null,'photo photo-pending');if(pending){const orb=node('span',null,'orb');orb.setAttribute('aria-hidden','true');frame.append(orb);}frame.append(node('span',pending?'Photo pending':'Image unavailable','photo-status'));return frame;}
 const money=(value,currency)=>new Intl.NumberFormat(undefined,{style:'currency',currency,maximumFractionDigits:0}).format(value);
 const priceRange=ranges=>ranges?.length?ranges.map(r=>(r.min===r.max?money(r.min,r.currency):`${money(r.min,r.currency)}–${money(r.max,r.currency)}`)+(r.indexed?' · indexed price':'')).join(' · '):'Price unavailable';
 function skeleton(cls=''){const el=node('div',null,'skeleton '+cls);el.setAttribute('aria-hidden','true');return el;}
@@ -40,7 +41,7 @@ function photoCarousel(item){
  if(item.has_image)slides.push({query:`?item=${item.image_item}&image=product`,label:item.image_kind==='outfit_crop'?'Detail from your photo':'Product photo'});
  for(let i=0;i<Math.min(Number(item.photo_count)||0,2);i++)slides.push({query:`?item=${item.image_item}&image=reference&index=${i}`,label:'Product reference photo'});
  if(item.source_image_id)slides.push({query:`?item=${item.image_item}&source=${item.source_image_id}`,label:'Your original photo'});
- if(!slides.length)return node('div',item.photo_status==='retry_pending'?'Photo pending':'Image unavailable','photo');
+ if(!slides.length)return pendingPhoto(item.photo_status==='retry_pending');
  const gallery=node('section',null,'photo-carousel');gallery.setAttribute('aria-label','Item photos');
  const view=node('div',null,'carousel-view'),controls=node('div',null,'carousel-controls'),caption=node('span',null,'carousel-caption');caption.setAttribute('aria-live','polite');
  let index=0;
@@ -61,30 +62,27 @@ function links(entries){const box=node('div',null,'links');for(const entry of en
 async function detail(id){
  const version=++detailVersion;message('');$('detail-content').setAttribute('aria-busy','true');$('detail-content').replaceChildren(...detailSkeleton());$('detail').showModal();document.body.classList.add('detail-open');
  try{const {item}=await api('?group='+encodeURIComponent(id));if(version!==detailVersion||!$('detail').open)return;const info=node('div',null,'info');info.tabIndex=0;info.setAttribute('role','region');info.setAttribute('aria-label','Product details and links');info.append(node('h2',item.name));if(item.sourcing_status==='store_not_found'){info.append(node('p','Product identified · Store not found','sourcing-state'),node('p','I haven’t found a store I can recommend for this item.','sourcing-note'));}info.append(node('p',priceRange(item.price_ranges),'price-range'),node('p',`Sent ${date(item.sent_at)}`,'sent-date'),links(item.links));if(item.sourcing_status==='store_not_found'&&item.identity_sources?.length){info.append(node('h3','Identification sources'));const refs=node('div',null,'identity-sources');for(const reference of item.identity_sources){try{const u=new URL(reference.url);if(u.protocol!=='https:'||u.username||u.password)continue;const a=node('a',reference.name||u.hostname);a.href=u.href;a.target='_blank';a.rel='noopener noreferrer';refs.append(a);}catch{}}info.append(refs);}
- const refresh=node('button','Refresh product details');refresh.type='button';refresh.onclick=async()=>{refresh.disabled=true;refresh.textContent='Checking retailer…';try{const result=await api('',{method:'POST',body:JSON.stringify({action:'enrich',item:item.image_item})});if(result.status==='retry_pending'){refresh.textContent='Retailer check did not finish. Try again';refresh.disabled=false;return;}imageCache.clear();$('detail').close();await load();await detail(id);}catch(error){refresh.textContent=error.message;refresh.disabled=false;}};info.append(refresh);
+ const refresh=node('button','Refresh product details');refresh.type='button';refresh.onclick=async()=>{refresh.disabled=true;refresh.textContent='Checking retailer…';try{const result=await api('',{method:'POST',body:JSON.stringify({action:'enrich',item:item.image_item})});if(result.status==='retry_pending'){refresh.textContent='Retailer check did not finish. Try again';refresh.disabled=false;return;}imageCache.clear();$('detail').close();await load();await detail(id);}catch(error){refresh.textContent=error.message;refresh.disabled=false;}};info.append(refresh,removeButton(item,[...$('grid').children].find(card=>card.dataset.group===id)));
  $('detail-content').setAttribute('aria-busy','false');$('detail-content').replaceChildren(photoCarousel(item),info);
  }catch(e){if(version===detailVersion){$('detail-content').setAttribute('aria-busy','false');$('detail-content').replaceChildren(node('p',e.message));}}
 }
 async function load(){
  clear();$('login').hidden=true;$('collection').hidden=false;$('logout').hidden=false;$('empty').hidden=true;$('count').textContent='';$('grid').setAttribute('aria-busy','true');for(let i=0;i<4;i++){const tile=node('div',null,'tile');tile.setAttribute('aria-hidden','true');tile.append(skeleton('photo'),skeleton('skeleton-card-title'),skeleton('skeleton-price'));$('grid').append(tile);}
  let items;try{({items}=await api());void enableTestChat(token);}catch(e){$('grid').replaceChildren();throw e;}finally{$('grid').setAttribute('aria-busy','false');}
- $('grid').replaceChildren();$('login').hidden=true;$('collection').hidden=false;$('logout').hidden=false;$('empty').hidden=items.length>0;$('count').textContent=items.length+' '+(items.length===1?'ITEM':'ITEMS');
- for(const item of items){const card=node('div',null,'product-card');const tile=node('button',null,'tile');tile.type='button';tile.append(item.has_image?photo(`?item=${item.image_item}&image=product`,item.name):node('div',item.photo_status==='retry_pending'?'Photo pending':'Image unavailable','photo'),node('strong',item.name),node('span',priceRange(item.price_ranges),'card-price'));if(item.sourcing_status==='store_not_found')tile.append(node('span','Product identified · Store not found','card-state'));tile.onclick=()=>detail(item.id);card.append(tile);if(item.alerts_enabled)card.append(alertToggle(item));card.append(removeButton(item,card));$('grid').append(card);}message('');
+ $('grid').replaceChildren();$('login').hidden=true;$('collection').hidden=false;$('logout').hidden=false;$('empty').hidden=items.length>0;$('count').textContent=items.length+' '+(items.length===1?'ITEM':'ITEMS');updateWishlistCount(items.length);
+ for(const item of items){const card=node('div',null,'product-card');card.dataset.group=item.id;const tile=node('button',null,'tile');tile.type='button';tile.append(item.has_image?photo(`?item=${item.image_item}&image=product`,item.name):pendingPhoto(item.photo_status==='retry_pending'),node('strong',item.name),node('span',priceRange(item.price_ranges),'card-price'));if(item.sourcing_status==='store_not_found')tile.append(node('span','Product identified · Store not found','card-state'));tile.onclick=()=>detail(item.id);card.append(tile);if(item.alerts_enabled)card.append(alertToggle(item));$('grid').append(card);}message('');
 }
 let alertSelection=null,toastTimer;
 const alertPost=input=>api('',{method:'POST',body:JSON.stringify(input)});
 function toast(text,undo){clearTimeout(toastTimer);$('toast').replaceChildren(node('span',text));if(undo){const button=node('button','Undo','undo-remove');button.type='button';button.onclick=async()=>{button.disabled=true;try{await undo();$('toast').hidden=true;}catch(e){message(e.message);button.disabled=false;}};$('toast').append(button);}$('toast').hidden=false;if(!undo)toastTimer=setTimeout(()=>{$('toast').hidden=true;},6000);}
 function removeButton(item,card){
- const button=node('button',null,'remove-item'+(item.alerts_enabled?' beside-bell':''));button.type='button';button.setAttribute('aria-label',`Remove ${item.name} from wishlist`);button.title='Remove from wishlist';
- button.innerHTML='<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 10v7M14 10v7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
- button.onclick=async()=>{button.disabled=true;try{await alertPost({action:'remove',group:item.id});card.remove();const count=$('grid').children.length;$('count').textContent=count+' '+(count===1?'ITEM':'ITEMS');$('empty').hidden=count>0;toast(item.price_alert?.active?'Removed. Price alert turned off.':'Removed from your wishlist.',async()=>{await alertPost({action:'restore',group:item.id});await load();});const next=$('grid').querySelector('.tile');if(next)next.focus();}catch(e){message(e.message);button.disabled=false;}};
+ const button=node('button','Remove from wishlist','remove-item');button.type='button';button.setAttribute('aria-label',`Remove ${item.name} from wishlist`);button.title='Remove from wishlist';
+ button.onclick=async()=>{button.disabled=true;try{await alertPost({action:'remove',group:item.id});card?.remove();$('detail').close();const count=$('grid').children.length;$('count').textContent=count+' '+(count===1?'ITEM':'ITEMS');updateWishlistCount(count);$('empty').hidden=count>0;toast(item.price_alert?.active?'Removed. Price alert turned off.':'Removed from your wishlist.',async()=>{await alertPost({action:'restore',group:item.id});await load();});const next=$('grid').querySelector('.tile');if(next)next.focus();}catch(e){message(e.message);button.disabled=false;}};
  return button;
 }
 function alertToggle(item){
  const button=node('button',null,'alert-toggle');button.type='button';
- const paint=`bell-${crypto.randomUUID()}`;
- button.style.setProperty('--bell-paint',`url(#${paint})`);
- button.innerHTML=`<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><defs><linearGradient id="${paint}" x1="0" y1="0" x2="1" y2="1"><stop class="bell-start" offset="0"/><stop class="bell-end" offset="1"/></linearGradient></defs><path class="bell-shape" d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path class="bell-clapper" d="M10 21h4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><span class="alert-on" aria-hidden="true">ON</span>`;
+ button.innerHTML=`<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path class="bell-shape" d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path class="bell-clapper" d="M10 21h4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><span class="alert-on" aria-hidden="true">ON</span>`;
  const update=()=>{const active=Boolean(item.price_alert?.active);button.setAttribute('aria-pressed',String(active));button.setAttribute('aria-label',`${active?'Turn off':'Set up'} price alert for ${item.name}`);button.title=active?`Price alert on · ${item.price_alert.size}`:'Set up price alert';};update();
  button.onclick=async()=>{
    button.disabled=true;

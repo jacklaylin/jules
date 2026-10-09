@@ -118,7 +118,7 @@ function renderCards() {
  renderPreferences(report);
  report.cards.filter(card=>draft||card.accepted&&!card.hidden).forEach((card,index)=>{
   const article=node('article',null,'style-card');article.dataset.type=card.type;article.dataset.id=card.id;
-  const theme=cardTheme(card);article.style.setProperty('--story-a',theme.a);article.style.setProperty('--story-b',theme.b);article.style.setProperty('--story-font',`"${theme.font}"`);
+  const theme=cardTheme(card);article.style.setProperty('--story-a',theme.a);article.style.setProperty('--story-b',theme.b);article.style.setProperty('--story-font',`"${theme.font}"`);article.style.setProperty('--story-weight',theme.weight);
   const copy=node('div',null,'story-copy');copy.append(node('p',`${String(index+1).padStart(2,'0')} / ${card.type==='starter'?'YOUR STARTER PACK':card.private?'SHOPPING HISTORY · PRIVATE':'YOUR STYLE'}`,'card-number'),node('h3',card.title),node('p',cardText(card,state.data.tone),'card-copy'));article.append(copy);
   if(!draft||card.type==='starter'){const visual=collage(card);article.dataset.visuals=visual.children.length?'true':'false';article.append(visual);}
   if(draft){
@@ -127,7 +127,7 @@ function renderCards() {
    for(const [value,label] of [['yes','That’s me'],['partly','Partly'],['no','Not me']]){const l=node('label'),r=node('input');r.type='radio';r.name='review-'+card.id;r.value=value;l.append(r,document.createTextNode(label));set.append(l);}
    const label=node('label','Your version, if I missed something'),correction=node('textarea');correction.maxLength=420;correction.rows=2;correction.dataset.correction='true';correction.placeholder='This replaces the card copy in every tone.';label.append(correction);review.append(set,label);article.append(review);
   }else{
-   const actions=node('div',null,'card-actions');actions.append(button('Read & evidence',()=>openEvidence(card)),button('Share ↗',()=>openExport(card)),button('Hide',()=>work(async()=>{state=await api({action:'hide',card:card.id,hidden:true});renderCards();})));article.append(actions);
+   const actions=node('div',null,'card-actions');actions.append(button('Read & evidence',()=>openEvidence(card)),Object.assign(button('Share ↗',()=>openExport(card)),{className:'share-action'}),button('Hide',()=>work(async()=>{state=await api({action:'hide',card:card.id,hidden:true});renderCards();})));article.append(actions);
   }
   $('cards').append(article);
  });
@@ -234,7 +234,7 @@ async function updateExport() {
       const img=new Image();img.src=await blobURL(`?crop=${c.index}&report=${exporting.report}`);await img.decode();images.push({image:img,label:c.label});
     }
     if(v!==exportVersion||!exporting)return;
-    await Promise.all(HEADER_FONTS.map(font=>document.fonts.load(`48px "${font}"`)));await document.fonts.ready;
+    await Promise.all(HEADER_FONTS.map(font=>document.fonts.load(`${font==='Bricolage Grotesque'?800:font==='JetBrains Mono'?500:400} 48px "${font}"`)));await document.fonts.ready;
     const ingredients=[];
     for(const item of cardVisuals(state.data.report,exporting.card).ingredients){
       if(item.kind==='brand'){const asset=brandAssetFor(item.label);if(!asset)continue;try{const image=new Image();image.src=asset.src;await image.decode();ingredients.push({...item,image});}catch{/* Omit unavailable logos; never replace them with text. */}}

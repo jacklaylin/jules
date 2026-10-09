@@ -1,0 +1,143 @@
+/* ==========================================================================
+   JULES — design tokens, components, keyframes
+   Source of truth for CSS. See DESIGN_SYSTEM.md for rules, layouts, timelines.
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  /* color */
+  --ink: #17120F;          /* text, outlines, dark surfaces */
+  --white: #FFFFFF;        /* THE ground. Never tint it. */
+  --fog: #F3F1EE;          /* image placeholders, quiet surfaces */
+  --line: #E8E4E0;         /* hairlines on white */
+  --text-2: #6B625B;       /* secondary text (5.9:1 on white) */
+  --butter: #FFC93C;       /* primary action, tags */
+  --tangerine: #FF7A2F;
+  --bubblegum: #FF8FC7;
+  --grape: #6C3BFF;        /* secondary action (white text, 5.7:1) */
+  --aqua: #0A6BF0;         /* iMessage + loader ONLY (white text, 4.8:1) */
+  --imsg-gray: #E9E9EB;
+
+  /* type */
+  --font-sans: "Bricolage Grotesque", system-ui, sans-serif;
+  --font-serif: "Instrument Serif", "Times New Roman", serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --font-ios: -apple-system, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+
+  /* shape + motion */
+  --r-card: 24px;
+  --r-pill: 999px;
+  --ease-out-expo: cubic-bezier(.2, .9, .1, 1);
+  --shadow-gel: 0 3px 6px #17120F40, inset 0 1px 0 #fffc, inset 0 -2px 3px #0002;
+}
+
+body { margin: 0; font-family: var(--font-sans); color: var(--ink); background: var(--white); }
+
+/* type roles */
+.display { font-family: var(--font-serif); font-weight: 400; letter-spacing: -.04em; }   /* headlines, roman only */
+.label   { font: 500 11px var(--font-mono); letter-spacing: .08em; text-transform: uppercase; }
+
+/* ---------- ORB (soft mesh). The orb is Jules. ---------- */
+.orb { --s: 40px; position: relative; display: inline-block; width: var(--s); height: var(--s); flex: none; }
+.orb::before, .orb::after {
+  content: ""; position: absolute; border-radius: 50%;
+  background:
+    radial-gradient(circle at 30% 30%, #FFC93C 0, #FFC93C00 55%),
+    radial-gradient(circle at 72% 38%, #FF8FC7 0, #FF8FC700 55%),
+    radial-gradient(circle at 50% 85%, #6C3BFF 0, #6C3BFF00 60%),
+    #FF7A2F;
+  animation: spin 7s linear infinite;               /* glow + core share one spin => no seam */
+}
+.orb::before { inset: -16%; filter: blur(calc(var(--s) * .2)); opacity: .65; }   /* glow */
+.orb::after  { inset: 4%; box-shadow: inset 0 0 calc(var(--s) * .3) #fffa;       /* core */
+               animation: spin 7s linear infinite, wobble 4s ease-in-out infinite; }
+.orb--still, .orb--still::before, .orb--still::after { animation: none !important; }  /* app icon, favicon, share cards */
+
+/* ---------- LOGO: serif wordmark, the j's dot is the orb ---------- */
+/* <span class="logo" style="font-size:40px" aria-label="jules"><span class="logo__anchor" aria-hidden="true"><span class="logo__hx"><span class="logo__hy"><span class="orb logo__dot"></span></span></span></span>ȷules</span> */
+.logo { font-family: var(--font-serif); letter-spacing: -.04em; line-height: 1; white-space: nowrap; display: inline-block; }
+.logo__anchor { display: inline-block; width: 0; height: 0; position: relative; }            /* sits on the baseline */
+.logo__hx, .logo__hy { position: absolute; left: 0; bottom: 0; width: 0; height: 0; }
+.logo__dot { --s: .21em; position: absolute; left: -.02em; bottom: .55em; }                  /* rests above the j stem */
+.logo--thinking .logo__hx  { animation: hop-x 8s linear infinite; }
+.logo--thinking .logo__hy  { animation: hop-y 8s linear infinite; }
+.logo--thinking .logo__dot { animation: dot-pop 8s ease-in-out infinite; }
+
+/* ---------- BUTTONS + CHIPS: one gel-pill style ---------- */
+.btn, .chip {
+  position: relative; overflow: hidden; cursor: pointer;
+  border: 1.5px solid var(--ink); border-radius: var(--r-pill);
+  font: 600 15px var(--font-sans); min-height: 44px; padding: 0 24px;
+  color: var(--ink); background: var(--white); box-shadow: var(--shadow-gel);
+  transition: transform .2s;
+}
+.chip { padding: 0 18px; }
+.btn:hover, .chip:hover { transform: translateY(-2px) scale(1.03); }
+.btn::after, .chip::after {                                    /* gloss */
+  content: ""; position: absolute; left: 8px; right: 8px; top: 2px; height: 44%;
+  border-radius: var(--r-pill); background: linear-gradient(#ffffffb0, #ffffff25); pointer-events: none;
+}
+.btn--ink,  .chip--on { background: var(--ink); color: #fff; }
+.btn--butter { background: var(--butter); }
+.btn--grape  { background: var(--grape); color: #fff; }
+.btn:focus-visible, .chip:focus-visible { outline: 3px solid var(--grape); outline-offset: 3px; }
+
+/* ---------- SMALL PIECES ---------- */
+.tag { font: 500 11px var(--font-mono); letter-spacing: .08em; text-transform: uppercase;
+       background: var(--butter); border-radius: var(--r-pill); padding: 6px 10px; display: inline-block; }
+.card { background: #fff; border: 1px solid var(--line); border-radius: var(--r-card); padding: 10px; display: flex; flex-direction: column; gap: 10px; }
+.placeholder { background: var(--fog); color: var(--text-2); display: flex; align-items: flex-end; padding: 10px; box-sizing: border-box; font: 500 11px var(--font-mono); }
+.field { display: flex; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: var(--r-pill); padding: 6px 6px 6px 20px; }
+.menu-item { display: flex; align-items: center; gap: .3em; padding: 4px 0; font: 400 40px/1 var(--font-serif); letter-spacing: -.04em; }  /* ● bullet; active item swaps ● for an .orb */
+
+/* marquee strip (page-bottom brand rail) */
+.marquee { position: absolute; left: 0; right: 0; bottom: 0; height: 36px; background: var(--ink); color: var(--butter);
+           overflow: hidden; white-space: nowrap; display: flex; align-items: center; }
+.marquee > div { display: inline-block; padding-left: 20px; animation: marquee 24s linear infinite; }  /* content repeated 2x; separator " ✦ " */
+
+/* ---------- LOADER: Mac OS X Aqua barber pole ---------- */
+.aqua { position: relative; height: 18px; border-radius: var(--r-pill); overflow: hidden; border: 1px solid #9a9a9a;
+        background: linear-gradient(#d4d4d4, #f6f6f6); box-shadow: inset 0 1px 3px #0006; }
+.aqua::before { content: ""; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 1px #2D6EC0;
+  background: repeating-linear-gradient(135deg, #3C8CEB 0 8px, #8FC6FB 8px 16px); background-size: 22.63px 22.63px;
+  animation: barber .7s linear infinite, pulse 1.6s ease-in-out infinite; }
+.aqua::after { content: ""; position: absolute; inset: 0; border-radius: inherit;
+  background: linear-gradient(#ffffffdd, #ffffff55) top/100% 50% no-repeat, linear-gradient(#0000, #0A3E9040) bottom/100% 40% no-repeat; }
+
+/* ---------- iMESSAGE BUBBLES (must look native) ---------- */
+.bubble { position: relative; border-radius: 18px; padding: 7px 13px; font: 400 17px/22px var(--font-ios); }
+.bubble--me   { background: var(--aqua); color: #fff; }
+.bubble--them { background: var(--imsg-gray); color: #000; }
+/* tails: add .tail-r on the LAST sent bubble of a group, .tail-l on the last received. Tail mask color = screen bg (#fff). */
+.tail-r::before, .tail-r::after, .tail-l::before, .tail-l::after { content: ""; position: absolute; bottom: 0; height: 18px; }
+.tail-r::before { right: -7px; width: 20px; background: var(--aqua); border-bottom-left-radius: 16px 14px; }
+.tail-r::after  { right: -26px; width: 26px; background: #fff; border-bottom-left-radius: 10px; }
+.tail-l::before { left: -7px; width: 20px; background: var(--imsg-gray); border-bottom-right-radius: 16px 14px; }
+.tail-l::after  { left: -26px; width: 26px; background: #fff; border-bottom-right-radius: 10px; }
+.typing { display: inline-flex; gap: 5px; padding: 13px 15px; }
+.typing i { width: 8px; height: 8px; border-radius: 50%; background: #8E8E93; animation: typing-dot 1s infinite; }
+.typing i:nth-child(2) { animation-delay: .15s; } .typing i:nth-child(3) { animation-delay: .3s; }
+.receipt { font: 600 11px var(--font-ios); color: #6E6E73; }   /* "Delivered" */
+
+/* ---------- KEYFRAMES ---------- */
+@keyframes spin   { to { transform: rotate(360deg); } }
+@keyframes wobble { 0%,100% { border-radius: 50%; } 25% { border-radius: 62% 38% 55% 45%; } 50% { border-radius: 40% 60% 38% 62%; } 75% { border-radius: 55% 45% 62% 38%; } }
+@keyframes marquee { to { transform: translateX(-50%); } }
+@keyframes rise    { from { transform: translateY(110%) rotate(7deg); opacity: 0; } }          /* headline lines: 1.2s var(--ease-out-expo) both, stagger .1s/.3s/.5s */
+@keyframes barber  { to { background-position: 22.63px 0; } }
+@keyframes pulse   { 50% { filter: brightness(1.12); } }
+@keyframes typing-dot { 0%,60%,100% { transform: none; opacity: .4; } 30% { transform: translateY(-4px); opacity: 1; } }
+@keyframes drift   { 50% { transform: translate(60px, 40px) scale(1.2); } }                    /* background glow blobs: 9–13s ease-in-out infinite */
+@keyframes bounce-hint { 50% { transform: translateY(6px); } }                                 /* scroll cue arrow: 1.4s infinite */
+@keyframes status-cycle { 0% { opacity: 0; transform: translateY(10px); } 5%,22% { opacity: 1; transform: none; } 27%,100% { opacity: 0; } }  /* 4 lines, 8s, delays 0/2/4/6s */
+
+/* THINKING: the j's dot hops across the word (8s loop). em units => scales with font-size. */
+@keyframes hop-x { 0%,8% { transform: translateX(0); } 16% { transform: translateX(.37em); } 24% { transform: translateX(.75em); } 32% { transform: translateX(1.09em); } 40%,46% { transform: translateX(1.49em); } 62%,100% { transform: translateX(0); } }
+@keyframes hop-y { 0%,8%,16%,24%,32%,40%,46%,62%,100% { transform: none; } 12%,20%,28%,36% { transform: translateY(-.3em); } 54% { transform: translateY(-.7em); } }
+@keyframes dot-pop { 0%,8% { transform: scale(1); } 16%,58% { transform: scale(1.35); } 62% { transform: scale(1); } 66% { transform: scale(1.6); } 72%,100% { transform: scale(1); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .orb, .orb::before, .orb::after, .logo--thinking .logo__hx, .logo--thinking .logo__hy, .logo--thinking .logo__dot,
+  .marquee > div, .aqua::before { animation: none !important; }
+}

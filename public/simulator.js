@@ -4,7 +4,7 @@ import {trackedFetch} from './activity.js';
 mountHeader('simulator');
 const session=createSession({storage:localStorage,lock:work=>navigator.locks?navigator.locks.request('jules-wishlist-refresh',work):work()});
 const $=id=>document.getElementById(id);
-let snapshot,turns=[],busy=false,imageURLs=[];
+let snapshot,turns=[],busy=false,imageURLs=[],seenMessages=new Set();
 try{const saved=JSON.parse(sessionStorage.getItem('jules_simulator')??'null');if(saved?.snapshot){snapshot=saved.snapshot;turns=saved.turns??[];}}catch{}
 function preserve(){try{sessionStorage.setItem('jules_simulator',JSON.stringify({snapshot,turns}));}catch{$('status').textContent='This conversation is too large to keep in the tab. Export it before leaving.';}}
 const readFile=file=>new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(',')[1]);reader.onerror=reject;reader.readAsDataURL(file);});
@@ -12,11 +12,12 @@ function render(){
   imageURLs.forEach(url=>URL.revokeObjectURL(url));imageURLs=[];
   $('chat').replaceChildren();
   if(!snapshot?.messages?.length){const empty=document.createElement('p');empty.className='chat-empty';empty.textContent='Your personal shopper, right here. Ask a question, share a product, or send a photo.';$('chat').append(empty);}
-  for(const message of snapshot?.messages??[]){
-    if(message.direction==='outbound'&&message.status!=='sent')continue;
+  const visibleMessages=(snapshot?.messages??[]).filter(message=>message.direction!=='outbound'||message.status==='sent');
+  for(const [index,message] of visibleMessages.entries()){
     const group=document.createElement('div');group.className='message-group '+message.direction;
-    const bubble=document.createElement('div');bubble.className='bubble';bubble.textContent=message.body;
-    for(const ref of message.message_images??[]){const image=snapshot.images.find(i=>i.id===ref.id);if(image){const img=document.createElement('img'),url=URL.createObjectURL(new Blob([Uint8Array.from(atob(image.data),c=>c.charCodeAt(0))],{type:image.mime_type}));imageURLs.push(url);img.src=url;img.alt='Test product image';bubble.append(img);}}
+    const key=message.id??JSON.stringify([message.created_at,message.direction,message.body]);if(!seenMessages.has(key)){group.classList.add('new-message');seenMessages.add(key);}
+    const bubble=document.createElement('div');bubble.className='bubble'+(visibleMessages[index+1]?.direction!==message.direction?' group-end':'');bubble.textContent=message.body;
+    for(const ref of message.message_images??[]){const image=snapshot.images.find(i=>i.id===ref.id);if(image){const img=document.createElement('img'),url=URL.createObjectURL(new Blob([Uint8Array.from(atob(image.data),c=>c.charCodeAt(0))],{type:image.mime_type}));imageURLs.push(url);img.src=url;img.alt='Test product image';bubble.classList.add('photo-bubble');bubble.append(img);}}
     const meta=document.createElement('span');meta.className='message-meta';meta.textContent=(message.created_at?new Date(message.created_at).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}):'')+(message.direction==='inbound'?' · You':' · Jules');group.append(bubble,meta);$('chat').append(group);
   }
   $('chat').scrollTop=$('chat').scrollHeight;
@@ -39,7 +40,7 @@ $('composer').onsubmit=async event=>{
   event.preventDefault();if(busy)return;
   const text=$('message').value,file=$('image').files[0];if(!text.trim()&&!file)return;
   busy=true;for(const id of ['send','attach','reset','import'])$(id).disabled=true;
-  $('status').textContent='Jules is thinking…';
+  $('status').textContent='Jules is thinking…';const typing=document.createElement('div');typing.className='chat-typing';typing.setAttribute('aria-label','Jules is working');typing.innerHTML='<span class="bubble typing" aria-hidden="true"><i></i><i></i><i></i></span>';$('chat').append(typing);$('chat').scrollTop=$('chat').scrollHeight;
   try{
     if(file&&file.size>1000000)throw Error('Use an image under 1 MB.');
     const token=await session.token()||sessionStorage.getItem('jules_wishlist_token')||sessionStorage.getItem('jules_token');
@@ -51,7 +52,7 @@ $('composer').onsubmit=async event=>{
     if($('message').value===text){$('message').value='';$('message').style.height='';}
     if($('image').files[0]===file){$('image').value='';$('attachment').hidden=true;}
     $('status').textContent=`${(result.elapsed_ms/1000).toFixed(1)}s · ${result.outcome.includes('uncertain')?'Delivery failed in simulation; inspect saved state.':'Test message sent.'}`;preserve();
-  }catch(error){$('status').textContent=error.message;}finally{busy=false;for(const id of ['send','attach','reset','import'])$(id).disabled=false;}
+  }catch(error){$('status').textContent=error.message;}finally{typing.remove();busy=false;for(const id of ['send','attach','reset','import'])$(id).disabled=false;}
 };
 $('reset').onclick=()=>{snapshot={messages:[],profile:{facts:[],version:0},items:[],alerts:[],images:[],wishlist_live:snapshot?.wishlist_live??[]};turns=[];preserve();render();$('status').textContent='New test conversation.';};
 $('toggle-diagnostics').onclick=()=>{const show=$('diagnostics').hidden;$('diagnostics').hidden=!show;$('simulator-layout').classList.toggle('diagnostics-open',show);$('toggle-diagnostics').setAttribute('aria-expanded',String(show));};
