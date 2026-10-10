@@ -83,3 +83,8 @@ test('monitoring an owned saved item reuses its record and verifies ownership be
  await finishTextWishlist({store,result,env:{},conversationId:id});assert.equal(activated,1);
  await assert.rejects(finishTextWishlist({store,result:{...result,existing_saved_groups:['unowned']},env:{},conversationId:id}));assert.equal(activated,1);
 });
+
+test('an expired sourcing budget cannot launch a browser',async()=>{
+ const {renderListing}=await import('../lib/rendered-listing.js');const controller=new AbortController();controller.abort();
+ await assert.rejects(renderListing('https://www.ssense.com/en-us/men/product/lemaire/example/19440991',{signal:controller.signal}),error=>error.name==='AbortError');
+});
