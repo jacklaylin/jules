@@ -133,6 +133,6 @@ test('a cited user correction supersedes a mistaken legacy color before retailer
 
 test('variant-bound retailer photos outrank generic default product imagery',async()=>{
  const variantURL=url+'?variant=42';
- const check=await verifyListing(variantURL,null,async u=>u.includes('.js')?new Response(JSON.stringify({title:'Shirt',options:['Color'],variants:[{id:42,option1:'Slate',featured_image:{src:'https://shop.example.org/slate.jpg'}}]}),{headers:{'content-type':'application/json'}}):new Response(html(product),{headers:{'content-type':'text/html'}}),undefined,{});
+ const check=await verifyListing(variantURL,null,async u=>u.includes('.js')?new Response(JSON.stringify({title:'Shirt',options:['Color'],variants:[{id:42,option1:'Slate',featured_image:{src:'https://shop.example.org/slate.jpg'}}]}),{headers:{'content-type':'application/json'}}):new Response(html({...product,url:variantURL}),{headers:{'content-type':'text/html'}}),undefined,{});
  assert.equal(check.color,'Slate');assert.deepEqual(check.product_images,['https://shop.example.org/slate.jpg']);
 });
