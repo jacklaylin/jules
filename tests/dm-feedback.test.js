@@ -88,3 +88,11 @@ test('an expired sourcing budget cannot launch a browser',async()=>{
  const {renderListing}=await import('../lib/rendered-listing.js');const controller=new AbortController();controller.abort();
  await assert.rejects(renderListing('https://www.ssense.com/en-us/men/product/lemaire/example/19440991',{signal:controller.signal}),error=>error.name==='AbortError');
 });
+
+test('retailer swatches expose sourced colors, preserve market and exclude unrelated links',async()=>{
+ const {retailerColorSwatches}=await import('../lib/product-variants.js');
+ const html='<a class="product-swatches__item active" title="Black / Dark Chocolate" href="/products/flat-piped-slippers"></a><a class="product-swatches__item" title="Sand" href="/products/flat-piped-slippers-sand"></a><a title="Boots" href="/products/boots"></a><a class="product-swatches__item" title="Other" href="https://other.example.org/products/shoe"></a>';
+ const options=retailerColorSwatches(html,'https://www.lemaire.fr/products/flat-piped-slippers?country=US');
+ assert.deepEqual(options.map(o=>o.color),['Black / Dark Chocolate','Sand']);assert.ok(options.every(o=>new URL(o.url).searchParams.get('country')==='US'));assert.equal(options[0].image,null);
+ assert.deepEqual(retailerColorSwatches(html,'https://other.example.org/products/shoe'),[]);
+});
