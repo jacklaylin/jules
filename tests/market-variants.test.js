@@ -107,3 +107,10 @@ test('database photo repair writes the cooldown revision to both item and encoun
  await store.saveWishlistPhotos('owner','item',{photo_attempted_revision:3,photo_attempted_at:'2026-10-09T00:00:00Z'});
  assert.equal(writes.length,2);assert.ok(writes.every(w=>w.product.photo_attempted_revision===3));
 });
+test('private metadata reads preserve wishlist state and original timestamps without photo bytes',async()=>{
+ const store=createStore({SUPABASE_URL:'https://fixture.invalid',SUPABASE_SERVICE_ROLE_KEY:'fixture'},async u=>{
+  assert.ok(u.includes('wishlist_entry_metadata?conversation_id=eq.owner'));
+  return new Response(JSON.stringify([{item_id:'item',reply_id:'reply',has_image:'image/jpeg',reply_at:'2026-10-09T00:00:00Z',source_at:'2026-10-08T00:00:00Z',metadata:{name:'Shirt',details_revision:6,photo_attempted_revision:6,market_country:'US',links:[{url}],wishlist_removed:false}}]));
+ });
+ const [row]=await store.wishlistEntries('owner');assert.equal(row.name,'Shirt');assert.equal(row.has_image,'image/jpeg');assert.equal(row.messages.created_at,'2026-10-09T00:00:00Z');assert.equal(row.message_images.messages.created_at,'2026-10-08T00:00:00Z');assert.equal(row.photo_attempted_revision,6);assert.equal(row.image,undefined);
+});
