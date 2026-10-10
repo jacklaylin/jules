@@ -20,7 +20,9 @@ test('color recovery preserves split caption/link timing and fallible assistant 
   {id:'save',direction:'inbound',body:'Add and no price alert',created_at:'2026-10-09T18:40:12.519Z'}
  ];
  const result=await resolveSavedColor({product,options:[{color:'Slate',url:url+'?variant=1'},{color:'Oyster',url:url+'?variant=2'}],messages,reply_ids:['save']},{OPENAI_API_KEY:'fixture'},async(_u,request)=>{
-  const body=JSON.parse(request.body),context=JSON.parse(body.input[0].content[0].text);
+  const body=JSON.parse(request.body);
+  if(body.text.format.name==='saved_color_variant')return new Response(JSON.stringify({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({color_index:0})}]}]}));
+  const context=JSON.parse(body.input[0].content[0].text);
   assert.deepEqual(body.text.format.schema.properties.source_message_id.enum,['old','caption','link','save',null]);
   assert.equal(body.text.format.schema.properties.requested_color,undefined);
   assert.deepEqual(context.conversation.map(m=>m.created_at),messages.map(m=>m.created_at));
