@@ -2,7 +2,7 @@
 #grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(max(min(100%,280px),calc((100% - 90px)/4)),1fr));gap:42px 30px}
 .tile{display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;text-align:left;width:100%;height:100%;padding:10px 10px 20px;border:1px solid var(--line);border-radius:var(--r-card);color:var(--ink);background:var(--white);cursor:pointer;animation:enter .25s ease both}
 .photo{flex-shrink:0;display:flex;align-items:center;justify-content:center;aspect-ratio:4/5;border-radius:16px;overflow:hidden;background:var(--fog);color:#777;font-size:12px}
-.photo img{width:100%;height:100%;object-fit:contain;mix-blend-mode:multiply;}
+.photo img{width:100%;height:100%;object-fit:contain;mix-blend-mode:normal;}
 .tile strong{display:block;font-size:16px;font-weight:600;line-height:1.4;margin:14px 6px 7px;overflow-wrap:anywhere}
 .tile:hover strong{color:var(--grape)}
 #empty{margin-top:90px;color:#777;line-height:1.8}
@@ -62,7 +62,7 @@ button.tile:active{transform:translateY(-1px)}}
 .photo-carousel{display:grid;grid-template-rows:minmax(0,1fr) auto;min-height:0;min-width:0;overflow:hidden}
 .carousel-view{min-height:0;overflow:hidden;touch-action:pan-y}
 .carousel-view>.photo{height:100%;width:100%;aspect-ratio:auto}
-.carousel-view .photo img{object-fit:cover;mix-blend-mode:normal}
+.carousel-view .photo img{object-fit:contain;mix-blend-mode:normal}
 .carousel-view.original-photo .photo img{object-fit:contain}
 .carousel-controls{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;background:#fff}
 .carousel-controls button{padding:8px;min-width:44px;min-height:44px}
@@ -107,3 +107,10 @@ button.tile:active{transform:translateY(-1px)}}
 @media(max-width:800px){#grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 14px}.wishlist-page .heading{display:block;margin-bottom:28px}.wishlist-page .heading h1{font-size:clamp(50px,16vw,68px);margin-bottom:12px}.wishlist-heading-mobile{display:inline}.wishlist-heading-desktop{display:none}.wishlist-page .heading h1{text-transform:none}.tile strong{font-size:14px;margin-inline:4px}.card-price{font-size:10px;margin-inline:4px}.tile{padding:8px 8px 20px}.tile .photo{aspect-ratio:3/4}.alert-toggle{top:18px;right:18px}.photo-pending .orb{--s:34px}.photo-pending .photo-status{font-size:9px}.wishlist-page main{padding-top:30px}}
 
 @media(max-width:800px){.remove-item{top:18px;left:18px}}
+
+/* Compose existing shared inputs and buttons without redefining controls. */
+.wishlist-filters{display:grid;grid-template-columns:minmax(200px,2fr) minmax(140px,1fr) minmax(140px,1fr) auto;align-items:end;gap:16px;margin-bottom:32px}
+.wishlist-filters>label{min-width:0}
+.wishlist-filters>button{margin-bottom:2px}
+#no-matches{padding:32px 0;color:var(--text-2)}
+@media(max-width:800px){.wishlist-filters{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 12px}.wishlist-search{grid-column:1/-1}.wishlist-filters>button{justify-self:start;grid-column:1/-1}}

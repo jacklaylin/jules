@@ -23,8 +23,8 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
         if(input.action==='recover-photos'){
           const access=await auth(req.headers,env,store,fetcher);if(access.status!==200)return json(res,access.status,{error:'Please sign in with your invited email.'});
           const marketEnv=marketEnvironment((await store.profile?.(access.conversation))?.facts??[],env);
-          const rows=await repairWishlistPhotos(await store.wishlistEntries(access.conversation),{conversation:access.conversation,store,env:marketEnv,verify:(url,name)=>verify(url,name,fetcher,undefined,marketEnv),photos:(url,name)=>photos(url,name,fetcher),assets:(urls,url)=>fetchProductAssets(urls,url,fetcher)});
-          return json(res,200,{items:groupWishlist(rows,{currency:marketEnv.SHOPPING_CURRENCY,country:marketEnv.SHOPPING_COUNTRY}).map(({links,entries,...group})=>group)});
+          const rows=await repairWishlistPhotos(await store.wishlistEntries(access.conversation),{conversation:access.conversation,store,env:marketEnv,verify:(url,name)=>verify(url,name,fetcher,undefined,marketEnv,{recoveryOnly:true}),photos:(url,name)=>photos(url,name,fetcher),assets:(urls,url)=>fetchProductAssets(urls,url,fetcher)});
+          return json(res,200,{items:groupWishlist(rows,{currency:marketEnv.SHOPPING_CURRENCY,country:marketEnv.SHOPPING_COUNTRY}).map(({links,entries,...group})=>({...group,retailers:[...new Set(links.map(link=>link.retailer).filter(Boolean))]}))});
         }
         if(input.action==='recover-alerts'){
           if(env.PRICE_ALERTS_ENABLED!=='true')return json(res,503,{error:'Price alerts are not enabled yet.'});
@@ -47,7 +47,7 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
           const access=await auth(req.headers,env,store,fetcher);if(access.status!==200)return json(res,access.status,{error:'Please sign in with your invited email.'});
           if(!uuid(input.item))return json(res,400,{error:'Invalid item.'});
           const marketEnv=marketEnvironment((await store.profile?.(access.conversation))?.facts??[],env);
-          const {update,...result}=await enrichWishlistItem(store,access.conversation,input.item,{env:marketEnv,verify:(url,name)=>verify(url,name,fetcher,undefined,marketEnv),photos:(url,name)=>photos(url,name,fetcher),assets:(urls,url)=>fetchProductAssets(urls,url,fetcher)});
+          const {update,...result}=await enrichWishlistItem(store,access.conversation,input.item,{env:marketEnv,verify:(url,name)=>verify(url,name,fetcher,undefined,marketEnv,{recoveryOnly:true}),photos:(url,name)=>photos(url,name,fetcher),assets:(urls,url)=>fetchProductAssets(urls,url,fetcher)});
           return json(res,200,result);
         }
         if (['remove','restore'].includes(input.action)) {
@@ -138,7 +138,7 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
           const item = groups.find(g=>g.id===groupId);
           return item ? json(res,200,{item}) : json(res,404,{error:'Item not found.'});
         }
-        return json(res,200,{items:groups.map(({links,entries,...group})=>group)});
+        return json(res,200,{items:groups.map(({links,entries,...group})=>({...group,retailers:[...new Set(links.map(link=>link.retailer).filter(Boolean))]}))});
       }
       if (!uuid(id)) return json(res,400,{error:'Invalid item.'});
       if(query.get('image')==='reference'){const index=query.get('index');if(!/^[01]$/.test(index??''))return json(res,400,{error:'Invalid photo.'});return image(res,await store.wishlistPhoto(access.conversation,id,Number(index)));}
@@ -153,7 +153,7 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
       }
       const { image: bytes, additional_images: references, ...product } = item.product;
       return json(res,200,{item:{id:item.id,saved_at:item.saved_at,product,encounters:item.wishlist_encounters.map(e=>({source_image_id:e.source_image_id,found_at:e.messages?.created_at,links:e.product.links,match:e.product.match,reason:e.product.reason}))}});
-    } catch { console.log(JSON.stringify({event:'wishlist_request_failed'})); return json(res,503,{error:'Could not load your wishlist. Please try again.'}); }
+    } catch(error) { console.log(JSON.stringify({event:'wishlist_request_failed',error_type:error?.name,database_error:error?.message==='Database request failed'})); return json(res,503,{error:'Could not load your wishlist. Please try again.'}); }
   };
 }
 function image(res, value) {
