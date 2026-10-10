@@ -118,3 +118,15 @@ test('private metadata reads preserve wishlist state and original timestamps wit
  });
  const [row]=await store.wishlistEntries('owner');assert.equal(row.name,'Shirt');assert.equal(row.has_image,'image/jpeg');assert.equal(row.messages.created_at,'2026-10-09T00:00:00Z');assert.equal(row.message_images.messages.created_at,'2026-10-08T00:00:00Z');assert.equal(row.photo_attempted_revision,6);assert.equal(row.image,undefined);
 });
+
+test('a cited user correction supersedes a mistaken legacy color before retailer matching',async()=>{
+ const messages=[{id:'caption',direction:'inbound',body:'Love this in the blue color'}];
+ const p={...product,color_request:{source_message_id:'caption',evidence:messages[0].body}};
+ let calls=0;
+ const result=await resolveSavedColor({product:p,options:[{color:'Slate',url}],messages,reply_ids:[]},{OPENAI_API_KEY:'fixture'},async(_u,r)=>{
+  calls++;const body=JSON.parse(r.body);assert.equal(body.text.format.name,'saved_color_variant');
+  assert.equal(JSON.parse(body.input[0].content[0].text).user_color_request,messages[0].body);
+  return new Response(JSON.stringify({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({color_index:0})}]}]}));
+ });
+ assert.equal(calls,1);assert.equal(result.color,'Slate');assert.equal(result.color_evidence.source_id,'caption');
+});
