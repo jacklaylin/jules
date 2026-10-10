@@ -153,7 +153,7 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
       }
       const { image: bytes, additional_images: references, ...product } = item.product;
       return json(res,200,{item:{id:item.id,saved_at:item.saved_at,product,encounters:item.wishlist_encounters.map(e=>({source_image_id:e.source_image_id,found_at:e.messages?.created_at,links:e.product.links,match:e.product.match,reason:e.product.reason}))}});
-    } catch(error) { console.log(JSON.stringify({event:'wishlist_request_failed',error_type:error?.name,database_error:error?.message==='Database request failed'})); return json(res,503,{error:'Could not load your wishlist. Please try again.'}); }
+    } catch(error) { console.log(JSON.stringify({event:'wishlist_request_failed',error_type:error?.name,database_error:error?.message==='Database request failed',database_status:error?.database_status,database_code:error?.database_code})); return json(res,503,{error:'Could not load your wishlist. Please try again.'}); }
   };
 }
 function image(res, value) {
