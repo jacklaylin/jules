@@ -719,3 +719,12 @@ An explicit request for a product price alert includes permission to save that a
 Sourcing should research and present verified variants in the current turn using supplied attributes and retailer evidence. Use singular language for one product and do not require a color choice when only one verified candidate exists. Supplemental research is bounded and preserves the primary supported result on failure.
 
 Read per-SKU price/stock and explicit retailer size labels, including native selectors where structured product data omits sizes. An enabled alert with no baseline must have an automated recovery path; opening the wishlist may retry initial verification without toggling the alert or sending a price-drop notification. Never infer size conversions or treat unavailable retrieval as proof of unavailable stock.
+
+
+### October 10: vague product discovery (founder assigned)
+
+Distinguish identifying an item the user saw from exploring options. When a brief is too broad for useful results, ask one or two adaptive questions using supplied clues and saved facts; do not force a fixed questionnaire. If the user cannot recall more or welcomes exploration, offer a varied first set. Carry the brief and request-scoped feedback through clarification, results, accept/reject, more options and topic/recipient changes.
+
+Taste facts, receipt-derived shopping history, favorite brands/stores and historical budgets guide ranking, not strict eligibility. Only current explicit constraints limit the requested search. Rank verified products against the current brief first, then personal preferences and useful diversity; new brands, styles and sources remain eligible. Preserve sourced facts and uncertainty. Return up to three discovery options and invite feedback. A plausible identification candidate is not a confirmed identity.
+
+Rejecting or asking for different options excludes the referenced results from the next batch and preserves useful guidance. Temporary feedback must not overwrite durable taste. Acceptance without save/monitor intent establishes interest, not permission to save or enable alerts. Topic and recipient changes clear temporary exclusions/constraints. Failed research retains a retry brief without reviving old choices. No new infrastructure or human sourcing dependency.
