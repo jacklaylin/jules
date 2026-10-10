@@ -7,9 +7,26 @@ import {enrichWishlistItem} from '../lib/wishlist-details.js';
 import {selectionOutcome} from '../lib/wishlist-selection.js';
 import {createStore} from '../lib/store.js';
 import {repairWishlistPhotos} from '../lib/wishlist-photos.js';
+import {resolveSavedColor} from '../lib/saved-color.js';
 const url='https://shop.example.org/products/shirt';
 const product={'@type':'Product',name:'Shirt',url,image:'https://shop.example.org/default.jpg',offers:{price:71,priceCurrency:'CAD',url}};
 const html=(p,country='US')=>`<script>Shopify.country = "${country}";</script><script type="application/ld+json">${JSON.stringify(p)}</script>`;
+test('color recovery preserves split caption/link timing and fallible assistant context',async()=>{
+ const messages=[
+  {id:'old',direction:'inbound',body:'Save this gray running shirt',created_at:'2026-10-09T18:14:19Z'},
+  {id:'caption',direction:'inbound',body:'Love this in the blue color',created_at:'2026-10-09T18:39:50.232Z'},
+  {id:'mistake',direction:'outbound',body:'The blue running shirt stands out',created_at:'2026-10-09T18:39:50.483Z'},
+  {id:'link',direction:'inbound',body:url,created_at:'2026-10-09T18:39:50.830Z'},
+  {id:'save',direction:'inbound',body:'Add and no price alert',created_at:'2026-10-09T18:40:12.519Z'}
+ ];
+ const result=await resolveSavedColor({product,options:[{color:'Slate',url:url+'?variant=1'},{color:'Oyster',url:url+'?variant=2'}],messages,reply_ids:['save']},{OPENAI_API_KEY:'fixture'},async(_u,request)=>{
+  const body=JSON.parse(request.body),context=JSON.parse(body.input[0].content[0].text);
+  assert.deepEqual(context.conversation.map(m=>m.created_at),messages.map(m=>m.created_at));
+  assert.equal(context.conversation[3].text,url);assert.match(body.instructions,/assistant claims are fallible/);
+  return new Response(JSON.stringify({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({color_index:0,requested_color:'blue'})}]}]}));
+ });
+ assert.equal(result.color,'Slate');assert.equal(result.requested_color,'blue');
+});
 test('retailer market follows the user country rather than server geography and verifies currency',async()=>{
  const requests=[];
  const check=await verifyListing(url,null,async(u,options)=>{requests.push({u,options});return new Response(html({...product,offers:{...product.offers,price:u.includes('country=US')?48:71,priceCurrency:u.includes('country=US')?'USD':'CAD'}},u.includes('country=US')?'US':'CA'),{headers:{'content-type':'text/html'}});},undefined,{});
@@ -63,10 +80,10 @@ test('explicit country corrections outrank imported evidence and unsupported imp
 test('legacy context is retrieved around the owned original save even beyond the latest conversation page',async()=>{
  const urls=[],reply='11111111-1111-4111-8111-111111111111';
  const store=createStore({SUPABASE_URL:'https://fixture.invalid',SUPABASE_SERVICE_ROLE_KEY:'fixture'},async u=>{
-  urls.push(u);return new Response(JSON.stringify(urls.length===1?[{id:reply,created_at:'2026-10-01T00:00:00Z'}]:[{id:reply,direction:'outbound',body:'Saved'},{id:'earlier',direction:'inbound',body:'Blue please'}]));
+  urls.push(u);return new Response(JSON.stringify(urls.length===1?[{id:reply,created_at:'2026-10-01T00:00:00Z'}]:u.includes('created_at=gt.')?[{id:'followup',direction:'inbound',body:'I meant blue for the shirt'}]:[{id:reply,direction:'outbound',body:'Saved'},{id:'earlier',direction:'inbound',body:'Blue please'}]));
  });
  const context=await store.wishlistConversationContext('owner',[reply]);
- assert.ok(urls.every(u=>u.includes('conversation_id=eq.owner')));assert.ok(urls[1].includes('created_at=lte.2026-10-01'));assert.equal(context[0].body,'Blue please');
+ assert.ok(urls.every(u=>u.includes('conversation_id=eq.owner')));assert.ok(urls[1].includes('created_at=lte.2026-10-01'));assert.equal(context[0].body,'Blue please');assert.equal(context.at(-1).body,'I meant blue for the shirt');
 });
 test('failed older repairs enter a persisted cooldown so later items can be recovered',async()=>{
  const now=Date.now(),items=new Map(['first','second','third'].map(id=>[id,{url:url+'/'+id,name:'Shirt',details_revision:2,market_country:'US',image:{data:'existing'},links:[{url:url+'/'+id}]}])),attempts=[];
@@ -74,7 +91,7 @@ test('failed older repairs enter a persisted cooldown so later items can be reco
  const rows=()=>[...items].map(([id,p])=>({item_id:id,has_image:true,...p}));
  const verify=async u=>{attempts.push(u);if(!u.endsWith('third'))throw Error('Interpretation unavailable');return {status:'verified',url:u,product_name:'Shirt'};};
  await repairWishlistPhotos(rows(),{conversation:'owner',store,verify,now});await repairWishlistPhotos(rows(),{conversation:'owner',store,verify,now:now+1000});
- assert.equal(attempts.length,3);assert.equal(items.get('third').details_revision,4);assert.equal(items.get('first').photo_attempted_revision,4);
+ assert.equal(attempts.length,3);assert.equal(items.get('third').details_revision,5);assert.equal(items.get('first').photo_attempted_revision,5);
 });
 test('database photo repair writes the cooldown revision to both item and encounter snapshots',async()=>{
  const writes=[];
