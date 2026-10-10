@@ -711,3 +711,11 @@ These integrations require explicit assignment and, where applicable, external a
 ### October 9 iteration: supplied links and storefront context
 
 Read supplied product links before conversational interpretation so Jules can use the available identity, images and price without treating missing optional fields as a request for repeated save permission. Saving remains independent of price/stock verification. For the founder's USD request, market-neutral Satisfy links use the retailer's US storefront context throughout retrieval and monitoring; preserve explicitly supplied markets and genuine sourced currencies, and never invent a conversion. Require an explicit supported action or natural conversation outcome for search-enabled turns; accepted search offers and brand clues should execute sourcing in the same turn.
+
+### October 9 DM feedback acceptance clarifications
+
+An explicit request for a product price alert includes permission to save that associated product; Jules must not ask separately for wishlist consent. Acknowledgment or interest alone is not permission. If structured interpretation fails consent validation, use the original context for at most one model correction before asking a useful question.
+
+Sourcing should research and present verified variants in the current turn using supplied attributes and retailer evidence. Use singular language for one product and do not require a color choice when only one verified candidate exists. Supplemental research is bounded and preserves the primary supported result on failure.
+
+Read per-SKU price/stock and explicit retailer size labels, including native selectors where structured product data omits sizes. An enabled alert with no baseline must have an automated recovery path; opening the wishlist may retry initial verification without toggling the alert or sending a price-drop notification. Never infer size conversions or treat unavailable retrieval as proof of unavailable stock.

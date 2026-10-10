@@ -75,11 +75,23 @@ async function load(){
  clear();const version=generation;$('login').hidden=true;$('collection').hidden=false;$('logout').hidden=false;$('empty').hidden=true;$('count').textContent='';$('grid').setAttribute('aria-busy','true');for(let i=0;i<4;i++){const tile=node('div',null,'tile');tile.setAttribute('aria-hidden','true');tile.append(skeleton('photo'),skeleton('skeleton-card-title'),skeleton('skeleton-price'));$('grid').append(tile);}
  let items;try{({items}=await api());if(version!==generation)return;void enableTestChat(token);}catch(e){$('grid').replaceChildren();throw e;}finally{$('grid').setAttribute('aria-busy','false');}
  $('grid').replaceChildren();$('login').hidden=true;$('collection').hidden=false;$('logout').hidden=false;$('empty').hidden=items.length>0;$('count').textContent=items.length+' '+(items.length===1?'ITEM':'ITEMS');updateWishlistCount(items.length);
- for(const item of items){itemCache.set(item.id,item);const card=node('div',null,'product-card');card.dataset.group=item.id;const tile=node('button',null,'tile');tile.type='button';tile.append(item.has_image?photo(`?item=${item.image_item}&image=product`,item.name):pendingPhoto(item.photo_status==='retry_pending'),node('strong',item.name),node('span',priceRange(item.price_ranges),'card-price'));if(item.sourcing_status==='store_not_found')tile.append(node('span','Product identified · Store not found','card-state'));tile.onclick=()=>detail(item.id);card.append(tile,removeButton(item,card));if(item.alerts_enabled)card.append(alertToggle(item));$('grid').append(card);}message('');requestAnimationFrame(()=>{if(version===generation)$('collection').dataset.readyMs=performance.now().toFixed(1);});void recoverPhotos(items,generation);
+ for(const item of items){itemCache.set(item.id,item);const card=node('div',null,'product-card');card.dataset.group=item.id;const tile=node('button',null,'tile');tile.type='button';tile.append(item.has_image?photo(`?item=${item.image_item}&image=product`,item.name):pendingPhoto(item.photo_status==='retry_pending'),node('strong',item.name),node('span',priceRange(item.price_ranges),'card-price'));if(item.sourcing_status==='store_not_found')tile.append(node('span','Product identified · Store not found','card-state'));tile.onclick=()=>detail(item.id);card.append(tile,removeButton(item,card));if(item.alerts_enabled)card.append(alertToggle(item));$('grid').append(card);}message('');requestAnimationFrame(()=>{if(version===generation)$('collection').dataset.readyMs=performance.now().toFixed(1);});void recoverPhotos(items,generation);void recoverAlertBaselines(items,generation);
  const target=consumeWishlistTarget(items,localStorage);
  if(target?.id)void detail(target.id);else if(target?.missing)message('This item is not available in your signed-in wishlist.');
 }
 
+async function recoverAlertBaselines(items,version){
+ if(!items.some(item=>item.price_alert?.active&&item.price_alert.baseline_pending))return;
+ try{
+  const {recovered}=await api('',{method:'POST',quiet:true,body:JSON.stringify({action:'recover-alerts'})});
+  if(version!==generation)return;
+  for(const id of recovered??[]){
+   const item=itemCache.get(id);if(!item?.price_alert)continue;item.price_alert.baseline_pending=false;
+   const card=[...$('grid').children].find(card=>card.dataset.group===id);
+   card?.querySelector('.alert-toggle')?.replaceWith(alertToggle(item));
+  }
+ }catch{/* Monitoring stays enabled; a later visit or scheduled check retries. */}
+}
 async function recoverPhotos(items,version){
  if(!items.some(item=>!item.has_image||item.details_pending))return;
  try{
@@ -110,7 +122,7 @@ function removeButton(item,card){
 function alertToggle(item){
  const button=node('button',null,'alert-toggle');button.type='button';
  button.innerHTML=`<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path class="bell-shape" d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path class="bell-clapper" d="M10 21h4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><span class="alert-on" aria-hidden="true">ON</span>`;
- const update=()=>{const active=Boolean(item.price_alert?.active);button.setAttribute('aria-pressed',String(active));button.setAttribute('aria-label',`${active?'Turn off':'Set up'} price alert for ${item.name}`);button.title=active?`Price alert on · ${item.price_alert.size}`:'Set up price alert';};update();
+ const update=()=>{const active=Boolean(item.price_alert?.active);button.setAttribute('aria-pressed',String(active));button.setAttribute('aria-label',`${active?'Turn off':'Set up'} price alert for ${item.name}`);button.dataset.baselinePending=String(Boolean(active&&item.price_alert.baseline_pending));button.title=active?`Price alert on · ${item.price_alert.size}${item.price_alert.baseline_pending?' · Starting price not verified yet':''}`:'Set up price alert';};update();
  button.onclick=async()=>{
    button.disabled=true;
    try{

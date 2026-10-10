@@ -3,7 +3,7 @@ import {enrichWishlistItem} from '../lib/wishlist-details.js';
 import {repairWishlistPhotos} from '../lib/wishlist-photos.js';
 import {fetchListingPhotos,fetchProductAssets} from '../lib/product-photos.js';
 import {verifyListing} from '../lib/listings.js';
-import { inspectAlertLinks, baselineOffers, readSizeOffers, lowestAvailable } from '../lib/price-alerts.js';
+import { inspectAlertLinks, baselineOffers, readSizeOffers, lowestAvailable, initialPriceBaselines } from '../lib/price-alerts.js';
 import { createStore } from '../lib/store.js';
 import { wishlistUser, sessionHash, groupWishlist } from '../lib/wishlist.js';
 import { authorize } from '../lib/auth.js';
@@ -25,6 +25,23 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
           const marketEnv=marketEnvironment((await store.profile?.(access.conversation))?.facts??[],env);
           const rows=await repairWishlistPhotos(await store.wishlistEntries(access.conversation),{conversation:access.conversation,store,env:marketEnv,verify:(url,name)=>verify(url,name,fetcher,undefined,marketEnv),photos:(url,name)=>photos(url,name,fetcher),assets:(urls,url)=>fetchProductAssets(urls,url,fetcher)});
           return json(res,200,{items:groupWishlist(rows,{currency:marketEnv.SHOPPING_CURRENCY,country:marketEnv.SHOPPING_COUNTRY}).map(({links,entries,...group})=>group)});
+        }
+        if(input.action==='recover-alerts'){
+          if(env.PRICE_ALERTS_ENABLED!=='true')return json(res,503,{error:'Price alerts are not enabled yet.'});
+          const access=await auth(req.headers,env,store,fetcher);if(access.status!==200)return json(res,access.status,{error:'Please sign in with your invited email.'});
+          const marketEnv=marketEnvironment((await store.profile?.(access.conversation))?.facts??[],env);
+          const recovered=[];
+          for(const alert of await store.pendingPriceAlerts(access.conversation)){
+            if(alert.last_checked_at&&Date.now()-Date.parse(alert.last_checked_at)<300000)continue;
+            const links=alert.links.map(link=>({...link,market_country:marketEnv.SHOPPING_COUNTRY,market_currency:marketEnv.SHOPPING_CURRENCY}));
+            const {checks}=await inspect(links,link=>readSizeOffers(link,fetcher));
+            const sizes=[...new Set(links.flatMap(link=>link.requested_sizes??[alert.size]))];
+            const baselines=initialPriceBaselines(sizes.flatMap(size=>baselineOffers(checks,size)).filter(o=>links.some(link=>link.url===o.url))).map(o=>({...o,drop_percent:0}));
+            if(!await store.priceAlertCurrent(alert.id,alert.revision))continue;
+            await store.recordPriceCheck(alert.id,alert.revision,{status:baselines.length?'baseline_established':'awaiting_availability',checks},false,baselines.length?baselines:undefined);
+            if(baselines.length)recovered.push(alert.group_id);
+          }
+          return json(res,200,{recovered});
         }
         if(input.action==='enrich'){
           const access=await auth(req.headers,env,store,fetcher);if(access.status!==200)return json(res,access.status,{error:'Please sign in with your invited email.'});
@@ -115,7 +132,7 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
         const groups = groupWishlist(rows,{currency:marketEnv.SHOPPING_CURRENCY,country:marketEnv.SHOPPING_COUNTRY});
         res.setHeader('Server-Timing',`auth;dur=${authDuration.toFixed(1)}, wishlist;dur=${(performance.now()-started).toFixed(1)}`);
         if(env.PRICE_ALERTS_ENABLED==='true'){
-          for(const group of groups){const alert=alerts.find(a=>a.group_id===group.id);group.price_alert=alert?{active:alert.active,size:alert.size,last_checked_at:alert.last_checked_at,notified:alert.notified}:null;group.alerts_enabled=true;}
+          for(const group of groups){const alert=alerts.find(a=>a.group_id===group.id);group.price_alert=alert?{active:alert.active,size:alert.size,last_checked_at:alert.last_checked_at,notified:alert.notified,baseline_pending:Array.isArray(alert.baselines)&&alert.baselines.length===0}:null;group.alerts_enabled=true;}
         }
         if (groupId) {
           const item = groups.find(g=>g.id===groupId);
