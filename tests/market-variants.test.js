@@ -23,9 +23,14 @@ test('color recovery preserves split caption/link timing and fallible assistant 
   const body=JSON.parse(request.body),context=JSON.parse(body.input[0].content[0].text);
   assert.deepEqual(context.conversation.map(m=>m.created_at),messages.map(m=>m.created_at));
   assert.equal(context.conversation[3].text,url);assert.match(body.instructions,/assistant claims are fallible/);
-  return new Response(JSON.stringify({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({color_index:0,requested_color:'blue'})}]}]}));
+  return new Response(JSON.stringify({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({color_index:0,requested_color:'blue',source_message_id:'caption',evidence:'Love this in the blue color'})}]}]}));
  });
  assert.equal(result.color,'Slate');assert.equal(result.requested_color,'blue');
+});
+test('color recovery rejects a color supported only by an assistant product title',async()=>{
+ const messages=[{id:'user',direction:'inbound',body:'Love this in the blue color'},{id:'assistant',direction:'outbound',body:'Black loafers'}];
+ const fetcher=async()=>new Response(JSON.stringify({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({color_index:0,requested_color:'Black',source_message_id:'assistant',evidence:'Black loafers'})}]}]}));
+ await assert.rejects(resolveSavedColor({product,options:[{color:'Black',url}],messages,reply_ids:[]},{OPENAI_API_KEY:'fixture'},fetcher),/Unsupported color preference citation/);
 });
 test('retailer market follows the user country rather than server geography and verifies currency',async()=>{
  const requests=[];
@@ -91,7 +96,7 @@ test('failed older repairs enter a persisted cooldown so later items can be reco
  const rows=()=>[...items].map(([id,p])=>({item_id:id,has_image:true,...p}));
  const verify=async u=>{attempts.push(u);if(!u.endsWith('third'))throw Error('Interpretation unavailable');return {status:'verified',url:u,product_name:'Shirt'};};
  await repairWishlistPhotos(rows(),{conversation:'owner',store,verify,now});await repairWishlistPhotos(rows(),{conversation:'owner',store,verify,now:now+1000});
- assert.equal(attempts.length,3);assert.equal(items.get('third').details_revision,5);assert.equal(items.get('first').photo_attempted_revision,5);
+ assert.equal(attempts.length,3);assert.equal(items.get('third').details_revision,6);assert.equal(items.get('first').photo_attempted_revision,6);
 });
 test('database photo repair writes the cooldown revision to both item and encounter snapshots',async()=>{
  const writes=[];
