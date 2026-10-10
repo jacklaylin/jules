@@ -21,11 +21,13 @@ test('color recovery preserves split caption/link timing and fallible assistant 
  ];
  const result=await resolveSavedColor({product,options:[{color:'Slate',url:url+'?variant=1'},{color:'Oyster',url:url+'?variant=2'}],messages,reply_ids:['save']},{OPENAI_API_KEY:'fixture'},async(_u,request)=>{
   const body=JSON.parse(request.body),context=JSON.parse(body.input[0].content[0].text);
+  assert.deepEqual(body.text.format.schema.properties.source_message_id.enum,['old','caption','link','save',null]);
+  assert.equal(body.text.format.schema.properties.requested_color,undefined);
   assert.deepEqual(context.conversation.map(m=>m.created_at),messages.map(m=>m.created_at));
   assert.equal(context.conversation[3].text,url);assert.match(body.instructions,/assistant claims are fallible/);
-  return new Response(JSON.stringify({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({color_index:0,requested_color:'blue',source_message_id:'caption',evidence:'Love this in the blue color'})}]}]}));
+  return new Response(JSON.stringify({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({color_index:0,requested_color:'Slate',source_message_id:'caption',evidence:'Love this in the blue color'})}]}]}));
  });
- assert.equal(result.color,'Slate');assert.equal(result.requested_color,'blue');
+ assert.equal(result.color,'Slate');assert.equal(result.requested_color,'Love this in the blue color');
 });
 test('color recovery rejects a color supported only by an assistant product title',async()=>{
  const messages=[{id:'user',direction:'inbound',body:'Love this in the blue color'},{id:'assistant',direction:'outbound',body:'Black loafers'}];
