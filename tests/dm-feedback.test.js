@@ -63,3 +63,23 @@ test('SSENSE native selector supplies only explicit retailer size and stock, nev
  assert.deepEqual(rows.map(r=>r.size),['IT 39','IT 45']);assert.equal(rows[0].available,false);assert.equal(rows[1].available,true);assert.equal(rows[1].amount,695);assert.equal(rows[1].currency,'USD');
  assert.deepEqual(parseSizeOffers(html,'Leather boots',url),[]);
 });
+
+test('legacy unqualified alert size is model-bound to one identical retailer code without conversions',async()=>{
+ const {resolveAlertSizeLabel}=await import('../lib/alert-size-label.js');
+ const offer={url,size:'IT 45',key:'IT 45',checked_at:'2026-10-09',amount:695,currency:'USD',available:true};
+ const alert={size:'45',links:[{url,name:'Loafers'}]},checks=[{offers:[offer]}];let calls=0;
+ const fetcher=async()=>{calls++;return {ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({size:'IT 45'})}]}]})};};
+ const recovered=await resolveAlertSizeLabel(alert,checks,[],{OPENAI_API_KEY:'test'},fetcher);
+ assert.equal(recovered.checks[0].offers[1].key,'45');assert.equal(recovered.checks[0].offers[1].retailer_size,'IT 45');assert.equal(recovered.links[0].verified_size_mappings[0].retailer_size,'IT 45');
+ for(const size of ['EU 45','US men 12'])assert.deepEqual((await resolveAlertSizeLabel({...alert,size},checks,[],{OPENAI_API_KEY:'test'},fetcher)).checks,checks);
+ assert.deepEqual((await resolveAlertSizeLabel(alert,[{offers:[offer,{...offer,size:'EU 45',key:'EU 45'}]}],[],{OPENAI_API_KEY:'test'},fetcher)).links,alert.links);assert.equal(calls,1);
+});
+
+test('monitoring an owned saved item reuses its record and verifies ownership before activation',async()=>{
+ const {finishTextWishlist}=await import('../lib/text-wishlist.js');const {groupWishlist}=await import('../lib/wishlist.js');
+ const rows=[{reply_id:'earlier',item_id:id,name:'TheROCKER',links:[{url}],messages:{created_at:'2026-10-09'}}],group=groupWishlist(rows)[0].id;let activated=0;
+ const store={wishlistReplyId:()=>assert.fail('No new save is required'),wishlistEntries:async()=>rows,enablePriceAlert:async()=>{activated++;return {active:true};}};
+ const result={identification_policy:'text_wishlist',user_confirmed:true,existing_saved_groups:[group],alert_requests:[{url,size:'EU 45',baselines:[{amount:290}],links:[{url}]}]};
+ await finishTextWishlist({store,result,env:{},conversationId:id});assert.equal(activated,1);
+ await assert.rejects(finishTextWishlist({store,result:{...result,existing_saved_groups:['unowned']},env:{},conversationId:id}));assert.equal(activated,1);
+});

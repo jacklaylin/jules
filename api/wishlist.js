@@ -1,3 +1,4 @@
+import {resolveAlertSizeLabel} from '../lib/alert-size-label.js';
 import {marketEnvironment} from '../lib/shopping-market.js';
 import {enrichWishlistItem} from '../lib/wishlist-details.js';
 import {repairWishlistPhotos} from '../lib/wishlist-photos.js';
@@ -29,16 +30,17 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
         if(input.action==='recover-alerts'){
           if(env.PRICE_ALERTS_ENABLED!=='true')return json(res,503,{error:'Price alerts are not enabled yet.'});
           const access=await auth(req.headers,env,store,fetcher);if(access.status!==200)return json(res,access.status,{error:'Please sign in with your invited email.'});
-          const marketEnv=marketEnvironment((await store.profile?.(access.conversation))?.facts??[],env);
+          const facts=(await store.profile?.(access.conversation))?.facts??[],marketEnv=marketEnvironment(facts,env);
           const recovered=[];
           for(const alert of await store.pendingPriceAlerts(access.conversation)){
             if(alert.last_checked_at&&Date.now()-Date.parse(alert.last_checked_at)<300000)continue;
             const links=alert.links.map(link=>({...link,market_country:marketEnv.SHOPPING_COUNTRY,market_currency:marketEnv.SHOPPING_CURRENCY}));
-            const {checks}=await inspect(links,link=>readSizeOffers(link,fetcher));
+            const observed=await inspect(links,link=>readSizeOffers(link,fetcher));
+            const {checks,links:resolvedLinks}=await resolveAlertSizeLabel({...alert,links},observed.checks,facts,marketEnv,fetcher);
             const sizes=[...new Set(links.flatMap(link=>link.requested_sizes??[alert.size]))];
             const baselines=initialPriceBaselines(sizes.flatMap(size=>baselineOffers(checks,size)).filter(o=>links.some(link=>link.url===o.url))).map(o=>({...o,drop_percent:0}));
             if(!await store.priceAlertCurrent(alert.id,alert.revision))continue;
-            await store.recordPriceCheck(alert.id,alert.revision,{status:baselines.length?'baseline_established':'awaiting_availability',checks},false,baselines.length?baselines:undefined);
+            await store.recordPriceCheck(alert.id,alert.revision,{status:baselines.length?'baseline_established':'awaiting_availability',checks},false,baselines.length?baselines:undefined,baselines.length?resolvedLinks:undefined);
             if(baselines.length)recovered.push(alert.group_id);
           }
           return json(res,200,{recovered});
