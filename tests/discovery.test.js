@@ -68,3 +68,8 @@ test('jacket clarification continues the jacket brief despite earlier shoe conte
  assert.equal(relevanceCheck({...candidate,listing_check:{shopping_range:'women'}},{range:'men',allow_unknown_range:true}).eligible,false);
  assert.ok(!rangeFailure([{reason:'range_unverified'}],{range:'men'}).includes('shoes'));
 });
+
+ test('planned discovery searches the wider web without requiring registry membership',async()=>{
+ let scope;const candidate=p('new');const reply=await textWishlistAction({action:'start',query:'Jacques Marie Mage Romi sunglasses',search_plan:{...plan,mode:'identify'}},{env:{},text:'find them',record:async()=>{},search:async(_query,_images,_env,_fetch,_constraints,_refined,sourceScope)=>{scope=sourceScope;return {products:[candidate],refinement_attempted:true};}});
+ assert.equal(scope,'web');assert.ok(reply.includes(candidate.url));
+ });

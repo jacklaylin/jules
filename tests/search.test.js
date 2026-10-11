@@ -13,7 +13,7 @@ test('failed category URLs are excluded on refinement and their page checks surv
   if(calls===2){assert.ok(request.input[0].content[0].text.includes(category));return response([{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify({intro:'None found.',products:[],needs_review:true})}]}]);}
   return response([{type:'web_search_call',status:'completed',action:{sources:[{url:category}]}},{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify({...result,products:[{...result.products[0],brand:'Prada',name:'Speedrock sneakers',url:category}]})}]}]);
  },{range:'men'});
- assert.equal(calls,3);assert.equal(found.initial_checks[0].checks[0].reason,'category_page');assert.equal(found.initial_checks[0].url,category);
+ assert.equal(calls,2);assert.equal(found.initial_checks[0].checks[0].reason,'category_page');assert.equal(found.initial_checks[0].url,category);
 });
 test('product links require completed live search and retrieved source URLs; invented and duplicate URLs are dropped',()=>{
   const verified=validateSearch({output},{...result,products:[...result.products,{...result.products[0],url:'https://retailer.example/invented'},result.products[0]]});
@@ -41,7 +41,7 @@ test('explicit follow-up can source the recent image without attaching it to ord
     if(++calls===1){assert.equal(request.tools[0].name,'search_products');return response([{type:'function_call',name:'search_products',arguments:JSON.stringify({query:'Dark waxed jacket with corduroy collar',use_image:true})}]);}
     assert.equal(request.input[0].content[1].type,'input_image');return response(output);
   },{loadImages:async()=>{loaded++;return [{mime_type:'image/jpeg',data:'fake'}];},recordSearch:async r=>recorded=r});
-  assert.equal(calls,4);assert.equal(loaded,1);assert.equal(recorded.products.length,0);assert.match(text,/similar options/);
+  assert.equal(calls,2);assert.equal(loaded,1);assert.equal(recorded.products.length,0);assert.match(text,/similar options/);
 });
 test('search errors are recorded for review and never generate invented links',async()=>{
   let calls=0,recorded;
