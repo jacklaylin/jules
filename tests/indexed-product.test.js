@@ -33,7 +33,7 @@ test('blocked merchant can recover an indexed reference without inventing curren
  const check=await verifyListing(url,null,fetcher,async()=>{throw Error('Blocked');},env);assert.equal(check.status,'verified');assert.equal(check.verification_basis,'search_index');assert.equal(check.price_snapshot.amount,368);assert.equal(check.availability,null);assert.equal(check.product_images[0],image);
  let calls=0;const missing=await verifyListing(url,null,async()=>{calls++;return new Response('Missing',{status:404});},async()=>assert.fail(),env);assert.equal(missing.status,'unavailable');assert.equal(calls,1);
 });
-test('live retailer price takes precedence while indexed disagreement remains traceable',async()=>{
- const fetcher=async value=>String(value).startsWith('https://serpapi.com/')?fixture([735,735])(value):new Response('<script type="application/ld+json">'+JSON.stringify({'@type':'Product',url,name:'Straight-Leg Cotton Trousers',offers:{price:368,priceCurrency:'USD'},image:[image]})+'</script>',{headers:{'content-type':'text/html'}});
- const check=await verifyListing(url,null,fetcher,async()=>assert.fail(),env);assert.equal(check.price_snapshot.amount,368);assert.equal(check.product_data.price_conflicts.length,2);assert.equal(check.retrieval,'http');
+test('complete retailer evidence skips paid enrichment',async()=>{
+ let calls=0;const fetcher=async value=>{assert.ok(!String(value).startsWith('https://serpapi.com/'));calls++;return new Response('<script type="application/ld+json">'+JSON.stringify({'@type':'Product',url,name:'Straight-Leg Cotton Trousers',offers:{price:368,priceCurrency:'USD'},image:[image]})+'</script>',{headers:{'content-type':'text/html'}});};
+ const check=await verifyListing(url,null,fetcher,async()=>assert.fail(),env);assert.equal(check.price_snapshot.amount,368);assert.equal(check.retrieval,'http');assert.equal(calls,1);assert.deepEqual(check.product_images,[image]);
 });

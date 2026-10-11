@@ -12,7 +12,7 @@ test('direct recovery only returns page-verified model and brand matches in the 
  assert.equal(checked,4);assert.equal(result.products.length,1);assert.equal(result.products[0].url,links[1]);assert.equal(result.products[0].price_snapshot,undefined);assert.equal(result.relevance_rejections[0].reason,'range_mismatch');
 });
 test('direct recovery rejects provider errors and empty brand evidence',async()=>{
- await assert.rejects(recoverTextSources('Prada Speedrock',{SERPAPI_API_KEY:'fake'},async()=>({ok:true,json:async()=>({error:'Quota'})}),{}));
+ await assert.rejects(recoverTextSources('Prada Speedrock',{SERPAPI_API_KEY:'exhausted-direct-fixture'},async()=>({ok:true,json:async()=>({error:'Quota'})}),{}));
  const result=await recoverTextSources('Prada Speedrock',{SERPAPI_API_KEY:'fake'},async()=>({ok:true,json:async()=>({organic_results:[{link:'https://www.prada.com/us/en/p/model/sku'}]})}),{},async url=>({status:'verified',url,product_name:'Speedrock'}));
  assert.equal(result.products.length,0);
 });
