@@ -1,3 +1,4 @@
+import {structuredColorOptions} from '../lib/product-variants.js';
 import {listingProduct} from '../lib/product-photos.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -122,6 +123,7 @@ test('a canonical multi-color ProductGroup establishes identity without assignin
  const group={'@type':'ProductGroup','@id':'/products/romi#product',name:'Jacques Marie Mage Romi Sunglasses',brand:{name:'Jacques Marie Mage'},hasVariant:[{'@type':'Product',name:'Jacques Marie Mage Romi Sunglasses - 6D Agar Yellow',color:'6D Agar Yellow',url:url+'?variant=1',offers:{price:'960',priceCurrency:'USD'}},{'@type':'Product',name:'Jacques Marie Mage Romi Sunglasses - Black',color:'Black',url:url+'?variant=2',offers:{price:'990',priceCurrency:'USD'}}]};
  const html='<script type="application/ld+json">'+JSON.stringify(group)+'</script>';
  const product=listingProduct(html,'Jacques Marie Mage Romi Sunglasses 6D Agar Yellow',url);
- assert.equal(product.name,group.name);assert.deepEqual(product.offers,[]);assert.equal(product.color,null);assert.equal(product.hasVariant.length,2);
+ assert.equal(product.name,group.name);assert.deepEqual(product.offers,[]);assert.equal(product.color,null);assert.equal(product.hasVariant.length,2);assert.deepEqual(structuredColorOptions(product,url).map(c=>c.color),['6D Agar Yellow','Black']);
+ assert.equal(structuredColorOptions({...group,hasVariant:[{color:'Fake',url:'https://other.example/products/romi?variant=3'}]},url).length,0);
  assert.equal(listingProduct(html,'Romi Sunglasses',url+'?variant=unlisted'),null);
 });
