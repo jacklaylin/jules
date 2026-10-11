@@ -64,7 +64,7 @@ test('jacket clarification continues the jacket brief despite earlier shoe conte
   const input=JSON.parse(JSON.parse(request.body).input[0].content);assert.equal(input.pending_state.search_brief,state.search_brief);
   return model({action:'start',query:'Saint Laurent beige and navy sporty logo jacket worn by Connor Storrie',search_plan:{...plan,continuation:true,mode:'identify'}})();
  },{facts,wishlistState:state,wishlistAction:args=>textWishlistAction(args,{state,text:messages.at(-1).body,facts,env:{},record:async r=>{result=r;},search:async query=>{brief=query;return {products:[candidate],refinement_attempted:true};}})});
- assert.ok(brief.includes('jacket'));assert.equal(result.text_wishlist_state.options[0].name,'Sporty jacket');assert.equal(result.text_wishlist_state.options[0].listing_check.shopping_range,null);assert.ok(!reply.includes('shoes'));assert.equal(result.user_confirmed,undefined);
+ assert.ok(brief.includes('jacket'));assert.equal(result.text_wishlist_state.options[0].name,'Sporty jacket');assert.equal(result.text_wishlist_state.options[0].listing_check.shopping_range,null);assert.ok(!reply.includes('shoes'));assert.ok(!reply.includes('department'));assert.equal(result.user_confirmed,undefined);
  assert.equal(relevanceCheck({...candidate,listing_check:{shopping_range:'women'}},{range:'men',allow_unknown_range:true}).eligible,false);
  assert.ok(!rangeFailure([{reason:'range_unverified'}],{range:'men'}).includes('shoes'));
 });
