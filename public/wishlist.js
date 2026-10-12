@@ -115,7 +115,22 @@ async function recoverPhotos(items,version,pass=0){
 
 let alertSelection=null,toastTimer;
 const alertPost=input=>api('',{method:'POST',body:JSON.stringify(input)});
-function toast(text,undo){clearTimeout(toastTimer);$('toast').replaceChildren(node('span',text));if(undo){const button=node('button','Undo','undo-remove');button.type='button';button.onclick=async()=>{button.disabled=true;try{await undo();$('toast').hidden=true;}catch(e){message(e.message);button.disabled=false;}};$('toast').append(button);}$('toast').hidden=false;if(!undo)toastTimer=setTimeout(()=>{$('toast').hidden=true;},6000);}
+function toast(text,undo){
+ clearTimeout(toastTimer);const notification=$('toast');notification.replaceChildren(node('span',text));
+ if(undo){
+  const button=node('button','Undo','undo-remove');button.type='button';
+  button.onclick=async()=>{
+   button.disabled=true;notification.hidden=true;
+   try{await undo();}catch(e){
+    message(e.message);button.disabled=false;
+    // A newer notification owns the toast if another action finished meanwhile.
+    if(notification.contains(button))notification.hidden=false;
+   }
+  };
+  notification.append(button);
+ }
+ notification.hidden=false;if(!undo)toastTimer=setTimeout(()=>{notification.hidden=true;},6000);
+}
 function removeButton(item,card){
  const button=node('button','×','remove-item');button.type='button';button.setAttribute('aria-label',`Remove ${item.name} from wishlist`);button.title='Remove from wishlist';
  button.onclick=async()=>{button.disabled=true;try{await alertPost({action:'remove',group:item.id});card?.remove();itemCache.delete(item.id);const count=$('grid').children.length;$('count').textContent=count+' '+(count===1?'ITEM':'ITEMS');updateWishlistCount(count);$('empty').hidden=count>0;toast(item.price_alert?.active?'Removed. Price alert turned off.':'Removed from your wishlist.',async()=>{await alertPost({action:'restore',group:item.id});await load();});const next=$('grid').querySelector('.tile');if(next)next.focus();}catch(e){message(e.message);button.disabled=false;}};
