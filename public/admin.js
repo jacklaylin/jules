@@ -1,17 +1,22 @@
 import {trackedFetch as fetch} from './activity.js';
+import {createSession} from './wishlist-session.js';
+const session=createSession({storage:localStorage,fetcher:fetch,lock:work=>navigator.locks?navigator.locks.request('jules-wishlist-refresh',work):work()});
 const $ = id => document.getElementById(id);
-let token = sessionStorage.getItem('jules_token');
+let token = sessionStorage.getItem('jules_token') ?? session.read()?.access_token;
+let dedicatedLogin=Boolean(sessionStorage.getItem('jules_token'));
 const fragment = new URLSearchParams(location.hash.slice(1));
 if (fragment.has('access_token')) {
-  token = fragment.get('access_token'); sessionStorage.setItem('jules_token', token);
+  dedicatedLogin=true; token = fragment.get('access_token'); sessionStorage.setItem('jules_token', token);
 }
 const loginError = fragment.get('error_description');
 if (location.hash) history.replaceState(null, '', '/admin');
 let current = null, requestVersion = 0, cursor = null, historyMessages = [], sending = false, operation = null, profileBusy = false, profileVersion = 0;
 function notice(message) { $('notice').textContent = message; $('notice').hidden = !message; }
-function showLogin() { token = null; sessionStorage.removeItem('jules_token'); $('login').hidden = false; $('inbox').hidden = true; $('signout').hidden = true; }
+function showLogin() { token = null; dedicatedLogin=true; sessionStorage.removeItem('jules_token'); $('login').hidden = false; $('inbox').hidden = true; $('signout').hidden = true; }
 async function api(path, options = {}) {
-  const response = await fetch(path, { ...options, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, cache: 'no-store' });
+  if(!dedicatedLogin&&session.read())token=await session.token();
+  let response = await fetch(path, { ...options, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, cache: 'no-store' });
+  if(response.status===401&&!dedicatedLogin&&session.read()?.refresh_token){token=await session.token(true);response=await fetch(path,{...options,headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},cache:'no-store'});}
   const data = await response.json();
   if (!response.ok) { if (response.status === 401 || response.status === 403) showLogin(); throw new Error(data.error ?? 'Request failed.'); }
   return data;
@@ -99,7 +104,7 @@ $('login-form').onsubmit = async event => {
   catch (error) { notice(error.message); }
   finally { $('login-button').disabled = false; }
 };
-$('signout').onclick = () => { current = null; $('reply').value = ''; operation = null; showLogin(); notice('Signed out on this browser.'); };
+$('signout').onclick = () => { session.clear(); current = null; $('reply').value = ''; operation = null; showLogin(); notice('Signed out on this browser.'); };
 $('refresh').onclick = async () => { try { await loadInbox(); notice(''); } catch (error) { notice(error.message); } };
 $('older').onclick = async () => { $('older').disabled = true; try { await loadConversation(current, true); } catch (error) { notice(error.message); } finally { $('older').disabled = false; } };
 $('reply').oninput = () => { operation = null; };

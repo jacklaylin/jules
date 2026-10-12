@@ -1,12 +1,12 @@
 import { createStore } from '../lib/store.js';
 import { wishlistUser } from '../lib/wishlist.js';
 import { json, readJson, uuid } from '../lib/http.js';
-import { ensureCoreCards, TONES, prepareSource, analyzeStyle, captionStylePhotos, confirmReport, reportFacts, cropSource, fail } from '../lib/style.js';
+import { ensureCoreCards, TONES, prepareSource, analyzeStyle, captionStylePhotos, confirmReport, reportFacts, confirmationEvidence, withObservationEvidence, hydrateReport, dehydrateReport, cropSource, fail } from '../lib/style.js';
 
 export const config={api:{bodyParser:false},maxDuration:120};
 export function createStyleHandler({env=process.env,storeFactory=createStore,auth=wishlistUser,analyze=analyzeStyle,caption=captionStylePhotos,prepare=prepareSource,crop=cropSource,fetcher=fetch}={}) {
   return async(req,res)=>{
-    let store,owner,reservation;
+    let store,owner,reservation,save;
     try {
       if(env.STYLE_ENABLED!=='true')return json(res,503,{error:'Style analysis is not available yet.'});
       if(!['GET','POST'].includes(req.method)){res.setHeader('Allow','GET, POST');return json(res,405,{error:'Method not allowed.'});}
@@ -14,7 +14,10 @@ export function createStyleHandler({env=process.env,storeFactory=createStore,aut
       const access=await auth(req.headers,env,store,fetcher);
       if(access.status!==200)return json(res,access.status,{error:'Please sign in with your invited email.'});
       owner=access.conversation;
+      // Observations live in the evidence store; the saved report keeps references to them.
+      save=(revision,data,options)=>store.writeStyle(owner,revision,{...data,report:dehydrateReport(data.report)},options);
       const state=await store.styleSession(owner);
+      if(state.data.report)state.data.report=hydrateReport(state.data.report,await store.evidence(owner,'style'));
       if(state.data.report?.status==='confirmed')state.data.report=ensureCoreCards(state.data.report);
       if(req.method==='GET') {
         const query=new URL(req.url,'https://local.invalid').searchParams;
@@ -49,7 +52,7 @@ export function createStyleHandler({env=process.env,storeFactory=createStore,aut
         return json(res,200,{ok:true});
       }
       const write=async(data,options)=>{
-        if(!await store.writeStyle(owner,state.revision,data,options))throw fail('Your style inputs changed. Reload before continuing.',409);
+        if(!await save(state.revision,data,options))throw fail('Your style inputs changed. Reload before continuing.',409);
         return json(res,200,{revision:state.revision+1,data,sources:await store.styleSources(owner),signup_url:signupURL(env)});
       };
       // Deletion is allowed during analysis and invalidates the in-flight reservation.
@@ -63,13 +66,13 @@ export function createStyleHandler({env=process.env,storeFactory=createStore,aut
         if(!state.data.consent_at||!state.data.report||input.report!==state.data.report.id)throw fail('Reload your style read before checking photo captions.',409);
         if(!state.data.report.analysis.crops.some(c=>!c.full_caption||c.caption_version!==1))return json(res,200,{...state,sources:await store.styleSources(owner),signup_url:signupURL(env)});
         const pending={...state.data,busy_until:new Date(Date.now()+60000).toISOString()};
-        if(!await store.writeStyle(owner,state.revision,pending))throw fail('Your style read changed. Reload before continuing.',409);
+        if(!await save(state.revision,pending))throw fail('Your style read changed. Reload before continuing.',409);
         reservation={revision:state.revision+1,data:state.data};
         const ids=new Set(state.data.report.analysis.crops.filter(c=>!c.full_caption||c.caption_version!==1).map(c=>c.source_id));
         const sources=await Promise.all([...ids].map(id=>store.styleSource(owner,id)));
         const report=await caption(state.data.report,sources.filter(Boolean),env,fetcher);
         const updated={...state.data,report,busy_until:null};
-        if(!await store.writeStyle(owner,reservation.revision,updated))throw fail('Your style read changed while checking captions. Reload to see it.',409);
+        if(!await save(reservation.revision,updated))throw fail('Your style read changed while checking captions. Reload to see it.',409);
         reservation=null;
         console.log(JSON.stringify({event:'style_photo_captions_checked',photos:ids.size}));
         return json(res,200,{revision:state.revision+2,data:updated,sources:await store.styleSources(owner),signup_url:signupURL(env)});
@@ -79,15 +82,15 @@ export function createStyleHandler({env=process.env,storeFactory=createStore,aut
         const source=await prepare(input);
         const data={...state.data,report:null,busy_until:null,consent_at:new Date().toISOString()};
         console.log(JSON.stringify({event:'style_source_added',kind:source.kind}));
-        return write(data,{source,facts:[]});
+        return write(data,{source,clear:true});
       }
       if(input.action==='remove') {
         if(!uuid(input.source)||!await store.styleSource(owner,input.source))throw fail('Source not found.',404);
-        return write({...state.data,report:null,busy_until:null},{remove:input.source,facts:[]});
+        return write({...state.data,report:null,busy_until:null},{remove:input.source,clear:true});
       }
       if(input.action==='context') {
         if(typeof input.notes!=='string'||input.notes.length>2000)throw fail('Keep your style notes under 2,000 characters.');
-        return write({...state.data,notes:input.notes.trim(),report:null,busy_until:null},{facts:[]});
+        return write({...state.data,notes:input.notes.trim(),report:null,busy_until:null},{clear:true});
       }
       if(input.action==='tone') {
         if(!TONES.includes(input.tone))throw fail('Choose a tone.');
@@ -95,16 +98,16 @@ export function createStyleHandler({env=process.env,storeFactory=createStore,aut
       }
       if(input.action==='analyze') {
         if(input.consent!==true||!state.data.consent_at)throw fail('Approve sharing your inputs with OpenAI for this analysis.');
-        const sources=await store.styleSources(owner,true);
+        const sources=(await store.styleSources(owner,true)).filter(s=>s.kind!=='receipt');
         if(!sources.some(s=>s.kind==='outfit'))throw fail('Add at least one personal outfit photo to start.');
         const pending={...state.data,busy_until:new Date(Date.now()+150000).toISOString()};
-        if(!await store.writeStyle(owner,state.revision,pending))throw fail('Your inputs changed. Reload before analyzing.',409);
+        if(!await save(state.revision,pending))throw fail('Your inputs changed. Reload before analyzing.',409);
         reservation={revision:state.revision+1,data:state.data};
         const profile=env.MEMORY_ENABLED==='true'&&store.profile?await store.profile(owner):{facts:[]};
         const facts=(profile.facts??[]).filter(f=>!f.deleted&&f.source!=='style_report'&&['style','brand','category','budget','size'].includes(f.field)).map(({field,key,value})=>({field,key,value}));
-        const report=await analyze(sources,state.data.notes,env,fetcher,facts);
+        const {report,evidence}=withObservationEvidence(await analyze(sources,state.data.notes,env,fetcher,facts));
         const data={...state.data,report,busy_until:null};
-        if(!await store.writeStyle(owner,reservation.revision,data))throw fail('Your inputs changed during analysis. Reload to see the current version.',409);
+        if(!await save(reservation.revision,data,{evidence}))throw fail('Your inputs changed during analysis. Reload to see the current version.',409);
         reservation=null;
         return json(res,200,{revision:state.revision+2,data,sources:sources.map(({data,...s})=>s),signup_url:signupURL(env)});
       }
@@ -112,7 +115,7 @@ export function createStyleHandler({env=process.env,storeFactory=createStore,aut
         const report=confirmReport(state.data.report,input.reviews);
         const facts=reportFacts(report);
         console.log(JSON.stringify({event:'style_confirmation',cards:report.cards.filter(c=>c.accepted).length,preferences:facts.length}));
-        return write({...state.data,report,busy_until:null},{facts});
+        return write({...state.data,report,busy_until:null},{facts,evidence:confirmationEvidence(report,facts)});
       }
       if(input.action==='hide') {
         const report=state.data.report;
@@ -122,7 +125,7 @@ export function createStyleHandler({env=process.env,storeFactory=createStore,aut
       throw fail('Unknown action.');
     } catch(error) {
       if(reservation) {
-        try{await store.writeStyle(owner,reservation.revision,{...reservation.data,busy_until:null});}catch{/* Expired lock is recoverable. */}
+        try{await save(reservation.revision,{...reservation.data,busy_until:null});}catch{/* Expired lock is recoverable. */}
       }
       console.log(JSON.stringify({event:'style_request_failed',status:error.status??503,...(error.code?{reason:error.code}:{})}));
       return json(res,error.status??503,{error:error.status?error.message:'Could not finish that step. Your saved inputs are intact; reload before trying again.',...(error.code?{code:error.code}:{})});

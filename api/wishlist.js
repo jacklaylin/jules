@@ -1,8 +1,15 @@
+import { wishlistEvidence } from '../lib/evidence.js';
+import {scheduleGmail,handleGmailWork} from '../lib/gmail-worker.js';
+import {createPhoneLoginHandler} from '../lib/phone-login.js';
+import {resolveAlertSizeLabel} from '../lib/alert-size-label.js';
+import {createOnboardingHandler} from '../lib/onboarding.js';
+import {createGmailHandler} from '../lib/gmail-import.js';
+import {marketEnvironment} from '../lib/shopping-market.js';
 import {enrichWishlistItem} from '../lib/wishlist-details.js';
 import {repairWishlistPhotos} from '../lib/wishlist-photos.js';
 import {fetchListingPhotos,fetchProductAssets} from '../lib/product-photos.js';
 import {verifyListing} from '../lib/listings.js';
-import { inspectAlertLinks, baselineOffers, readSizeOffers, lowestAvailable } from '../lib/price-alerts.js';
+import { inspectAlertLinks, baselineOffers, readSizeOffers, lowestAvailable, initialPriceBaselines } from '../lib/price-alerts.js';
 import { createStore } from '../lib/store.js';
 import { wishlistUser, sessionHash, groupWishlist } from '../lib/wishlist.js';
 import { authorize } from '../lib/auth.js';
@@ -11,9 +18,16 @@ import {createSignupHandler} from '../lib/public-signup.js';
 
 export const config = { api: { bodyParser: false }, maxDuration: 120 };
 export function createWishlistHandler({ env = process.env, storeFactory = createStore, auth = wishlistUser, admin = authorize, fetcher = fetch, verify = verifyListing, inspect = inspectAlertLinks, photos = fetchListingPhotos } = {}) {
+  const onboarding=createOnboardingHandler({env,storeFactory});
+  const gmail=createGmailHandler({env,storeFactory,auth,fetcher,schedule:owner=>scheduleGmail(owner,env)});
+  const phoneLogin=createPhoneLoginHandler({env,storeFactory,fetcher});
   const signup=createSignupHandler({env,storeFactory});
   return async (req, res) => {
     try {
+      if(new URL(req.url,'https://jules.invalid').searchParams.get('gmail')==='work')return handleGmailWork(req,res,storeFactory(env),env);
+      if(new URL(req.url,'https://jules.invalid').searchParams.has('phone_login'))return phoneLogin(req,res);
+      if(new URL(req.url,'https://jules.invalid').searchParams.has('gmail'))return gmail(req,res);
+      if(new URL(req.url,'https://jules.invalid').searchParams.get('onboarding')==='1')return onboarding(req,res);
       if(new URL(req.url,'https://jules.invalid').searchParams.get('public_signup')==='1')return signup(req,res);
       if (env.WISHLIST_ENABLED !== 'true') return json(res, 503, { error: 'Wishlist is not available yet.' });
       const store = storeFactory(env);
@@ -21,13 +35,34 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
         const input = await readJson(req, 16384);
         if(input.action==='recover-photos'){
           const access=await auth(req.headers,env,store,fetcher);if(access.status!==200)return json(res,access.status,{error:'Please sign in with your invited email.'});
-          const rows=await repairWishlistPhotos(await store.wishlistEntries(access.conversation),{conversation:access.conversation,store,photos:(url,name)=>photos(url,name,fetcher)});
-          return json(res,200,{items:groupWishlist(rows).map(({links,entries,...group})=>group)});
+          const marketEnv=marketEnvironment((await store.profile?.(access.conversation))?.facts??[],env);
+          const rows=await repairWishlistPhotos(await store.wishlistEntries(access.conversation),{conversation:access.conversation,store,env:marketEnv,verify:(url,name)=>verify(url,name,fetcher,undefined,marketEnv,{recoveryOnly:true}),photos:(url,name)=>photos(url,name,fetcher),assets:(urls,url)=>fetchProductAssets(urls,url,fetcher)});
+          return json(res,200,{items:groupWishlist(rows,{currency:marketEnv.SHOPPING_CURRENCY,country:marketEnv.SHOPPING_COUNTRY}).map(({links,entries,...group})=>group)});
+        }
+        if(input.action==='recover-alerts'){
+          if(env.PRICE_ALERTS_ENABLED!=='true')return json(res,503,{error:'Price alerts are not enabled yet.'});
+          const access=await auth(req.headers,env,store,fetcher);if(access.status!==200)return json(res,access.status,{error:'Please sign in with your invited email.'});
+          const facts=(await store.profile?.(access.conversation))?.facts??[],marketEnv=marketEnvironment(facts,env);
+          const recovered=[];
+          for(const alert of await store.pendingPriceAlerts(access.conversation)){
+            if(alert.last_checked_at&&Date.now()-Date.parse(alert.last_checked_at)<300000)continue;
+            const links=alert.links.map(link=>({...link,market_country:marketEnv.SHOPPING_COUNTRY,market_currency:marketEnv.SHOPPING_CURRENCY}));
+            const observed=await inspect(links,link=>readSizeOffers(link,fetcher));
+            const {checks,links:resolvedLinks}=await resolveAlertSizeLabel({...alert,links},observed.checks,facts,marketEnv,fetcher);
+            const sizes=[...new Set(links.flatMap(link=>link.requested_sizes??[alert.size]))];
+            const baselines=initialPriceBaselines(sizes.flatMap(size=>baselineOffers(checks,size)).filter(o=>links.some(link=>link.url===o.url))).map(o=>({...o,drop_percent:0}));
+            if(!await store.priceAlertCurrent(alert.id,alert.revision))continue;
+            await store.recordPriceCheck(alert.id,alert.revision,{status:baselines.length?'baseline_established':'awaiting_availability',checks},false,baselines.length?baselines:undefined,baselines.length?resolvedLinks:undefined);
+            if(baselines.length)recovered.push(alert.group_id);
+          }
+          return json(res,200,{recovered});
         }
         if(input.action==='enrich'){
           const access=await auth(req.headers,env,store,fetcher);if(access.status!==200)return json(res,access.status,{error:'Please sign in with your invited email.'});
           if(!uuid(input.item))return json(res,400,{error:'Invalid item.'});
-          return json(res,200,await enrichWishlistItem(store,access.conversation,input.item,{verify:(url,name)=>verify(url,name,fetcher,undefined,env),photos:(url,name)=>photos(url,name,fetcher),assets:(urls,url)=>fetchProductAssets(urls,url,fetcher)}));
+          const marketEnv=marketEnvironment((await store.profile?.(access.conversation))?.facts??[],env);
+          const {update,...result}=await enrichWishlistItem(store,access.conversation,input.item,{env:marketEnv,verify:(url,name)=>verify(url,name,fetcher,undefined,marketEnv,{recoveryOnly:true}),photos:(url,name)=>photos(url,name,fetcher),assets:(urls,url)=>fetchProductAssets(urls,url,fetcher)});
+          return json(res,200,result);
         }
         if (['remove','restore'].includes(input.action)) {
           const access=await auth(req.headers,env,store,fetcher);
@@ -39,6 +74,7 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
           // Stop alerts before hiding the item; restoring leaves alerts off.
           if(input.action==='remove')await store.disablePriceAlert(access.conversation,item.id);
           await store.setWishlistRemoved(access.conversation,item.entries,input.action==='remove');
+          await store.recordEvidence(access.conversation,[wishlistEvidence(input.action==='remove'?'removed':'restored',item)]);
           return json(res,200,{ok:true});
         }
         if (['alert-options','alert-enable','alert-disable'].includes(input.action)) {
@@ -77,7 +113,7 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
           if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) return json(res, 400, { error: 'Enter your email address.' });
           if (!env.SITE_ORIGIN) return json(res, 503, { error: 'Sign-in is not configured.' });
           if (await store.wishlistMember(email)) {
-            const response = await fetcher(`${env.SUPABASE_URL.replace(/\/$/, '')}/auth/v1/otp?redirect_to=${encodeURIComponent(env.SITE_ORIGIN.replace(/\/$/, '') + (input.destination==='style'?'/style':'/wishlist'))}`, {
+            const response = await fetcher(`${env.SUPABASE_URL.replace(/\/$/, '')}/auth/v1/otp?redirect_to=${encodeURIComponent(env.SITE_ORIGIN.replace(/\/$/, '') + (input.destination==='style'?'/style':input.destination==='onboarding'?'/onboarding':'/wishlist'))}`, {
               method: 'POST', headers: { apikey: env.SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
               body: JSON.stringify({ email, create_user: true }), signal: AbortSignal.timeout(10000),
             });
@@ -107,10 +143,11 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
       if (!id || groupId) {
         const started=performance.now();
         const [rows,alerts]=await Promise.all([store.wishlistEntries(access.conversation),env.PRICE_ALERTS_ENABLED==='true'?store.priceAlerts(access.conversation):Promise.resolve([])]);
-        const groups = groupWishlist(rows);
+        const marketEnv=marketEnvironment((await store.profile?.(access.conversation))?.facts??[],env);
+        const groups = groupWishlist(rows,{currency:marketEnv.SHOPPING_CURRENCY,country:marketEnv.SHOPPING_COUNTRY});
         res.setHeader('Server-Timing',`auth;dur=${authDuration.toFixed(1)}, wishlist;dur=${(performance.now()-started).toFixed(1)}`);
         if(env.PRICE_ALERTS_ENABLED==='true'){
-          for(const group of groups){const alert=alerts.find(a=>a.group_id===group.id);group.price_alert=alert?{active:alert.active,size:alert.size,last_checked_at:alert.last_checked_at,notified:alert.notified}:null;group.alerts_enabled=true;}
+          for(const group of groups){const alert=alerts.find(a=>a.group_id===group.id);group.price_alert=alert?{active:alert.active,size:alert.size,last_checked_at:alert.last_checked_at,notified:alert.notified,baseline_pending:Array.isArray(alert.baselines)&&alert.baselines.length===0}:null;group.alerts_enabled=true;}
         }
         if (groupId) {
           const item = groups.find(g=>g.id===groupId);
@@ -131,7 +168,7 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
       }
       const { image: bytes, additional_images: references, ...product } = item.product;
       return json(res,200,{item:{id:item.id,saved_at:item.saved_at,product,encounters:item.wishlist_encounters.map(e=>({source_image_id:e.source_image_id,found_at:e.messages?.created_at,links:e.product.links,match:e.product.match,reason:e.product.reason}))}});
-    } catch { console.log(JSON.stringify({event:'wishlist_request_failed'})); return json(res,503,{error:'Could not load your wishlist. Please try again.'}); }
+    } catch(error) { console.log(JSON.stringify({event:'wishlist_request_failed',error_type:error?.name,database_error:error?.message==='Database request failed',database_status:error?.database_status,database_code:error?.database_code})); return json(res,503,{error:'Could not load your wishlist. Please try again.'}); }
   };
 }
 function image(res, value) {

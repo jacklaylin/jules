@@ -1,6 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {REPLAY_CASES,runReplay,scoreReplay} from '../lib/replay.js';
+import {agentTurn,tool} from './helpers/agent.js';
 const sample=REPLAY_CASES[0];
 const url='https://www.nike.com/t/air-max-90-shoes/EXAMPLE';
 const p={brand:'Nike',name:'Air Max 90 sneakers',url,match:'likely_match',sourcing_status:'store_found',listing_check:{status:'verified',shopping_range:'men',color:'Black',product_name:'Air Max 90'}};
@@ -16,8 +17,8 @@ test('shoe acceptance requires supported product links or a meaningful variant c
 test('actual reply dispatcher and wishlist actions run without a persistence or delivery dependency',async()=>{
  let calls=0;
  const report=await runReplay(sample,{OPENAI_API_KEY:'test',SEARCH_ENABLED:'true',WISHLIST_ENABLED:'true'},{fetcher:async(endpoint,options)=>{
-  calls++;const request=JSON.parse(options.body);assert.equal(request.text.format.type,'json_schema');
-  return {ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({action:'start',query:'Nike Air Max 90',choice:''})}]}]})};
+  calls++;const request=JSON.parse(options.body);assert.equal(request.tool_choice,'required');
+  return agentTurn(tool('find_products',{query:'Nike Air Max 90',department:'men'}));
  },search:async()=>({products:[p]})});
  assert.equal(calls,1);assert.equal(report.tool,'text_wishlist');assert.equal(report.passed,true);assert.equal(report.result.user_confirmed,undefined);assert.equal(report.result.text_wishlist_state.stage,'choice');
 });

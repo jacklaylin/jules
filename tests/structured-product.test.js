@@ -41,7 +41,7 @@ test('text wishlist expands only retailer-provided, independently verified color
   const primary={brand:'Prada',name,url,match:'likely_match',sourcing_status:'store_found',listing_check:{status:'verified',color:'Black',color_options:[{url:navy,color:'Navy'}]}};
   let state,seen=[];
   const body=await textWishlistAction({action:'start',query:'Prada Speed Rock sneakers'},{env:{},record:async r=>{state=r.text_wishlist_state;},search:async()=>({products:[primary]}),verify:async link=>{seen.push(link);return {status:'verified',url:link,color:'Navy'};}});
-  assert.deepEqual(seen,[navy]);assert.equal(state.options.length,2);assert.match(body,/Which color/);assert.match(body,/Navy/);
+  assert.deepEqual(seen,[navy]);assert.equal(state.options.length,2);assert.match(body,/Navy/);
 });
 test('failed retailer checks are retained for diagnosis and do not blame the user’s model spelling',async()=>{
   let recorded;

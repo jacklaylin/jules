@@ -7,19 +7,21 @@ const facts=[{field:'gender',key:'identity',value:'man'},{field:'size',key:'shoe
 const men={name:'Speedrock sneakers',url:'https://www.prada.com/us/en/p/sneaker/model-code',match:'likely_match',sourcing_status:'store_found',listing_check:{status:'verified',color:'Black',shopping_range:'men'}};
 test('failed product pages remain sourcing failures rather than being mislabeled as range mismatches',()=>{
  const failed={...men,sourcing_status:'store_not_found',listing_check:undefined,listing_checks:[{status:'not_product',reason:'category_page'}]};
- const result=relevantProducts({products:[failed]},shoppingConstraints(facts,'Sneakers'));
+ const result=relevantProducts({products:[failed]},shoppingConstraints(facts,{}));
  assert.equal(result.products.length,1);assert.equal(result.relevance_rejections.length,0);assert.equal(result.products[0].listing_checks[0].reason,'category_page');
 });
-test('saved shopping range precedes identity; explicit requests and gifts override self defaults',()=>{
-  assert.equal(shoppingConstraints(facts,'I want Prada sneakers').range,'men');
-  assert.equal(shoppingConstraints([...facts,{field:'shopping_range',value:'womenswear'}],'I want Prada sneakers').range,'women');
-  assert.equal(shoppingConstraints(facts,"Find women's sneakers").range,'women');
-  assert.equal(shoppingConstraints(facts,'A gift for my wife').range,null);
-  assert.deepEqual(shoppingConstraints(facts,'A gift for my wife').size_facts,[]);
-  assert.equal(shoppingConstraints([{field:'gender',key:'identity',value:'nonbinary'}],'Sneakers').range,null);
+test('saved shopping range precedes identity; the agent’s structured department and recipient override self defaults',()=>{
+  assert.equal(shoppingConstraints(facts,{}).range,'men');
+  assert.equal(shoppingConstraints([...facts,{field:'shopping_range',key:'clothing',value:'women'}],{}).range,'women');
+  assert.equal(shoppingConstraints(facts,{department:'women'}).range,'women');
+  assert.equal(shoppingConstraints(facts,{for_someone_else:true}).range,null);
+  assert.deepEqual(shoppingConstraints(facts,{for_someone_else:true}).size_facts,[]);
+  assert.equal(shoppingConstraints([{field:'gender',key:'identity',value:'non-binary'}],{}).range,null);
+  // Legacy free-text values are not parsed; only fixed values count.
+  assert.equal(shoppingConstraints([{field:'shopping_range',key:'clothing',value:'womenswear'}],{}).range,null);
 });
 test('known opposite range and unknown wearable range are withheld; verified unisex remains eligible',()=>{
-  const c=shoppingConstraints(facts,'Sneakers');
+  const c=shoppingConstraints(facts,{});
   assert.equal(relevanceCheck(men,c).eligible,true);
   assert.equal(relevanceCheck({...men,listing_check:{shopping_range:'women'}},c).reason,'range_mismatch');
   assert.equal(relevanceCheck({...men,listing_check:{}},c).reason,'range_unverified');
@@ -40,24 +42,21 @@ test('range evidence comes from product-bound breadcrumbs, not global men/women 
 test('text queries receive profile constraints and color expansion independently rejects women’s variants',async()=>{
   let recorded,searchConstraints;
   const primary={...men,listing_check:{...men.listing_check,color_options:[{url:'https://www.prada.com/us/en/p/other-model',color:'White'}]}};
-  const body=await textWishlistAction({action:'start',query:'Prada Speedrock sneakers'},{facts,text:'I want Prada Speedrock sneakers',env:{},record:async r=>{recorded=r;},search:async(q,images,env,fetcher,c)=>{searchConstraints=c;return {products:[primary,{...men,url:'https://www.prada.com/wrong',listing_check:{...men.listing_check,shopping_range:'women'}}]};},verify:async url=>({status:'verified',url,color:'White',shopping_range:'women'})});
+  const body=await textWishlistAction({action:'start',query:'Prada Speedrock sneakers'},{facts,env:{},record:async r=>{recorded=r;},search:async(q,images,env,fetcher,c)=>{searchConstraints=c;return {products:[primary,{...men,url:'https://www.prada.com/wrong',listing_check:{...men.listing_check,shopping_range:'women'}}]};},verify:async url=>({status:'verified',url,color:'White',shopping_range:'women'})});
   assert.equal(searchConstraints.range,'men');assert.equal(recorded.text_wishlist_state.options.length,1);
   assert.ok(!body.includes('other-model'));assert.ok(!body.includes('/wrong'));
 });
 test('old pending women’s results are resourced before selection and cannot be saved',async()=>{
   let searched=false,recorded;
   const wrong={...men,listing_check:{...men.listing_check,shopping_range:'women'}};
-  await textWishlistAction({action:'selection',decision:'interest',option_indices:[0],consent:'none'},{state:{stage:'choice',query:'Prada sneakers',options:[wrong]},facts,text:'black',env:{},record:async r=>{recorded=r;},search:async()=>{searched=true;return {products:[men]};}});
+  await textWishlistAction({action:'selection',decision:'interest',option_indices:[0],consent:'none'},{state:{stage:'choice',query:'Prada sneakers',options:[wrong]},facts,env:{},record:async r=>{recorded=r;},search:async()=>{searched=true;return {products:[men]};}});
   assert.equal(searched,false);assert.equal(recorded.text_wishlist_state.stage,'choice');assert.equal(recorded.user_confirmed,undefined);
 });
-test('complaints and negative mentions cannot switch the saved clothing range',()=>{
- for(const text of ["not women's shoes", "those are women’s shoes, I am a man", "you sent me women's shoes again", "she sent womens shoes again", "I don't want women's sneakers"]){
-  assert.equal(shoppingConstraints(facts,text).range,'men');
- }
- assert.equal(shoppingConstraints(facts,"Not women's, find men's sneakers").range,'men');
- assert.equal(shoppingConstraints(facts,"Find women's sneakers for my wife").range,'women');
+test('a complaint is read by the agent as the saved department, never as a request for the other one',()=>{
+ // The agent passes department:'unspecified' (or 'men') for a complaint about women's results.
+ for(const department of ['unspecified','men',undefined])assert.equal(shoppingConstraints(facts,{department}).range,'men');
+ assert.equal(shoppingConstraints(facts,{department:'women',for_someone_else:true}).range,'women');
 });
-
 test('verified opposite range cannot bypass the check through a localized or abbreviated name',()=>{
  for(const name of ['Speedrock','Sneakers in tessuto','Scarpe sportive'])assert.equal(relevanceCheck({...men,name,listing_check:{shopping_range:'women'}},{range:'men'}).eligible,false);
 });

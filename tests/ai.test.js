@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { generateReply } from '../lib/ai.js';
 import { receiveInInbox } from '../lib/inbox.js';
+import { agentTurn, tool } from './helpers/agent.js';
 const env = { AI_ENABLED: 'true', OPENAI_API_KEY: 'fake-test-key' };
 const delivery = { space: { phone: 'fake-line' }, message: { id: 'fake-message', sender: { id: 'fake-person' }, content: { text: 'Wedding shoes' } } };
 function store() {
@@ -18,15 +19,18 @@ test('AI uses bounded role-aware recent context and does not store API response'
   history.push({ direction: 'outbound', body: 'What is your budget?', status: 'sent' });
   const result = await generateReply(history, env, async (url, options) => {
     assert.equal(url, 'https://api.openai.com/v1/responses');
-    const body = JSON.parse(options.body); assert.ok(body.instructions.includes('This is the source of truth')); assert.equal(body.store, false); assert.equal(body.input.length, 20);
-    assert.equal(body.input.at(-1).role, 'assistant'); assert.ok(body.input.every(m => m.content.length <= 2000));
-    assert.ok(!body.input.some(m => m.content === 'unsent'));
-    return { ok: true, json: async () => ({ status: 'completed', output: [{ type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'What will you wear?' }] }] }) };
+    const body = JSON.parse(options.body); assert.ok(body.instructions.includes('This is the source of truth')); assert.equal(body.store, false);
+    // One application-context item, then at most 20 conversation turns.
+    const turns = body.input.slice(1); assert.match(body.input[0].content, /^APPLICATION CONTEXT/); assert.equal(turns.length, 20);
+    assert.equal(turns.at(-1).role, 'assistant'); assert.ok(turns.every(m => m.content.length <= 2000));
+    assert.ok(!turns.some(m => m.content === 'unsent')); assert.equal(body.tool_choice, 'required');
+    return agentTurn(tool('conversation_reply', { response: 'What will you wear?' }));
   });
   assert.equal(result, 'What will you wear?');
 });
 test('incomplete, empty and failed model responses are not sent as replies', async () => {
-  for (const data of [{ status: 'incomplete', output: [] }, { status: 'completed', output: [] }]) {
+  // Plain text without a tool call is not a valid agent outcome either.
+  for (const data of [{ status: 'incomplete', output: [] }, { status: 'completed', output: [] }, { status: 'completed', output: [{ type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'Hi' }] }] }]) {
     await assert.rejects(generateReply([], env, async () => ({ ok: true, json: async () => data })));
   }
   await assert.rejects(generateReply([], env, async () => ({ ok: false })));

@@ -1,0 +1,73 @@
+# Gmail purchase-history pilot
+
+Founder-authorized October 10, 2026. This replaces the Gmail onboarding demo when `GMAIL_IMPORT_ENABLED=true`. It uses the existing invited sign-in, Vercel application and Supabase database. Receipt import now uses bounded background requests in the existing Vercel function; no separate service, full closet UI or automatic ongoing inbox monitoring is added. See [ENTRY-FLOW.md](ENTRY-FLOW.md) for the October 12 entry-flow update.
+
+## What the pilot does
+
+The user signs in, reviews consent, connects their invited Gmail account, and imports up to 1,000 matching shopping emails from the last five years, with the last two years prioritized. Google grants read-only mailbox access; the application's retrieval query selects candidate shopping emails. This is a partial history, not a complete inbox scan or a guarantee that all purchases were found. Email selection terms are retrieval syntax, never conversational intent routing.
+
+Both plain and HTML email bodies are retained for analysis, including tables and limited order/receipt link components. Digital PDFs are extracted locally, even when the attachment has no filename. Email addresses, raw links, labeled credentials and labeled payment/contact numbers are redacted from prepared text. Names, addresses and other fragments may remain. Prepared email/PDF text is sent to OpenAI Responses with `store:false`; original PDF bytes are not sent. The consent screen explains analysis, storage and shopping learning before connecting.
+
+Evidence-backed clothing/accessory purchases have stable per-account item identities. Original evidence and user corrections stay distinct. Order/receipt identity and item variants must match before subsequent events attach. Shipping-only evidence and unlinked return/refund events remain pending, not invented purchases. Exact pending identities can link after purchase evidence arrives. Collection bookings and return requests do not imply refunds. Cancelled purchases cannot contribute personal shopping observations.
+
+The model selects at most five consequential questions, ordered by impact. Unknown recipients do not teach personal tastes or sizes. Gifts stay in purchase history but not personal learning. Receipt-derived observations reach Jules's shopping context/ranking as `shopping_history`, separately from explicit preferences; purchased size is not a category default or confirmed fit. Independent facts are never overwritten. Follow-up questions and corrections happen in iMessage; the web page displays history and connection controls. The internal validated correction path remains shared. Unrelated chat continues normally.
+
+## Setup for Jack's first account
+
+Keep the pilot invite-only. Use the existing Jules Google Cloud project if appropriate; Gmail authorization is separate from Supabase sign-in.
+
+1. **Enable Gmail API.** Open [Google Cloud API Library](https://console.cloud.google.com/apis/library/gmail.googleapis.com), select the Jules project, and click **Enable**. This lets the application retrieve shopping emails. No credential is produced.
+2. **Configure Google Auth Platform.** In that project, open **Google Auth Platform → Branding** and complete the app name, support email and developer contact fields. In **Audience**, use **External → Testing** and add your exact Gmail address under **Test users**. In **Data Access**, add only `https://www.googleapis.com/auth/gmail.readonly`. This permits reading; it does not permit sending, changing or deleting email. Public expansion requires the applicable Google verification work. Testing-mode refresh tokens for these scopes can expire after seven days, requiring reconnection. [Google scope guidance](https://developers.google.com/workspace/gmail/api/auth/scopes), [OAuth testing guidance](https://developers.google.com/identity/protocols/oauth2/production-readiness/overview).
+3. **Create a Web application authorization client.** Open **Clients → Create client → Web application**. In **Authorized redirect URIs**, add your actual Jules `SITE_ORIGIN` followed by `/api/wishlist?gmail=callback` (for example, if the configured origin is `https://your-jules-domain.example`, the full URI is `https://your-jules-domain.example/api/wishlist?gmail=callback`). Use the exact deployed origin, including HTTPS; do not enter the example domain. Google produces a **Client ID** and **Client secret**. Store these in **Vercel → Jules project → Settings → Environment Variables** as `GOOGLE_GMAIL_CLIENT_ID` and `GOOGLE_GMAIL_CLIENT_SECRET`. Keep the secret out of chat and source files. [Google web authorization setup](https://developers.google.com/identity/protocols/oauth2/web-server).
+4. **Add the encryption key.** Generate it once in Terminal with `openssl rand -base64 32`. This produces a private key for stored Gmail tokens. Copy it directly into Vercel's secret environment variable `GMAIL_TOKEN_KEY` and keep a secure backup. Do not paste it into chat, source code or Git. Changing this key makes existing stored connections unreadable and requires reconnecting those accounts.
+5. **Create private storage.** In **Supabase → SQL Editor**, run `db/017_gmail_import.sql` after the existing migrations, including `016_onboarding.sql`. It creates one private table and atomic update functions. This produces no credential. Browser accounts have no table access; the server uses its existing service-role credential. Confirm your exact Gmail address maps to your conversation in `wishlist_members` and that an `onboarding_sessions` invitation exists. No phone numbers or email mappings belong in migration files.
+6. **Enable and deploy.** Set `GMAIL_IMPORT_ENABLED=true`, `ONBOARDING_ENABLED=true`, and retain the existing wishlist, AI, memory, Supabase, Photon and OpenAI settings. The deployed `SITE_ORIGIN` must match the redirect URI exactly. Deploy the reviewed application changes. Do not enable Gmail on a deployment missing the migration or secrets. Existing Supabase sign-in must allow returning to `/onboarding`.
+7. **Connect.** Open `/onboarding` on the deployed Jules site, sign in with your invited email, read the consent, and click **Connect Gmail and import**. Choose that same invited Gmail account in Google. No keys are entered on this screen.
+
+## Operation and interruptions
+
+One persisted step lists a page of candidate IDs or extracts one email. Steps are serialized with a database lease and revision check; stale/concurrent writes cannot replace newer feedback. A failed step leaves completed work intact. The browser advances steps while open. Closing the page pauses advancement; reopening resumes the persisted job. This version does not promise background completion or a completion text.
+
+Repeat imports use a fresh bounded date window and skip unchanged source fingerprints. Prior feedback and evidence persist. If a processed source's fingerprint changes, the tool retains the changed text separately and continues rather than silently replacing evidence beneath a user correction. The page discloses held changes and supports direct corrections; automatic changed-source reconciliation is not yet implemented.
+
+Limits are disclosed: 1,000 candidate emails per newly approved five-year import; 60,000 prepared characters per email; 4 MB per body/PDF, 8 MB total declared content, three externally fetched attachment/body parts, and 20 PDF pages. Image attachments, scanned PDFs needing OCR and unsupported documents produce warnings while retaining readable partial evidence. The tool never calls partial coverage complete inbox coverage. No prices, stock, discounts, policies or fit claims are inferred.
+
+**Disconnect Gmail** revokes access and clears stored tokens; imported history remains. **Delete imported history** also disconnects, then removes receipt evidence, questions, corrections and receipt-derived learning. Independent chat/style preferences remain. Users can also revoke access through their Google account. No ongoing automatic sync exists.
+
+## Verification and remaining live gate
+
+Local tests exercise encrypted owner-bound tokens, browser-bound one-use authorization state, explicit consent, account matching/revocation, origin/invitation checks, PDF/HTML preparation, scoped evidence validation, variants, deduplication, return/cancellation semantics, interruption, repeat imports, questions, website/closet/iMessage feedback, replay and derived ranking context. Browser checks use synthetic data at 1440, 390 and 320 pixels and check consent, questions, answers, overflow and JavaScript errors. These do not establish model extraction accuracy.
+
+Before declaring the pilot live, use the configured deployment and database:
+
+- Connect your invited Gmail account and complete an import. Verify reported source counts, warning counts and pending events against selected actual receipts.
+- Answer a question or correct an item; confirm the recipient/return/brand update persists after reload.
+- Import again; verify no duplicate items, corrections remain, and new evidence is appended safely.
+- Confirm a gift contributes no personal shopping observation; confirm the same supported self purchase does. Ask Jules for a shopping suggestion and verify it sees the observations without claiming favorite status or verified fit.
+- Confirm the wrong Gmail account cannot connect, another invited user cannot read your history, denied consent reads no email, and stale/double callbacks cannot reconnect.
+- Interrupt and resume an import; disconnect and confirm access is revoked. Delete imported history and verify receipt learning disappears while independent preferences remain.
+
+External setup completed October 10, 2026: Gmail API enabled; Google app in External Testing with only `gmail.readonly` configured and the founder account allowlisted; Web client created with `https://jules-gamma.vercel.app/api/wishlist?gmail=callback`; the three Google/token settings saved as protected Production secrets in Vercel. Supabase migrations `016_onboarding.sql` and `017_gmail_import.sql` applied. Both new tables have RLS enabled, no SELECT permission for anon/authenticated roles, and server access verified. The founder's existing account has an onboarding invitation. The exact `https://jules-gamma.vercel.app/onboarding` sign-in return URL is allowlisted.
+
+Production release completed October 12, 2026 from an isolated checkout of the deployed `main` branch, preserving unrelated workspace edits. Release commits: `9af2c2c` (import and feedback), `0b7309c` and `e068472` (PDF function packaging fixes). Vercel deployment `BjkRC39vfWsWT2qC8pkyi6HR4NCU` is Ready and assigned to `https://jules-gamma.vercel.app`. `GMAIL_IMPORT_ENABLED=true` and `ONBOARDING_ENABLED=true` are configured in Production. Reply-reference migration `015_message_threads.sql` is also installed and verified, so receipt feedback can resolve original message context. PDF assets use real pnpm dependency paths, and the specific wishlist function rule precedes the general rule.
+
+Verification: all 439 isolated-release automated checks passed. The deployed `/onboarding` page and JavaScript return HTTP 200. Both Gmail and onboarding API routes return HTTP 401 without sign-in, confirming activation and preserving private access; the live page has no browser errors. Remaining gate: the real-account connect/import/correction/repeat-import acceptance above. No real Gmail import or new private-email API transfer has occurred.
+
+
+## October 12 expansion: five years, 1,000 emails
+
+New imports use versioned consent `gmail-receipts-5y-1000-v2`. Existing active jobs retain the 90-day/200-message scope previously approved. Existing connections need explicit approval of the new disclosure before a five-year import; original evidence and corrections remain intact.
+
+Searches run in priority passes and extract each bounded page before continuing discovery: up to 50 recent receipt subjects, 25 recent return/refund/cancellation subjects, 15 related-order matches, then 10 broader recent matches. Unused early slots can be filled by later discovery. Broader recent discovery, older receipts, older outcomes and older discovery form the long tail, with a hard global cap of 1,000 unique emails. Related-order queries use evidenced references and valid sender domains. PDF expansion is scoped to senders producing shopping evidence; promotions are not excluded wholesale. Pagination queries remain fixed once a pass starts. Gmail searches happen before full-body/PDF downloads; the model interprets and validates shopping evidence.
+
+Unchanged message fingerprints reuse extraction; overlapping searches cannot multiply purchases or analyzed emails. Extraction context is narrowed to items with literal order references present in the source, rather than sending the entire purchase history for every email. Original receipt events and exact variant linking remain authoritative.
+
+The job records new purchase items and outcome-bearing items discovered by email 100, alongside final counts, excluding purchases already present when the import started. The page exposes partial purchase results after that checkpoint and reports later additions. These are yield measurements within the selected sample, not evidence of 90% recall across the inbox or proof of accurate extraction. No real expanded import or blind recall test has yet been run.
+
+Shopping observations include their purchase evidence date and recent/historical classification. The last two years guide current recommendations more strongly; older purchases remain available and never imply disposal or current ownership. Browser-driven steps remain supported, as does the existing optional dispatch mechanism; this expansion adds no new durable queue service.
+
+## October 12 update: evidence store
+
+Receipt items, events and corrections no longer live in `gmail_imports`. Each validated receipt event and each correction is an immutable row in the shared `evidence` table (`db/019_evidence.sql`), written in the same transaction as the job update. Purchase history is rebuilt from those rows on read. `gmail_imports` keeps the token, consent, job progress, prepared source text and open questions. **Delete imported history** deletes all Gmail evidence and prunes any belief that relied only on it. Imports made before this change convert on their next write. Chat corrections now run through the agent's `update_purchase_history` skill instead of a separate pre-check. See [ARCHITECTURE.md](ARCHITECTURE.md).
+
+**Setup:** in Supabase → SQL Editor, run `db/019_evidence.sql` after `018_signup_login.sql`, then deploy the matching code right away. No credential is produced.

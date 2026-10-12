@@ -1,0 +1,126 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {verifyListing} from '../lib/listings.js';
+import {shopifyColorOptions} from '../lib/product-variants.js';
+import {shoppingMarket} from '../lib/shopping-market.js';
+import {enrichWishlistItem} from '../lib/wishlist-details.js';
+import {selectionOutcome} from '../lib/wishlist-selection.js';
+import {createStore} from '../lib/store.js';
+import {repairWishlistPhotos} from '../lib/wishlist-photos.js';
+import {resolveSavedColor} from '../lib/saved-color.js';
+const url='https://shop.example.org/products/shirt';
+const product={'@type':'Product',name:'Shirt',url,image:'https://shop.example.org/default.jpg',offers:{price:71,priceCurrency:'CAD',url}};
+const html=(p,country='US')=>`<script>Shopify.country = "${country}";</script><script type="application/ld+json">${JSON.stringify(p)}</script>`;
+test('color recovery preserves split caption/link timing and fallible assistant context',async()=>{
+ const messages=[
+  {id:'old',direction:'inbound',body:'Save this gray running shirt',created_at:'2026-10-09T18:14:19Z'},
+  {id:'caption',direction:'inbound',body:'Love this in the blue color',created_at:'2026-10-09T18:39:50.232Z'},
+  {id:'mistake',direction:'outbound',body:'The blue running shirt stands out',created_at:'2026-10-09T18:39:50.483Z'},
+  {id:'link',direction:'inbound',body:url,created_at:'2026-10-09T18:39:50.830Z'},
+  {id:'save',direction:'inbound',body:'Add and no price alert',created_at:'2026-10-09T18:40:12.519Z'}
+ ];
+ const result=await resolveSavedColor({product,options:[{color:'Slate',url:url+'?variant=1'},{color:'Oyster',url:url+'?variant=2'}],messages,reply_ids:['save']},{OPENAI_API_KEY:'fixture'},async(_u,request)=>{
+  const body=JSON.parse(request.body);
+  if(body.text.format.name==='saved_color_variant')return new Response(JSON.stringify({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({color_index:0})}]}]}));
+  const context=JSON.parse(body.input[0].content[0].text);
+  assert.deepEqual(body.text.format.schema.properties.source_message_id.enum,['old','caption','link','save',null]);
+  assert.equal(body.text.format.schema.properties.requested_color,undefined);
+  assert.deepEqual(context.conversation.map(m=>m.created_at),messages.map(m=>m.created_at));
+  assert.equal(context.conversation[3].text,url);assert.match(body.instructions,/assistant claims are fallible/);
+  return new Response(JSON.stringify({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({color_index:0,requested_color:'Slate',source_message_id:'caption',evidence:'Love this in the blue color'})}]}]}));
+ });
+ assert.equal(result.color,'Slate');assert.equal(result.requested_color,'Love this in the blue color');
+});
+test('color recovery rejects a color supported only by an assistant product title',async()=>{
+ const messages=[{id:'user',direction:'inbound',body:'Love this in the blue color'},{id:'assistant',direction:'outbound',body:'Black loafers'}];
+ const fetcher=async()=>new Response(JSON.stringify({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({color_index:0,requested_color:'Black',source_message_id:'assistant',evidence:'Black loafers'})}]}]}));
+ await assert.rejects(resolveSavedColor({product,options:[{color:'Black',url}],messages,reply_ids:[]},{OPENAI_API_KEY:'fixture'},fetcher),/Unsupported color preference citation/);
+});
+test('retailer market follows the user country rather than server geography and verifies currency',async()=>{
+ const requests=[];
+ const check=await verifyListing(url,null,async(u,options)=>{requests.push({u,options});return new Response(html({...product,offers:{...product.offers,price:u.includes('country=US')?48:71,priceCurrency:u.includes('country=US')?'USD':'CAD'}},u.includes('country=US')?'US':'CA'),{headers:{'content-type':'text/html'}});},undefined,{});
+ assert.equal(check.price_snapshot.amount,48);assert.equal(check.price_snapshot.currency,'USD');assert.ok(requests[1].u.includes('country=US'));assert.ok(requests[0].options.headers.get('Cookie').includes('localization=US'));
+ const foreign=await verifyListing(url,null,async()=>new Response(html(product),{headers:{'content-type':'text/html'}}),undefined,{});assert.equal(foreign.price_snapshot,null);
+ const canada=await verifyListing(url,null,async()=>new Response(html(product,'CA'),{headers:{'content-type':'text/html'}}),undefined,{SHOPPING_COUNTRY:'CA',SHOPPING_CURRENCY:'CAD'});assert.equal(canada.price_snapshot.currency,'CAD');
+});
+test('retailer option metadata supplies colors and bound photos without product-specific rules',()=>{
+ const data={title:'Shirt',options:['Size','Colour'],variants:[{id:1,options:['S','Ocean'],featured_image:{src:'//shop.example.org/ocean.jpg'}},{id:2,options:['M','Ocean']},{id:3,options:['S','Clay'],featured_image:{src:'//shop.example.org/clay.jpg'}}]};
+ const options=shopifyColorOptions('<script>context={product: '+JSON.stringify(data)+'};</script>',url,product);
+ assert.deepEqual(options.map(c=>c.color),['Ocean','Clay']);assert.equal(options[0].image,'https://shop.example.org/ocean.jpg');assert.ok(options[1].url.endsWith('variant=3'));
+});
+test('sparse retailer HTML recovers exact colors from the public product endpoint, including non-default sizes',async()=>{
+ const group={'@type':'ProductGroup',name:'Shirt',hasVariant:[1,2].map(id=>({'@type':'Product',name:'Shirt - Ocean / '+(id===1?'S':'M'),image:'https://shop.example.org/ocean.jpg',offers:{url:url+'?variant='+id,price:48,priceCurrency:'USD'}}))};
+ const data={title:'Shirt',options:[{name:'Color',position:1},{name:'Size',position:2}],variants:[1,2].map(id=>({id,options:['Ocean',id===1?'S':'M'],featured_image:{src:'https://shop.example.org/ocean.jpg'}}))};
+ const requests=[];
+ const check=await verifyListing(url+'?variant=2',null,async u=>{requests.push(u);const api=new URL(u).pathname.endsWith('.js');return new Response(api?JSON.stringify(data):html(group),{headers:{'content-type':api?'application/json':'text/html'}});},undefined,{});
+ assert.equal(check.color,'Ocean');assert.equal(check.color_options.length,1);assert.ok(requests.some(u=>u.includes('/shirt.js')));assert.equal(check.product_images[0],'https://shop.example.org/ocean.jpg');
+});
+test('model-selected color persists through interest and subsequent scoped save without assuming a size',async()=>{
+ const option={name:'Shirt',url,reference_provenance:'user_link',listing_check:{status:'verified',product_name:'Shirt',color_options:[{color:'Ocean',url:url+'?variant=1'}]}};
+ const args={decision:'interest',option_indices:[0],color_choices:[{option_index:0,color_index:0}],consent:'none'};
+ let offered;
+ const respond=(body,state,extra)=>({body,state,extra});
+ offered=await selectionOutcome(args,{state:{stage:'choice',options:[option]},facts:[],env:{},constraints:{},respond,verify:async()=>({status:'verified',url:url+'?variant=1',product_name:'Shirt - Ocean / S',color:'Ocean',availability:'InStock'})});
+ assert.equal(offered.state.selected_set[0].selected_color,'Ocean');assert.equal(offered.state.selected_set[0].listing_check.availability,null);
+});
+test('legacy recovery binds interpreted color to its original reply and replaces the whole wrong photo set',async()=>{
+ let updated,images;
+ const store={wishlistItem:async()=>({product:{url,name:'Shirt — Clay',selected_color:'Clay',details_revision:5,image:{data:'red'},additional_images:[{data:'red2'}],links:[{url}]},wishlist_encounters:[{reply_id:'save'}]}),messages:async()=>({messages:[{id:'request',direction:'inbound',body:'The blue one please'},{id:'save',direction:'outbound',body:'Saved'},{id:'later',direction:'inbound',body:'A red bag next'}]}),correctWishlistProduct:async(_c,_i,u)=>updated=u,saveWishlistPhotos:async(_c,_i,u)=>images=u};
+ const color={color:'Ocean',url:url+'?variant=1'};
+ await enrichWishlistItem(store,'owner','item',{verify:async u=>({status:'verified',url:u,product_name:'Shirt',color:u.includes('variant')?'Ocean':null,color_options:[color],product_images:['https://shop.example.org/ocean.jpg']}),resolveColor:async context=>{assert.equal(context.messages.length,2);assert.equal(context.product.name,'Shirt');return color;},assets:async()=>[{mime_type:'image/jpeg',data:'blue'}],env:{SHOPPING_COUNTRY:'US'}});
+ assert.equal(updated.selected_color,'Ocean');assert.equal(updated.links[0].url,color.url);assert.equal(images.image.data,'blue');assert.deepEqual(images.additional_images,[]);
+});
+test('explicit country statements outrank imported market facts',()=>{
+ const facts=[{field:'country',key:'primary',value:'US',basis:'stated',updated_at:'2020'},{field:'country',key:'primary',value:'CA',basis:'inferred',updated_at:'2026'}];assert.equal(shoppingMarket(facts).country,'US');
+ assert.equal(shoppingMarket([...facts,{field:'country',key:'primary',value:'GB',basis:'stated',updated_at:'2026'}]).country,'GB');
+});
+test('legacy context is retrieved around the owned original save even beyond the latest conversation page',async()=>{
+ const urls=[],reply='11111111-1111-4111-8111-111111111111';
+ const store=createStore({SUPABASE_URL:'https://fixture.invalid',SUPABASE_SERVICE_ROLE_KEY:'fixture'},async u=>{
+  urls.push(u);return new Response(JSON.stringify(urls.length===1?[{id:reply,created_at:'2026-10-01T00:00:00Z'}]:u.includes('created_at=gt.')?[{id:'followup',direction:'inbound',body:'I meant blue for the shirt'}]:[{id:reply,direction:'outbound',body:'Saved'},{id:'earlier',direction:'inbound',body:'Blue please'}]));
+ });
+ const context=await store.wishlistConversationContext('owner',[reply]);
+ assert.ok(urls.every(u=>u.includes('conversation_id=eq.owner')));assert.ok(urls[1].includes('created_at=lte.2026-10-01'));assert.equal(context[0].body,'Blue please');assert.equal(context.at(-1).body,'I meant blue for the shirt');
+});
+test('failed older repairs enter a persisted cooldown so later items can be recovered',async()=>{
+ const now=Date.now(),items=new Map(['first','second','third'].map(id=>[id,{url:url+'/'+id,name:'Shirt',details_revision:2,market_country:'US',image:{data:'existing'},links:[{url:url+'/'+id}]}])),attempts=[];
+ const store={wishlistItem:async(_c,id)=>({product:items.get(id)}),saveWishlistPhotos:async(_c,id,u)=>Object.assign(items.get(id),u),correctWishlistProduct:async(_c,id,u)=>Object.assign(items.get(id),u)};
+ const rows=()=>[...items].map(([id,p])=>({item_id:id,has_image:true,...p}));
+ const verify=async u=>{attempts.push(u);if(!u.endsWith('third'))throw Error('Interpretation unavailable');return {status:'verified',url:u,product_name:'Shirt'};};
+ await repairWishlistPhotos(rows(),{conversation:'owner',store,verify,now});await repairWishlistPhotos(rows(),{conversation:'owner',store,verify,now:now+1000});
+ assert.equal(attempts.length,3);assert.equal(items.get('third').details_revision,6);assert.equal(items.get('first').photo_attempted_revision,6);
+});
+test('database photo repair writes the cooldown revision to both item and encounter snapshots',async()=>{
+ const writes=[];
+ const store=createStore({SUPABASE_URL:'https://fixture.invalid',SUPABASE_SERVICE_ROLE_KEY:'fixture'},async(_u,options)=>{
+  if(options.method==='GET')return new Response(JSON.stringify([{product:{name:'Shirt'},wishlist_encounters:[{reply_id:'reply',product:{name:'Shirt'}}]}]));
+  writes.push(JSON.parse(options.body));return new Response('null');
+ });
+ await store.saveWishlistPhotos('owner','item',{photo_attempted_revision:3,photo_attempted_at:'2026-10-09T00:00:00Z'});
+ assert.equal(writes.length,2);assert.ok(writes.every(w=>w.product.photo_attempted_revision===3));
+});
+test('private metadata reads preserve wishlist state and original timestamps without photo bytes',async()=>{
+ const store=createStore({SUPABASE_URL:'https://fixture.invalid',SUPABASE_SERVICE_ROLE_KEY:'fixture'},async u=>{
+  assert.ok(u.includes('wishlist_entry_metadata?conversation_id=eq.owner'));
+  return new Response(JSON.stringify([{item_id:'item',reply_id:'reply',has_image:'image/jpeg',reply_at:'2026-10-09T00:00:00Z',source_at:'2026-10-08T00:00:00Z',metadata:{name:'Shirt',details_revision:6,photo_attempted_revision:6,market_country:'US',links:[{url}],wishlist_removed:false}}]));
+ });
+ const [row]=await store.wishlistEntries('owner');assert.equal(row.name,'Shirt');assert.equal(row.has_image,'image/jpeg');assert.equal(row.messages.created_at,'2026-10-09T00:00:00Z');assert.equal(row.message_images.messages.created_at,'2026-10-08T00:00:00Z');assert.equal(row.photo_attempted_revision,6);assert.equal(row.image,undefined);
+});
+
+test('a cited user correction supersedes a mistaken legacy color before retailer matching',async()=>{
+ const messages=[{id:'caption',direction:'inbound',body:'Love this in the blue color'}];
+ const p={...product,color_request:{source_message_id:'caption',evidence:messages[0].body}};
+ let calls=0;
+ const result=await resolveSavedColor({product:p,options:[{color:'Slate',url}],messages,reply_ids:[]},{OPENAI_API_KEY:'fixture'},async(_u,r)=>{
+  calls++;const body=JSON.parse(r.body);assert.equal(body.text.format.name,'saved_color_variant');
+  assert.equal(JSON.parse(body.input[0].content[0].text).user_color_request,messages[0].body);
+  return new Response(JSON.stringify({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({color_index:0})}]}]}));
+ });
+ assert.equal(calls,1);assert.equal(result.color,'Slate');assert.equal(result.color_evidence.source_id,'caption');
+});
+
+test('variant-bound retailer photos outrank generic default product imagery',async()=>{
+ const variantURL=url+'?variant=42';
+ const check=await verifyListing(variantURL,null,async u=>u.includes('.js')?new Response(JSON.stringify({title:'Shirt',options:['Color'],variants:[{id:42,option1:'Slate',featured_image:{src:'https://shop.example.org/slate.jpg'}}]}),{headers:{'content-type':'application/json'}}):new Response(html({...product,url:variantURL}),{headers:{'content-type':'text/html'}}),undefined,{});
+ assert.equal(check.color,'Slate');assert.deepEqual(check.product_images,['https://shop.example.org/slate.jpg']);
+});

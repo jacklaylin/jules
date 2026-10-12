@@ -6,7 +6,8 @@
     "node": "24.x"
   },
   "scripts": {
-    "test": "node --test tests/*.test.js"
+    "test": "node --test tests/*.test.js",
+    "test:readiness": "node scripts/probe-readiness.js"
   },
   "pnpm": {
     "ignoredBuiltDependencies": [
@@ -18,7 +19,10 @@
     "@sparticuz/chromium-min": "153.0.0",
     "@spectrum-ts/core": "10.0.0",
     "@spectrum-ts/imessage": "10.0.0",
+    "@vercel/functions": "^3.9.11",
     "heic-convert": "2.1.0",
+    "htmlparser2": "^12.0.0",
+    "pdfjs-dist": "^6.4.299",
     "puppeteer-core": "^25.12.0",
     "sharp": "0.34.5"
   }

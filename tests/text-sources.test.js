@@ -12,7 +12,7 @@ test('direct recovery only returns page-verified model and brand matches in the 
  assert.equal(checked,4);assert.equal(result.products.length,1);assert.equal(result.products[0].url,links[1]);assert.equal(result.products[0].price_snapshot,undefined);assert.equal(result.relevance_rejections[0].reason,'range_mismatch');
 });
 test('direct recovery rejects provider errors and empty brand evidence',async()=>{
- await assert.rejects(recoverTextSources('Prada Speedrock',{SERPAPI_API_KEY:'fake'},async()=>({ok:true,json:async()=>({error:'Quota'})}),{}));
+ await assert.rejects(recoverTextSources('Prada Speedrock',{SERPAPI_API_KEY:'exhausted-direct-fixture'},async()=>({ok:true,json:async()=>({error:'Quota'})}),{}));
  const result=await recoverTextSources('Prada Speedrock',{SERPAPI_API_KEY:'fake'},async()=>({ok:true,json:async()=>({organic_results:[{link:'https://www.prada.com/us/en/p/model/sku'}]})}),{},async url=>({status:'verified',url,product_name:'Speedrock'}));
  assert.equal(result.products.length,0);
 });
@@ -22,7 +22,7 @@ test('collection recovery follows matching same-origin product links and rejects
  const html='<a href="/products/scout-deck-shoe-scratched-black">Scout Deck Shoe Scratched Black</a><a href="https://mfpen.com.evil.example/products/scout-deck">Scout Deck</a><a href="/collections/scout-deck">Scout Deck</a><a href="/products/another-shirt">Shirt</a>';
  const found=await collectionProductLinks(page,'mfpen Scout Deck Shoe Scratched Black',async()=>new Response(html,{headers:{'content-type':'text/html'}}));
  assert.deepEqual(found,[product]);
- assert.deepEqual(await collectionProductLinks('https://unknown.example/collections/all','Scout Deck',()=>assert.fail()),[]);
+ assert.deepEqual(await collectionProductLinks('https://unknown.invalid/collections/all','Scout Deck',()=>assert.fail()),[]);
 });
 test('known product identity scopes recovery to its registered official store, not a guessed domain',async()=>{
  let query;

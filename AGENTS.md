@@ -19,7 +19,7 @@ This is an experiment for a maximum of 10 initial users, not a production system
 - Before declaring a milestone complete, verify its acceptance criteria.
 - If a requested feature materially increases complexity, explain the tradeoff before implementing it.
 - Never fabricate product prices, inventory, sizing, shipping, duties, discounts, or retailer policies.
-- Prefer a human-review fallback over unreliable automation.
+- Handle unsupported requests within the application: explain uncertainty, preserve supported partial results, and ask for useful clarification when needed. Do not rely on human review or invent facts.
 
 ## Product priorities
 
@@ -42,8 +42,8 @@ Scalability is not currently a priority.
 - Keep product-search logic separable from taste/ranking logic.
 - Keep product selection conceptually separate from merchant selection.
 - Persist important taste information structurally rather than relying only on chat history.
-- Log enough information to understand failures and human interventions.
-- Design for automated search with human fallback.
+- Log enough information to understand failures and automated recovery outcomes.
+- Design for self-supported automated search without an operator sourcing or resolution dependency.
 - V0 must not store payment-card details or retailer credentials.
 - V0 must not autonomously complete purchases.
 
@@ -59,11 +59,26 @@ Build around user intent and the expected conversational outcome. Each turn shou
 - Tests assert intent, state transitions, supported actions, and conversational progress across varied language. Do not make exact phrasing the acceptance criterion. Include multi-turn cases for subsets, all, none, corrections, uncertainty, topic changes, and consent scope.
 - Treat a conversational misstep as a trust defect. Fix the underlying interpretation/state model, not the single sentence in the bug report. Review existing phrase-based routing when changing the affected flow.
 
+## Tester-readiness requirements
+
+Founder decisions recorded in `TESTER-READINESS.md` and PRD Section 27 supersede narrower earlier sizing, receipt-learning, and clarification requirements.
+
+- Interpret unstructured sizes using the message, relevant image, reply target, and product context across all clothing/accessory categories. Preserve the original size label and any stated system/length. A category size defaults across brands unless the user establishes an exception; never invent a conversion or verified fit/stock. A suit image with “I’m a 50R” establishes the general suit size 50R, not a shoe size or a brand-only exception.
+- Learn retailer preferences from uploaded receipts and conversation as well as explicit declarations. Keep receipt-derived shopping history distinct from an explicit preference; it may guide merchant ranking without claiming loyalty or favorite status. Explicit preferences, avoidance and corrections take precedence. Rank a preferred merchant higher for the same eligible product/variant with verified availability in the user's size. Never let merchant preference outrank product identity or invent availability.
+- Model-interpreted intent routes to supported application actions. No phrase/keyword/regex-based conversational routing, reactions, memory-semantic gates, or intent grading. Deterministic validation of technical formats, evidence references, ownership, permissions and consent remains required. For unclear intent, take a reversible, supported next step or ask a useful question; do not guess permission for saves, alerts or destructive changes.
+- Monitoring is a supported capability when configured: chat must create, inspect, change and cancel item/set alerts, and report actual persisted monitoring status. Capability instructions must match enabled tools and deployment configuration.
+- Product feedback and corrections form a structured learning loop. Distinguish a bad product match, unavailable merchant, wrong size, current-request constraint and lasting preference; update only the appropriate scope. Support correction, replacement, wishlist removal, alert cancellation and forgetting profile facts.
+- Preserve threaded reply references and resolve them against their original messages, images and product sets. A reply to an older message must not silently apply to the newest product. Support rapid messages, multiple selections, exclusions, recipient changes and topic changes.
+- Ask about missing decision-relevant attributes surfaced by sourcing, not a fixed color/size questionnaire. Use attributes already supplied. Options may differ in color, material, length, fit, model, finish or other dimensions; avoid inventing variants.
+- Persist newly established category sizes, brand exceptions and store preferences with evidence so future searches use them. Temporary selections and requests for someone else must not overwrite the user's general profile.
+
 ## Current milestone
 
 Follow the milestone explicitly assigned by the user.
 
 Do not proceed to the next milestone without being asked.
+
+Milestone 7 (human fallback) is deprioritized by founder decision on October 7, 2026 and will not be implemented. Jules must handle the user-facing shopping loop without human intervention; keep unsupported facts unknown and provide a useful next step within the conversation.
 
 For Milestone 1, the acceptance test is:
 

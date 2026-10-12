@@ -7,6 +7,8 @@
 **Primary interface:** iMessage via Photon (founder-approved change; SMS/RCS fallback is not the Milestone 1 test)
 **Working name:** TBD
 
+**October 7, 2026 founder decision:** Jules must be a self-supported application with no human intervention required to fulfill shopping requests. Milestone 7 (human fallback) is deprioritized and will not be implemented. This supersedes the earlier operator-assisted sourcing plan. Unsupported requests must receive an honest, useful automated response; self-supported operation does not authorize fabricated commerce facts or autonomous purchases.
+
 ## 1. Product thesis
 
 The internet solved access to inventory. It did not solve shopping.
@@ -92,7 +94,7 @@ The agent should consider many candidates but expose very few. The value proposi
 Avoid generic assistant language. Make judgments and explain relevant tradeoffs.
 
 ### 4.6 Never fabricate commerce information
-Never invent prices, inventory, size availability, shipping costs, duties, retailer policies, or discounts. Flag uncertainty or request human review.
+Never invent prices, inventory, size availability, shipping costs, duties, retailer policies, or discounts. Flag uncertainty and offer a useful next step within the conversation.
 
 ## 5. V0 user journey
 
@@ -145,7 +147,7 @@ Each recommendation should include, when available:
 - concise rationale
 
 ### SOURCE
-Given a link, screenshot, product name, or image, search for matching listings and requested sizes. Return retailer, price, availability, shipping information when available, and link. If confidence is insufficient, create a human sourcing task.
+Given a link, screenshot, product name, or image, search for matching listings and requested sizes. Return retailer, price, availability, shipping information when available, and link. If confidence is insufficient, retain supported partial results, explain what could not be verified, and ask for additional evidence only when it would materially help. Do not create an operator sourcing task.
 
 ### SAVE — companion wishlist
 Automatically retain items and product links sent in response to explicit image-identification requests. Let users revisit them in a private, mobile-friendly web grid, inspect product details and the original inspiration image, and return to the same retailer links. See Section 25 for the scoped wishlist milestone.
@@ -157,7 +159,7 @@ For a known product, search alternative sources and compare item price, sale pri
 Allow users to define a product/variant/size and target price. Store the watch and periodically check known URLs or search again. Notify when the condition is met.
 
 ### DISCOVER
-Eventually initiate proactive recommendations based on taste and standing intent. For V0, proactive recommendations may be manually initiated by the operator. Do not build continuous automated fashion discovery yet.
+Eventually initiate proactive recommendations based on taste and standing intent. Proactive discovery remains deferred until separately assigned; the core shopping loop must not depend on an operator initiating recommendations. Do not build continuous automated fashion discovery yet.
 
 ## 8. Feedback loop
 
@@ -262,21 +264,11 @@ Intent types: `FIND`, `SOURCE`, `OPTIMIZE`, `WATCH`, `DISCOVER`.
 - feedback_reason
 - created_at
 
-### human_tasks
-- id
-- user_id
-- shopping_intent_id
-- reason
-- status
-- operator_notes
-- created_at
-- resolved_at
-
 Keep the schema flexible.
 
 ## 11. Search architecture
 
-V0 supports **automated web/product search with human fallback**.
+V0 supports **self-supported automated web/product search**. No operator queue or manual sourcing is required to complete a user conversation.
 
 Flow:
 
@@ -296,10 +288,10 @@ Validate commerce facts
 Rank against taste
       ↓
 Confidence check
-     ↙ ↘
- High   Low
- ↓       ↓
-Reply   Human review
+      ↓
+Supported results → Reply with sourced findings
+Insufficient evidence → Explain uncertainty + useful next step
+Technical failure → Explain failure + supported recovery option
 ```
 
 The system does not need to comprehensively index fashion. Use external search/web capabilities initially.
@@ -316,9 +308,9 @@ Long-term hierarchy:
 
 Do not architect the system around retailers.
 
-### Future merchant ranking
+### Merchant ranking
 
-This is future OPTIMIZE guidance, not a requirement for the current visual-search implementation.
+Per-user retailer learning and preference ranking are tester-readiness requirements under Section 27. Full delivered-cost optimization and loyalty-benefit comparison below remain future OPTIMIZE guidance.
 
 First establish the product match and the requested variant and size. Compare merchants selling equivalent eligible products; a preferred retailer must not make the wrong product rank higher.
 
@@ -330,13 +322,13 @@ Official brands and reviewed retailers are useful defaults, not an absolute orde
 
 Explain the tradeoff briefly, such as the user's usual store versus a cheaper verified option elsewhere. When the choice depends on how much extra the user will pay for a preferred store, ask for that preference rather than inventing a universal premium or savings threshold. Unfamiliar stores remain unreviewed until assessed; a lower price alone does not establish retailer credibility.
 
-## 13. Human fallback
+## 13. Self-supported failure handling
 
-If the agent cannot confidently complete something, create a human task.
+Jules handles difficult searches within the conversation, without human sourcing or manual resolution. Preserve verified results when only part of a request succeeds. Distinguish insufficient identification evidence from a technical failure, explain the limitation briefly, and offer the next useful step using the current context.
 
-The operator researches manually, enters relevant listings/facts/recommendation, and the agent formats and sends the response.
+Ask for a clearer image, identifying label, original product link, or other missing information only when it materially affects the next action. Offer alternatives when consistent with the user's intent and consent. Never present uncertain matches or unsupported commerce facts as verified, promise human follow-up, or claim an action succeeded before persistence.
 
-Record what the human had to do. Repeated human work should inform future automation priorities.
+Log failures and recovery outcomes for debugging and product learning. The admin console remains useful for development and observation, but is not a dependency of the user-facing shopping loop.
 
 ## 14. Admin console
 
@@ -346,10 +338,9 @@ Keep it extremely simple.
 Show name/phone, onboarding status, taste summary, and current intents.
 
 ### Customer detail
-Show conversation, taste profile, recommendation history, active watches, and human tasks. Allow the operator to edit the taste profile, send SMS, create a recommendation, and resolve a human task.
+Show conversation, taste profile, recommendation history, active watches, and diagnostic search evidence. Retain existing owner tools for testing and debugging; fulfilling shopping requests must not require manual replies or profile edits.
 
-### Human queue
-Show unresolved tasks oldest-first.
+The human task queue and manual sourcing/resolution workflow are deprioritized and will not be built.
 
 Do not build analytics dashboards.
 
@@ -391,7 +382,6 @@ search_products(query, constraints)
 search_product_sources(product)
 create_watch(product, size, target_price)
 update_taste_profile(changes)
-create_human_task(reason, context)
 record_feedback(recommendation, feedback)
 send_recommendation(products)
 ```
@@ -467,8 +457,8 @@ Acceptance test: I can send inspiration screenshots and the agent understands th
 ### Milestone 6 — Product search
 Acceptance test: I can ask for a product and receive real, current products with sourced commerce facts.
 
-### Milestone 7 — Human fallback
-Acceptance test: Difficult searches appear in admin and I can resolve them manually.
+### Milestone 7 — Human fallback (deprioritized; will not be implemented)
+Founder decision, October 7, 2026: remove this milestone from the active build sequence. Jules must support shopping requests without human intervention, as described in Section 13. No human queue, sourcing task table, or manual resolution workflow is required. Keep milestone numbering unchanged; Milestone 8 remains Watches.
 
 ### Milestone 8 — Watches
 Acceptance test: The agent remembers an ongoing shopping intent and can notify me later.
@@ -490,8 +480,8 @@ Track:
 - repeat sessions
 - watches created
 - proactive recommendations accepted
-- human interventions/request
-- time spent manually sourcing
+- unsupported or failed requests/user
+- automated recovery outcomes
 - value of intended/confirmed purchases
 
 Primary qualitative metric: **delegated intent**.
@@ -692,6 +682,47 @@ Founder follow-up: remove the 12-file limit and support bulk uploads by category
 
 Founder follow-up: remove Pally from active font choices. Keep image captions close to their visible assets; exported collages should fill the remaining space beneath text with varied sizes, freeform placement and modest overlap, rather than a strict grid.
 
+
+## 27. Tester readiness — founder requirements, October 7, 2026
+
+The founder requires a reliable, self-supported chat loop before recruiting testers. `TESTER-READINESS.md` records the scope, implementation gaps and release checks. These requirements supersede earlier shoe-only size handling, receipt-preference restrictions, and fixed color-selection journeys; they are requirements, not a claim of implementation or live acceptance.
+
+### Unified shopping and learning loop
+
+Interpret natural-language text, images, relevant profile evidence, recent state and explicit threaded replies into structured intent. Route that intent through supported search, clarification, selection, wishlist, alert, feedback and profile actions. Do not use phrases, keywords or regexes to infer conversational intent, reactions, durable-preference meaning or desired outcomes. Code checks evidence, identifiers, technical formats, user ownership, consent and action preconditions. If intent is uncertain, make a supported reversible move or ask a useful question. Never guess consent for a state-changing action.
+
+Source real relevant product listings and their supported product photos, variant attributes, prices, currencies, sizes and availability. Keep identity/variant selection separate from merchant ranking and size-specific availability. Preserve partial results and unknown facts. Wishlist saving, alert activation/cancellation, later notifications and profile learning must work across both text and image requests with accurate confirmations after persistence.
+
+### Size memory across categories and brands
+
+Collect unstructured size statements using the relevant product/image/thread context across categories, including suits, jackets, trousers, tops and shoes. Preserve the user's raw label, category, stated system, length/fit modifiers, source and scope. For example, a suit image plus “I’m a 50R” saves suit size 50R as the user's category default across brands. Do not require a named brand or an explicit sizing system to remember it. Do not apply it to unrelated categories or infer a US/EU conversion.
+
+A later brand-specific size is an exception; retain the category default. The most specific applicable confirmed size guides a request, with a current explicit override taking precedence. Establish general defaults unless the user identifies a narrower scope; do not silently make a general size brand-specific just because one brand is being discussed. Ambiguous category/recipient information may require a question. Saved size means a shopping preference, not proven fit or in-stock evidence. Match retailer labels using supported evidence and clarify genuinely ambiguous systems instead of inventing equivalence.
+
+### Retailer learning
+
+Begin with Jules's recommended stores, then learn per-user retailer preferences from chat, feedback and receipts uploaded in `/style`. Recognized SSENSE and Mr Porter receipts should contribute receipt-derived retailer affinity to that user's structured profile and future sourcing, without an extra favorite-store declaration. This supersedes the earlier restriction that purchase counts cannot contribute to preferences. Retain source IDs and distinguish shopping history from an explicit favorite, avoidance or loyalty statement. Duplicate receipts must not multiply the signal; identifiable gifts or another person's purchases must not become the user's shopping preferences. Receipt sizes are purchased-size evidence, not automatically confirmed fit.
+
+For equivalent eligible product/variant offers, prefer a learned or explicitly preferred store when the requested size is verified available there. User corrections and avoided stores override learned affinity. A wrong product or unavailable size never wins because its merchant is preferred. Unknown size availability stays unknown. Keep item-price and delivered-cost claims distinct; future cost tradeoffs must use verified evidence rather than invented premium thresholds. Receipt deletion/correction must remove or revise dependent learning without erasing independent explicit chat preferences.
+
+October 10 receipt-analysis decision: after analysis, surface at most five simple questions, prioritized by their impact on trustworthy closet contents and personal shopping learning, for consequential facts the evidence cannot establish, including item recipient, disputed purchases, ambiguous returns and conflicting item details. Use model interpretation rather than phrase rules. Select the five most important uncertainties rather than scheduling repeated batches; leave lower-priority facts unknown and do not automatically refill after answers or deferrals. Keep corrections scoped to items within mixed-recipient orders. Chat answers and later closet edits must use one provenance-backed feedback path; changes rebuild dependent receipt learning, preserve original evidence and prevent repeat questions. Unknown or deferred answers must not become personal sizes, confirmed fit, kept status, refunds or preferences. See `RECEIPT-ANALYSIS-FEEDBACK.md` for the private tool implementation. This does not authorize building or deploying the future closet UI.
+
+### Conversation continuity and feedback
+
+Preserve incoming and outgoing thread targets and their associated images, products and selected sets. Resolve a reply against its referenced message before using the newest active shopping state. Unknown or conflicting references need clarification. Support multiple desired items, exclusions, uncertain interest, recipient changes, topic changes and messages arriving while Jules is working.
+
+Use product feedback to correct matches and learn preferences at the right scope. Wrong identity, wrong merchant, wrong size, dislike of a specific variant and a lasting category/style preference are different outcomes. Support replacing/removing saved items, cancelling item/set alerts and forgetting or correcting profile facts. Only established user sizes/preferences become durable facts; do not generalize a one-time rejection or an assistant suggestion into taste. New learning must affect later searches and be correctable.
+
+### Adaptive clarification and monitoring
+
+Clarification follows the current request and actual search evidence. Do not mandate a color question: the user may have supplied all necessary attributes. Ask only about differences that matter, such as model, material, length, fit, finish, color or size, without inventing variants. Preserve multi-item choices and scoped consent.
+
+Jules can monitor supported products when monitoring is enabled. Chat must enable, inspect, change and disable alerts on the intended item/set and send verified qualifying notifications later. Instructions must describe actual enabled capabilities. Separate active monitoring with a verified baseline, waiting for evidence/availability, failed checks and cancellation; do not imply monitoring is operational when setup or evidence is missing. Alert conditions and check cadence follow the assigned WATCH behavior, not an invented promise.
+
+### Meaning of clothing department
+
+The existing internal `shopping_range` field means the clothing department the user wants to shop (for example men's, women's, unisex or any). It is separate from gender identity. Use an explicit request or saved clothing preference; do not infer it from appearance. Another recipient's department/size applies to that request rather than overwriting the user's profile.
+
 ## 28. Product-data sources and future iterations
 
 **October 8 founder decision:** Combine independently sourced facts for the exact product and merchant variant rather than making a successful retailer-page fetch a prerequisite for a useful shopping conversation. Preserve the user's supplied link and save intent through retrieval failures. Every selected fact must retain its provider, source URL, retrieval time, product/variant scope and evidence level. Unknown values remain unknown; conflicting values remain recorded rather than silently merged. Product identity stays separate from merchant preference and availability in the user's size.
@@ -707,3 +738,38 @@ The current integration uses the existing SerpAPI account for Google organic sea
 - **Field-level refresh and monitoring:** Refresh price and size-stock evidence independently from stable names and images. Enable a watch only when its required evidence and configuration exist; keep waiting, failed and active states distinct. A stale/indexed price alone must not fire a price-drop message.
 
 These integrations require explicit assignment and, where applicable, external account/access setup. Jules must continue to provide supported partial results while those sources are unavailable; no human sourcing fallback is planned.
+
+### October 9 iteration: supplied links and storefront context
+
+Read supplied product links before conversational interpretation so Jules can use the available identity, images and price without treating missing optional fields as a request for repeated save permission. Saving remains independent of price/stock verification. For the founder's USD request, market-neutral Satisfy links use the retailer's US storefront context throughout retrieval and monitoring; preserve explicitly supplied markets and genuine sourced currencies, and never invent a conversion. Require an explicit supported action or natural conversation outcome for search-enabled turns; accepted search offers and brand clues should execute sourcing in the same turn.
+
+### October 9 DM feedback acceptance clarifications
+
+An explicit request for a product price alert includes permission to save that associated product; Jules must not ask separately for wishlist consent. Acknowledgment or interest alone is not permission. If structured interpretation fails consent validation, use the original context for at most one model correction before asking a useful question.
+
+Sourcing should research and present verified variants in the current turn using supplied attributes and retailer evidence. Use singular language for one product and do not require a color choice when only one verified candidate exists. Supplemental research is bounded and preserves the primary supported result on failure.
+
+Read per-SKU price/stock and explicit retailer size labels, including native selectors where structured product data omits sizes. An enabled alert with no baseline must have an automated recovery path; opening the wishlist may retry initial verification without toggling the alert or sending a price-drop notification. Never infer size conversions or treat unavailable retrieval as proof of unavailable stock.
+
+
+### October 10: vague product discovery (founder assigned)
+
+Distinguish identifying an item the user saw from exploring options. When a brief is too broad for useful results, ask one or two adaptive questions using supplied clues and saved facts; do not force a fixed questionnaire. If the user cannot recall more or welcomes exploration, offer a varied first set. Carry the brief and request-scoped feedback through clarification, results, accept/reject, more options and topic/recipient changes.
+
+Taste facts, receipt-derived shopping history, favorite brands/stores and historical budgets guide ranking, not strict eligibility. Only current explicit constraints limit the requested search. Rank verified products against the current brief first, then personal preferences and useful diversity; new brands, styles and sources remain eligible. Preserve sourced facts and uncertainty. Return up to three discovery options and invite feedback. A plausible identification candidate is not a confirmed identity.
+
+Rejecting or asking for different options excludes the referenced results from the next batch and preserves useful guidance. Temporary feedback must not overwrite durable taste. Acceptance without save/monitor intent establishes interest, not permission to save or enable alerts. Topic and recipient changes clear temporary exclusions/constraints. Failed research retains a retry brief without reviving old choices. No new infrastructure or human sourcing dependency.
+
+
+### October 10: Gmail purchase-history import pilot (founder assigned)
+
+Implement a real, invite-only, read-only Gmail connection in the existing onboarding flow. Begin with a one-time 90-day import of up to 200 matching shopping emails and their supported receipt PDFs. Consent must explain OpenAI analysis, private evidence storage and receipt-derived shopping learning. Preserve purchase, shipment, cancellation, return-request and refund distinctions, item variants, source references, original evidence and scoped corrections. Persist progress; disclose incomplete coverage and preserve supported partial results. Repeat imports must not duplicate unchanged evidence or erase feedback. Ask at most five prioritized unresolved questions. Web answers, conversation corrections and later closet controls share the feedback path. Gifts/disputed/cancelled purchases cannot teach personal tastes; purchased size is not confirmed fit or a general default. Use receipt observations as separately sourced shopping history, with explicit preferences taking precedence. Support disconnect and deletion of imported history without deleting independent facts.
+
+Reuse existing infrastructure; no ongoing background sync or full closet UI is assigned. Verify connect → import → correction → repeat import → preserved correction and appropriate shopping learning against the real configured account before declaring live acceptance. See `GMAIL-IMPORT.md` for setup, implementation limits and acceptance checks.
+
+October 10 response-quality clarification: omit non-actionable retailer metadata caveats from chat. Explain uncertainty when it materially changes the choice or requested action, and ask a useful question if clarification is needed. Keep missing department labels in diagnostics rather than automatically announcing them with results.
+
+
+### October 12: prioritized Gmail import expansion
+
+Founder requests five years of history and a maximum of 1,000 unique emails, prioritizing the last two years. Search transaction evidence first, then related orders and broader discovery; do not analyze every inbox email or exclude promotions wholesale. Extract bounded pages between discovery passes, preserve progress, deduplicate across passes, and preserve existing feedback. Aim for most salient evidence in the first 100 emails, but measure early yield and long-tail additions rather than claiming unvalidated 90% recall. Existing limited imports retain their approved scope; an expanded import requires updated consent. Show partial findings after the first 100 and retain older purchases without inferring current ownership or disposal. No new durable background queue is assigned in this expansion.

@@ -2,6 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {validateSearch,formatSearch,searchProducts,publicURL} from '../lib/search.js';
 import {generateReply} from '../lib/ai.js';
+import {tool} from './helpers/agent.js';
 const url='https://retailer.example/products/waxed-jacket';
 const result={intro:'I can’t confirm the exact jacket; here is a similar option.',products:[{brand:'Example',name:'Waxed jacket',url,match:'similar',reason:'Dark waxed cotton with a corduroy collar.'}],needs_review:false};
 const response=(output)=>({ok:true,json:async()=>({status:'completed',output})});
@@ -13,7 +14,7 @@ test('failed category URLs are excluded on refinement and their page checks surv
   if(calls===2){assert.ok(request.input[0].content[0].text.includes(category));return response([{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify({intro:'None found.',products:[],needs_review:true})}]}]);}
   return response([{type:'web_search_call',status:'completed',action:{sources:[{url:category}]}},{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify({...result,products:[{...result.products[0],brand:'Prada',name:'Speedrock sneakers',url:category}]})}]}]);
  },{range:'men'});
- assert.equal(calls,3);assert.equal(found.initial_checks[0].checks[0].reason,'category_page');assert.equal(found.initial_checks[0].url,category);
+ assert.equal(calls,2);assert.equal(found.initial_checks[0].checks[0].reason,'category_page');assert.equal(found.initial_checks[0].url,category);
 });
 test('product links require completed live search and retrieved source URLs; invented and duplicate URLs are dropped',()=>{
   const verified=validateSearch({output},{...result,products:[...result.products,{...result.products[0],url:'https://retailer.example/invented'},result.products[0]]});
@@ -38,22 +39,22 @@ test('explicit follow-up can source the recent image without attaching it to ord
   let calls=0,loaded=0,recorded;
   const text=await generateReply([{direction:'inbound',body:'Find that jacket and send links'}],{OPENAI_API_KEY:'fake',SEARCH_ENABLED:'true'},async(endpoint,options)=>{
     const request=JSON.parse(options.body);
-    if(++calls===1){assert.equal(request.tools[0].name,'search_products');return response([{type:'function_call',name:'search_products',arguments:JSON.stringify({query:'Dark waxed jacket with corduroy collar',use_image:true})}]);}
+    if(++calls===1){assert.ok(request.tools.some(t=>t.name==='find_products'));return response([tool('find_products',{query:'Dark waxed jacket with corduroy collar',use_image:true})]);}
     assert.equal(request.input[0].content[1].type,'input_image');return response(output);
   },{loadImages:async()=>{loaded++;return [{mime_type:'image/jpeg',data:'fake'}];},recordSearch:async r=>recorded=r});
-  assert.equal(calls,4);assert.equal(loaded,1);assert.equal(recorded.products.length,0);assert.match(text,/similar options/);
+  assert.equal(calls,2);assert.equal(loaded,1);assert.equal(recorded.products.length,0);assert.match(text,/similar options/);
 });
 test('search errors are recorded for review and never generate invented links',async()=>{
   let calls=0,recorded;
   const text=await generateReply([{direction:'inbound',body:'Send jacket links'}],{OPENAI_API_KEY:'fake',SEARCH_ENABLED:'true'},async()=>{
-    if(++calls===1)return response([{type:'function_call',name:'search_products',arguments:'{"query":"Waxed jacket","use_image":false}'}]);
+    if(++calls===1)return response([tool('find_products',{query:'Waxed jacket'})]);
     return {ok:false,status:503};
   },{recordSearch:async r=>recorded=r});
   assert.equal(recorded.status,'failed');assert.match(text,/try again/);assert.ok(!text.includes('https://'));
 });
-test('unsourced URLs returned outside the sourcing tool are not delivered',async()=>{
-  const text=await generateReply([{direction:'inbound',body:'Find jacket links'}],{OPENAI_API_KEY:'fake',SEARCH_ENABLED:'true'},async()=>response([{type:'message',role:'assistant',content:[{type:'output_text',text:'Buy it at https://retailer.example/invented'}]}]));
-  assert.ok(!text.includes('https://'));assert.match(text,/source product links/);
+test('unsourced URLs written by the agent outside the sourcing tool are never delivered',async()=>{
+  for(const output of [[tool('conversation_reply',{response:'Buy it at https://retailer.example/invented'})],[{type:'message',role:'assistant',content:[{type:'output_text',text:'Buy it at https://retailer.example/invented'}]}]])
+    await assert.rejects(generateReply([{direction:'inbound',body:'Find jacket links'}],{OPENAI_API_KEY:'fake',SEARCH_ENABLED:'true'},async()=>response(output)));
 });
 
 test('OpenAI source tracking does not reject a real listing; product variants remain distinct',()=>{

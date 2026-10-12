@@ -1,3 +1,5 @@
+import {structuredColorOptions} from '../lib/product-variants.js';
+import {listingProduct} from '../lib/product-photos.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import sharp from 'sharp';
@@ -108,10 +110,20 @@ test('website photos require matching structured product data and trusted asset 
  assert.deepEqual(listingPhotos(make(data),'Transport Windowpane Waxed Jacket'),['https://www.barbour.com/jacket.jpg']);
  assert.deepEqual(listingPhotos(make({...data,name:'Other jacket'}),'Transport Windowpane Waxed Jacket'),[]);
  assert.deepEqual(listingPhotos('<meta property="og:image" content="https://www.barbour.com/category.jpg">','Jacket'),[]);
- await assert.rejects(fetchListingPhotos('https://barbour.com.evil.example/a','Jacket',()=>assert.fail()));
+ await assert.rejects(fetchListingPhotos('https://barbour.com.evil.invalid/a','Jacket',()=>assert.fail()));
  const png=await sharp({create:{width:500,height:700,channels:3,background:'white'}}).png().toBuffer();
  const images=await fetchListingPhotos('https://www.barbour.com/jacket','Transport Windowpane Waxed Jacket',async(url,options)=>{
  assert.equal(options.redirect,url.endsWith('.jpg')?'manual':'error');return url.endsWith('.jpg')?new Response(png,{headers:{'content-type':'image/png'}}):new Response(make(data),{headers:{'content-type':'text/html'}});
  });
  assert.equal(images.length,1);assert.equal(images[0].source_url,'https://www.barbour.com/jacket');assert.equal((await sharp(Buffer.from(images[0].data,'base64')).metadata()).width,500);
+});
+
+test('a canonical multi-color ProductGroup establishes identity without assigning one variant price or stock',()=>{
+ const url='https://visionaryoptics.com/products/romi';
+ const group={'@type':'ProductGroup','@id':'/products/romi#product',name:'Jacques Marie Mage Romi Sunglasses',brand:{name:'Jacques Marie Mage'},hasVariant:[{'@type':'Product',name:'Jacques Marie Mage Romi Sunglasses - 6D Agar Yellow',color:'6D Agar Yellow',url:url+'?variant=1',offers:{price:'960',priceCurrency:'USD'}},{'@type':'Product',name:'Jacques Marie Mage Romi Sunglasses - Black',color:'Black',url:url+'?variant=2',offers:{price:'990',priceCurrency:'USD'}}]};
+ const html='<script type="application/ld+json">'+JSON.stringify(group)+'</script>';
+ const product=listingProduct(html,'Jacques Marie Mage Romi Sunglasses 6D Agar Yellow',url);
+ assert.equal(product.name,group.name);assert.deepEqual(product.offers,[]);assert.equal(product.color,null);assert.equal(product.hasVariant.length,2);assert.deepEqual(structuredColorOptions(product,url).map(c=>c.color),['6D Agar Yellow','Black']);
+ assert.equal(structuredColorOptions({...group,hasVariant:[{color:'Fake',url:'https://other.example/products/romi?variant=3'}]},url).length,0);
+ assert.equal(listingProduct(html,'Romi Sunglasses',url+'?variant=unlisted'),null);
 });

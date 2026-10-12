@@ -1,0 +1,127 @@
+# Jules architecture: inputs, skills and data stores
+
+Status: October 12, 2026. Describes the code after the evidence store (`db/019_evidence.sql`) and the single-agent change. Use this to sanity-check new work: every new feature should fit one of the layers below, or explain why it needs a new one.
+
+## The model in one picture
+
+```
+ INPUTS                         EVIDENCE (proof)                 BELIEFS (profile)              VIEWS (computed)
+ iMessage text/photos  ─┐                                                                       shopping history
+ Gmail receipts        ─┼─► extract ─► evidence table ──cite──► taste_profiles.facts ──┐        style report
+ /style photos         ─┤      (model reads,  (immutable rows,     (stated / confirmed /  ├──►  Wrapped cards
+ wishlist actions      ─┤       code checks)   one per proof)       inferred)            │        search ranking
+ operator edits        ─┘                                                                │
+                                      │                                                  │
+                                      └──────────── replayed directly ───────────────────┘
+ WORKFLOW STATE (not proof, not belief): import jobs, open questions, pending offers, wishlist, alerts
+```
+
+Five rules keep this from drifting:
+
+1. **Proof lives only in `evidence`.** One row per citable proof point, pointing back to its raw source. Rows record what a source says, never what Jules concludes about the person.
+2. **Beliefs must cite proof.** Every profile fact has `evidence_ids` and a `basis`. The database rejects a fact without existing evidence from the same user.
+3. **Corrections are new evidence, not edits.** The original row stays; views replay corrections in order.
+4. **Computed views are never stored as beliefs.** Shopping history, report statistics and Wrapped signals are recalculated from evidence, so they update automatically when evidence changes.
+5. **One agent interprets every message.** No keyword, phrase or regex rule decides what a message means. The model reads the message, conversation and application context and calls tools; code validates references, consent and formats, then executes.
+
+## Input sources
+
+| Input | How it arrives | What is extracted | Becomes |
+|---|---|---|---|
+| iMessage text and photos | Photon webhook → `api/imessage.js` → `lib/inbox.js` → the agent (`lib/ai.js`) | Whatever the agent's tools record | See skills below |
+| Self-statements in chat | Agent calls `update_profile` | Remember / correct / forget, with the exact quote | `chat_statement` evidence + `stated` belief |
+| Corrections to purchase history in chat | Agent calls `update_purchase_history` | Recipient, return, dispute, field fix, duplicate, defer | `correction` evidence |
+| Gmail receipts | Read-only OAuth import (`lib/gmail-import.js`, `lib/gmail-worker.js`) | Purchase, shipping, return, cancellation and refund events with quoted fields | `purchase_event` evidence |
+| `/style` photos (outfits, inspiration) | Upload on the private page (`api/style.js`) | Photo observations; user notes and occasions | `photo_observation` and `user_note` evidence |
+| `/style` card confirmation | User accepts a card's preference | The accepted preference | `confirmation` evidence + `confirmed` belief |
+| Wishlist actions | Confirmed save in chat; remove/restore on the wishlist page | Which item, which action, when | `wishlist_event` evidence |
+| Operator edits | Private admin inbox (`api/profile.js`) | The edited preference | `operator_entry` evidence + `stated` belief |
+
+Receipts come only from Gmail (receipts texted to Jules are a planned `chat`-origin `purchase_event`). Manual receipt upload has been removed. Items Jules merely sent are workflow history, not evidence of interest; only the user's own save/remove/restore is evidence.
+
+## The agent and its skills
+
+Every message goes to one agent (`generateReply` in `lib/ai.js`): one model call, one tool list, `tool_choice: required`. The agent sees the conversation, any photos, and an application-context block (data, not instructions): pending options, saved wishlist with alert status, saved profile beliefs, message references, onboarding state, and whether purchase history exists. It calls exactly one replying tool, plus `update_profile` alongside it when the message also states a durable fact. If code rejects the call (for example, accepting an offer that was never made), the agent gets one retry with the validation feedback; it never guesses consent.
+
+| Skill (tool) | Offered when | Executor | Writes to |
+|---|---|---|---|
+| `find_products` | search enabled | `lib/text-wishlist.js` (text) or `lib/search.js` (photos) | `messages.search_result` (workflow) |
+| `ask_shopping_question` | wishlist enabled | `lib/text-wishlist.js` | pending brief (workflow) |
+| `respond_to_options` | there are pending options | `lib/wishlist-selection.js` | pending selection (workflow) |
+| `save_to_wishlist` | wishlist enabled | `lib/wishlist-selection.js`, then save after delivery | `wishlist_items`, `wishlist_event` evidence |
+| `manage_price_alerts` (create / status / cancel) | wishlist enabled | create: `lib/wishlist-selection.js`; status/cancel: `manageAlerts` in `lib/inbox.js` | `price_alerts` |
+| `wishlist_status` | wishlist enabled | grounded reply; link added by code | none |
+| `update_purchase_history` | the user has imported purchases | `lib/receipt-chat.js` | `correction` evidence, open questions |
+| `update_profile` (remember / correct / forget) | memory enabled | `updateProfile` in `lib/memory.js` | `chat_statement` evidence + beliefs |
+| `profile_status` | memory enabled | grounded reply | none |
+| `onboarding` (accept / decline / status / style) | invited to onboarding, or `/style` enabled | `onboardingAction` in `lib/onboarding.js` | `onboarding_sessions` |
+| `send_developer_feedback` | always | `store.saveFeedback` | `messages.developer_feedback` |
+| `conversation_reply` | always | grounded reply | none |
+
+Structured arguments replace wording rules: the agent passes `department` (men/women/unisex/unspecified) and `for_someone_else` with each search, so code never parses "for my wife" or "women's" out of text. Consent for saves and alerts is checked in code against the actual offer and options (`invalidOfferConsent`, `selectionOutcome`). Previously there were four separate model calls or routers per message (onboarding, purchase-history check, memory extraction, then one of two interpreters); now there is one.
+
+## Data stores
+
+### Proof and beliefs
+
+| Store | Definition | Purpose | Written by | Read by |
+|---|---|---|---|---|
+| `evidence` | Immutable proof rows: `id, seq, kind, origin, source, data, recorded_by`. Kinds: `purchase_event`, `correction`, `photo_observation`, `user_note`, `chat_statement`, `operator_entry`, `confirmation`, `wishlist_event`, `legacy_record`. Origins: `gmail`, `style`, `chat`, `operator`, `wishlist`, `legacy`. | The single place proof lives. `seq` gives replay order. Deleting by origin or source is how data is forgotten. | Gmail import and corrections, `/style` analysis and confirmation, memory, operator | Receipt history view, style report, belief validation |
+| `taste_profiles.facts` | Beliefs about the user: `field, key, value, basis, evidence_ids` (≤150). `basis` is `stated`, `confirmed` or `inferred`. Clothing range (`men`/`women`/`unisex`) and gender (`man`/`woman`/`non-binary`/`prefer-not-to-say`) use fixed values that code compares directly. | What Jules believes about taste, sizes, budgets, brands, market. Used in every chat and search. | `update_profile`, operator, `/style` confirmation | Agent context, search ranking, market, `/style` context |
+
+How beliefs resolve: when two beliefs share a field and key, the stronger basis wins (stated > confirmed > inferred); within the same basis the more recent one wins, so a correction replaces what the user said before (`prevails` in `lib/memory.js`).
+
+How beliefs follow evidence: `prune_unsupported_facts` runs whenever evidence is deleted. It drops citations that no longer exist and removes a belief left with none. A belief supported by both Gmail and chat evidence survives deleting Gmail history, with only its chat citation. Receipt-derived shopping history is never stored as a belief; it is recomputed from evidence on every read, so corrections take effect immediately.
+
+### Raw sources (input material, not proof by themselves)
+
+| Store | Holds | Notes |
+|---|---|---|
+| `messages` | Every inbound/outbound iMessage, status, reply references, search results, developer feedback | Also carries workflow columns (`search_result`, `wishlist_payload`, `memory_status`). |
+| `message_images` | Images sent in iMessage | Private; used for search. |
+| `gmail_imports.data.sources` | Prepared (redacted) receipt email text, fingerprints, warnings | Kept so extraction can be audited and changed emails detected. |
+| `style_sources` | Normalized `/style` photos | Deleting a photo clears style evidence and the beliefs that relied only on it. |
+
+### Workflow state (neither proof nor belief)
+
+| Store | Purpose |
+|---|---|
+| `gmail_imports` (row) | OAuth token (encrypted), consent version, import job progress, open questions (`data.questions`), lease/revision lock. Receipt items are no longer stored here. |
+| `style_sessions` | `/style` notes, tone, current report (cards plus references to observation evidence), analysis lock. |
+| `onboarding_sessions` | Onboarding step per invited user. |
+| `wishlist_items`, `wishlist_encounters`, `wishlist_entry_metadata` (view) | What the user saved and where each save came from. |
+| `price_alerts` | Active alerts, baselines and last checks. |
+| `conversations` | One per user; the identity everything else is scoped to. |
+| `wishlist_members`, `wishlist_revoked_sessions`, `login_challenges`, `public_signups` | Sign-in, access and signups. |
+| `cost_entries` | Operator cost tracking. |
+
+## Write paths (all atomic, all owner-scoped)
+
+| Action | Database function | Proof written | Beliefs changed |
+|---|---|---|---|
+| Gmail step / answer / correction | `finish_gmail_import(…, p_evidence, p_clear)` | New purchase and correction rows, in the same transaction as job progress | None directly; history view recomputes |
+| Delete imported history | `finish_gmail_import(…, p_clear=true)` | All `gmail` evidence deleted | Pruned |
+| `/style` upload, remove, notes change | `write_style(…, p_clear=true)` | All `style` evidence deleted | Pruned (confirmed style beliefs removed) |
+| `/style` analysis | `write_style(…, p_evidence)` | Observation and note rows | None |
+| `/style` confirmation | `write_style(…, p_evidence, p_facts)` | Confirmation rows | Replaces previous `style_report` beliefs |
+| `update_profile` / operator edit | `insert_evidence` then `save_taste_profile` | Quote / operator entry | Saved only if every citation exists |
+| Wishlist save (chat) / remove / restore (page) | `insert_evidence` after the save or change | `wishlist_event` | None |
+
+Pre-evidence data: the migration backfills existing beliefs and `/style` observations. Pre-evidence Gmail imports convert on their next write (`legacyReceiptEvidence`); until then they are read through the same conversion.
+
+## Known gaps and existing debt (honest list)
+
+- **iMessage photos are not evidence yet.** They are used for the current search only; nothing learns taste from them. If something does, they must become evidence rows first.
+- **Receipts texted to Jules are not supported yet.** The `chat` origin and `purchase_event` kind are ready for it.
+- **Alerts on an already-saved item that isn't in the current options** can be checked and cancelled in chat but not created there yet; creation goes through current options or the wishlist page.
+- **Wishlist evidence is written right after the save or change, not in the same transaction.** Row IDs are deterministic, so retries don't duplicate, but a crash between the two could miss a row.
+- **The replay grader (`lib/replay.js`) still scores replies with phrase checks.** It grades test output; it does not route messages. `REPLAY-SUITE.md` already flags replacing it with structured grading.
+- **Output safety filters use word lists** (commerce claims in search reasons, body comments in style copy). They check what Jules writes, not what the user means.
+- **`messages` mixes transcript and workflow** (`search_result`, `wishlist_payload`). Acceptable at this scale.
+- **Live model behavior is untested.** Unit tests mock the model's tool choice; the replay suite must run against the real model before this reaches testers.
+
+## Deployment order
+
+1. Run `db/019_evidence.sql` in Supabase. It first copies `taste_profiles`, `style_sessions` and `gmail_imports` (without tokens) into private `_backup_019_*` tables, then converts.
+2. Deploy the matching code right away. Until then, transitional versions of the two old database functions keep Gmail progress and `/style` writes working for the previous deployment; chat preferences fail to save (logged, not fatal).
+3. After the release is verified, drop the transitional `finish_gmail_import(uuid,integer,jsonb,text)` and `write_style(uuid,integer,jsonb,jsonb,uuid,jsonb)` functions and the `_backup_019_*` tables in a follow-up migration.

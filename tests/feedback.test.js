@@ -3,38 +3,34 @@ import assert from 'node:assert/strict';
 import { receiveInInbox } from '../lib/inbox.js';
 import { createStore } from '../lib/store.js';
 import { createAdminHandler } from '../api/admin.js';
+import { generateReply } from '../lib/ai.js';
+import { agentTurn, tool } from './helpers/agent.js';
 const delivery = text => ({space:{phone:'test-line'},message:{id:'test-message',sender:{id:'test-sender'},content:{text}}});
-function fixture() {
-  const reports = new Map(), replies = new Map(), sent = [];
+// Feedback for the developer is one of the agent's tools; no message prefix is matched.
+function fixture(turn) {
+  const reports = new Map(), sent = [];let claimed=false;
   return { reports, sent, store: {
-    receive: async () => 'conversation',
-    saveFeedback: async (id, body) => reports.set(id, body),
-    reserve: async (id, operation, body) => { if (replies.has(operation)) return false; replies.set(operation,{conversation_id:id,body,status:'sending'}); return true; },
-    operation: async operation => replies.get(operation),
-    finish: async (operation,status) => { replies.get(operation).status=status; },
-  }, send: async (_delivery,body) => sent.push(body), generate: async () => assert.fail('Feedback must bypass AI'), updateMemory: async () => assert.fail('Feedback must bypass memory') };
+    receive: async () => 'conversation', claimAI: async () => { if (claimed) return false; claimed = true; return true; },
+    context: async () => [{ id:'00000000-0000-4000-8000-000000000001', direction:'inbound', body:'replies are long', status:'received' }],
+    saveFeedback: async (id, body) => reports.set(id, body), prepareAI: async () => {}, finish: async () => {},
+  }, send: async (_delivery,body) => sent.push(body), generate: (m,e,_f,memory) => generateReply(m,e,async()=>agentTurn(turn),memory) };
 }
-test('DM feedback is saved without prefix, bypasses AI, and duplicate deliveries acknowledge once', async () => {
-  for (const text of ['DM replies are long','dm: replies are long',' DM\nreplies are long']) {
-    const options = fixture();
-    await receiveInInbox(delivery(text),{AI_ENABLED:'true',MEMORY_ENABLED:'true'}, options);
-    await receiveInInbox(delivery(text),{AI_ENABLED:'true'}, options);
-    assert.equal(options.reports.size,1); assert.equal(options.reports.get('test-message'),'replies are long');
-    assert.deepEqual(options.sent,['Feedback saved for the developer. Thank you.']);
-  }
+const env = { AI_ENABLED:'true', OPENAI_API_KEY:'test' };
+test('the agent routes developer feedback to its tool; it is saved once and acknowledged once', async () => {
+  const options = fixture(tool('send_developer_feedback',{feedback:'replies are long'}));
+  await receiveInInbox(delivery('DM replies are long'),env,options);
+  assert.equal(await receiveInInbox(delivery('DM replies are long'),env,options),'imessage_ai_duplicate');
+  assert.equal(options.reports.size,1); assert.equal(options.reports.get('test-message'),'replies are long');
+  assert.deepEqual(options.sent,['Feedback saved for the developer. Thank you.']);
 });
-test('empty DM gives instructions and ordinary messages do not activate feedback',async()=>{
-  const options=fixture();
-  await receiveInInbox(delivery('DM'),{},options);
-  assert.match(options.sent[0],/Send DM followed/);
-  for(const text of ['DMV shopping','DMed you','I want DM feedback']) {
-    assert.equal(await receiveInInbox(delivery(text),{},options),'imessage_received');
-  }
-  assert.equal(options.reports.size,1);
+test('a message mentioning DM is interpreted like any other message, not prefix-matched',async()=>{
+  const options=fixture(tool('conversation_reply',{response:'Want me to look for DMV-friendly shoes?'}));
+  await receiveInInbox(delivery('DM: shopping near the DMV'),env,options);
+  assert.equal(options.reports.size,0);assert.deepEqual(options.sent,['Want me to look for DMV-friendly shoes?']);
 });
 test('failed feedback persistence does not acknowledge success',async()=>{
-  const options=fixture(); options.store.saveFeedback=async()=>{throw new Error('offline');};
-  await assert.rejects(receiveInInbox(delivery('DM bug'),{},options)); assert.equal(options.sent.length,0);
+  const options=fixture(tool('send_developer_feedback',{feedback:'bug'})); options.store.saveFeedback=async()=>{throw new Error('offline');};
+  await receiveInInbox(delivery('DM bug'),env,options);assert.equal(options.sent.length,1);assert.doesNotMatch(options.sent[0],/Feedback saved/);
 });
 test('feedback reads and history filters use private database requests',async()=>{
   const paths=[];

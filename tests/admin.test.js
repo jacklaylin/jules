@@ -54,14 +54,12 @@ test('a database status update failure never triggers a second send', async () =
   assert.equal((await deliverReply(args)).status, 'sending');
   assert.equal(count, 1);
 });
-test('inbox persists inbound text, greets hello once, and leaves other texts for the operator', async () => {
+test('with the agent off, inbox persists every inbound text for the operator and no wording triggers a reply', async () => {
   const store = memoryStore(); let count = 0;
   const delivery = text => ({ space: { phone: 'shared' }, message: { id: text, sender: { id: 'fake-sender' }, content: { text } } });
   const options = { store, send: async () => { count++; } };
-  assert.equal(await receiveInInbox(delivery('hello'), {}, options), 'imessage_reply_sent');
-  assert.equal(await receiveInInbox(delivery('hello'), {}, options), 'imessage_reply_sent');
-  assert.equal(await receiveInInbox(delivery('Find a jacket'), {}, options), 'imessage_received');
-  assert.equal(count, 1);
+  for (const text of ['hello', 'Find a jacket']) assert.equal(await receiveInInbox(delivery(text), {}, options), 'imessage_received');
+  assert.equal(count, 0);
   assert.equal(store.received.size, 2);
 });
 const response = () => ({ headers: {}, setHeader(k, v) { this.headers[k] = v; }, end(body) { this.body = JSON.parse(body); } });
