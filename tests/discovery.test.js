@@ -73,3 +73,13 @@ test('jacket clarification continues the jacket brief despite earlier shoe conte
  let scope;const candidate=p('new');const reply=await textWishlistAction({action:'start',query:'Jacques Marie Mage Romi sunglasses',search_plan:{...plan,mode:'identify'}},{env:{},text:'find them',record:async()=>{},search:async(_query,_images,_env,_fetch,_constraints,_refined,sourceScope)=>{scope=sourceScope;return {products:[candidate],refinement_attempted:true};}});
  assert.equal(scope,'web');assert.ok(reply.includes(candidate.url));
  });
+
+test('current-request contradictions can be rejected without treating unfamiliar brands as exclusions',async()=>{
+ const products=[p('wrong'),p('new','Unfamiliar Brand')];
+ const ranked=await rankDiscoveryProducts(products,{query:'New black track jacket with white stripes',facts:[{field:'brand',key:'lemaire',value:'favorite'},{field:'size',key:'tops/general',value:'L'}],env:{OPENAI_API_KEY:'test'},fetcher:async(_url,options)=>{const input=JSON.parse(JSON.parse(options.body).input[0].content);assert.equal(input.size_facts[0].value,'L');return model({indices:[1],rejected_indices:[0]})();}});
+ assert.deepEqual(ranked,[products[1]]);
+});
+test('rejected discovery results trigger a bounded replacement search before asking the user to change the brief',async()=>{
+ let calls=0,result;const reply=await textWishlistAction({action:'start',query:'New black track jacket',search_plan:plan},{env:{},text:'find new options',record:async r=>{result=r;},search:async query=>{calls++;if(calls===2)assert.ok(query.includes(p('wrong').url));return {products:[p(calls===1?'wrong':'right')],refinement_attempted:true};},rank:async products=>products.filter(p=>p.name!=='Sneaker wrong')});
+ assert.equal(calls,2);assert.ok(reply.includes(p('right').url));assert.ok(!reply.includes(p('wrong').url));assert.equal(result.text_wishlist_state.stage,'choice');
+});

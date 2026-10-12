@@ -39,7 +39,7 @@ test('topic changes and declines preserve shopping; acceptance after correction 
 });
 test('interpreter sends context and strictly validates structured actions',async()=>{
  let body;const context=[{direction:'outbound',body:'save both?',status:'sent'},{direction:'inbound',body:'sounds good',reply_provider_id:'original'}];
- const fetcher=async(url,options)=>{body=JSON.parse(options.body);return {ok:true,json:async()=>({status:'completed',output:[{content:[{type:'output_text',text:'{"action":"other"}'}]}]})};};
+ const fetcher=async(url,options)=>{body=JSON.parse(options.body);return {ok:true,json:async()=>({status:'completed',output:[{content:[{type:'output_text',text:'{"action":"other","focus":"shopping"}'}]}]})};};
  assert.equal(await interpretOnboarding(context,'offered',env,fetcher),'other');assert.deepEqual(JSON.parse(body.input).conversation,context);assert.equal(body.text.format.strict,true);
  await assert.rejects(()=>interpretOnboarding(context,'offered',env,async()=>({ok:true,json:async()=>({status:'completed',output:[{content:[{type:'output_text',text:'{"action":"invented"}'}]}]})})));
 });
@@ -76,4 +76,12 @@ test('signup delivery failure preserves saved consent and reports uncertainty',a
 });
 test('onboarding API remains unavailable when disabled',async()=>{
  const res=response();await createOnboardingHandler({env:{},storeFactory:()=>assert.fail('no private access')})(request(),res);assert.equal(res.statusCode,503);
+});
+
+test('newest shopping turn is explicit and cannot dispatch an onboarding status classification',async()=>{
+ const history=[{direction:'outbound',status:'sent',body:'view your Gmail connection here'},{direction:'inbound',body:'old reply'}];
+ const current={direction:'inbound',body:'Can you find fitted white henleys with a little stretch?'};
+ const action=await interpretOnboarding(history,'ready',env,async(_url,options)=>{assert.deepEqual(JSON.parse(JSON.parse(options.body).input).newest_message,current);return {ok:true,json:async()=>({status:'completed',output:[{content:[{type:'output_text',text:'{"action":"status","focus":"shopping"}'}]}]})};},current);
+ assert.equal(action,'other');
+ const f=fixture('ready');await onboardingReply({...delivery,message:{...delivery.message,content:{text:current.body}}},conversation.id,f.store,env,{send:f.send,interpret:async(_context,_state,_env,_fetch,message)=>{assert.equal(message.body,current.body);return action;}});assert.equal(f.sent.length,0);
 });

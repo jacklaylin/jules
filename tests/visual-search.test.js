@@ -57,7 +57,7 @@ test('whole outfit searches pieces independently, groups equivalent sellers, and
   plan:async()=>({scope:'outfit',items:[target,{...target,label:'trousers'}],omitted:['shoes']}),verifyListing:async url=>({status:'verified',url,checked_at:'2026-10-06T00:00:00Z',price_snapshot:null}),crop:async()=>({}),retrieve:async()=>candidates,
   compare:async t=>({candidates:t.label==='jacket'?[assessment('3'),assessment('2'),assessment('1')]:[]})
  });
- assert.equal(result.products.length,1);assert.equal(result.products[0].url,candidates[0].url);assert.equal(result.products[0].merchant_options.length,1);
+ assert.equal(result.products.length,1);assert.equal(result.products[0].url,candidates[0].url);assert.equal(result.products[0].merchant_options.length,2);
  assert.equal(result.status,'needs_review');assert.deepEqual(result.missing,['trousers']);assert.match(formatSearch(result),/haven’t searched the shoes/);
 });
 import {scoreIdentification} from '../lib/evaluation.js';
@@ -118,4 +118,18 @@ test('screenshot corroboration rejects invented references, contradictions and u
  for(const bad of [{...match,index:8},{...match,visible_evidence:''},{...match,contradictions:['different model']},{...match,match:'similar'}])assert.equal((await corroborateTextSources({...target,search_mode:'exact'},{mime_type:'image/png',data:'synthetic'},products,{},response([bad]))).length,0);
  assert.equal((await corroborateTextSources({...target,search_mode:'exact'},{mime_type:'image/png',data:'synthetic'},products,{},response([match,match]))).length,1);
  assert.equal((await corroborateTextSources({...target,search_mode:'similar'},{mime_type:'image/png',data:'synthetic'},products,{},response([{...match,match:'similar'}])))[0].match,'similar');
+});
+
+test('visual attribute retrieval recovers from Lens outage without guessing a brand and persists the active brief',async()=>{
+ const {stateFromSearch}=await import('../lib/shopping-context.js');
+ const black={...target,description:'Oversized black track jacket with white piping',features:['black','white chest piping','oversized'],search_mode:'similar',visible_product_text:''};
+ const found={brand:'Unfamiliar Brand',name:'Black track jacket',url:'https://new-store.example/products/track',match:'similar',sourcing_status:'store_found',listing_check:{status:'verified'}};
+ let brief,seenConstraints;
+ const result=await visualSearchProducts('Where can I find a track jacket like this?',[{}],{},null,{constraints:{taste:[{field:'brand',key:'lemaire',value:'favorite'}]},plan:async()=>({scope:'item',items:[black],omitted:[]}),crop:async()=>({}),retrieve:async()=>{throw Error('quota');},compare:async()=>({candidates:[]}),searchText:async(query,_images,_env,_fetch,constraints)=>{brief=query;seenConstraints=constraints;return {products:[found]};},corroborate:async(_t,_im,products)=>products,verifyListing:async url=>({status:'verified',url})});
+ assert.ok(brief.includes(black.description));assert.ok(!brief.includes('beige'));assert.equal(seenConstraints.taste[0].key,'lemaire');assert.equal(result.products[0].brand,'Unfamiliar Brand');assert.equal(result.diagnostics[0].recovery,'visual_attributes');
+ const state=stateFromSearch(result);assert.ok(state.search_brief.includes('black'));assert.equal(state.search_plan.mode,'discover');assert.equal(state.visual_targets[0].description,black.description);
+ assert.equal(stateFromSearch({...result,products:[]}).stage,'search_clarification');
+});
+test('a visually unsuitable candidate does not become a similar recommendation merely because it is the same category',()=>{
+ assert.equal(assessCandidates(candidates,{candidates:[{...assessment('1'),suitable_for_request:false,contradictions:['wrong main color']}]},true).length,0);
 });
