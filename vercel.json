@@ -60,12 +60,12 @@
       "includeFiles": "public/brand/previews/fallback-v1.png",
       "maxDuration": 30
     },
-    "api/**/*.js": {
-      "includeFiles": "VOICE.md",
-      "maxDuration": 120
-    },
     "api/wishlist.js": {
       "includeFiles": "{VOICE.md,node_modules/.pnpm/pdfjs-dist@*/node_modules/pdfjs-dist/standard_fonts/**,node_modules/.pnpm/pdfjs-dist@*/node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs}",
+      "maxDuration": 120
+    },
+    "api/**/*.js": {
+      "includeFiles": "VOICE.md",
       "maxDuration": 120
     }
   },
