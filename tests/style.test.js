@@ -144,11 +144,11 @@ test('long share-card words wrap without overflowing and corrected copy is consi
   const ctx={measureText:text=>({width:text.length*10})};assert.deepEqual(wrapText(ctx,'one extraordinarilylongword',60),['one','extrao','rdinar','ilylon','gword']);
   assert.equal(cardText({...rawCard,correction:'My correction'},'nice'),'My correction');
 });
-test('style text invitation bypasses model calls and reuses durable reply delivery',async()=>{
-  let body;const store={receive:async()=>owner,reserve:async(_id,_op,text)=>{body=text;return {claimed:true};},finish:async()=>{}};
+test('model-interpreted style invitation uses durable reply delivery',async()=>{
+  let body;const store={receive:async()=>owner,context:async()=>[{direction:'inbound',body:'could you figure out my look?'}],reserve:async(_id,_op,text)=>{body=text;return {claimed:true};},finish:async()=>{}};
   const delivery={space:{phone:'test-line'},message:{id:'test-message',sender:{id:'test-sender'},content:{text:'get to know my style'}}};
-  const status=await receiveInInbox(delivery,env,{store,send:async()=>{},generate:()=>assert.fail()});
-  assert.equal(status,'imessage_style_invitation_sent');assert.match(body,/https:\/\/shopper.invalid\/style/);
+  const status=await receiveInInbox(delivery,env,{store,send:async()=>{},interpretOnboarding:async()=> 'style',generate:()=>assert.fail()});
+  assert.equal(status,'imessage_onboarding_sent');assert.match(body,/https:\/\/shopper.invalid\/style/);
 });
 
 test('distinctive starter ingredients require evidence; invented references and colors are rejected',()=>{

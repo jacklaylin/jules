@@ -1,4 +1,6 @@
 import {resolveAlertSizeLabel} from '../lib/alert-size-label.js';
+import {createOnboardingHandler} from '../lib/onboarding.js';
+import {createGmailHandler} from '../lib/gmail-import.js';
 import {marketEnvironment} from '../lib/shopping-market.js';
 import {enrichWishlistItem} from '../lib/wishlist-details.js';
 import {repairWishlistPhotos} from '../lib/wishlist-photos.js';
@@ -13,9 +15,13 @@ import {createSignupHandler} from '../lib/public-signup.js';
 
 export const config = { api: { bodyParser: false }, maxDuration: 120 };
 export function createWishlistHandler({ env = process.env, storeFactory = createStore, auth = wishlistUser, admin = authorize, fetcher = fetch, verify = verifyListing, inspect = inspectAlertLinks, photos = fetchListingPhotos } = {}) {
+  const onboarding=createOnboardingHandler({env,storeFactory});
+  const gmail=createGmailHandler({env,storeFactory,auth,fetcher});
   const signup=createSignupHandler({env,storeFactory});
   return async (req, res) => {
     try {
+      if(new URL(req.url,'https://jules.invalid').searchParams.has('gmail'))return gmail(req,res);
+      if(new URL(req.url,'https://jules.invalid').searchParams.get('onboarding')==='1')return onboarding(req,res);
       if(new URL(req.url,'https://jules.invalid').searchParams.get('public_signup')==='1')return signup(req,res);
       if (env.WISHLIST_ENABLED !== 'true') return json(res, 503, { error: 'Wishlist is not available yet.' });
       const store = storeFactory(env);
@@ -100,7 +106,7 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
           if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) return json(res, 400, { error: 'Enter your email address.' });
           if (!env.SITE_ORIGIN) return json(res, 503, { error: 'Sign-in is not configured.' });
           if (await store.wishlistMember(email)) {
-            const response = await fetcher(`${env.SUPABASE_URL.replace(/\/$/, '')}/auth/v1/otp?redirect_to=${encodeURIComponent(env.SITE_ORIGIN.replace(/\/$/, '') + (input.destination==='style'?'/style':'/wishlist'))}`, {
+            const response = await fetcher(`${env.SUPABASE_URL.replace(/\/$/, '')}/auth/v1/otp?redirect_to=${encodeURIComponent(env.SITE_ORIGIN.replace(/\/$/, '') + (input.destination==='style'?'/style':input.destination==='onboarding'?'/onboarding':'/wishlist'))}`, {
               method: 'POST', headers: { apikey: env.SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
               body: JSON.stringify({ email, create_user: true }), signal: AbortSignal.timeout(10000),
             });

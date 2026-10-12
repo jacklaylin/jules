@@ -20,6 +20,8 @@
     "@spectrum-ts/imessage": "10.0.0",
     "heic-convert": "2.1.0",
     "puppeteer-core": "^25.12.0",
-    "sharp": "0.34.5"
+    "sharp": "0.34.5",
+    "htmlparser2": "12.0.0",
+    "pdfjs-dist": "6.4.299"
   }
 }

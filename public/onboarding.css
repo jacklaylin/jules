@@ -1,0 +1,16 @@
+#thinking { text-align:center; }
+#thinking-logo { width:min(230px,65vw); margin:2rem auto; font-size:clamp(100px,36vw,158px); line-height:1; }
+#thinking progress { display:block; width:min(240px,100%); height:16px; margin:2rem auto; accent-color:var(--aqua); }
+#connect button { margin-top:1rem; }
+#playful { min-height:3em; }
+#actions { display:flex; flex-wrap:wrap; gap:12px; margin-top:24px; }
+#thread { padding-left:1.25rem; }
+#thread li { margin:12px 0; }
+
+#gmail-history { width:100%; }
+#gmail-question-list form, #gmail-correction { display:grid; gap:12px; margin:24px 0; }
+#gmail-items { padding-left:1.25rem; }
+#gmail-items li { margin:12px 0; overflow-wrap:anywhere; }
+#gmail-connect label { display:block; margin:24px 0; }
+#gmail-connect button { margin:16px 0; }
+#gmail-history textarea { width:100%; min-height:90px; }
