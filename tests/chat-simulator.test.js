@@ -129,3 +129,10 @@ test('injected connected save failure cannot mutate the real wishlist or claim a
   const result=await simulateTurn({...input,failure:'save'},env,{...deps(interpretation),wishlistStore:live,wishlistConversation:'owner'});
   assert.equal(result.snapshot.items.length,0);assert.ok(!result.replies[0].startsWith('Saved'));
 });
+
+test('enabled onboarding and Gmail flags cannot crash a shopping simulation or mutate production consent',async()=>{
+ let routing=0;const result=await simulateTurn({text:'Find fitted white henleys'},{...env,ONBOARDING_ENABLED:'true',GMAIL_IMPORT_ENABLED:'true',STYLE_ENABLED:'true'}, {
+  ...deps({}),interpretOnboarding:async(_context,state,_env,_fetch,current)=>{routing++;assert.equal(state,null);assert.equal(current.body,'Find fitted white henleys');return 'other';},generate:async()=> 'I found shopping options.'
+ });
+ assert.equal(routing,1);assert.deepEqual(result.replies,['I found shopping options.']);assert.equal(result.outcome,'imessage_ai_reply_sent');
+});
