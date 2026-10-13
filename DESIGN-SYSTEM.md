@@ -52,3 +52,7 @@ The public `/` page now follows the brief's pinned viewport and scroll-driven iM
 ## Verification before shared changes ship
 
 Check wishlist and style at desktop, 390px and 320px phone widths, including logo rest/hover/thinking/completion, compact header, signed-out forms, uploads, draft review, confirmed cards, image controls, product/alert/evidence/export dialogs, long copy, PNG output, keyboard focus and no horizontal overflow. Check reduced motion, HTTP failures, concurrent request completion, and browser errors. Also smoke-check simulator and owner screens. Use synthetic browser fixtures; do not send real messages or perform paid searches just to verify styling. Run the application suite when shared JavaScript changes.
+
+## Entry flow refresh — October 12, 2026
+
+Landing, signup, login and Gmail onboarding now follow the latest supplied identity reference. Public composition remains in `landing.css`, `public-auth.css` and `onboarding.css`; existing shared logo, gel controls, fonts and activity primitives are reused. Landing drops the phone bezel, header and progress controls in favor of inline avatars and the six-phrase ticker. Signup adds the supplied demographic fields; login uses a code sent to the existing invited phone. Gmail follow-up questions happen exclusively in the text conversation. See [ENTRY-FLOW.md](ENTRY-FLOW.md) for the required database migration, deployment and real-account acceptance check. The earlier public-signup/no-welcome description above is superseded for provisioned testers.

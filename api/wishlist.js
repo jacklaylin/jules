@@ -1,3 +1,6 @@
+import { wishlistEvidence } from '../lib/evidence.js';
+import {scheduleGmail,handleGmailWork} from '../lib/gmail-worker.js';
+import {createPhoneLoginHandler} from '../lib/phone-login.js';
 import {resolveAlertSizeLabel} from '../lib/alert-size-label.js';
 import {createOnboardingHandler} from '../lib/onboarding.js';
 import {createGmailHandler} from '../lib/gmail-import.js';
@@ -16,10 +19,13 @@ import {createSignupHandler} from '../lib/public-signup.js';
 export const config = { api: { bodyParser: false }, maxDuration: 120 };
 export function createWishlistHandler({ env = process.env, storeFactory = createStore, auth = wishlistUser, admin = authorize, fetcher = fetch, verify = verifyListing, inspect = inspectAlertLinks, photos = fetchListingPhotos } = {}) {
   const onboarding=createOnboardingHandler({env,storeFactory});
-  const gmail=createGmailHandler({env,storeFactory,auth,fetcher});
+  const gmail=createGmailHandler({env,storeFactory,auth,fetcher,schedule:owner=>scheduleGmail(owner,env)});
+  const phoneLogin=createPhoneLoginHandler({env,storeFactory,fetcher});
   const signup=createSignupHandler({env,storeFactory});
   return async (req, res) => {
     try {
+      if(new URL(req.url,'https://jules.invalid').searchParams.get('gmail')==='work')return handleGmailWork(req,res,storeFactory(env),env);
+      if(new URL(req.url,'https://jules.invalid').searchParams.has('phone_login'))return phoneLogin(req,res);
       if(new URL(req.url,'https://jules.invalid').searchParams.has('gmail'))return gmail(req,res);
       if(new URL(req.url,'https://jules.invalid').searchParams.get('onboarding')==='1')return onboarding(req,res);
       if(new URL(req.url,'https://jules.invalid').searchParams.get('public_signup')==='1')return signup(req,res);
@@ -68,6 +74,7 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
           // Stop alerts before hiding the item; restoring leaves alerts off.
           if(input.action==='remove')await store.disablePriceAlert(access.conversation,item.id);
           await store.setWishlistRemoved(access.conversation,item.entries,input.action==='remove');
+          await store.recordEvidence(access.conversation,[wishlistEvidence(input.action==='remove'?'removed':'restored',item)]);
           return json(res,200,{ok:true});
         }
         if (['alert-options','alert-enable','alert-disable'].includes(input.action)) {

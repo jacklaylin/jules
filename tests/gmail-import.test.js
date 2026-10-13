@@ -6,6 +6,7 @@ import {receiptHTML,prepareReceiptEmail,receiptPDF} from '../lib/receipt-email.j
 import {RECEIPT_SCHEMA,reconcileReceipt,emptyReceiptState,projectReceiptState,relinkPending,receiptShoppingFacts} from '../lib/receipt-extraction.js';
 import {applyReceiptFeedback,receiptLearningView} from '../lib/receipt-feedback.js';
 import {newImportJob,importStep,createGmailHandler,publicImport,CONSENT_VERSION} from '../lib/gmail-import.js';
+import {loadReceipts} from '../lib/evidence.js';
 const env={GMAIL_IMPORT_ENABLED:'true',SITE_ORIGIN:'https://jules.example',GOOGLE_GMAIL_CLIENT_ID:'synthetic-client',GOOGLE_GMAIL_CLIENT_SECRET:'synthetic-secret',GMAIL_TOKEN_KEY:Buffer.alloc(32,7).toString('base64')};
 const tokens={access_token:'synthetic-access',refresh_token:'synthetic-refresh',expires_at:Date.now()+3600000};
 const text='Shop Order O1 Jeans Blue 31 Brand quantity 1 purchased';
@@ -13,18 +14,28 @@ const source={id:'m1',text,date:1000,fingerprint:'synthetic'};
 const fact=value=>({value,quote:value});
 const receipt=(extra={})=>({kind:'purchased',existing_item_id:null,evidence:'purchased',merchant:fact('Shop'),order_reference:fact('O1'),product:fact('Jeans'),sku:fact(null),brand:fact('Brand'),color:fact('Blue'),size_label:fact('31'),size_system:fact(null),quantity:fact('1'),units_per_pack:fact(null),...extra});
 const jsonResponse=value=>new Response(JSON.stringify(value),{status:200,headers:{'Content-Type':'application/json'}});
-function storage(){let row=null,nonce=null,busy=false;return {
+function storage(){let row=null,nonce=null,busy=false,rows=[];const self={
  onboardingSession:async()=>({state:'accepted'}),wishlistMember:async email=>email==='tester@example.test'?{conversation_id:'owner'}:null,
  gmailImport:async()=>row?structuredClone(row):null,
  beginGmailOAuth:async(owner,hash)=>{row??={conversation_id:owner,revision:0,data:{},token_ciphertext:null};nonce=hash;return true;},
  consumeGmailOAuth:async hash=>{if(hash!==nonce)return null;nonce=null;return row.conversation_id;},
  claimGmailImport:async()=>{if(busy||!row)return null;busy=true;row.revision++;return structuredClone(row);},
- finishGmailImport:async(owner,revision,data,token)=>{if(owner!==row.conversation_id||revision!==row.revision)return false;row.data=structuredClone(data);row.token_ciphertext=token;busy=false;return true;},
+ finishGmailImport:async(owner,revision,data,token,evidence=[],clear=false)=>{if(owner!==row.conversation_id||revision!==row.revision)return false;row.data=structuredClone(data);row.token_ciphertext=token;busy=false;
+  if(clear)rows=rows.filter(r=>r.origin!=='gmail');for(const e of evidence)if(!rows.some(r=>r.id===e.id))rows.push(structuredClone(e));return true;},
+ evidence:async(_owner,origin)=>structuredClone(rows.filter(r=>!origin||r.origin===origin)),get rows(){return rows;},
  profile:async()=>({facts:[]}),
  seed(value){row=structuredClone(value);},get row(){return row;},get busy(){return busy;}
-};}
+};return self;}
+// Receipt history is a view over evidence; tests read it the way the application does.
+async function receiptsOf(store){return (await loadReceipts(store,'owner',store.row)).state;}
+// Drives importStep the way the handler does: project evidence, step, persist new rows.
+async function step(row,options){
+ const rows=row.rows??[],store={evidence:async()=>structuredClone(rows)},next=await importStep({...row,receipts:await loadReceipts(store,'owner',row)},env,options);
+ return {...next,rows:[...rows,...next.evidence.filter(e=>!rows.some(r=>r.id===e.id))]};
+}
+const itemsOf=row=>row.receipts.state.items;
 async function request(handler,{method='GET',action,body,cookie,origin=env.SITE_ORIGIN,url='/api/wishlist?gmail=1'}={}){
- const req=Readable.from(body||action?[JSON.stringify(body??{action})]:[]);Object.assign(req,{method,url,headers:{origin,'content-type':'application/json',...(cookie?{cookie}:{})}});
+ const req=Readable.from(body||action?[JSON.stringify(body??{action,...(action==='start'?{consent:CONSENT_VERSION}:{})})]:[]);Object.assign(req,{method,url,headers:{origin,'content-type':'application/json',...(cookie?{cookie}:{})}});
  const res={headers:{},setHeader(k,v){this.headers[k]=v;},end(value){this.body=value;}};await handler(req,res);return {...res,data:res.body?JSON.parse(res.body):null};
 }
 const auth=async()=>({status:200,conversation:'owner'});
@@ -72,14 +83,14 @@ test('resumable import accounts for sources and repeat imports skip previously e
  const fetcher=async url=>url.includes('messages?')?jsonResponse({messages:[{id:'m1'}]}):jsonResponse({id:'m1',payload:{}});
  const prepare=async()=>source;
  const interpret=async r=>{if(r.schema===RECEIPT_SCHEMA){analyses++;return {events:[receipt()]};}return {questions:[]};};
- for(let i=0;i<4;i++)row=await importStep(row,env,{fetcher,prepare,interpret});assert.equal(row.data.job.status,'ready');assert.equal(row.data.job.processed.length,1);assert.equal(row.data.feedback.items.length,1);
- row.data.job=newImportJob();for(let i=0;i<4;i++)row=await importStep(row,env,{fetcher,prepare,interpret});assert.equal(analyses,1);assert.equal(row.data.feedback.items.length,1);
+ for(let i=0;i<60&&row.data.job.status!=='ready';i++)row=await step(row,{fetcher,prepare,interpret});assert.equal(row.data.job.status,'ready');assert.equal(row.data.job.processed.length,1);assert.equal(itemsOf(row).length,1);
+ row.data.job=newImportJob();for(let i=0;i<60&&row.data.job.status!=='ready';i++)row=await step(row,{fetcher,prepare,interpret});assert.equal(analyses,1);assert.equal(itemsOf(row).length,1);
 });
 test('listing cap is explicit and failed extraction does not mark a source completed',async()=>{
- const job=newImportJob();job.ids=Array.from({length:190},(_,i)=>'old'+i);
+ const job={status:'listing',query:'legacy-query',ids:[],page:null,processed:[],limit:200};job.ids=Array.from({length:190},(_,i)=>'old'+i);
  let row={conversation_id:'owner',token_ciphertext:sealToken(tokens,'owner',env),data:{feedback:emptyReceiptState('owner'),job}};
- row=await importStep(row,env,{fetcher:async()=>jsonResponse({messages:Array.from({length:50},(_,i)=>({id:'new'+i})),nextPageToken:'more'})});assert.equal(row.data.job.ids.length,200);assert.equal(row.data.job.limited,true);
- const prior=structuredClone(row);await assert.rejects(importStep(row,env,{fetcher:async()=>jsonResponse({id:'m1',payload:{}}),prepare:async()=>source,interpret:async()=>{throw Error('timeout');}}));assert.deepEqual(row,prior);
+ row=await step(row,{fetcher:async()=>jsonResponse({messages:Array.from({length:50},(_,i)=>({id:'new'+i})),nextPageToken:'more'})});assert.equal(row.data.job.ids.length,200);assert.equal(row.data.job.limited,true);
+ const prior=structuredClone(row);await assert.rejects(step(row,{fetcher:async()=>jsonResponse({id:'m1',payload:{}}),prepare:async()=>source,interpret:async()=>{throw Error('timeout');}}));assert.deepEqual(row,prior);
 });
 test('connect requires invitation, matching origin and explicit analysis consent',async()=>{
  const store=storage(),handler=createGmailHandler({env,storeFactory:()=>store,auth});
@@ -107,7 +118,7 @@ test('history corrections are owned, persisted, revocable and public output excl
  assert.equal((await request(handler,{method:'POST',body:{action:'edit',event:{action:'set_recipient',item_ids:[item_id],value:'self'}}})).statusCode,200);
  assert.equal((await request(handler)).data.learning_count,1);assert.ok(!JSON.stringify((await request(handler)).data).includes('fingerprint'));
  assert.equal((await request(handler,{method:'POST',body:{action:'edit',event:{action:'report_return',item_ids:['foreign']}}})).statusCode,503);assert.equal(store.busy,false);
- assert.equal((await request(handler,{method:'POST',action:'disconnect'})).data.connected,false);assert.equal(store.row.data.feedback.items.length,1);
+ assert.equal((await request(handler,{method:'POST',action:'disconnect'})).data.connected,false);assert.equal((await receiptsOf(store)).items.length,1);
  assert.equal((await request(handler,{method:'POST',body:{action:'delete-history',confirm:true}})).data.items.length,0);
 });
 test('real PDF parser reads a small digital receipt without remote fetches',async()=>{
@@ -121,20 +132,32 @@ test('pilot acceptance: connect, import, answer, rerun and correct through the s
  const fetcher=async url=>url.includes('messages?')?jsonResponse({messages:[{id:'m1'}]}):jsonResponse({id:'m1',payload:{}});
  const interpret=async r=>r.schema===RECEIPT_SCHEMA?{events:[receipt()]}:r.schema.properties.questions?{questions:[]}:{actions:[{action:'set_recipient',item_ids:[r.context.state.items[0].id],recipient:'self',recipient_label:null,corrections:[],target_item_id:null,question_id:null}]};
  const handler=createGmailHandler({env,storeFactory:()=>store,auth,fetcher,prepare:async()=>source,interpret});
- const run=async()=>{assert.equal((await request(handler,{method:'POST',action:'start'})).statusCode,200);for(let i=0;i<4;i++)assert.equal((await request(handler,{method:'POST',action:'step'})).statusCode,200);};
- await run();assert.equal(store.row.data.feedback.items.length,1);
+ const run=async()=>{assert.equal((await request(handler,{method:'POST',action:'start'})).statusCode,200);for(let i=0;i<60&&store.row.data.job.status!=='ready';i++)assert.equal((await request(handler,{method:'POST',action:'step'})).statusCode,200);};
+ await run();assert.equal((await receiptsOf(store)).items.length,1);
  assert.equal((await request(handler,{method:'POST',body:{action:'answer',message:'Those jeans were for me'}})).data.learning_count,1);
- await run();assert.equal(store.row.data.feedback.items.length,1);assert.equal(store.row.data.feedback.items[0].recipient.value,'self');
- const id=store.row.data.feedback.items[0].id;const edited=await request(handler,{method:'POST',body:{action:'edit',event:{action:'set_recipient',item_ids:[id],value:'other',label:'sister'}}});assert.equal(edited.data.learning_count,0);assert.equal(edited.data.items.length,1);
+ await run();assert.equal((await receiptsOf(store)).items.length,1);assert.equal((await receiptsOf(store)).items[0].recipient.value,'self');
+ const id=(await receiptsOf(store)).items[0].id;const edited=await request(handler,{method:'POST',body:{action:'edit',event:{action:'set_recipient',item_ids:[id],value:'other',label:'sister'}}});assert.equal(edited.data.learning_count,0);assert.equal(edited.data.items.length,1);
 });
-test('iMessage corrections use model context and do not intercept unrelated shopping; replay does not reinterpret or resend',async()=>{
- const {receiptChatReply}=await import('../lib/receipt-chat.js');const store=storage();const feedback=reconcileReceipt(emptyReceiptState('owner'),source,{events:[receipt()]}).state;
+test('the purchase-history skill uses model context, records correction evidence, and replays without reinterpreting',async()=>{
+ const {updatePurchaseHistory}=await import('../lib/receipt-chat.js');const store=storage();const feedback=reconcileReceipt(emptyReceiptState('owner'),source,{events:[receipt()]}).state;
  store.seed({conversation_id:'owner',revision:0,data:{feedback},token_ciphertext:null});store.context=async()=>[{provider_id:'in1',direction:'inbound',body:'The jeans were for my sister',created_at:'2026-10-10',reply_provider_id:'old1'}];
- const operations=new Map();store.reserve=async(owner,operation,body)=>{if(operations.has(operation))return false;operations.set(operation,{conversation_id:owner,body,status:'sending'});return true;};store.operation=async id=>operations.get(id);store.finish=async(id,status)=>{operations.get(id).status=status;};
- const delivery={space:{phone:'synthetic-line'},message:{id:'in1',sender:{id:'synthetic-sender'},content:{text:'The jeans were for my sister'}}};let sent=0,interpreted=0;const send=async()=>{sent++;return {};};
- assert.equal(await receiptChatReply(delivery,'owner',store,env,{send,interpret:async()=>({actions:[]})}),null);
+ const delivery={space:{phone:'synthetic-line'},message:{id:'in1',sender:{id:'synthetic-sender'},content:{text:'The jeans were for my sister'}}};let interpreted=0;
+ const unmatched=await updatePurchaseHistory(delivery,'owner',store,env,{interpret:async()=>({actions:[]})});assert.equal(unmatched.updated,false);assert.equal(store.rows.length,0);
  const interpret=async r=>{interpreted++;assert.equal(r.context.state.conversation[0].reply_provider_id,'old1');return {actions:[{action:'set_recipient',item_ids:[feedback.items[0].id],recipient:'other',recipient_label:'sister',corrections:[],target_item_id:null,question_id:null}]};};
- await receiptChatReply(delivery,'owner',store,env,{send,interpret});await receiptChatReply(delivery,'owner',store,env,{send,interpret});assert.equal(interpreted,1);assert.equal(sent,1);assert.equal(store.row.data.feedback.items[0].recipient.label,'sister');
+ assert.equal((await updatePurchaseHistory(delivery,'owner',store,env,{interpret})).updated,true);assert.equal((await updatePurchaseHistory(delivery,'owner',store,env,{interpret})).updated,true);
+ assert.equal(interpreted,1);assert.equal((await receiptsOf(store)).items[0].recipient.label,'sister');
+ // The legacy import migrated on that write: proof now lives only in evidence rows.
+ assert.equal(store.row.data.feedback,undefined);assert.ok(store.rows.some(r=>r.kind==='correction'&&r.data.action==='set_recipient'));assert.ok(store.rows.some(r=>r.kind==='purchase_event'));
+});
+test('the one agent offers the purchase-history skill whenever history exists, including while a wishlist offer is pending',async()=>{
+ const {generateReply}=await import('../lib/ai.js');const {agentTurn,tool,toolNames}=await import('./helpers/agent.js');
+ const messages=[{direction:'inbound',status:'received',body:'Actually I returned those jeans'}],ai={OPENAI_API_KEY:'synthetic',SEARCH_ENABLED:'true'};let names;
+ const fetcher=async(_url,options)=>{names=toolNames(options);return agentTurn(tool('update_purchase_history'));};
+ const action=async()=>'updated';
+ assert.equal(await generateReply(messages,ai,fetcher,{purchaseHistoryAction:action}),'updated');assert.ok(names.includes('update_purchase_history'));
+ assert.equal(await generateReply(messages,ai,fetcher,{purchaseHistoryAction:action,wishlistAction:async()=>assert.fail(),wishlistState:{stage:'offer_set',options:[{url:'https://shop.example/p'}]}}),'updated');
+ assert.ok(names.includes('update_purchase_history')&&names.includes('save_to_wishlist'));
+ await generateReply(messages,ai,async(_url,options)=>{names=toolNames(options);return agentTurn(tool('conversation_reply',{response:'ok'}));},{});assert.ok(!names.includes('update_purchase_history'));
 });
 test('receipt observations reach ranking as history, never a size default or favorite declaration',async()=>{
  const {shoppingConstraints}=await import('../lib/relevance.js');let state=reconcileReceipt(emptyReceiptState('owner'),source,{events:[receipt()]}).state;
@@ -144,8 +167,8 @@ test('receipt observations reach ranking as history, never a size default or fav
 test('changed sources preserve old evidence and corrections while allowing the remaining import to progress',async()=>{
  const feedback=reconcileReceipt(emptyReceiptState('owner'),source,{events:[receipt()]}).state;
  const row={conversation_id:'owner',token_ciphertext:sealToken(tokens,'owner',env),data:{feedback,sources:[source],job:{...newImportJob(),status:'extracting',ids:['m1']}}};
- const next=await importStep(row,env,{fetcher:async()=>jsonResponse({id:'m1',payload:{}}),prepare:async()=>({...source,fingerprint:'changed',text:'Changed receipt'}),interpret:async()=>{throw Error('Changed evidence must not overwrite items');}});
- assert.equal(next.data.sources[0].text,text);assert.equal(next.data.changed_sources[0].text,'Changed receipt');assert.deepEqual(next.data.job.processed,['m1']);assert.equal(publicImport(next).changed_sources,1);
+ const next=await step(row,{fetcher:async()=>jsonResponse({id:'m1',payload:{}}),prepare:async()=>({...source,fingerprint:'changed',text:'Changed receipt'}),interpret:async()=>{throw Error('Changed evidence must not overwrite items');}});
+ assert.equal(next.data.sources[0].text,text);assert.equal(next.data.changed_sources[0].text,'Changed receipt');assert.deepEqual(next.data.job.processed,['m1']);assert.equal(publicImport(next,next.receipts).changed_sources,1);
 });
 test('contact redaction preserves long receipt/order identities and omits raw credential links',async()=>{
  const {redactReceiptText}=await import('../lib/receipt-email.js');const redacted=redactReceiptText('Order: 1234567890123456\nPhone: +1 555 123 4567\ncard: 4111 1111 1111 1111\npassword: secretvalue\nhttps://shop.example/login?token=private');
@@ -153,6 +176,22 @@ test('contact redaction preserves long receipt/order identities and omits raw cr
 });
 test('a malformed event is withheld without dropping supported purchase evidence from the same email',async()=>{
  const row={conversation_id:'owner',token_ciphertext:sealToken(tokens,'owner',env),data:{feedback:emptyReceiptState('owner'),job:{...newImportJob(),status:'extracting',ids:['m1']}}};
- const next=await importStep(row,env,{fetcher:async()=>jsonResponse({id:'m1',payload:{}}),prepare:async()=>({...source,warnings:[]}),interpret:async()=>({events:[receipt({brand:fact('invented')}),receipt()]})});
- assert.equal(next.data.feedback.items.length,1);assert.equal(next.data.feedback.items[0].source_events[0].id,'m1:1');assert.equal(next.data.sources[0].warnings.length,1);assert.deepEqual(next.data.job.processed,['m1']);
+ const next=await step(row,{fetcher:async()=>jsonResponse({id:'m1',payload:{}}),prepare:async()=>({...source,warnings:[]}),interpret:async()=>({events:[receipt({brand:fact('invented')}),receipt()]})});
+ assert.equal(itemsOf(next).length,1);assert.equal(itemsOf(next)[0].source_events[0].id,'m1:1');assert.equal(next.data.sources[0].warnings.length,1);assert.deepEqual(next.data.job.processed,['m1']);
+});
+test('expanding an existing connection requires new consent and leaves its saved evidence intact',async()=>{
+ const store=storage();store.seed({conversation_id:'owner',revision:0,token_ciphertext:sealToken(tokens,'owner',env),data:{consent:{version:'gmail-receipts-90d-v1'},feedback:emptyReceiptState('owner'),sources:[source]}});
+ const handler=createGmailHandler({env,storeFactory:()=>store,auth});
+ const rejected=await request(handler,{method:'POST',body:{action:'start'}});assert.equal(rejected.statusCode,400);assert.equal(store.busy,false);assert.equal(store.row.data.sources.length,1);assert.equal(store.row.data.job,undefined);
+ const accepted=await request(handler,{method:'POST',body:{action:'start',consent:CONSENT_VERSION}});assert.equal(accepted.statusCode,200);assert.equal(store.row.data.job.limit,1000);assert.equal(store.row.data.consent.version,CONSENT_VERSION);assert.equal(store.row.data.sources.length,1);
+});
+test('legacy jobs retain their original history scope after the importer is upgraded',()=>{
+ const result=publicImport({data:{consent:{version:'gmail-receipts-90d-v1'},job:{status:'extracting',ids:['old'],processed:[]}}});
+ assert.equal(result.period_days,90);assert.equal(result.period_years,null);assert.equal(result.limit,200);assert.equal(result.consent_required,true);
+});
+test('historical purchase observations stay available without becoming current ownership or a size default',()=>{
+ let state=reconcileReceipt(emptyReceiptState('owner'),{...source,date:Date.parse('2022-01-01')},{events:[receipt()]}).state;
+ state=applyReceiptFeedback(state,{id:'self',owner_id:'owner',source:'chat_answer',at:'2026-10-12',item_ids:[state.items[0].id],action:'set_recipient',value:'self'});
+ const facts=receiptShoppingFacts(state,receiptLearningView(projectReceiptState(state)),Date.parse('2026-10-12'));
+ const evidence=JSON.parse(facts[0].value);assert.equal(evidence.recency,'historical');assert.equal(evidence.still_owned,null);assert.equal(evidence.confirmed_fit,null);assert.equal(facts[0].field,'shopping_history');
 });

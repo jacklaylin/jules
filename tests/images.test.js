@@ -2,6 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {incomingContent,readImage,MAX_IMAGE_BYTES} from '../lib/images.js';
 import {generateReply} from '../lib/ai.js';
+import {agentTurn,tool} from './helpers/agent.js';
 import {receiveInInbox} from '../lib/inbox.js';
 import {createImageHandler} from '../api/image.js';
 const png=Buffer.from([137,80,78,71,13,10,26,10,0]);
@@ -26,13 +27,13 @@ test('vision uses private inline bytes and treats inferred taste as unconfirmed'
   let sent;
   const reply=await generateReply([{direction:'inbound',body:'Wedding shoes under $300'}, {direction:'outbound',status:'sent',body:'What is the wedding dress code?'}, {direction:'inbound',body:'I love this outfit'}],{OPENAI_API_KEY:'fake'},async(url,options)=>{
     sent=JSON.parse(options.body);
-    return {ok:true,json:async()=>({status:'completed',output:[{type:'message',role:'assistant',content:[{type:'output_text',text:'Relaxed tailoring. Which details do you like?'}]}]})};
-  },{enabled:true,images:[{mime_type:'image/png',data:png.toString('base64')}],facts:[]});
+    return agentTurn(tool('conversation_reply',{response:'Relaxed tailoring. Which details do you like?'}));
+  },{images:[{mime_type:'image/png',data:png.toString('base64')}],facts:[]});
   assert.match(reply,/Relaxed/);
   assert.equal(sent.input.at(-1).content[1].type,'input_image');
   assert.match(sent.input.at(-1).content[1].image_url,/^data:image\/png;base64,/);
-  assert.match(sent.instructions,/no image-derived preferences have been saved/);
-  assert.equal(sent.input[0].content,'Wedding shoes under $300');
+  assert.match(sent.instructions,/Seeing an image alone never saves a taste preference/);
+  assert.equal(sent.input[1].content,'Wedding shoes under $300');
   assert.equal(sent.input.at(-1).content[0].text,'I love this outfit');
   assert.equal(sent.store,false);
 });

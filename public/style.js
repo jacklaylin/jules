@@ -119,7 +119,7 @@ function renderCards() {
  report.cards.filter(card=>draft||card.accepted&&!card.hidden).forEach((card,index)=>{
   const article=node('article',null,'style-card');article.dataset.type=card.type;article.dataset.id=card.id;
   const theme=cardTheme(card);article.style.setProperty('--story-a',theme.a);article.style.setProperty('--story-b',theme.b);article.style.setProperty('--story-font',`"${theme.font}"`);article.style.setProperty('--story-weight',theme.weight);
-  const copy=node('div',null,'story-copy');copy.append(node('p',`${String(index+1).padStart(2,'0')} / ${card.type==='starter'?'YOUR STARTER PACK':card.private?'SHOPPING HISTORY · PRIVATE':'YOUR STYLE'}`,'card-number'),node('h3',card.title),node('p',cardText(card,state.data.tone),'card-copy'));article.append(copy);
+  const copy=node('div',null,'story-copy');copy.append(node('p',`${String(index+1).padStart(2,'0')} / ${card.type==='starter'?'YOUR STARTER PACK':card.private?'PRIVATE':'YOUR STYLE'}`,'card-number'),node('h3',card.title),node('p',cardText(card,state.data.tone),'card-copy'));article.append(copy);
   if(!draft||card.type==='starter'){const visual=collage(card);article.dataset.visuals=visual.children.length?'true':'false';article.append(visual);}
   if(draft){
    const detail=node('details');detail.append(node('summary','Why Jules thinks this'),evidenceContent(card));article.append(detail);
@@ -147,16 +147,12 @@ function render() {
 }
 async function load(){clearTimeout(analysisPoll);state=await api();render();if(Date.parse(state.data.busy_until)>Date.now()){clearTimeout(noticeTimer);analysisPoll=setTimeout(()=>work(load,'Checking your style analysis'),3000);}else {notice('');if(state.data.consent_at&&state.data.report?.analysis.crops.some(c=>!c.full_caption||c.caption_version!==1)){state=await withActivity('Checking the clothing in your photos',()=>api({action:'captions',report:state.data.report.id}));render();}}}
 
-$('login-form').onsubmit=async e=>{
-  e.preventDefault();const submit=e.currentTarget.querySelector('button');submit.disabled=true;
-  try{const response=await fetch('/api/wishlist',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'login',email:$('email').value,destination:'style'})});const data=await response.json();if(!response.ok)throw new Error(data.error);notice(data.message);}catch(e){notice(e.message);}finally{submit.disabled=false;}
-};
 $('logout').onclick=()=>work(async()=>{
   const response=await authFetch('/api/wishlist',{method:'POST',body:JSON.stringify({action:'logout'})});if(!response.ok)throw new Error('Could not end the session. Try again.');login();notice('Signed out.');
 });
 async function encodeFile(file) {
-  if(file.type==='application/pdf'||/\.pdf$/i.test(file.name)||['image/heic','image/heif'].includes(file.type)||/\.hei[cf]$/i.test(file.name)){
-    if(file.size>3*1024*1024)throw new Error('PDF and HEIC files must be under 3 MB.');
+  if(['image/heic','image/heif'].includes(file.type)||/\.hei[cf]$/i.test(file.name)){
+    if(file.size>3*1024*1024)throw new Error('HEIC files must be under 3 MB.');
     const bytes=new Uint8Array(await file.arrayBuffer());let raw='';for(let i=0;i<bytes.length;i+=8192)raw+=String.fromCharCode(...bytes.subarray(i,i+8192));return btoa(raw);
   }
   if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>20*1024*1024)throw new Error('Use JPEG, PNG or WebP photos under 20 MB, or HEIC under 3 MB.');
@@ -164,11 +160,10 @@ async function encodeFile(file) {
   const ratio=Math.min(1,1800/image.width,2200/image.height),canvas=document.createElement('canvas');canvas.width=Math.round(image.width*ratio);canvas.height=Math.round(image.height*ratio);canvas.getContext('2d').drawImage(image,0,0,canvas.width,canvas.height);image.close();
   const data=canvas.toDataURL('image/jpeg',.88).split(',')[1];if(data.length>4194304)throw new Error('This photo is still too large. Try a smaller copy.');return data;
 }
-const categoryNames={outfit:'Outfits',inspiration:'Inspiration',receipt:'Purchase receipts'};
+const categoryNames={outfit:'Outfits',inspiration:'Inspiration'};
 const selectedKind=()=>$('kind').querySelector('input:checked').value;
 function updateUploadCategory(){
  const kind=selectedKind();$('upload-form').querySelector('button[type=submit]').textContent='Upload '+categoryNames[kind].toLowerCase()+' ↗';
- $('files').accept='image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif'+(kind==='receipt'?',application/pdf':'');
  $('selected-files').textContent=$('files').files.length?`${$('files').files.length} files selected for ${categoryNames[kind].toLowerCase()}. Notes and occasion apply to this whole batch.`:'';
 }
 $('kind').onchange=updateUploadCategory;$('files').onchange=updateUploadCategory;updateUploadCategory();
@@ -176,7 +171,7 @@ $('upload-form').onsubmit=e=>{e.preventDefault();work(async()=>{
   const files=[...$('files').files],kind=selectedKind(),occasion=$('occasion').value,note=$('source-note').value;
   clearErrors();feedback('upload-feedback','');
   if(!files.length){fieldError($('files'),'Choose at least one file.');return;}
-  if(kind!=='receipt'&&files.some(f=>f.type==='application/pdf'||/\.pdf$/i.test(f.name))){fieldError($('files'),'PDFs are for receipts. Choose a photo, or change the type to Purchase receipts.');return;}
+  if(files.some(f=>f.type==='application/pdf'||/\.pdf$/i.test(f.name))){fieldError($('files'),'Choose photos. Receipts come from your Gmail import or a text to Jules.');return;}
   if(!$('consent').checked){fieldError($('consent'),'Approve private storage and analysis before uploading.');return;}
   let count=0;const progress=$('upload-progress');progress.max=files.length;progress.value=0;progress.hidden=false;
   try{for(const file of files){feedback('upload-feedback',`Saving ${categoryNames[kind].toLowerCase()}: ${count+1} of ${files.length}…`);notice(`Saving ${count+1} of ${files.length}…`);state=await api({action:'upload',kind,occasion,note,data:await encodeFile(file),consent:true});count++;progress.value=count;}}
@@ -189,7 +184,7 @@ $('analyze').onclick=()=>work(async()=>{
   feedback('analysis-feedback','');delete $('analysis-feedback').dataset.errorCode;
   if(!state.data.consent_at&&!$('consent').checked){fieldError($('consent'),'Approve private storage and OpenAI analysis to continue.');return;}
   if($('context').value.trim()!==state.data.notes){state=await api({action:'context',notes:$('context').value});}
-  notice('Reading your outfits and receipts, then putting your report together…');
+  notice('Reading your outfits, then putting your report together…');
   try{state=await api({action:'analyze',consent:true});render();notice('Check my read before we save any preferences.');$('report-section').scrollIntoView({behavior:'instant',block:'start'});}
   catch(e){try{state=await api();render();}catch{}feedback('analysis-feedback',e.message,true);if(e.code)$('analysis-feedback').dataset.errorCode=e.code;notice('');$('analysis-feedback').scrollIntoView({block:'center'});}
 });
@@ -227,7 +222,7 @@ function openExport(card){
 async function updateExport() {
   const v=++exportVersion;exportBlob=null;$('download').disabled=$('share').disabled=true;$('export-preview').replaceChildren();$('export-notice').textContent='Building your share image…';
   if(!exporting)return;
-  if(exporting.card.private&&!$('private-consent').checked){$('export-notice').textContent='Choose whether to include this shopping-history card.';return;}
+  if(exporting.card.private&&!$('private-consent').checked){$('export-notice').textContent='Choose whether to include this private card.';return;}
   try {
     const images=[];
     if($('photo-consent').checked&&!$('photo-consent-label').hidden)for(const c of cardVisuals(state.data.report,exporting.card).crops){

@@ -8,6 +8,22 @@
   ],
   "rewrites": [
     {
+      "source": "/onboarding/connect",
+      "destination": "/onboarding.html"
+    },
+    {
+      "source": "/onboarding/thinking",
+      "destination": "/onboarding.html"
+    },
+    {
+      "source": "/onboarding/reading",
+      "destination": "/onboarding.html"
+    },
+    {
+      "source": "/onboarding-preview",
+      "destination": "/onboarding-preview.html"
+    },
+    {
       "source": "/onboarding",
       "destination": "/onboarding.html"
     },

@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { authorize } from '../lib/auth.js';
 import { createStore } from '../lib/store.js';
 import { FIELDS, remember, tasteSummary } from '../lib/memory.js';
@@ -25,11 +26,14 @@ export function createProfileHandler({ auth = authorize, storeFactory = createSt
           typeof input.value !== 'string' || input.value.length > 500 || (input.action === 'set' && !input.value.trim()) || !Number.isInteger(input.version)) return json(res,400,{error:'Enter a valid preference.'});
         const existing = await store.profile(input.conversation);
         if (existing.version !== input.version) return json(res,409,{error:'The profile changed. Reload it before editing.'});
+        const entry = { id:'operator:'+randomUUID(),kind:'operator_entry',origin:'operator',source:{type:'operator'},
+          data:{field:input.field,key:input.key.trim().toLowerCase(),value:input.value.trim(),deleted:input.action==='remove'},recorded_by:'operator' };
         const fact = { field:input.field,key:input.key.trim().toLowerCase(),value:input.value.trim(),deleted:input.action==='remove',
-          source:'operator',source_id:null,evidence:'Edited in the private inbox',updated_at:new Date().toISOString() };
+          source:'operator',source_id:null,evidence:'Edited in the private inbox',updated_at:new Date().toISOString(),basis:'stated',evidence_ids:[entry.id] };
         // One CAS attempt for operator edits: never silently overwrite a concurrent change.
         const facts = existing.facts.filter(f => !(f.field===fact.field && f.key===fact.key)).concat(fact);
         if (facts.length > 150) return json(res,400,{error:'Profile has reached its 150-fact limit.'});
+        await store.recordEvidence(input.conversation,[entry]);
         if (!await store.saveProfile(input.conversation,existing.version,facts)) return json(res,409,{error:'The profile changed. Reload it before editing.'});
         profile = {facts,version:existing.version+1};
       } else return json(res,400,{error:'Unknown profile action.'});

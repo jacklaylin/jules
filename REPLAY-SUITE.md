@@ -1,5 +1,7 @@
 # Reply regression suite
 
+For the full tester-readiness gate, see `TESTER-READINESS.md`. This older shoe-oriented runner is a diagnostic subset. Its phrase-based clarification/refusal grading must be replaced with structured outcome grading before it can count as readiness evidence; it cannot verify saves, alerts or delivery. Use `npm run test:readiness` for the first controlled application-contract probes.
+
 Acceptance: asking about a shoe yields sourced, individually checked product-page links compatible with the profile, or a useful question about the specific model or variants. Missing prices or stock are not reasons to reject an otherwise valid product page. Generic refusals fail when a supported known product should be available.
 
 ## Before reporting a fix

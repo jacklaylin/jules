@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {textWishlistAction,finishTextWishlist} from '../lib/text-wishlist.js';
 import {wishlistProducts} from '../lib/wishlist.js';
 import {generateReply} from '../lib/ai.js';
+import {agentTurn,tool} from './helpers/agent.js';
 import {readSizeOffers,priceDrop} from '../lib/price-alerts.js';
 import {groupWishlist} from '../lib/wishlist.js';
 const product={brand:'Example',name:'Trail sneaker',url:'https://www.prada.com/product/example',match:'likely_match',sourcing_status:'store_found',listing_check:{status:'verified',color:'Brown'},price_snapshot:{amount:400,currency:'USD',source_url:'https://www.prada.com/product/example',checked_at:'2026-10-07'}};
@@ -22,7 +23,7 @@ test('no, unrelated responses, unavailable alerts, and unconfirmed text searches
 });
 test('active alert acknowledgement requires persisted wishlist item and successful activation',async()=>{
   const row={reply_id:'reply',item_id:'item',name:product.name,brand:product.brand,match:'likely_match',links:[{url:product.url}],messages:{created_at:'2026-10-07'}};
-  const store={wishlistReplyId:async()=> 'reply',wishlistEntries:async()=>[row],enablePriceAlert:async input=>{assert.equal(input.p_item,'item');assert.equal(input.p_size,'EU 45');return {active:true};}};
+  const store={recordEvidence:async()=>{},wishlistReplyId:async()=> 'reply',wishlistEntries:async()=>[row],enablePriceAlert:async input=>{assert.equal(input.p_item,'item');assert.equal(input.p_size,'EU 45');return {active:true};}};
   const result={identification_policy:'text_wishlist',user_confirmed:true,alert_request:{size:'EU 45',baselines:[offer],links:[{url:product.url,color:'Brown'}]}};
   assert.match(await finishTextWishlist({store,result,env,operation:'op',conversationId:'owner'}),/every three days/);
   await assert.rejects(finishTextWishlist({store:{...store,wishlistEntries:async()=>[]},result,env}));
@@ -35,8 +36,8 @@ test('color changes or missing retailer color invalidate size-price monitoring',
 });
 test('connected text chat interprets intent through the structured model and dispatches without invented prose',async()=>{
   const result=await generateReply([{direction:'inbound',body:'I really want those sneakers'}],{OPENAI_API_KEY:'test',SEARCH_ENABLED:'true'},async(url,options)=>{
-    const body=JSON.parse(options.body);assert.equal(body.text.format.type,'json_schema');
-    return {ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({action:'start',query:'Trail sneaker',choice:''})}]}]})};
+    const body=JSON.parse(options.body);assert.equal(body.tool_choice,'required');
+    return agentTurn(tool('find_products',{query:'Trail sneaker'}));
   },{wishlistAction:async args=>{assert.equal(args.action,'start');return 'Sourced options';}});
   assert.equal(result,'Sourced options');
 });

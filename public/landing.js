@@ -1,19 +1,11 @@
 import {createLogo,initBrandActivity} from './brand-ui.js';
-import {demoState,DEMO_DURATION} from './landing-timeline.js';
+import {demoState,DEMO_DURATION,approachDemoTime,bubbleProgress} from './landing-timeline.js';
 const logo=document.getElementById('headline-logo');logo.replaceChildren(createLogo());initBrandActivity();
-const motion=matchMedia('(prefers-reduced-motion: reduce)'),chat=document.getElementById('demo-chat'),messages=[...chat.querySelectorAll('[data-at]')],typing=document.getElementById('demo-typing'),slider=document.getElementById('demo-progress');
-let time=0,mode='autoplay',playFrame=0,lastStamp=null,scrollFrame=0,chatFrame=0;
-let scrubAnchor=null;
+const motion=matchMedia('(prefers-reduced-motion: reduce)'),chat=document.getElementById('demo-chat'),messages=[...chat.querySelectorAll('[data-at]')],typing=document.getElementById('demo-typing'),replay=document.getElementById('demo-replay');
+for(const bubble of chat.querySelectorAll('.received')){const avatar=document.createElement('span');avatar.className='message-avatar';avatar.innerHTML='<span class="orb"></span>';bubble.append(avatar);}
+let time=0,mode='idle',playFrame=0,lastStamp=null,scrollFrame=0,chatFrame=0,idleTimer,touch=false;
 document.documentElement.classList.add('demo-ready');
 function setMode(value){mode=value;document.body.dataset.demoMode=value;}
-for(const message of [...messages,typing])message.addEventListener('animationend',event=>{if(event.target===message)message.classList.remove('demo-enter','typing-enter');});
-function reveal(message,visible,animate){
- if(visible===!message.hidden)return false;
- message.hidden=!visible;
- if(visible&&animate&&!motion.matches)message.classList.add(message===typing?'typing-enter':'demo-enter');
- else message.classList.remove('demo-enter','typing-enter');
- return true;
-}
 function keepLatestVisible(animate){
  cancelAnimationFrame(chatFrame);
  const target=Math.max(0,chat.scrollHeight-chat.clientHeight);
@@ -24,12 +16,20 @@ function keepLatestVisible(animate){
 }
 function render(t,{animate=true}={}){
  const state=demoState(t,motion.matches);time=state.time;let changed=false;
- for(const message of messages)changed=reveal(message,Number(message.dataset.at)<=state.time,animate)||changed;
- const visibleBubbles=messages.filter(message=>!message.hidden&&message.matches('.demo-bubble,.demo-photo'));
- visibleBubbles.forEach((message,index)=>{const next=visibleBubbles[index+1];message.classList.toggle('group-end',!next||message.classList.contains('sent')!==next.classList.contains('sent'));});
- changed=reveal(typing,state.typing,animate)||changed;
- document.querySelectorAll('[data-chapter]').forEach(el=>el.classList.toggle('active',Number(el.dataset.chapter)===state.chapter));
- slider.value=Math.round(state.time*10);
+ for(const message of messages){
+  const visible=Number(message.dataset.at)<=state.time;
+  if(message.hidden===visible)changed=true;
+  message.hidden=!visible;
+  const p=motion.matches||message.classList.contains('demo-delivered')?1:bubbleProgress(time,Number(message.dataset.at));
+  message.style.opacity=String(p);message.style.transform=`translateY(${(1-p)*14}px) scale(${.92+.08*p})`;
+  message.style.transformOrigin=message.classList.contains('sent')?'bottom right':'bottom left';
+ }
+ const bubbles=messages.filter(message=>!message.hidden&&message.matches('.demo-bubble,.demo-photo,.demo-link'));
+ bubbles.forEach((message,index)=>{const next=bubbles[index+1];message.classList.toggle('group-end',!next||message.classList.contains('sent')!==next.classList.contains('sent'));});
+ if(typing.hidden===state.typing)changed=true;
+ typing.hidden=!state.typing;typing.style.opacity=String(state.typingProgress);
+ const done=!motion.matches&&state.time>=DEMO_DURATION;
+ if(replay.hidden===done){changed=true;replay.hidden=!done;chat.classList.toggle('demo-complete',done);}
  if(changed)keepLatestVisible(animate);
 }
 function play(stamp){
@@ -40,28 +40,35 @@ function play(stamp){
 }
 function stopForScroll(){
  if(motion.matches)return;
- if(mode!=='manual'){scrubAnchor={scroll:scrollY,time};setMode('manual');cancelAnimationFrame(playFrame);lastStamp=null;}
+ clearTimeout(idleTimer);setMode('manual');cancelAnimationFrame(playFrame);lastStamp=null;
 }
-function scrub(){
- scrollFrame=0;if(motion.matches)return;
- const range=Math.max(1,document.querySelector('.scroll-story').offsetHeight-innerHeight);
- const target=scrubAnchor?scrubAnchor.time+(scrollY-scrubAnchor.scroll)/range*DEMO_DURATION:scrollY/range*DEMO_DURATION;
- render(target);
+function scrub(stamp){
+ scrollFrame=0;if(motion.matches||document.hidden)return;
+ const range=Math.max(1,document.querySelector('.scroll-story').offsetHeight-innerHeight),target=Math.max(0,Math.min(1,scrollY/range))*DEMO_DURATION;
+ const delta=lastStamp===null?1/60:Math.min(.05,(stamp-lastStamp)/1000);lastStamp=stamp;
+ const next=approachDemoTime(time,target,{touch,deltaSeconds:delta});render(next);
+ if(next!==target)scrollFrame=requestAnimationFrame(scrub);else lastStamp=null;
 }
-// Scroll gestures hand control to the user without jumping back to the start.
-window.addEventListener('wheel',stopForScroll,{passive:true});
-window.addEventListener('touchmove',stopForScroll,{passive:true});
-window.addEventListener('keydown',event=>{if(['ArrowDown','ArrowUp','PageDown','PageUp','Home','End',' '].includes(event.key)&&!event.target.closest('input,button,a'))stopForScroll();});
+window.addEventListener('wheel',()=>{touch=false;stopForScroll();},{passive:true});
+window.addEventListener('touchmove',()=>{touch=true;stopForScroll();},{passive:true});
+window.addEventListener('keydown',event=>{if(['ArrowDown','ArrowUp','PageDown','PageUp','Home','End',' '].includes(event.key)&&!event.target.closest('input,button,a')){touch=false;stopForScroll();}});
 window.addEventListener('scroll',()=>{if(motion.matches)return;stopForScroll();if(!scrollFrame)scrollFrame=requestAnimationFrame(scrub);},{passive:true});
 window.addEventListener('resize',()=>keepLatestVisible(false));
-slider.addEventListener('input',()=>{stopForScroll();render(Number(slider.value)/10);scrubAnchor={scroll:scrollY,time};});
-motion.addEventListener('change',()=>{
- cancelAnimationFrame(playFrame);cancelAnimationFrame(chatFrame);lastStamp=null;slider.disabled=motion.matches;scrubAnchor=null;
- setMode(motion.matches?'reduced':'autoplay');render(motion.matches?DEMO_DURATION:0,{animate:false});
- if(!motion.matches)playFrame=requestAnimationFrame(play);
+function start(){
+ clearTimeout(idleTimer);cancelAnimationFrame(playFrame);cancelAnimationFrame(chatFrame);cancelAnimationFrame(scrollFrame);lastStamp=null;
+ setMode(motion.matches?'reduced':'idle');render(motion.matches?DEMO_DURATION:0,{animate:false});
+ if(!motion.matches)idleTimer=setTimeout(()=>{if(mode==='idle'){setMode('autoplay');playFrame=requestAnimationFrame(play);}},6000);
+}
+replay.addEventListener('click',()=>{
+ clearTimeout(idleTimer);cancelAnimationFrame(playFrame);cancelAnimationFrame(scrollFrame);lastStamp=null;
+ render(0);setMode('autoplay');playFrame=requestAnimationFrame(play);
 });
-document.addEventListener('visibilitychange',()=>{cancelAnimationFrame(playFrame);lastStamp=null;if(!document.hidden&&mode==='autoplay')playFrame=requestAnimationFrame(play);});
+motion.addEventListener('change',start);
+document.addEventListener('visibilitychange',()=>{
+ document.documentElement.classList.toggle('demo-paused',document.hidden);cancelAnimationFrame(playFrame);cancelAnimationFrame(scrollFrame);lastStamp=null;
+ if(!document.hidden&&mode==='autoplay')playFrame=requestAnimationFrame(play);
+ if(!document.hidden&&mode==='manual')scrollFrame=requestAnimationFrame(scrub);
+});
 chat.querySelector('img').addEventListener('load',()=>keepLatestVisible(false));
 document.fonts.ready.then(()=>keepLatestVisible(false));
-slider.disabled=motion.matches;setMode(motion.matches?'reduced':'autoplay');render(motion.matches?DEMO_DURATION:0,{animate:false});
-if(!motion.matches)playFrame=requestAnimationFrame(play);
+start();

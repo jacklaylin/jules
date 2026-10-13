@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {verifyListing} from '../lib/listings.js';
 import {shopifyColorOptions} from '../lib/product-variants.js';
-import {inferImportedMarket,shoppingMarket,saveImportedMarket} from '../lib/shopping-market.js';
+import {shoppingMarket} from '../lib/shopping-market.js';
 import {enrichWishlistItem} from '../lib/wishlist-details.js';
 import {selectionOutcome} from '../lib/wishlist-selection.js';
 import {createStore} from '../lib/store.js';
@@ -70,21 +70,9 @@ test('legacy recovery binds interpreted color to its original reply and replaces
  await enrichWishlistItem(store,'owner','item',{verify:async u=>({status:'verified',url:u,product_name:'Shirt',color:u.includes('variant')?'Ocean':null,color_options:[color],product_images:['https://shop.example.org/ocean.jpg']}),resolveColor:async context=>{assert.equal(context.messages.length,2);assert.equal(context.product.name,'Shirt');return color;},assets:async()=>[{mime_type:'image/jpeg',data:'blue'}],env:{SHOPPING_COUNTRY:'US'}});
  assert.equal(updated.selected_color,'Ocean');assert.equal(updated.links[0].url,color.url);assert.equal(images.image.data,'blue');assert.deepEqual(images.additional_images,[]);
 });
-test('import deduplicates orders and separates foreign purchase currency from country evidence',()=>{
- const r=(order,kind,value)=>({order_key:order,kind,value,source_id:order,evidence:'cited'});
- assert.equal(inferImportedMarket([r('a','delivery_country','US'),r('a','delivery_country','US')]).country,null);
- const result=inferImportedMarket([r('a','delivery_country','US'),r('b','delivery_country','US'),r('c','delivery_country','US'),r('d','delivery_country','FR'),r('a','transaction_currency','USD'),r('b','transaction_currency','USD')]);
- assert.equal(result.country.value,'US');assert.equal(result.currency.value,'USD');
- assert.equal(inferImportedMarket([r('a','delivery_country','US'),r('b','delivery_country','CA')]).country,null);
- assert.equal(inferImportedMarket([r('a','transaction_currency','USD'),r('b','transaction_currency','USD')]).country,null);
-});
-test('explicit country corrections outrank imported evidence and unsupported import quotes cannot persist',async()=>{
- const facts=[{field:'country',key:'primary',value:'US',source:'message',updated_at:'2020'},{field:'country',key:'primary',value:'CA',source:'email_import',updated_at:'2026'}];assert.equal(shoppingMarket(facts).country,'US');
- let saved;
- const store={profile:async()=>({facts,version:3}),saveProfile:async(_c,v,f)=>{assert.equal(v,3);saved=f;}};
- const records=['a','b'].map(id=>({order_key:id,source_id:id,kind:'transaction_currency',value:'USD',evidence:'USD'}));
- await saveImportedMarket(store,'owner',records,[{id:'a',text:'USD'},{id:'b',text:'USD'}]);assert.equal(saved.find(f=>f.field==='currency').value,'USD');assert.equal(saved[0].value,'US');
- saved=null;await saveImportedMarket(store,'owner',records,[{id:'a',text:'not the cited quote'}]);assert.equal(saved,null);
+test('explicit country statements outrank imported market facts',()=>{
+ const facts=[{field:'country',key:'primary',value:'US',basis:'stated',updated_at:'2020'},{field:'country',key:'primary',value:'CA',basis:'inferred',updated_at:'2026'}];assert.equal(shoppingMarket(facts).country,'US');
+ assert.equal(shoppingMarket([...facts,{field:'country',key:'primary',value:'GB',basis:'stated',updated_at:'2026'}]).country,'GB');
 });
 test('legacy context is retrieved around the owned original save even beyond the latest conversation page',async()=>{
  const urls=[],reply='11111111-1111-4111-8111-111111111111';

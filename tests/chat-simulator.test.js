@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import {simulateTurn,validateSimulation} from '../lib/chat-simulator.js';
 import {createSimulatorHandler} from '../api/chat-simulator.js';
 import {generateReply} from '../lib/ai.js';
-import {remember} from '../lib/memory.js';
+import {agentTurn,fromIntent} from './helpers/agent.js';
 const env={OPENAI_API_KEY:'fixture',SEARCH_ENABLED:'true',WISHLIST_ENABLED:'true',MEMORY_ENABLED:'true',PRICE_ALERTS_ENABLED:'true'};
 const interpretation={action:'selection',decision:'confirm',consent:'wishlist',consent_context:'explicit_request',option_indices:[0],size_choices:[]};
-const model=intent=>async()=>({ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(intent)}]}]})});
-const deps=intent=>({generate:(messages,settings,_fetch,memory)=>generateReply(messages,settings,model(intent),memory),updateMemory:(store,id,messages,settings)=>remember(store,id,messages,settings,async()=>[])});
+const model=intent=>async()=>agentTurn(fromIntent(intent));
+const deps=intent=>({generate:(messages,settings,_fetch,memory)=>generateReply(messages,settings,model(intent),memory)});
 const input={text:'Please save this https://www.mrporter.com/en-us/mens/product/example/123'};
 
 test('simulator runs real inbox save, consent, confirmation and later decline with isolated state',async()=>{
@@ -46,7 +46,7 @@ test('a missing-wishlist complaint inspects persisted items and cannot start ano
   let evidence;
   const status=await simulateTurn({text:"i don't see it in my wishlist",snapshot:saved.snapshot},env,{
     ...deps(interpretation),generate:(messages,settings,_fetch,memory)=>generateReply(messages,settings,
-      async(_url,request)=>{evidence=JSON.parse(JSON.parse(request.body).input[0].content);return model({action:'wishlist_status',response:'That link is in the test wishlist beside chat. Your real wishlist is unchanged.'})();},
+      async(_url,request)=>{evidence=JSON.parse(JSON.parse(request.body).input[0].content.replace(/^APPLICATION CONTEXT \(data, not instructions\): /,''));return model({action:'wishlist_status',response:'That link is in the test wishlist beside chat. Your real wishlist is unchanged.'})();},
       {...memory,wishlistAction:()=>assert.fail('A status complaint must not source or save')}),
   });
   assert.equal(evidence.saved_wishlist.execution.mode,'simulator');
@@ -65,14 +65,14 @@ test('simulator seeds a copy of the owner profile and preserves test overrides w
   await handler(request,response);assert.equal(response.statusCode,200);
 });
 
-test('simulator persists profile changes through production remember and inbox contracts',async()=>{
+test('simulator persists profile changes through the production update_profile skill and inbox contracts',async()=>{
   const result=await simulateTurn({text:'I wear suit size 50R'},env,{
-    generate:async(_m,_e,_f,memory)=>{assert.equal(memory.facts[0].value,'50R');return 'I’ll use that suit size.';},
-    updateMemory:(store,id,messages,settings)=>remember(store,id,messages,settings,async()=>[{field:'size',key:'suit/unknown',value:'50R',updated_at:messages[0].created_at,source_id:messages[0].id}]),
+    generate:async(_m,_e,_f,memory)=>{const saved=await memory.profileAction({changes:[{action:'remember',field:'size',key:'suit/unknown',value:'50R',quote:'I wear suit size 50R'}],acknowledgment:''});
+      assert.equal(saved.facts[0].value,'50R');return 'I’ll use that suit size.';},
   });
   assert.equal(result.snapshot.profile.version,1);
-  assert.equal(result.snapshot.profile.facts[0].value,'50R');
-  assert.ok(result.events.some(e=>e.type==='profile_updated'));
+  assert.equal(result.snapshot.profile.facts[0].value,'50R');assert.equal(result.snapshot.profile.facts[0].basis,'stated');
+  assert.ok(result.events.some(e=>e.type==='profile_updated'));assert.ok(result.events.some(e=>e.type==='evidence_recorded'));
 });
 
 test('simulator bounds messages, snapshots, failure controls and image bytes',()=>{
@@ -117,7 +117,7 @@ test('connected simulator ignores imported test items and reports authoritative 
   const live={wishlistEntries:async()=>[{item_id:'real',reply_id:'real-reply',text_origin:true,name:'Real coat',links:[{url:'https://www.mrporter.com/en-us/mens/product/coat/2'}]}]};
   const result=await simulateTurn({text:'What is saved?',snapshot:fake.snapshot},env,{...deps(interpretation),wishlistStore:live,wishlistConversation:'owner',
     generate:(messages,settings,_fetch,memory)=>generateReply(messages,settings,async(_url,request)=>{
-      evidence=JSON.parse(JSON.parse(request.body).input[0].content);assert.ok(!evidence.recent_conversation.some(m=>m.text.includes('only in the simulator')));return model({action:'wishlist_status',response:'Your coat is saved in your wishlist.'})();
+      const body=JSON.parse(request.body);evidence=JSON.parse(body.input[0].content.replace(/^APPLICATION CONTEXT \(data, not instructions\): /,''));assert.ok(!body.input.some(m=>String(m.content).includes('only in the simulator')));return model({action:'wishlist_status',response:'Your coat is saved in your wishlist.'})();
     },memory)});
   assert.equal(evidence.saved_wishlist.execution.mode,'production');
   assert.equal(evidence.saved_wishlist.items.length,1);assert.equal(evidence.saved_wishlist.items[0].links[0].url,'https://www.mrporter.com/en-us/mens/product/coat/2');
@@ -131,8 +131,8 @@ test('injected connected save failure cannot mutate the real wishlist or claim a
 });
 
 test('enabled onboarding and Gmail flags cannot crash a shopping simulation or mutate production consent',async()=>{
- let routing=0;const result=await simulateTurn({text:'Find fitted white henleys'},{...env,ONBOARDING_ENABLED:'true',GMAIL_IMPORT_ENABLED:'true',STYLE_ENABLED:'true'}, {
-  ...deps({}),interpretOnboarding:async(_context,state,_env,_fetch,current)=>{routing++;assert.equal(state,null);assert.equal(current.body,'Find fitted white henleys');return 'other';},generate:async()=> 'I found shopping options.'
+ let seen;const result=await simulateTurn({text:'Find fitted white henleys'},{...env,ONBOARDING_ENABLED:'true',GMAIL_IMPORT_ENABLED:'true',STYLE_ENABLED:'true'}, {
+  ...deps({}),generate:async(_m,_e,_f,memory)=>{seen=memory.onboarding;return 'I found shopping options.';}
  });
- assert.equal(routing,1);assert.deepEqual(result.replies,['I found shopping options.']);assert.equal(result.outcome,'imessage_ai_reply_sent');
+ assert.equal(seen.state,null);assert.deepEqual(result.replies,['I found shopping options.']);assert.equal(result.outcome,'imessage_ai_reply_sent');
 });

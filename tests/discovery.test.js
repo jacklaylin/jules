@@ -2,6 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {textWishlistAction} from '../lib/text-wishlist.js';
 import {generateReply} from '../lib/ai.js';
+import {agentTurn,tool,agentContext} from './helpers/agent.js';
 import {rankDiscoveryProducts} from '../lib/discovery-ranking.js';
 import {rangeFailure,relevanceCheck} from '../lib/relevance.js';
 const plan={continuation:false,mode:'discover',hard_constraints:[],guidance:[],keep_option_indices:[],exclude_option_indices:[]};
@@ -9,7 +10,7 @@ const p=(id,brand='New brand')=>({brand,name:'Sneaker '+id,url:'https://www.ssen
 const model=value=>async()=>({ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(value)}]}]})});
 test('broad clarification is a recorded pending brief without search, save or alerts',async()=>{
  let result;
- const reply=await generateReply([{direction:'inbound',body:'Saw some cool Rick Owenns sneakers today, help me find them?'}],{OPENAI_API_KEY:'test',SEARCH_ENABLED:'true'},model({action:'clarify_search',query:'Rick Owens sneakers seen today',search_plan:{...plan,mode:'identify'},response:'Were they high tops or low tops?'}),{wishlistAction:args=>textWishlistAction(args,{text:'',env:{},record:async r=>{result=r;},search:()=>assert.fail('Premature search')})});
+ const reply=await generateReply([{direction:'inbound',body:'Saw some cool Rick Owenns sneakers today, help me find them?'}],{OPENAI_API_KEY:'test',SEARCH_ENABLED:'true'},async()=>agentTurn(tool('ask_shopping_question',{query:'Rick Owens sneakers seen today',search_plan:{...plan,mode:'identify'},response:'Were they high tops or low tops?'})),{wishlistAction:args=>textWishlistAction(args,{env:{},record:async r=>{result=r;},search:()=>assert.fail('Premature search')})});
  assert.ok(reply);assert.equal(result.text_wishlist_state.stage,'search_clarification');assert.equal(result.text_wishlist_state.search_plan.mode,'identify');assert.equal(result.user_confirmed,undefined);assert.deepEqual(result.products,[]);
 });
 test('discovery ranks verified options without filtering unfamiliar brands and retains current brief',async()=>{
@@ -61,8 +62,8 @@ test('jacket clarification continues the jacket brief despite earlier shoe conte
  const candidate={...p('jacket','Saint Laurent'),name:'Sporty jacket',listing_check:{status:'verified',product_name:'Sporty jacket',shopping_range:null}};
  const messages=[{direction:'inbound',body:'Turn on an alert for my Satisfy shoes'},{direction:'outbound',status:'sent',body:'The shoe alert is on.'},{direction:'inbound',body:'There’s a saint Laurent jacket I saw Connor stores wearing, can you find it?'},{direction:'outbound',status:'sent',body:'Could you describe the jacket?'},{direction:'inbound',body:'Connor storrie* the actor. I think it was beige and navy and sort of sporty looking. Had a logo on it'}];
  const reply=await generateReply(messages,{OPENAI_API_KEY:'test',SEARCH_ENABLED:'true'},async(_url,request)=>{
-  const input=JSON.parse(JSON.parse(request.body).input[0].content);assert.equal(input.pending_state.search_brief,state.search_brief);
-  return model({action:'start',query:'Saint Laurent beige and navy sporty logo jacket worn by Connor Storrie',search_plan:{...plan,continuation:true,mode:'identify'}})();
+  assert.equal(agentContext(request).pending_shopping.search_brief,state.search_brief);
+  return agentTurn(tool('find_products',{query:'Saint Laurent beige and navy sporty logo jacket worn by Connor Storrie',search_plan:{...plan,continuation:true,mode:'identify'},department:'men'}));
  },{facts,wishlistState:state,wishlistAction:args=>textWishlistAction(args,{state,text:messages.at(-1).body,facts,env:{},record:async r=>{result=r;},search:async query=>{brief=query;return {products:[candidate],refinement_attempted:true};}})});
  assert.ok(brief.includes('jacket'));assert.equal(result.text_wishlist_state.options[0].name,'Sporty jacket');assert.equal(result.text_wishlist_state.options[0].listing_check.shopping_range,null);assert.ok(!reply.includes('shoes'));assert.ok(!reply.includes('department'));assert.equal(result.user_confirmed,undefined);
  assert.equal(relevanceCheck({...candidate,listing_check:{shopping_range:'women'}},{range:'men',allow_unknown_range:true}).eligible,false);

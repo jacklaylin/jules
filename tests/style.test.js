@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {Readable} from 'node:stream';
 import {readFile} from 'node:fs/promises';
 import {createStyleHandler} from '../api/style.js';
-import {prepareSource,validateAnalysis,validateCards,receiptStats,eligibleCards,confirmReport,reportFacts,analyzeStyle,captionStylePhotos,ensureCoreCards} from '../lib/style.js';
+import {prepareSource,validateAnalysis,validateCards,eligibleCards,confirmReport,reportFacts,analyzeStyle,captionStylePhotos,ensureCoreCards} from '../lib/style.js';
 import {cardVisuals} from '../public/style-visuals.js';
 import {cardText,wrapText} from '../public/style-export.js';
 import {createStore} from '../lib/store.js';
@@ -11,17 +11,16 @@ import {receiveInInbox} from '../lib/inbox.js';
 
 const owner='00000000-0000-4000-8000-000000000001',other='00000000-0000-4000-8000-000000000002';
 const source={id:'00000000-0000-4000-8000-000000000003',kind:'outfit',occasion:'everyday',note:'My staple',mime_type:'image/jpeg',data:'cGhvdG8='};
-const receipt={...source,id:'00000000-0000-4000-8000-000000000004',kind:'receipt'};
 const observation={id:'o1',text:'Navy knitwear recurs.',source_ids:[source.id],confidence:'medium',preference:{field:'style',key:'navy_knitwear',value:'Prefers navy knitwear for everyday outfits'}};
-const analysis=()=>({observations:[structuredClone(observation)],purchases:[],crops:[{label:'Navy sweater',source_id:source.id,box:[.1,.2,.9,.8]}]});
+const analysis=()=>({observations:[structuredClone(observation)],crops:[{label:'Navy sweater',source_id:source.id,box:[.1,.2,.9,.8]}]});
 const rawCard={type:'starter',title:'Your starter pack',variants:{nice:'Navy knitwear is a staple.',balanced:'You keep coming back to navy knitwear.',roast:'You keep coming back to navy knitwear.'},observation_ids:['o1']};
-const report=()=>({id:other,status:'draft',analysis:analysis(),stats:receiptStats([]),cards:validateCards({cards:[rawCard]},analysis(),[source])});
+const report=()=>({id:other,status:'draft',analysis:analysis(),cards:validateCards({cards:[rawCard]},analysis(),[source])});
 const env={STYLE_ENABLED:'true',OPENAI_API_KEY:'fake-test',SITE_ORIGIN:'https://shopper.invalid'};
 const req=(body,method='POST',url='/api/style')=>Object.assign(Readable.from(body?[JSON.stringify(body)]:[]),{method,url,headers:{'content-type':'application/json',authorization:'Bearer test'}});
 const res=()=>({headers:{},setHeader(k,v){this.headers[k]=v;},end(value){this.value=value;}});
 const data=r=>JSON.parse(r.value);
 function db(){
-  let state={revision:0,data:{notes:'',tone:'balanced',report:null,consent_at:'2026-10-07T00:00:00Z'}},sources=[structuredClone(source)],facts=[];
+  let state={revision:0,data:{notes:'',tone:'balanced',report:null,consent_at:'2026-10-07T00:00:00Z'}},sources=[structuredClone(source)],facts=[],rows=[];
   return {
     styleSession:async id=>{assert.equal(id,owner);return structuredClone(state);},
     styleSources:async(id,bytes=false)=>{assert.equal(id,owner);return structuredClone(sources).map(s=>{if(!bytes)delete s.data;return s;});},
@@ -30,10 +29,12 @@ function db(){
       assert.equal(id,owner);if(revision!==state.revision)return false;
       state={revision:revision+1,data:structuredClone(value)};
       if(options.source)sources.push(structuredClone(options.source));if(options.remove)sources=sources.filter(s=>s.id!==options.remove);
+      // Clearing retires style evidence; beliefs that cited only it are pruned, as in write_style.
+      if(options.clear){rows=[];facts=[];}rows.push(...structuredClone(options.evidence??[]));
       if(options.facts)facts=structuredClone(options.facts);return true;
     },
     deleteStyle:async(id,revision)=>{assert.equal(id,owner);if(revision!==state.revision)return false;sources=[];facts=[];state={revision:revision+1,data:{notes:'',tone:'balanced',report:null}};return true;},
-    facts:()=>facts,
+    facts:()=>facts,evidence:async()=>structuredClone(rows),rows:()=>rows,
   };
 }
 const handler=(store,options={})=>createStyleHandler({env,auth:async()=>({status:200,conversation:owner}),storeFactory:()=>store,...options});
@@ -81,39 +82,34 @@ test('tone changes never rerun analysis or alter evidence and saved facts',async
   const h=handler(store,{analyze:()=>assert.fail()});const r=res();await h(req({revision:1,action:'tone',tone:'roast'}),r);
   assert.equal(r.statusCode,200);assert.deepEqual(data(r).data.report.analysis,analysis());assert.deepEqual(store.facts(),[{value:'confirmed'}]);
 });
-test('receipt statistics deduplicate records, match completed returns, and exclude gifts and uncertain ownership',()=>{
-  const p={source_ids:[receipt.id],order_key:'a',item_key:'b',retailer:'Shop',brand:'Label',category:'knitwear',event:'purchase',for_self:true,amount:null,currency:null,discounted:null,date:null};
-  const stats=receiptStats([p,{...p},{...p,event:'return_completed'},{...p,item_key:'gift',for_self:false},{...p,item_key:'unknown',for_self:null},{...p,item_key:'unmatched',event:'return_completed'}]);
-  assert.equal(stats.items,1);assert.equal(stats.returned,1);assert.equal(stats.sale_known,0);assert.deepEqual(stats.stores,[{name:'shop',count:1}]);
-  const conflict=receiptStats([p,{...p,amount:20,currency:'USD',discounted:true}]);assert.equal(conflict.sale_known,0);
-});
 test('conflicting user-confirmed preferences cannot silently overwrite each other',()=>{
   const original=report();original.cards.push({...original.cards[0],id:source.id});
   const reviews=original.cards.map((card,i)=>({id:card.id,accepted:true,hidden:false,correction:'',preferences:[{observation_id:'o1',accepted:true,value:i?'Prefers olive':'Prefers navy'}]}));
   assert.throws(()=>confirmReport(original,reviews),/navy_knitwear.*different text/);
 });
-test('report validation rejects invented sources, receipt records from photos, inspiration crops and unsupported purchase cards',()=>{
+test('report validation rejects invented sources, inspiration crops and purchase-history cards',()=>{
   const a=analysis();assert.throws(()=>validateAnalysis({...a,observations:[{...observation,source_ids:[other]}]},[source]),error=>error.code==='observation_sources');
-  assert.throws(()=>validateAnalysis({...a,purchases:[{source_ids:[source.id],order_key:'a',item_key:'b',retailer:'Shop',brand:'Label',category:'knitwear',event:'purchase',for_self:true,amount:null,currency:null,discounted:null,date:null}]},[source]),/receipt/);
   assert.throws(()=>validateAnalysis({...a,crops:[{label:'Shirt',source_id:source.id,box:[0,0,1,1]}]},[{...source,kind:'inspiration'}]),/crop/);
   assert.throws(()=>validateCards({cards:[{...rawCard,type:'returns'}]},a,[source]),/unsupported/);
-  assert.equal(eligibleCards(a,[source]).includes('stores'),false);
+  for(const type of ['stores','sale','repeat','returns'])assert.equal(eligibleCards(a,[source]).includes(type),false);
 });
-test('real image bytes normalize with stripped metadata and PDF receipts stay private file inputs',async()=>{
+test('real image bytes normalize with stripped metadata; receipts and PDFs are not style inputs',async()=>{
   const {default:sharp}=await import('sharp');const image=await sharp({create:{width:16,height:16,channels:3,background:'navy'}}).png().toBuffer();
   const normalized=await prepareSource({kind:'outfit',data:image.toString('base64')});assert.equal(normalized.mime_type,'image/jpeg');
   assert.equal((await sharp(Buffer.from(normalized.data,'base64')).metadata()).exif,undefined);
   const heic=await readFile(new URL('./fixtures/white-8x8.heic',import.meta.url));
   const converted=await prepareSource({kind:'outfit',data:heic.toString('base64')});assert.equal(converted.mime_type,'image/jpeg');
-  const pdf=Buffer.from('%PDF-1.7\nfixture').toString('base64');assert.equal((await prepareSource({kind:'receipt',data:pdf})).mime_type,'application/pdf');
-  await assert.rejects(prepareSource({kind:'outfit',data:pdf}),/PDFs/);
+  const pdf=Buffer.from('%PDF-1.7\nfixture').toString('base64');
+  // Receipts come from Gmail or chat; manual receipt upload is not an input.
+  await assert.rejects(prepareSource({kind:'receipt',data:image.toString('base64')}),/input type/);
+  await assert.rejects(prepareSource({kind:'outfit',data:pdf}),/Use a photo/);
   await assert.rejects(prepareSource({kind:'outfit',data:Buffer.from('not an image').toString('base64')}),/readable/);
 });
 test('OpenAI extraction and writing are separate, use private inline inputs and the actual voice guide',async()=>{
   let calls=0;
-  const result=await analyzeStyle([source,{...receipt,mime_type:'application/pdf',data:'JVBERi0='}],'I like navy.',env,async(_url,options)=>{
+  const result=await analyzeStyle([source],'I like navy.',env,async(_url,options)=>{
     const body=JSON.parse(options.body);assert.equal(body.store,false);assert.equal(body.text.format.strict,true);calls++;
-    if(calls===1){assert.equal(body.input[0].content.some(c=>c.type==='input_file'),true);assert.match(body.instructions,/untrusted data/);}
+    if(calls===1){assert.equal(body.input[0].content.some(c=>c.type==='input_image'),true);assert.equal(body.input[0].content.some(c=>c.type==='input_file'),false);assert.match(body.instructions,/untrusted data/);}
     else{assert.match(body.instructions,/Speak like a knowledgeable personal shopper/);assert.equal(body.input[0].content.length,1);
       const fields=body.text.format.schema.properties.cards.items.properties;
       assert.equal(fields.title.maxLength,70);assert.equal(fields.variants.properties.roast.maxLength,240);
@@ -144,11 +140,13 @@ test('long share-card words wrap without overflowing and corrected copy is consi
   const ctx={measureText:text=>({width:text.length*10})};assert.deepEqual(wrapText(ctx,'one extraordinarilylongword',60),['one','extrao','rdinar','ilylon','gword']);
   assert.equal(cardText({...rawCard,correction:'My correction'},'nice'),'My correction');
 });
-test('model-interpreted style invitation uses durable reply delivery',async()=>{
-  let body;const store={receive:async()=>owner,context:async()=>[{direction:'inbound',body:'could you figure out my look?'}],reserve:async(_id,_op,text)=>{body=text;return {claimed:true};},finish:async()=>{}};
-  const delivery={space:{phone:'test-line'},message:{id:'test-message',sender:{id:'test-sender'},content:{text:'get to know my style'}}};
-  const status=await receiveInInbox(delivery,env,{store,send:async()=>{},interpretOnboarding:async()=> 'style',generate:()=>assert.fail()});
-  assert.equal(status,'imessage_onboarding_sent');assert.match(body,/https:\/\/shopper.invalid\/style/);
+test('the agent chooses the style reading tool and its link goes out as the reply',async()=>{
+  let body;const store={receive:async()=>owner,claimAI:async()=>true,context:async()=>[{direction:'inbound',body:'could you figure out my look?'}],prepareAI:async(_op,text)=>{body=text;},finish:async()=>{}};
+  const delivery={space:{phone:'test-line'},message:{id:'test-message',sender:{id:'test-sender'},content:{text:'could you figure out my look?'}}};
+  const {generateReply}=await import('../lib/ai.js');const {agentTurn,tool,toolNames}=await import('./helpers/agent.js');
+  const status=await receiveInInbox(delivery,{...env,AI_ENABLED:'true'},{store,send:async()=>{},progress:async()=>async()=>{},
+    generate:(m,e,_f,memory)=>generateReply(m,e,async(_url,options)=>{assert.ok(toolNames(options).includes('onboarding'));return agentTurn(tool('onboarding',{action:'style'}));},memory)});
+  assert.equal(status,'imessage_ai_reply_sent');assert.match(body,/https:\/\/shopper.invalid\/style/);
 });
 
 test('distinctive starter ingredients require evidence; invented references and colors are rejected',()=>{
@@ -236,14 +234,13 @@ test('observations may cite more than twelve uploaded sources',()=>{
 });
 
 test('analysis schemas constrain evidence IDs and reject fabricated citations with safe diagnostics',async()=>{
- const {analysisSchemaFor}=await import('../lib/style.js');const schema=analysisSchemaFor([source,receipt],'notes',[{field:'brand',key:'brand',value:'likes'}]);
- assert.deepEqual(schema.$defs.source.enum,[source.id,receipt.id,'context','saved-profile']);assert.deepEqual(schema.$defs.outfit.enum,[source.id]);assert.deepEqual(schema.$defs.receipt.enum,[receipt.id]);
+ const {analysisSchemaFor}=await import('../lib/style.js');const schema=analysisSchemaFor([source,{...source,id:other,kind:'inspiration'}],'notes',[{field:'brand',key:'brand',value:'likes'}]);
+ assert.deepEqual(schema.$defs.source.enum,[source.id,other,'context','saved-profile']);assert.deepEqual(schema.$defs.outfit.enum,[source.id]);assert.equal(schema.$defs.receipt,undefined);
  assert.equal(schema.properties.observations.items.properties.source_ids.items.$ref,'#/$defs/source');assert.equal(schema.properties.observations.items.properties.text.maxLength,650);assert.equal(schema.properties.observations.items.properties.id.enum.length,18);
- assert.equal(analysisSchemaFor([source]).properties.purchases.maxItems,0);
+ assert.equal(analysisSchemaFor([source]).properties.purchases,undefined);
  const props=schema.properties,obs=props.observations.items.properties;
- for(const field of [obs.text,obs.preference.anyOf[0].properties.key,obs.preference.anyOf[0].properties.value,props.crops.items.properties.label,props.ingredients.items.properties.label,props.outfit_contexts.items.properties.activity,props.purchases.items.properties.brand])assert.equal(field.enum,undefined,'Only IDs may inherit the observation-ID enum');
+ for(const field of [obs.text,obs.preference.anyOf[0].properties.key,obs.preference.anyOf[0].properties.value,props.crops.items.properties.label,props.ingredients.items.properties.label,props.outfit_contexts.items.properties.activity])assert.equal(field.enum,undefined,'Only IDs may inherit the observation-ID enum');
  assert.deepEqual(props.crops.items.properties.label,{type:'string',minLength:1,maxLength:60});
- assert.equal(props.purchases.items.properties.currency.pattern,'^[A-Z]{3}$');assert.equal(props.purchases.items.properties.date.pattern,'^\\d{4}-\\d{2}-\\d{2}$');
  assert.deepEqual(props.ingredients.items.properties.observation_ids.items,{type:'string'});
  const duplicated=analysis();duplicated.observations[0].source_ids=[source.id,source.id];assert.deepEqual(validateAnalysis(duplicated,[source]).observations[0].source_ids,[source.id]);
  const broken=analysis();broken.observations[0].source_ids=['invented-source'];assert.throws(()=>validateAnalysis(broken,[source]),error=>error.code==='observation_sources'&&/files and notes are saved/.test(error.message));
@@ -271,9 +268,9 @@ test('file extraction is identical with or without self-description, and context
 test('an unsupported optional crop is omitted while valid file-derived insights survive',async()=>{
  const a=analysis();a.crops[0].observation_ids=['o1'];a.crops.push({...a.crops[0],observation_ids:['invented']});
  a.outfit_contexts=[{source_id:source.id,activity:'likely cycling',basis:'gear',confidence:'medium',dedicated:true},{source_id:source.id,activity:'cycling',basis:'gear',confidence:'high',dedicated:true}];
- a.purchases=[{source_ids:[source.id]}];let call=0;
+ let call=0;
  const result=await analyzeStyle([source],'',env,async()=>({ok:true,json:async()=>({status:'completed',output:[{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify(++call===1?a:{cards:[rawCard]})}]}]})}));
- assert.equal(result.analysis.observations[0].text,observation.text);assert.equal(result.analysis.crops.length,1);assert.equal(result.analysis.outfit_contexts.length,1);assert.equal(result.analysis.purchases.length,0);assert.equal(result.status,'draft');
+ assert.equal(result.analysis.observations[0].text,observation.text);assert.equal(result.analysis.crops.length,1);assert.equal(result.analysis.outfit_contexts.length,1);assert.equal(result.status,'draft');
 });
 test('technical observation citations are removed from copy without removing ordinary parentheses',()=>{
  const a=analysis(),card={...rawCard,variants:{nice:'Navy knitwear (o1).',balanced:'Navy knitwear (especially sweaters).',roast:'Navy knitwear (o1).'}};

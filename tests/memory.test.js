@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { validateChanges, mergeFacts, saveChanges, extractChanges, MEMORY_PROMPT } from '../lib/memory.js';
+import { validateChanges, mergeFacts, saveChanges, extractChanges, MEMORY_PROMPT, updateProfile, prevails } from '../lib/memory.js';
+import { agentTurn, tool, agentContext, toolNames } from './helpers/agent.js';
 import { generateReply } from '../lib/ai.js';
 import { receiveInInbox } from '../lib/inbox.js';
 import { createProfileHandler } from '../api/profile.js';
@@ -10,7 +11,7 @@ const change = { field:'size',key:'shoes/us_men',value:'10',action:'set',source_
 const env = { MEMORY_ENABLED:'true', AI_ENABLED:'true', OPENAI_API_KEY:'fake-test' };
 function db() {
  let profile={facts:[],version:0};
- return { profile:async()=>structuredClone(profile),saveProfile:async(_id,version,facts)=>{if(version!==profile.version)return false;profile={facts,version:version+1};return true;},conversation:async()=>({id}),
+ return { recordEvidence:async()=>{},profile:async()=>structuredClone(profile),saveProfile:async(_id,version,facts)=>{if(version!==profile.version)return false;profile={facts,version:version+1};return true;},conversation:async()=>({id}),
  historyForMemory:async()=>[message],receive:async()=>id,claimAI:async()=>true,context:async()=>[message],memoryStatus:async()=>{},prepareAI:async()=>{},finish:async()=>{} };
 }
 test('facts require a real inbound source and an exact supporting quote',()=>{
@@ -41,17 +42,42 @@ test('extraction uses strict structured output and excludes temporary budgets an
  return {ok:true,json:async()=>({status:'completed',output:[{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify({changes:[change]})}]}]})};});
  assert.equal(changes[0].value,'10');
 });
-test('persistent memory is included independently of recent conversation and failed updates cannot be claimed as saved',async()=>{
- await generateReply([{direction:'inbound',body:'What is my shoe size?',status:'received'}],env,async(_url,options)=>{
- const body=JSON.parse(options.body);assert.match(body.instructions,/shoes\/us_men/);assert.match(body.instructions,/Memory update failed/);assert.match(body.instructions,/Do not claim new preferences were saved/);
- return {ok:true,json:async()=>({status:'completed',output:[{type:'message',role:'assistant',content:[{type:'output_text',text:'You wear US men’s 10.'}]}]})};
- },{enabled:true,saved:false,facts:[{field:'size',key:'shoes/us_men',value:'10'}]});
+test('saved beliefs reach the agent as context, and profile skills are offered only with memory enabled',async()=>{
+ let names;
+ const reply=await generateReply([{id,direction:'inbound',body:'What is my shoe size?',status:'received'}],env,async(_url,options)=>{
+  assert.deepEqual(agentContext(options).saved_profile,[{field:'size',key:'shoes/us_men',value:'10',basis:'stated'}]);names=toolNames(options);
+  return agentTurn(tool('profile_status',{response:'You wear US men’s 10. Tell me if that changes.'}));
+ },{facts:[{field:'size',key:'shoes/us_men',value:'10',basis:'stated'}],profileAction:async()=>assert.fail()});
+ assert.match(reply,/US men’s 10/);assert.ok(names.includes('update_profile')&&names.includes('profile_status'));
+ await generateReply([{direction:'inbound',body:'hi'}],env,async(_url,options)=>{assert.ok(!toolNames(options).includes('update_profile'));return agentTurn(tool('conversation_reply',{response:'Hi'}));},{});
 });
-test('inbound memory failures remain visible while a reply uses existing saved facts',async()=>{
- const store=db();let status,sent=0;store.memoryStatus=async(_id,value)=>{status=value;};
+test('a failed profile save is visible and never acknowledged; the replying tool still answers',async()=>{
+ const store=db();let status,sent=[];store.memoryStatus=async(_id,value)=>{status=value;};store.saveProfile=async()=>{throw new Error('private error');};
+ const fetcher=async()=>agentTurn(tool('update_profile',{changes:[{action:'remember',field:'size',key:'shoes/us_men',value:'10',quote:'My usual shoe size is US men’s 10.'}],acknowledgment:'Noted.'}),tool('conversation_reply',{response:'What are you shopping for?'}));
  await receiveInInbox({space:{phone:'fake-line'},message:{id:'fake-provider',sender:{id:'fake-person'},content:{text:message.body}}},env,
- {store,updateMemory:async()=>{throw new Error('private error');},generate:async(_m,_e,_f,memory)=>{assert.equal(memory.saved,false);return 'Reply';},send:async()=>{sent++;}});
- assert.equal(status,'failed');assert.equal(sent,1);
+  {store,generate:(m,e,_f,memory)=>generateReply(m,e,fetcher,memory),send:async(_d,body)=>{sent.push(body);}});
+ assert.equal(status,'failed');assert.deepEqual(sent,['What are you shopping for?']);
+ // Alone, a failed update falls back to an honest reply instead of its acknowledgment.
+ const alone=await generateReply([message],env,async()=>agentTurn(tool('update_profile',{changes:[],acknowledgment:'Noted.'})),{profileAction:async()=>{throw new Error('down');}});
+ assert.doesNotMatch(alone,/Noted/);
+});
+test('the profile skill records each valid change with its quote and skips malformed ones',async()=>{
+ const store=db();const recorded=[];store.recordEvidence=async(_id,rows)=>{recorded.push(...rows);};
+ const result=await updateProfile(store,id,message,{changes:[
+  {action:'remember',field:'size',key:'shoes/us_men',value:'10',quote:'My usual shoe size is US men’s 10.'},
+  {action:'remember',field:'shopping_range',key:'clothing',value:'menswear',quote:'US men’s'},
+  {action:'remember',field:'brand',key:'example',value:'likes',quote:'not in the message'}],acknowledgment:''});
+ assert.equal(result.saved,1);assert.deepEqual(result.facts.map(f=>[f.key,f.basis]),[['shoes/us_men','stated']]);
+ assert.equal(recorded[0].kind,'chat_statement');assert.deepEqual(result.facts[0].evidence_ids,[recorded[0].id]);
+ const forgot=await updateProfile(store,id,{...message,id:'00000000-0000-4000-8000-000000000002',created_at:'2026-10-06T10:00:00Z'},{changes:[{action:'forget',field:'size',key:'shoes/us_men',value:'',quote:'My usual shoe size'}],acknowledgment:''});
+ assert.equal(forgot.facts[0].deleted,true);
+});
+test('beliefs resolve by basis, then recency',()=>{
+ const stated={field:'style',key:'navy',value:'likes navy',basis:'stated',updated_at:'2026-10-01T00:00:00Z'};
+ const confirmed={...stated,value:'navy knitwear',basis:'confirmed',updated_at:'2026-10-10T00:00:00Z'};
+ assert.equal(prevails(confirmed,stated),false);assert.equal(prevails(stated,confirmed),true);
+ assert.equal(prevails({...stated,value:'no navy',updated_at:'2026-10-11T00:00:00Z'},stated),true);
+ assert.equal(mergeFacts({facts:[stated]},[confirmed])[0].value,'likes navy');
 });
 const res=()=>({setHeader(){},end(body){this.body=JSON.parse(body);}});
 const req=input=>({method:'POST',url:'/api/profile',headers:{'content-type':'application/json'},async *[Symbol.asyncIterator](){yield Buffer.from(JSON.stringify(input));}});
@@ -63,15 +89,11 @@ test('profile API denies access before database lookup and rejects stale owner e
  assert.equal((await store.profile(id)).facts[0].value,'10');
 });
 
-test('temporary budgets, request clothing ranges and unsupported size units are excluded even if the model emits them',()=>{
- const source={...message,body:'Formal men’s shoes, less than $1200. I’m size eye 45 / us 12'};
- const facts=validateChanges([
- {...change,field:'gender',key:'identity',value:'male',evidence:'I’m size eye 45 / us 12'},
- {...change,field:'budget',key:'shoes/unknown',value:'1200',evidence:'less than $1200'},
- {...change,field:'shopping_range',key:'clothing',value:'men’s formal shoes',evidence:'Formal men’s shoes'},
- {...change,key:'shoes/eu',value:'45',evidence:'I’m size eye 45 / us 12'},
- {...change,key:'shoes/us_men',value:'12',evidence:'I’m size eye 45 / us 12'}
- ],[source]); assert.equal(facts.length,1);assert.equal(facts[0].key,'shoes/us_men');
- const usual={...message,body:'My usual shoe budget is USD 300.'};
- assert.equal(validateChanges([{...change,field:'budget',key:'shoes/usd',value:'300',evidence:usual.body}],[usual]).length,1);
+test('validation checks formats only: fixed-value fields need allowed values; durability is the model’s reading',()=>{
+ const source={...message,body:'I’m a man. I wear menswear. My usual shoe budget is USD 300.'};
+ assert.throws(()=>validateChanges([{...change,field:'gender',key:'identity',value:'male',evidence:'I’m a man.'}],[source]),/gender/);
+ assert.throws(()=>validateChanges([{...change,field:'shopping_range',key:'clothing',value:'men’s formal shoes',evidence:'I wear menswear.'}],[source]),/range/);
+ assert.equal(validateChanges([{...change,field:'gender',key:'identity',value:'man',evidence:'I’m a man.'}],[source]).length,1);
+ assert.equal(validateChanges([{...change,field:'shopping_range',key:'clothing',value:'men',evidence:'I wear menswear.'}],[source]).length,1);
+ assert.equal(validateChanges([{...change,field:'budget',key:'shoes/usd',value:'300',evidence:'My usual shoe budget is USD 300.'}],[source]).length,1);
 });

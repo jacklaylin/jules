@@ -2,6 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {textWishlistAction,finishTextWishlist} from '../lib/text-wishlist.js';
 import {generateReply} from '../lib/ai.js';
+import {agentTurn,tool} from './helpers/agent.js';
 import {createStore} from '../lib/store.js';
 const options=['Ivory','Black','Navy'].map((color,i)=>({brand:'Example',name:'Trail sneakers',url:'https://www.prada.com/us/en/p/example/'+i,sourcing_status:'store_found',match:'likely_match',listing_check:{status:'verified',shopping_range:'men',color}}));
 const state={stage:'choice',query:'Example Trail',options};
@@ -20,9 +21,9 @@ test('natural input is interpreted by the model into referenced options, not rou
  for(const message of ['Ivory or black I think','Both neutrals appeal to me','Everything except the navy pair','The first two are on my radar']){
   let result,calls=0; const acknowledgments=[];
   const body=await generateReply([{direction:'outbound',status:'sent',body:'Which version do you like?'},{direction:'inbound',body:message}],{OPENAI_API_KEY:'fake',SEARCH_ENABLED:'true'},async(url,request)=>{
-   calls++;const input=JSON.parse(request.body);assert.ok(input.instructions.includes('subset'));assert.ok(JSON.stringify(input.input).includes(message));assert.equal(input.text.format.type,'json_schema');
-   return {ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({action:'selection',decision:'interest',option_indices:[0,1],consent:'none',size_choices:[]})}]}]})};
-  },{wishlistState:state,acknowledge:async intent=>acknowledgments.push(intent),wishlistAction:args=>textWishlistAction(args,{state,text:message,facts,env,inspect,record:async r=>{result=r;},search:()=>assert.fail()})});
+   calls++;const input=JSON.parse(request.body);assert.ok(input.instructions.includes('subset'));assert.equal(input.input.at(-1).content,message);assert.ok(input.tools.some(t=>t.name==='respond_to_options'));
+   return agentTurn(tool('respond_to_options',{decision:'interest',option_indices:[0,1]}));
+  },{wishlistState:state,acknowledge:async intent=>acknowledgments.push(intent),wishlistAction:args=>textWishlistAction(args,{state,facts,env,inspect,record:async r=>{result=r;},search:()=>assert.fail()})});
   assert.equal(calls,1);assert.deepEqual(acknowledgments.map(a=>a.action),['selection']);assert.equal(result.text_wishlist_state.selected_set.length,2);assert.ok(body.includes('both'));assert.doesNotMatch(body,/https:/);
  }
 });
@@ -53,7 +54,7 @@ test('feedback acknowledgements do not hide pending choices, and explicit cleare
 test('multi-variant completion attaches reminders to their corresponding saved wishlist items',async()=>{
  const result=(await act({decision:'confirm',option_indices:[0,1],consent:'wishlist_alerts'},(await act({option_indices:[0,1]})).next)).result;
  const calls=[];
- const body=await finishTextWishlist({operation:'op',conversationId:'c',result,env:{},store:{wishlistReplyId:async()=> 'reply',wishlistEntries:async()=>options.slice(0,2).map((p,i)=>({reply_id:'reply',item_id:String(i),text_origin:true,name:p.name,brand:p.brand,links:[{url:p.url}]})),enablePriceAlert:async args=>{calls.push(args);return {active:true};}}});
+ const body=await finishTextWishlist({operation:'op',conversationId:'c',result,env:{},store:{recordEvidence:async()=>{},wishlistReplyId:async()=> 'reply',wishlistEntries:async()=>options.slice(0,2).map((p,i)=>({reply_id:'reply',item_id:String(i),text_origin:true,name:p.name,brand:p.brand,links:[{url:p.url}]})),enablePriceAlert:async args=>{calls.push(args);return {active:true};}}});
  assert.equal(calls.length,2);assert.notEqual(calls[0].p_item,calls[1].p_item);assert.ok(body.includes('2'));
 });
 

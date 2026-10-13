@@ -1,7 +1,8 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {parseSizeOffers,readSizeOffers} from '../lib/price-alerts.js';
-import {interpretPending} from '../lib/pending-intent.js';
+import {generateReply} from '../lib/ai.js';
+import {agentTurn,tool,agentContext} from './helpers/agent.js';
 import {textWishlistAction} from '../lib/text-wishlist.js';
 import {createWishlistHandler} from '../api/wishlist.js';
 const url='https://satisfyrunning.com/products/therocker-sterling-blue';
@@ -26,16 +27,19 @@ test('size reading falls back to a rendered blocked page, preserves market and r
  await readSizeOffers(link,async()=>new Response('',{status:404}),{render:()=>assert.fail('A missing page must not be replaced')});
 });
 test('an alert request selecting an item repairs invalid offer classification using the original message',async()=>{
- const text='Yes those are the ones. Can you set an alert?',state={stage:'choice',options:[{url,name:'TheROCKER'}]};
- const base={action:'selection',decision:'confirm',option_indices:[0],consent:'wishlist_alerts',consent_context:'answer_to_offer'};let calls=0;
- const intent=await interpretPending([{direction:'inbound',body:text}],state,{OPENAI_API_KEY:'test'},async(_url,options)=>{
-  calls++;const body=JSON.parse(options.body),data=JSON.parse(body.input[0].content);assert.equal(data.newest_message,text);
-  if(calls===2)assert.equal(data.saved_wishlist.validation_feedback.proposed_intent.consent,'wishlist_alerts');
-  return {ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({...base,consent_context:calls===1?'answer_to_offer':'explicit_request'})}]}]})};
- });assert.equal(calls,2);assert.equal(intent.consent_context,'explicit_request');assert.equal(intent.consent,'wishlist_alerts');
+ const text='Yes those are the ones. Can you set an alert?',state={stage:'choice',options:[{url,name:'TheROCKER'}]};let calls=0,executed;
+ const reply=await generateReply([{direction:'inbound',body:text}],{OPENAI_API_KEY:'test',SEARCH_ENABLED:'true'},async(_url,options)=>{
+  calls++;const context=agentContext(options);
+  if(calls===2)assert.equal(context.validation_feedback.proposed_arguments.consent_context,'answer_to_offer');
+  return agentTurn(tool('manage_price_alerts',{operation:'create',option_indices:[0],consent_context:calls===1?'answer_to_offer':'explicit_request'}));
+ },{wishlistState:state,wishlistAction:async intent=>{executed=intent;return 'saved';}});
+ assert.equal(calls,2);assert.equal(reply,'saved');assert.equal(executed.consent_context,'explicit_request');assert.equal(executed.consent,'wishlist_alerts');
 });
 test('invalid consent interpretation remains bounded and cannot authorize a save',async()=>{
- let calls=0;await assert.rejects(interpretPending([{direction:'inbound',body:'those look interesting'}],{stage:'choice',options:[{url}]},{OPENAI_API_KEY:'test'},async()=>{calls++;return {ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({action:'selection',decision:'confirm',option_indices:[0],consent:'wishlist_alerts',consent_context:'answer_to_offer'})}]}]})};}));assert.equal(calls,2);
+ let calls=0;
+ await assert.rejects(generateReply([{direction:'inbound',body:'those look interesting'}],{OPENAI_API_KEY:'test',SEARCH_ENABLED:'true'},async()=>{calls++;
+  return agentTurn(tool('save_to_wishlist',{option_indices:[0],consent_context:'answer_to_offer'}));},{wishlistState:{stage:'choice',options:[{url}]},wishlistAction:()=>assert.fail('No save without consent')}));
+ assert.equal(calls,2);
 });
 test('variant research preserves exact product identity and does not restart consent',async()=>{
  const primary={brand:'LEMAIRE',name:'Piped Crepe Slipper Loafers',url:'https://www.ssense.com/en-us/men/product/lemaire/black-piped-crepe-slipper-loafers/19440991',match:'likely_match',sourcing_status:'store_found',listing_check:{status:'verified',product_name:'Piped Crepe Slipper Loafers',color:'Black'}};

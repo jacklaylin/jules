@@ -1,8 +1,10 @@
 # Public Jules landing page
 
+**October 9 update:** Invite-only outbound onboarding is now implemented behind `ONBOARDING_ENABLED`. Follow [ONBOARDING.md](ONBOARDING.md) for tester setup and acceptance checks. The consent-only behavior below remains the default when that flag is off.
+
 Implemented locally: `/` follows the supplied design brief with a pinned viewport and iMessage example that autoplays on load and hands playback to user scrolling, chapters, backward scrubbing, an accessible transcript, and reduced-motion behavior. `/signup` collects a number and explicit consent. `/login` uses the existing invited-email magic-link flow and takes signed-in users to the wishlist.
 
-The demo uses a real, free-use Pexels sneaker photograph; source and license are recorded in `docs/assets/demo-sneakers.md`. It describes supported sourcing behavior without invented inventory, shipping, retailer prices, or purchasing claims. Its budget is an example user request, not a product price. The device dimensions remain fixed throughout the timeline; only the message area scrolls.
+The demo is an illustrative Satisfy x HOKA conversation: an inspiration photo (`public/demo-satisfy-hoka.jpg`), a tapback, retailer link previews with example prices, a cheaper non-collab option, and a price-alert confirmation. Prices and retailers are believable examples, not live listings; the page labels the transcript as illustrative. A Replay button appears when the conversation finishes. The device dimensions remain fixed throughout the timeline; only the message area scrolls.
 
 ## Enable the signup form
 

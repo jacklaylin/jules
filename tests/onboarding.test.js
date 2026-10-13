@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Readable} from 'node:stream';
-import {welcomeTester,onboardingReply,interpretOnboarding,createOnboardingHandler} from '../lib/onboarding.js';
+import {welcomeTester,onboardingAction,createOnboardingHandler} from '../lib/onboarding.js';
+import {generateReply} from '../lib/ai.js';
+import {agentTurn,tool,agentContext,toolNames} from './helpers/agent.js';
 const env={ONBOARDING_ENABLED:'true',SITE_ORIGIN:'https://jules.example'};
 const conversation={id:'tester-id',sender_id:'synthetic-tester',line:'synthetic-line'};
 function fixture(state='invited'){
@@ -24,24 +26,28 @@ test('ambiguous welcome delivery is never automatically resent',async()=>{
  assert.equal((await welcomeTester('synthetic',f.store,env,send)).message_status,'uncertain');
  await welcomeTester('synthetic',f.store,env,send);assert.equal(f.sent.length,1);
 });
-test('model consent advances invitation but unrelated yes, products and uncertainty do not',async()=>{
- for(const action of ['other','accept','decline']){
-  const f=fixture('offered');const outcome=await onboardingReply(delivery,conversation.id,f.store,env,{send:f.send,interpret:async()=>action});
-  assert.equal(f.state(),{other:'offered',accept:'accepted',decline:'declined'}[action]);assert.equal(Boolean(outcome),action!=='other');
+const act=(f,action,state=f.state())=>onboardingAction(action,{conversationId:conversation.id,session:{state},store:f.store,env});
+test('onboarding actions advance only from valid states; an unrelated turn changes nothing',async()=>{
+ for(const action of ['accept','decline']){
+  const f=fixture('offered');assert.ok(await act(f,action));assert.equal(f.state(),{accept:'accepted',decline:'declined'}[action]);
  }
+ const ready=fixture('ready');assert.equal(await act(ready,'accept'),null);assert.equal(ready.state(),'ready');
+ assert.equal(await onboardingAction('style',{conversationId:conversation.id,session:null,store:fixture().store,env}),null);
+ assert.match(await onboardingAction('style',{conversationId:conversation.id,session:null,store:fixture().store,env:{...env,STYLE_ENABLED:'true'}}),/\/style/);
 });
-test('topic changes and declines preserve shopping; acceptance after correction is possible',async()=>{
+test('declines preserve shopping; acceptance after a decline is possible',async()=>{
  const f=fixture('offered');
- for(const [action,state] of [['other','offered'],['decline','declined'],['other','declined'],['accept','accepted']]){
-  await onboardingReply({...delivery,message:{...delivery.message,id:crypto.randomUUID()}},conversation.id,f.store,env,{send:f.send,interpret:async()=>action});assert.equal(f.state(),state);
- }
- assert.ok(f.sent.at(-1).includes('/onboarding'));
+ for(const [action,state] of [['decline','declined'],['accept','accepted']]){await act(f,action);assert.equal(f.state(),state);}
+ assert.ok((await act(f,'status')).includes('/onboarding'));
 });
-test('interpreter sends context and strictly validates structured actions',async()=>{
- let body;const context=[{direction:'outbound',body:'save both?',status:'sent'},{direction:'inbound',body:'sounds good',reply_provider_id:'original'}];
- const fetcher=async(url,options)=>{body=JSON.parse(options.body);return {ok:true,json:async()=>({status:'completed',output:[{content:[{type:'output_text',text:'{"action":"other","focus":"shopping"}'}]}]})};};
- assert.equal(await interpretOnboarding(context,'offered',env,fetcher),'other');assert.deepEqual(JSON.parse(body.input).conversation,context);assert.equal(body.text.format.strict,true);
- await assert.rejects(()=>interpretOnboarding(context,'offered',env,async()=>({ok:true,json:async()=>({status:'completed',output:[{content:[{type:'output_text',text:'{"action":"invented"}'}]}]})})));
+test('the agent sees the onboarding state, chooses the tool, and re-reads a non-applicable action',async()=>{
+ const f=fixture('ready');let calls=0;
+ const reply=await generateReply([{direction:'outbound',status:'sent',body:'save both?'},{direction:'inbound',body:'sounds good'}],{OPENAI_API_KEY:'test'},async(_url,options)=>{
+  calls++;assert.equal(agentContext(options).onboarding.state,'ready');assert.ok(toolNames(options).includes('onboarding'));
+  if(calls===2)assert.equal(agentContext(options).validation_feedback.proposed_tool,'onboarding');
+  return agentTurn(calls===1?tool('onboarding',{action:'accept'}):tool('conversation_reply',{response:'Which ones?'}));
+ },{onboarding:{state:'ready'},onboardingAction:action=>act(f,action,'ready')});
+ assert.equal(calls,2);assert.equal(reply,'Which ones?');assert.equal(f.state(),'ready');
 });
 test('demo requires auth, invitation, accepted state and same origin',async()=>{
  const f=fixture('offered');let res=response();await api(f)(request('connect-demo'),res);assert.equal(res.statusCode,409);assert.equal(f.sent.length,0);
@@ -78,10 +84,11 @@ test('onboarding API remains unavailable when disabled',async()=>{
  const res=response();await createOnboardingHandler({env:{},storeFactory:()=>assert.fail('no private access')})(request(),res);assert.equal(res.statusCode,503);
 });
 
-test('newest shopping turn is explicit and cannot dispatch an onboarding status classification',async()=>{
- const history=[{direction:'outbound',status:'sent',body:'view your Gmail connection here'},{direction:'inbound',body:'old reply'}];
- const current={direction:'inbound',body:'Can you find fitted white henleys with a little stretch?'};
- const action=await interpretOnboarding(history,'ready',env,async(_url,options)=>{assert.deepEqual(JSON.parse(JSON.parse(options.body).input).newest_message,current);return {ok:true,json:async()=>({status:'completed',output:[{content:[{type:'output_text',text:'{"action":"status","focus":"shopping"}'}]}]})};},current);
- assert.equal(action,'other');
- const f=fixture('ready');await onboardingReply({...delivery,message:{...delivery.message,content:{text:current.body}}},conversation.id,f.store,env,{send:f.send,interpret:async(_context,_state,_env,_fetch,message)=>{assert.equal(message.body,current.body);return action;}});assert.equal(f.sent.length,0);
+test('the newest shopping turn is the one interpreted, and choosing a search leaves onboarding untouched',async()=>{
+ const f=fixture('ready');const current={direction:'inbound',body:'Can you find fitted white henleys with a little stretch?'};let searched;
+ const reply=await generateReply([{direction:'outbound',status:'sent',body:'view your Gmail connection here'},{direction:'inbound',body:'old reply'},current],{OPENAI_API_KEY:'test',SEARCH_ENABLED:'true'},async(_url,options)=>{
+  const input=JSON.parse(options.body).input;assert.equal(input.at(-1).content,current.body);assert.ok(toolNames(options).includes('onboarding'));
+  return agentTurn(tool('find_products',{query:'fitted white henley with stretch'}));
+ },{onboarding:{state:'ready'},onboardingAction:()=>assert.fail('No onboarding action'),wishlistAction:async intent=>{searched=intent;return 'options';}});
+ assert.equal(reply,'options');assert.equal(searched.action,'start');assert.equal(f.state(),'ready');
 });

@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { shoppingContext, stateFromSearch } from '../lib/shopping-context.js';
 import { generateReply } from '../lib/ai.js';
+import { agentTurn, tool } from './helpers/agent.js';
 import { textWishlistAction } from '../lib/text-wishlist.js';
 import { wishlistProducts } from '../lib/wishlist.js';
 import { verifyWishlistRows } from '../lib/listings.js';
@@ -43,11 +44,9 @@ test('varied save follow-ups route interpreted existing references to save witho
     const body=await generateReply([{direction:'outbound',status:'sent',body:'Previous product findings'},
       {direction:'inbound',body:message}],env,async(_url,request)=>{
       calls++;const input=JSON.parse(request.body);
-      assert.equal(input.text.format.type,'json_schema');
-      assert.equal(JSON.parse(input.input[0].content).newest_message,message);
-      return {ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[
-        {type:'output_text',text:JSON.stringify(interpretation(indices))}]}]})};
-    },{wishlistState:state,wishlistAction:(args,resolvedState)=>textWishlistAction(args,{state:resolvedState,text:message,
+      assert.equal(input.tool_choice,'required');assert.equal(input.input.at(-1).content,message);
+      return agentTurn(tool('save_to_wishlist',{option_indices:indices,consent_context:'explicit_request'}));
+    },{wishlistState:state,wishlistAction:(args,resolvedState)=>textWishlistAction(args,{state:resolvedState,
       env,record:async result=>{recorded=result;},search:()=>assert.fail('A save must not source again'),
       verify:()=>assert.fail('Saving does not require a retailer fetch')})});
     assert.equal(calls,1);assert.equal(recorded.user_confirmed,true);
@@ -62,9 +61,8 @@ test('save request followed by a separate link uses that supplied reference with
   let recorded;
   const link='https://www.mrporter.com/product/user-selected-item';
   await generateReply([{direction:'inbound',body:'Can you add these to my wishlist'},
-    {direction:'inbound',body:link}],env,async()=>({ok:true,json:async()=>({status:'completed',output:[{type:'message',
-      content:[{type:'output_text',text:JSON.stringify(interpretation([0]))}]}]})}),{
-    wishlistAction:(args,state)=>textWishlistAction(args,{state,text:link,env,record:async r=>{recorded=r;},
+    {direction:'inbound',body:link}],env,async()=>agentTurn(tool('save_to_wishlist',{option_indices:[0],consent_context:'explicit_request'})),{
+    wishlistAction:(args,state)=>textWishlistAction(args,{state,env,record:async r=>{recorded=r;},
       search:()=>assert.fail('User supplied the item already')})});
   assert.equal(recorded.user_confirmed,true);assert.equal(recorded.products[0].url,link);
 });
@@ -78,8 +76,7 @@ test('a standalone link, uncertainty and unrelated conversation do not become sa
   }
   let actions=0;
   const body=await generateReply([{direction:'inbound',body:'How should I style a blazer?'}],env,
-    async()=>({ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',
-      text:JSON.stringify({action:'conversation',response:'Try relaxed trousers with it.'})}]}]})}),
+    async()=>agentTurn(tool('conversation_reply',{response:'Try relaxed trousers with it.'})),
     {wishlistState:stateFromSearch({products}),wishlistAction:()=>{actions++;}});
   assert.equal(actions,0);assert.equal(body,'Try relaxed trousers with it.');
 });

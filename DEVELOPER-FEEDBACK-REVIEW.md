@@ -25,6 +25,22 @@ These failed runs prompted further changes: show verified shopping options first
 
 The updated deterministic suite passes 237 tests. The original failed replay cycle is retained in the private report; final replay results follow separately.
 
+### Collection recovery and image-failure diagnosis
+
+The second deployed mfpen cycle still failed all three runs: the direct search returned zero eligible products, and refinement returned unsupported domains or an SSENSE page blocked with HTTP 403. Recovery now follows matching product links directly from a retrieved supported collection, independently of the search provider. It preserves failed checks across refinement for diagnosis. Links are bounded, same-origin, and require matching product and brand evidence plus the existing eligibility checks.
+
+The fourth feedback report was a separate attachment-download failure: the incoming image was marked failed and no bytes were saved. Historical Vercel runtime logs are no longer available under the current plan, so the original failure cause cannot be established. Added bounded diagnostic codes for missing attachments, unsupported types, file-size limits, download timeouts, empty/invalid bytes and HEIC conversion failures. Provider error messages and private bytes are excluded from logs. This improves diagnosis; it is not evidence that the original attachment issue is resolved.
+
+Commit `9a76c1b` deployed Ready to the existing production domain. The deterministic suite passes 239 tests. No database changes were needed for these fixes.
+
+### Final deployed results
+
+Commit `7f63718` deployed Ready to `jules-gamma.vercel.app`. Three mfpen runs passed and three SATISFY runs passed on this final release. The mfpen recovery includes retrieved official collection sources even when the formatter omitted them from the candidate list. SATISFY replies returned verified product links, displayed page-level sold-out status and offered another color or similar product. The earlier tentative-subset cycle passed three of three; later source recovery does not change that selection path. All 240 automated tests pass.
+
+Private reports retain the earlier failed cycles and the final six successful sourcing runs. A browser replay stalled during an intermediate SATISFY cycle; its completed first result was preserved before reloading. Do not count that incomplete cycle as three successful runs. The report containing final tests also includes one prior mfpen failure, so its overall eight-of-nine score differs from the final release's six-of-six result.
+
+Remaining acceptance limits: these sourcing replays have no saved department facts and do not establish size-specific availability; unknown department remains unknown. Phone delivery of tapbacks and the original screenshot route have not been verified end to end. The historical failed attachment has no recoverable bytes or retained runtime error, and is not marked resolved. No claim of universal sourcing reliability or completed tester readiness is made.
+
 ## October 9 follow-up: supplied links, market and stalled search
 
 Reviewed the two DM comments visible in the founder's signed-in simulator: the Satisfy link being described as unverified before reading it, and its price being saved in CAD. Also addressed the supplied iMessage example where acceptance of similar Lemaire/Jacques Marie Mage options produced a promise rather than executing sourcing. The separate admin feedback inbox was not signed in; this review does not establish that every newly saved report has been read.

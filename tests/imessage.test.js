@@ -27,12 +27,20 @@ test('threaded inbound text reaches the handler once and quoted target is never 
 });
 test('threaded reactions stay ignored and threaded attachments respect image enablement',async()=>{
  let calls=0;const process=createProcessor({now:()=>now,log:()=>{},handle:async()=>{calls++;return 'handled';}});
- const value={...payload,message:{...payload.message,content:{type:'reply',content:{type:'reaction',emoji:'👍'}}}};
+ const value={...payload,message:{...payload.message,content:{type:'reply',content:{type:'reaction',emoji:'👍'},target:{id:'prior-image'}}}};
  assert.equal(await process(...request(value)),200);assert.equal(calls,0);
  value.message.content.content={type:'attachment',id:'image-id',mimeType:'image/jpeg'};
  assert.equal(await process(...request(value)),200);assert.equal(calls,0);
  const args=request(value);args[2]={...env,IMAGES_ENABLED:'true'};
  assert.equal(await process(...args),200);assert.equal(calls,1);
+});
+test('malformed threaded reference is rejected rather than losing its scope',async()=>{
+ let calls=0;const process=createProcessor({now:()=>now,log:()=>{},handle:async()=>{calls++;}});
+ for(const id of [null,'','x'.repeat(501)]){
+  const value={...payload,message:{...payload.message,content:{type:'reply',content:{type:'text',text:'Find this item'},target:{id}}}};
+  assert.equal(await process(...request(value)),400);
+ }
+ assert.equal(calls,0);
 });
 test('hello sends exact greeting through the signed shared line', async () => {
   const sent = [];
