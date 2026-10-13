@@ -311,6 +311,8 @@ In `/admin`, expand **Developer feedback** for the latest 100 reports across tes
 
 Acceptance: send a feedback message, confirm the acknowledgment and admin entry, then send an ordinary shopping message and confirm normal behavior. Live acceptance requires the migration and deployment.
 
+Triage: `node --env-file=.env.local scripts/feedback-triage.js --latest 1` (or `--since <cursor>`) prints private packets: each report with nearby turns and persisted diagnostics, contact formats masked, no sender identity. It needs `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in `.env.local`; the service-role key is a Vercel Sensitive variable, so paste it from Supabase rather than relying on `vercel env pull`. The `feedback-triage` Claude Code agent (`.claude/agents/feedback-triage.md`) reads these packets and recommends systemic fixes. Never commit packet output.
+
 
 ### Companion wishlist MVP — implemented, live acceptance pending
 
