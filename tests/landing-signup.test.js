@@ -35,11 +35,9 @@ test('the public signup route shares an existing function without exposing priva
  const privateResponse=response();await run({method:'GET',url:'/api/wishlist',headers:{}},privateResponse);assert.equal(privateResponse.statusCode,503);
 });
 
-test('handoff motion is reversible and fast touch scrubs preserve typing dwell',async()=>{
- const {bubbleProgress,approachDemoTime}=await import('../public/landing-timeline.js');
+test('message entrance motion is reversible and typing indicator fades in',async()=>{
+ const {bubbleProgress}=await import('../public/landing-timeline.js');
  assert.ok(Math.abs(bubbleProgress(1.025,.8)-.5)<1e-9);
  assert.equal(bubbleProgress(0,.8),0);assert.equal(bubbleProgress(2,.8),1);
- assert.ok(approachDemoTime(15,5)<15);assert.ok(approachDemoTime(5,15)>5);
- assert.ok(approachDemoTime(0,DEMO_DURATION,{touch:true,deltaSeconds:.016})<=.064);
  assert.equal(demoState(4).typingProgress,1);assert.equal(demoState(4,true).typingProgress,0);
 });

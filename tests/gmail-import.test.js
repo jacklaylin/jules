@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {Readable} from 'node:stream';
 import {GMAIL_SCOPE,sealToken,openToken,authorizationURL,digest} from '../lib/gmail-client.js';
 import {receiptHTML,prepareReceiptEmail,receiptPDF} from '../lib/receipt-email.js';
-import {RECEIPT_SCHEMA,reconcileReceipt,emptyReceiptState,projectReceiptState,relinkPending,receiptShoppingFacts} from '../lib/receipt-extraction.js';
+import {RECEIPT_SCHEMA,TRIAGE_SCHEMA,merchantKey,reconcileReceipt,emptyReceiptState,projectReceiptState,relinkPending,receiptShoppingFacts} from '../lib/receipt-extraction.js';
 import {applyReceiptFeedback,receiptLearningView} from '../lib/receipt-feedback.js';
 import {newImportJob,importStep,createGmailHandler,publicImport,CONSENT_VERSION} from '../lib/gmail-import.js';
 import {loadReceipts} from '../lib/evidence.js';
@@ -43,9 +43,9 @@ test('OAuth tokens are authenticated and bound to their owner; permission is rea
  const sealed=sealToken(tokens,'owner',env);assert.deepEqual(openToken(sealed,'owner',env),tokens);assert.throws(()=>openToken(sealed,'other',env));assert.throws(()=>openToken(sealed.slice(0,-4)+'xxxx','owner',env));
  const url=new URL(authorizationURL('nonce',env));assert.equal(url.searchParams.get('scope'),GMAIL_SCOPE);assert.equal(url.searchParams.get('redirect_uri'),'https://jules.example/api/wishlist?gmail=callback');assert.equal(url.searchParams.get('state'),'nonce');
 });
-test('email preparation preserves plain, HTML tables, unnamed PDF and reference evidence',async()=>{
+test('email preparation keeps HTML tables, unnamed PDF and reference evidence without duplicating the plain alternative',async()=>{
  const m={id:'m',internalDate:'1000',payload:{headers:[{name:'From',value:'Shop <sales@shop.example>'},{name:'Subject',value:'Order O1'}],parts:[{mimeType:'text/plain',body:{data:Buffer.from('Jeans size 31').toString('base64url')}},{mimeType:'text/html',body:{data:Buffer.from('<script>ignore me</script><table><tr><td>Blue</td><td>32</td></tr></table><a href="https://shop.example/?order_id=O1&amp;token=secret">Order</a>').toString('base64url')}},{mimeType:'application/pdf',body:{data:Buffer.from('%PDF-synthetic').toString('base64url')}}]}};
- const prepared=await prepareReceiptEmail(m,tokens,{pdf:async()=> 'Receipt O1 Brand'});assert.ok(prepared.text.includes('Jeans size 31'));assert.ok(prepared.text.includes('Blue | 32'));assert.ok(prepared.text.includes('Receipt O1 Brand'));assert.ok(!prepared.text.includes('ignore me'));assert.ok(!prepared.text.includes('secret'));assert.equal(prepared.pdf_count,1);
+ const prepared=await prepareReceiptEmail(m,tokens,{pdf:async()=> 'Receipt O1 Brand'});assert.ok(!prepared.text.includes('Jeans size 31'));assert.ok(prepared.text.includes('Blue | 32'));assert.ok(prepared.text.includes('Receipt O1 Brand'));assert.ok(!prepared.text.includes('ignore me'));assert.ok(!prepared.text.includes('secret'));assert.equal(prepared.pdf_count,1);
 });
 test('unreadable attachments preserve readable results and disclose a warning',async()=>{
  const p=await prepareReceiptEmail({id:'m',payload:{headers:[],parts:[{mimeType:'text/plain',body:{data:Buffer.from(text).toString('base64url')}},{mimeType:'application/pdf',body:{data:'YQ'}}]}},tokens,{pdf:async()=>{throw Error('bad');}});assert.ok(p.text.includes('Jeans'));assert.equal(p.warnings.length,1);
@@ -57,7 +57,35 @@ test('purchases deduplicate exact variants; return requests do not imply a refun
 });
 test('foreign targets, mismatched orders/sizes and fabricated fields cannot mutate history',()=>{
  const state=reconcileReceipt(emptyReceiptState('owner'),source,{events:[receipt()]}).state,id=state.items[0].id;
- for(const change of [{existing_item_id:'foreign'},{existing_item_id:id,size_label:fact('32')},{existing_item_id:id,order_reference:fact('O2')},{brand:fact('invented')}])assert.throws(()=>reconcileReceipt(state,{...source,text:text+' 32 O2'},{events:[receipt(change)]}));assert.equal(state.items.length,1);
+ for(const change of [{existing_item_id:'foreign'},{existing_item_id:id,size_label:fact('32')},{existing_item_id:id,order_reference:fact('O2')},{evidence:'invented'}])assert.throws(()=>reconcileReceipt(state,{...source,text:text+' 32 O2'},{events:[receipt(change)]}));assert.equal(state.items.length,1);
+ // An unverifiable detail is left unknown instead of being stored or discarding the purchase.
+ const partial=reconcileReceipt(emptyReceiptState('owner'),source,{events:[receipt({brand:fact('invented'),color:{value:'Blue',quote:'Navy Blue'}})]});
+ assert.equal(partial.state.items[0].brand,null);assert.equal(partial.state.items[0].color,null);assert.deepEqual(partial.records[0].withheld_fields,['brand','color']);
+});
+test('quotes tolerate HTML whitespace and table separators but not different content',()=>{
+ const html={...source,text:'Shop Order O1\n  Jeans |  Blue | 31\nBrand quantity 1 purchased'};
+ const ok=reconcileReceipt(emptyReceiptState('owner'),html,{events:[receipt({product:{value:'Jeans',quote:'Jeans Blue 31'},color:{value:'Blue',quote:'Jeans  Blue'}})]});
+ assert.equal(ok.state.items[0].product,'Jeans');assert.equal(ok.state.items[0].color,'Blue');
+ assert.equal(reconcileReceipt(emptyReceiptState('owner'),html,{events:[receipt({color:{value:'Red',quote:'Red'}})]}).state.items[0].color,null);
+});
+test('purchases without a labeled order reference become items scoped to their email',()=>{
+ const noOrder=receipt({order_reference:fact(null)});
+ const first=reconcileReceipt(emptyReceiptState('owner'),source,{events:[noOrder,noOrder]});assert.equal(first.state.items.length,1);assert.equal(first.pending.length,0);
+ const second=reconcileReceipt(first.state,{...source,id:'m2'},{events:[noOrder]});assert.equal(second.state.items.length,2);
+ assert.equal(reconcileReceipt(emptyReceiptState('owner'),source,{events:[receipt({order_reference:fact(null),product:fact(null)})]}).pending.length,1);
+});
+test('receipt-stated recipients teach softly, gifts teach nothing, and user answers or conflicts take precedence',()=>{
+ const shipped={...source,text:text+' Hi Sam, Ship to: Sam Lee. Gift message: happy birthday'};
+ const self=reconcileReceipt(emptyReceiptState('owner'),shipped,{events:[receipt({recipient:{value:'self',quote:'Ship to: Sam Lee'}})]}).state;
+ let view=receiptLearningView(projectReceiptState(self));assert.equal(view.learning_observations.length,1);assert.equal(view.learning_observations[0].recipient_basis,'receipt_evidence');
+ assert.equal(JSON.parse(receiptShoppingFacts(self,view)[0].value).confirmed_fit,null);
+ const gift=reconcileReceipt(emptyReceiptState('owner'),shipped,{events:[receipt({recipient:{value:'other',quote:'Gift message: happy birthday'}})]}).state;
+ assert.equal(receiptLearningView(gift).learning_observations.length,0);assert.equal(receiptLearningView(gift).purchase_history.length,1);
+ assert.equal(receiptLearningView(reconcileReceipt(emptyReceiptState('owner'),shipped,{events:[receipt({recipient:{value:'self',quote:'Ship to: Someone Else'}})]}).state).learning_observations.length,0);
+ const conflict=reconcileReceipt(self,{...shipped,id:'m2'},{events:[receipt({existing_item_id:self.items[0].id,kind:'shipped',recipient:{value:'other',quote:'Gift message: happy birthday'}})]}).state;
+ assert.equal(conflict.items[0].recipient_evidence.value,'conflicting');assert.equal(receiptLearningView(conflict).learning_observations.length,0);
+ const answered=applyReceiptFeedback(self,{id:'gift',owner_id:'owner',source:'chat_answer',at:'2026-10-12',item_ids:[self.items[0].id],action:'set_recipient',value:'other'});
+ assert.equal(receiptLearningView(answered).learning_observations.length,0);
 });
 test('shipping-only and ambiguous returns stay pending; a later exact purchase can link safely',()=>{
  const pending=reconcileReceipt(emptyReceiptState('owner'),source,{events:[receipt({kind:'returned'})]});assert.equal(pending.state.items.length,0);assert.equal(pending.pending.length,1);
@@ -168,7 +196,31 @@ test('changed sources preserve old evidence and corrections while allowing the r
  const feedback=reconcileReceipt(emptyReceiptState('owner'),source,{events:[receipt()]}).state;
  const row={conversation_id:'owner',token_ciphertext:sealToken(tokens,'owner',env),data:{feedback,sources:[source],job:{...newImportJob(),status:'extracting',ids:['m1']}}};
  const next=await step(row,{fetcher:async()=>jsonResponse({id:'m1',payload:{}}),prepare:async()=>({...source,fingerprint:'changed',text:'Changed receipt'}),interpret:async()=>{throw Error('Changed evidence must not overwrite items');}});
- assert.equal(next.data.sources[0].text,text);assert.equal(next.data.changed_sources[0].text,'Changed receipt');assert.deepEqual(next.data.job.processed,['m1']);assert.equal(publicImport(next,next.receipts).changed_sources,1);
+ assert.equal(itemsOf(next).length,1);assert.deepEqual(next.data.changed_sources,[{id:'m1',fingerprint:'changed',date:1000}]);assert.deepEqual(next.data.job.processed,['m1']);assert.equal(publicImport(next,next.receipts).changed_sources,1);
+ // Email text is not retained; the shopping source keeps only metadata.
+ assert.ok(!JSON.stringify(next.data).includes(text));assert.equal(next.data.sources[0].shopping_evidence,true);
+});
+test('irrelevant emails keep only their id and are never fetched again; shopping emails keep metadata without text',async()=>{
+ let row={conversation_id:'owner',token_ciphertext:sealToken(tokens,'owner',env),data:{feedback:emptyReceiptState('owner'),job:{...newImportJob(),status:'extracting',ids:['shop','news','skip']}}};
+ const fetched=[],texts={shop:text,news:'Weekly newsletter',skip:'Ride receipt'};
+ const fetcher=async url=>{const id=url.match(/messages\/([^?/]+)/)[1];if(url.includes('format=full'))fetched.push(id);return jsonResponse({id,payload:{headers:[{name:'Subject',value:id}]}});};
+ const prepare=async m=>({id:m.id,text:texts[m.id],date:1000,fingerprint:m.id,sender_domain:m.id+'.example',warnings:[]});
+ const interpret=async r=>r.schema===TRIAGE_SCHEMA?{decisions:r.context.emails.map(e=>({id:e.id,action:e.id==='skip'?'skip':'extract'}))}:r.context.source.id==='shop'?{events:[receipt()]}:{events:[]};
+ row=await step(row,{fetcher,prepare,interpret});
+ assert.deepEqual(fetched.sort(),['news','shop']);assert.deepEqual(row.data.job.processed.sort(),['news','shop','skip']);
+ assert.deepEqual(row.data.sources.map(s=>s.id),['shop']);assert.equal(row.data.sources[0].text,undefined);assert.deepEqual(row.data.scanned_ids.sort(),['news','skip']);
+ assert.equal(row.data.job.quality.triage_skip,1);assert.ok(!JSON.stringify(row.data).includes('Weekly newsletter'));
+ fetched.length=0;row.data.job={...newImportJob(),status:'extracting',ids:['shop','news','skip']};row=await step(row,{fetcher,prepare,interpret});
+ assert.deepEqual(fetched,['shop']);assert.equal(itemsOf(row).length,1);
+});
+test('a failed triage analyzes every email, and one failing email cannot stall the rest of the batch',async()=>{
+ let row={conversation_id:'owner',token_ciphertext:sealToken(tokens,'owner',env),data:{feedback:emptyReceiptState('owner'),job:{...newImportJob(),status:'extracting',ids:['bad','m1']}}};
+ const fetcher=async url=>jsonResponse({id:url.match(/messages\/([^?/]+)/)[1],payload:{}});
+ const interpret=async r=>{if(r.schema===TRIAGE_SCHEMA)throw Error('triage down');if(r.context.source.id==='bad')throw Error('bad email');return {events:[receipt()]};};
+ const prepare=async m=>({...source,id:m.id});
+ row=await step(row,{fetcher,prepare,interpret});assert.deepEqual(row.data.job.processed,['m1']);assert.equal(row.data.job.attempts.bad,1);
+ row=await step(row,{fetcher,prepare,interpret});assert.deepEqual(row.data.job.processed,['m1','bad']);assert.equal(row.data.job.quality.failed,1);assert.ok(!(row.data.scanned_ids??[]).includes('bad'));
+ await assert.rejects(step({...row,data:{...row.data,job:{...row.data.job,ids:['m2','m3'],processed:[]}}},{fetcher,prepare,interpret:async()=>{throw Error('outage');}}));
 });
 test('contact redaction preserves long receipt/order identities and omits raw credential links',async()=>{
  const {redactReceiptText}=await import('../lib/receipt-email.js');const redacted=redactReceiptText('Order: 1234567890123456\nPhone: +1 555 123 4567\ncard: 4111 1111 1111 1111\npassword: secretvalue\nhttps://shop.example/login?token=private');
@@ -176,11 +228,11 @@ test('contact redaction preserves long receipt/order identities and omits raw cr
 });
 test('a malformed event is withheld without dropping supported purchase evidence from the same email',async()=>{
  const row={conversation_id:'owner',token_ciphertext:sealToken(tokens,'owner',env),data:{feedback:emptyReceiptState('owner'),job:{...newImportJob(),status:'extracting',ids:['m1']}}};
- const next=await step(row,{fetcher:async()=>jsonResponse({id:'m1',payload:{}}),prepare:async()=>({...source,warnings:[]}),interpret:async()=>({events:[receipt({brand:fact('invented')}),receipt()]})});
+ const next=await step(row,{fetcher:async()=>jsonResponse({id:'m1',payload:{}}),prepare:async()=>({...source,warnings:[]}),interpret:async()=>({events:[receipt({evidence:'invented'}),receipt()]})});
  assert.equal(itemsOf(next).length,1);assert.equal(itemsOf(next)[0].source_events[0].id,'m1:1');assert.equal(next.data.sources[0].warnings.length,1);assert.deepEqual(next.data.job.processed,['m1']);
 });
 test('expanding an existing connection requires new consent and leaves its saved evidence intact',async()=>{
- const store=storage();store.seed({conversation_id:'owner',revision:0,token_ciphertext:sealToken(tokens,'owner',env),data:{consent:{version:'gmail-receipts-90d-v1'},feedback:emptyReceiptState('owner'),sources:[source]}});
+ const store=storage();store.seed({conversation_id:'owner',revision:0,token_ciphertext:sealToken(tokens,'owner',env),data:{consent:{version:'gmail-receipts-90d-v1'},feedback:reconcileReceipt(emptyReceiptState('owner'),source,{events:[receipt()]}).state,sources:[source]}});
  const handler=createGmailHandler({env,storeFactory:()=>store,auth});
  const rejected=await request(handler,{method:'POST',body:{action:'start'}});assert.equal(rejected.statusCode,400);assert.equal(store.busy,false);assert.equal(store.row.data.sources.length,1);assert.equal(store.row.data.job,undefined);
  const accepted=await request(handler,{method:'POST',body:{action:'start',consent:CONSENT_VERSION}});assert.equal(accepted.statusCode,200);assert.equal(store.row.data.job.limit,1000);assert.equal(store.row.data.consent.version,CONSENT_VERSION);assert.equal(store.row.data.sources.length,1);
@@ -200,4 +252,21 @@ test('historical purchase observations stay available without becoming current o
  state=applyReceiptFeedback(state,{id:'self',owner_id:'owner',source:'chat_answer',at:'2026-10-12',item_ids:[state.items[0].id],action:'set_recipient',value:'self'});
  const facts=receiptShoppingFacts(state,receiptLearningView(projectReceiptState(state)),Date.parse('2026-10-12'));
  const evidence=JSON.parse(facts[0].value);assert.equal(evidence.recency,'historical');assert.equal(evidence.still_owned,null);assert.equal(evidence.confirmed_fit,null);assert.equal(facts[0].field,'shopping_history');
+});
+
+test('merchant spellings of the same store link, deduplicate and group; different stores stay apart',async()=>{
+ assert.equal(merchantKey('MFPEN Retail ApS'),'mfpen');assert.equal(merchantKey('mfpen.com'),'mfpen');assert.equal(merchantKey('Nordstrom Inc.'),merchantKey('Nordstrom.com'));assert.notEqual(merchantKey('Acne Studios AB'),merchantKey('Studio Nicholson'));
+ const legal={...source,text:'MFPEN Retail ApS Order O1 Jeans Blue 31 quantity 1 purchased'},short={...source,id:'m2',text:'MFPEN Order O1 Jeans Blue 31 purchased returned'};
+ // The brand's own store: the brand is quoted from the legal entity name.
+ const bought=reconcileReceipt(emptyReceiptState('owner'),legal,{events:[receipt({merchant:{value:'MFPEN Retail ApS',quote:'MFPEN Retail ApS'},brand:{value:'MFPEN',quote:'MFPEN Retail ApS'}})]}).state;
+ assert.equal(bought.items[0].brand,'MFPEN');
+ const again=reconcileReceipt(bought,short,{events:[receipt({merchant:fact('MFPEN'),brand:fact('MFPEN')})]}).state;assert.equal(again.items.length,1);
+ const returned=reconcileReceipt(bought,short,{events:[receipt({kind:'returned',merchant:fact('MFPEN'),brand:fact(null)})]});assert.equal(returned.pending.length,1);
+ assert.equal(projectReceiptState(relinkPending(returned.state,returned.pending).state).items[0].outcome.value,'returned');
+ assert.equal(reconcileReceipt(bought,short,{events:[receipt({kind:'returned',existing_item_id:bought.items[0].id,merchant:fact('MFPEN')})]}).state.items[0].source_events.length,2);
+ assert.throws(()=>reconcileReceipt(bought,{...short,text:short.text+' Other Shop'},{events:[receipt({kind:'returned',existing_item_id:bought.items[0].id,merchant:fact('Other Shop')})]}));
+ const {purchaseSummary}=await import('../lib/evidence.js');
+ let mixed=reconcileReceipt(bought,{...legal,id:'m3',text:'mfpen.com Order O2 Shirt purchased'},{events:[receipt({merchant:fact('mfpen.com'),order_reference:fact('O2'),product:fact('Shirt'),brand:fact(null),color:fact(null),size_label:fact(null),quantity:fact(null)})]}).state;
+ for(const item of mixed.items)mixed=applyReceiptFeedback(mixed,{id:'self-'+item.id,owner_id:'owner',source:'chat_answer',at:'2026-10-12',item_ids:[item.id],action:'set_recipient',value:'self'});
+ assert.deepEqual(purchaseSummary(mixed).top_merchants.map(m=>[m.name,m.count]),[['mfpen.com',2]]);
 });

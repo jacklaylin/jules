@@ -1,6 +1,9 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {generateReply} from '../lib/ai.js';
+import {generateReply as agentReply} from '../lib/ai.js';
+import {withConsent} from './helpers/agent.js';
+// These tests cover tool routing; the consent check approves (its own tests are in agent.test.js).
+const generateReply=(messages,env,fetcher,memory)=>agentReply(messages,env,withConsent(fetcher),memory);
 import {textWishlistAction} from '../lib/text-wishlist.js';
 import {agentTurn,tool,agentContext,toolNames} from './helpers/agent.js';
 
@@ -96,4 +99,37 @@ test('alert status and cancel act only on the user’s own saved items and repor
   assert.match(await run('cancel',['someone-else']),/couldn’t find/);assert.deepEqual(disabled,[]);
   assert.match(await run('cancel',['boots']),/isn’t an active/);assert.deepEqual(disabled,[]);
   await run('cancel',['coat']);assert.deepEqual(disabled,['coat']);
+});
+
+test('when the agent calls both save and an alert, the alert runs (it includes the save)',async()=>{
+  const choice={stage:'choice',query:'Example Trail',options};let executed;
+  await generateReply([{direction:'inbound',body:'watch the ivory pair in EU 45'}],env,async()=>agentTurn(
+    tool('save_to_wishlist',{option_indices:[0],consent_context:'explicit_request'}),
+    tool('manage_price_alerts',{operation:'create',option_indices:[0],consent_context:'explicit_request',size_choices:[{option_index:0,size:'EU 45'}]})),
+    {facts,wishlistState:choice,wishlistAction:async intent=>{executed=intent;return 'ok';}});
+  assert.equal(executed.consent,'wishlist_alerts');assert.equal(executed.size_choices[0].size,'EU 45');
+});
+
+test('conflicting readings never persist: save alongside interest runs the interest only',async()=>{
+  const {chooseReplying}=await import('../lib/ai.js');
+  const save=tool('save_to_wishlist',{option_indices:[0,1]}),interest=tool('respond_to_options',{decision:'interest',option_indices:[0,1]});
+  const parse=c=>({name:c.name,args:JSON.parse(c.arguments)});
+  assert.equal(chooseReplying([save,interest].map(parse)).name,'respond_to_options');
+  assert.equal(chooseReplying([tool('conversation_reply',{response:'ok'}),save].map(parse)).name,'conversation_reply');
+  assert.equal(chooseReplying([save,tool('manage_price_alerts',{operation:'create'})].map(parse)).name,'manage_price_alerts');
+  let executed;
+  await generateReply([{direction:'inbound',body:'the ivory and black ones'}],env,async()=>agentTurn(save,interest),
+    {facts,wishlistState:{stage:'choice',query:'x',options},wishlistAction:async intent=>{executed=intent;return 'ok';}});
+  assert.equal(executed.decision,'interest');assert.equal(executed.consent,'none');
+});
+test('an independent consent check gates every save: a block makes the agent re-read, and a second block asks instead',async()=>{
+  const choice={stage:'choice',query:'x',options};let agentCalls=0,checks=0,saved=0;
+  const fetcher=async(_url,options)=>{
+    if(JSON.parse(options.body).text?.format?.name==='consent'){checks++;const input=JSON.parse(JSON.parse(options.body).input);assert.equal(input.newest_user_message,'yes');return {ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:'{"authorizes":false}'}]}]})};}
+    agentCalls++;return agentTurn(tool('save_to_wishlist',{option_indices:[0],consent_context:'explicit_request'}));};
+  const reply=await agentReply([{direction:'outbound',status:'sent',body:'Do you wear cropped hems?'},{direction:'inbound',body:'yes'}],env,fetcher,{facts,wishlistState:choice,wishlistAction:async()=>{saved++;return 'Saved';}});
+  assert.equal(saved,0);assert.equal(agentCalls,2);assert.equal(checks,2);assert.match(reply,/Should I save/);
+  // With the user's actual request, the check approves and the save runs.
+  saved=0;assert.equal(await agentReply([{direction:'inbound',body:'save the ivory pair'}],env,withConsent(async()=>agentTurn(tool('save_to_wishlist',{option_indices:[0]}))),{facts,wishlistState:choice,wishlistAction:async()=>{saved++;return 'Saved';}}),'Saved');
+  assert.equal(saved,1);
 });

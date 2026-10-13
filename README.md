@@ -190,11 +190,11 @@ NTesters give feedback about Jules in ordinary language (for example, starting a
 
 ETesters give feedback about Jules in ordinary language (for example, starting a message with “DM”). The agent interprets it and calls its `send_developer_feedback` tool; no prefix is matched. Jules saves the report and confirms receipt. Reports are excluded from later AI context and memory imports.
 
-STesters give feedback about Jules in ordinary language (for example, starting a message with “DM”). The agent interprets it and calls its `send_developer_feedback` tool; no prefix is matched. Jules saves the report and confirms receipt. Reports are excluded from later AI context and memory imports.
+Testers give feedback about Jules itself in ordinary words, for example `feedback for the developer: the replies are too long` or `DM the replies are too long`. No prefix or keyword is matched: like every message, it goes to the agent, which calls its `send_developer_feedback` tool when it interprets the message as feedback about Jules (bugs, reply quality, suggestions) rather than about products. Jules saves the agent's faithful copy of the feedback and replies `Feedback saved for the developer. Thank you.` Only that confirmation means a report was saved; if saving fails, Jules does not claim success. If the agent misreads a report as a shopping request, rephrase it more explicitly. Each message is a separate report, and the next ordinary message resumes shopping. Saved feedback is excluded from subsequent AI context and memory imports.
 
 STesters give feedback about Jules in ordinary language (for example, starting a message with “DM”). The agent interprets it and calls its `send_developer_feedback` tool; no prefix is matched. Jules saves the report and confirms receipt. Reports are excluded from later AI context and memory imports.
 
-.Testers give feedback about Jules in ordinary language (for example, starting a message with “DM”). The agent interprets it and calls its `send_developer_feedback` tool; no prefix is matched. Jules saves the report and confirms receipt. Reports are excluded from later AI context and memory imports.
+Acceptance: send a feedback message, confirm the acknowledgment and admin entry, then send an ordinary shopping message and confirm normal behavior. Live acceptance requires the migration and deployment.
 
 mTesters give feedback about Jules in ordinary language (for example, starting a message with “DM”). The agent interprets it and calls its `send_developer_feedback` tool; no prefix is matched. Jules saves the report and confirms receipt. Reports are excluded from later AI context and memory imports.
 

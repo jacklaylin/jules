@@ -71,3 +71,29 @@ Shopping observations include their purchase evidence date and recent/historical
 Receipt items, events and corrections no longer live in `gmail_imports`. Each validated receipt event and each correction is an immutable row in the shared `evidence` table (`db/019_evidence.sql`), written in the same transaction as the job update. Purchase history is rebuilt from those rows on read. `gmail_imports` keeps the token, consent, job progress, prepared source text and open questions. **Delete imported history** deletes all Gmail evidence and prunes any belief that relied only on it. Imports made before this change convert on their next write. Chat corrections now run through the agent's `update_purchase_history` skill instead of a separate pre-check. See [ARCHITECTURE.md](ARCHITECTURE.md).
 
 **Setup:** in Supabase → SQL Editor, run `db/019_evidence.sql` after `018_signup_login.sql`, then deploy the matching code right away. No credential is produced.
+
+## October 12 update: accuracy, speed and storage
+
+This section supersedes the earlier storage, changed-source and recipient statements above.
+
+- **Triage before download.** Each step reads Gmail metadata (sender, subject, short snippet) for the next 24 candidate emails and the model marks each one `extract` or `skip`. Only clearly irrelevant emails are skipped (marketing, account notices, non-apparel transactions). If triage fails or omits an email, that email is fully analyzed. Gmail's Purchases category is added to the broad discovery searches.
+- **Parallel analysis.** Up to 6 emails are downloaded and analyzed at once per step, then reconciled in order. A batch that fails entirely is treated as a provider outage: the step fails and the background worker retries it after 5, 10 and 20 seconds before pausing for the user. An individual email that fails twice while others succeed is skipped for this import only and counted in `job.quality.failed`.
+- **No email text is stored.** Prepared text is used only for analysis. Proof lives in the evidence quotes. Shopping emails keep small metadata (date, sender domain, fingerprint, warnings) for related-order search and change detection. Every other email keeps only its Gmail id in `scanned_ids`, so later imports never fetch it again. Changed sources keep only id, fingerprint and date. Older imports are compacted on their next write. No Gmail email is deleted; access remains read-only.
+- **Less duplicated text.** A plain-text body is dropped when an equivalent HTML body exists, leaving more of the 60k budget for tables and PDFs.
+- **More tolerant validation.** Quotes are compared after collapsing whitespace and table separators. A field whose quote cannot be verified becomes unknown instead of discarding the whole event; withheld fields are counted in `job.quality.withheld_fields`.
+- **Purchases without order numbers.** A purchase with merchant and product but no labeled order reference becomes an item scoped to its email. Later returns cannot link to it by order reference, and the duplicate question can merge it if needed.
+- **Receipt-stated recipients (founder-approved October 12, 2026).** The model reports a recipient only with a quote: `self` when the ship-to, bill-to or pickup name matches the person the email addresses; `other` for explicit gifts or a clearly different ship-to person. A receipt-stated `self` purchase now contributes soft shopping observations (`recipient_basis: receipt_evidence`); the page shows "likely for you". User answers always override it, conflicting receipts stay unknown, and it never establishes fit, ownership, favorites or a size default.
+- **Observability.** `gmail_imports.data.job.quality` records triage extract/skip counts, withheld fields and events, failed emails and unanalyzed emails with warnings.
+
+### Measuring accuracy (`scripts/receipt-eval.js`)
+
+Automated tests use synthetic emails and do not establish real-world accuracy. To measure it:
+
+1. **Label emails in Gmail.** Create a Gmail label named `jules-eval` and apply it to about 50 emails: clothing/accessory receipts, returns, gifts, shipping notices, and some non-clothing receipts and newsletters. No credential is produced.
+2. **Prepare a private environment file** outside the repository (for example `~/jules-private/eval.env`) containing `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `GMAIL_TOKEN_KEY`, `GOOGLE_GMAIL_CLIENT_ID`, `GOOGLE_GMAIL_CLIENT_SECRET` and `SITE_ORIGIN`, copied from Vercel/Google/your secure backup. Never commit it or paste it into chat.
+3. **Create the label file:** `EVAL_CONVERSATION_ID=<your conversation id> node --env-file="$HOME/jules-private/eval.env" scripts/receipt-eval.js template "$HOME/jules-private/receipt-labels.json"`. Fill in each email's `expected` events by hand.
+4. **Run an import** from `/onboarding`, then **score it:** the same command with `score` instead of `template`. It reports event recall and precision, per-field accuracy, recipient accuracy, and each missed email with the stage that missed it (search, triage/no extraction, or event extraction).
+
+### Merchant and brand names
+
+Linking events across emails, deduplicating items and grouping merchants/brands in the purchase summary compare a normalized name: case, accents, punctuation, web suffixes, legal-entity suffixes (ApS, Inc, Ltd, GmbH, AB…) and storefront words (Retail, Store, Shop, Online, Official) are ignored, so "MFPEN Retail ApS", "MFPEN" and "mfpen.com" are one merchant. Names that differ in substance stay separate ("H&M Hennes & Mauritz AB" and "H&M" are not merged); the stored merchant text is never rewritten. When a receipt comes from a brand's own store, extraction now records the brand from the legal entity or storefront name. Purchases imported before this change keep their stored fields; fix a missing brand by texting Jules a correction.

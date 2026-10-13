@@ -9,6 +9,7 @@ test('five-year plan starts with recent receipts and returns and reserves relate
  assert.match(job.search_plan[1].query,/refund/);assert.match(job.search_plan[0].query,/subject:receipt/);
  assert.equal(job.search_plan[4].name,'recent_backlog');assert.equal(job.search_plan[5].name,'older_receipts');
  assert.ok(job.search_plan.every(p=>!p.query?.includes('-category:promotions')));
+ assert.match(job.search_plan[3].query,/category:purchases/);assert.ok(!job.search_plan[0].query.includes('category:purchases'));
 });
 test('discovery pages interleave extraction, deduplicate across passes and enforce the total cap',()=>{
  const job=newImportJob(now);const page={messages:Array.from({length:50},(_,i)=>({id:'m'+i})),nextPageToken:'next'};

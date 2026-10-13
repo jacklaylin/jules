@@ -11,3 +11,5 @@ node_modules/
 .eval-local/
 .vercel
 .env*
+
+.claude/settings.local.json
