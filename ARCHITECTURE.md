@@ -135,7 +135,7 @@ Pre-evidence data: the migration backfills existing beliefs and `/style` observa
 - **The replay grader (`lib/replay.js`) still scores replies with phrase checks.** It grades test output; it does not route messages. `REPLAY-SUITE.md` already flags replacing it with structured grading.
 - **Output safety filters use word lists** (commerce claims in search reasons, body comments in style copy). They check what Jules writes, not what the user means.
 - **`messages` mixes transcript and workflow** (`search_result`, `wishlist_payload`). Acceptable at this scale.
-- **Live model behavior needs regular checks.** Unit tests mock the model's tool choice. The routing eval (`lib/agent-eval-cases.js`, 50 labeled turns, "Run routing eval" on `/replay.html`) scores the real model's tool and argument choices with tools stubbed; run it after any prompt or tool change. Replace synthetic cases with real turns over time (keep those private).
+- **Live model behavior needs regular checks.** Unit tests mock the model's tool choice. The routing eval (`lib/agent-eval-cases.js`, 50 labeled turns, "Run routing eval" on `/admin/replays`) scores the real model's tool and argument choices with tools stubbed; run it after any prompt or tool change. Replace synthetic cases with real turns over time (keep those private).
 - **Cost estimates use list prices** in `lib/usage.js`; update them when provider prices change.
 
 ## Deployment order

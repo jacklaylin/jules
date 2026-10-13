@@ -6,7 +6,7 @@ Roadmap update, October 7, 2026: **Milestone 7 (human fallback) is deprioritized
 
 Personal style / starter pack: `/style` adds private uploads, adaptive style cards, confirmation into taste memory, three tones, and story-image export. See [STYLE-MVP.md](STYLE-MVP.md) for the implementation, exact setup, verification, and pending live acceptance. Live at https://jules-gamma.vercel.app/style for invited testers. Production migration, sign-in redirect, and `STYLE_ENABLED` are configured.
 
-Owner identification testing without texting: open `/identification-test.html` after signing in at `/admin`. Upload one JPEG/PNG/WebP under 3 MB and enter the original request. Explicit provider-sharing approval is required; OpenAI and SerpApi credits are used. The endpoint runs the existing visual identification code and imports returned findings only into the owner email's existing wishlist membership. It does not send messages or mark replies as sent. Imported source records say “Identification test import”; they are excluded from AI conversation and taste-memory context. Refresh `/wishlist` to inspect results. Missing pieces are reported in the test result rather than populated with invented matches. Repeating the same completed operation repairs imports without rerunning search. An interrupted search stays visibly incomplete and requires a deliberate new test operation to search again. No new keys or migration are needed.
+Owner identification testing without texting: open **Photo identification** (`/admin/identify`) in the admin console. Upload one JPEG/PNG/WebP under 3 MB and enter the original request. Explicit provider-sharing approval is required; OpenAI and SerpApi credits are used. The endpoint runs the existing visual identification code and imports returned findings only into the owner email's existing wishlist membership. It does not send messages or mark replies as sent. Imported source records say “Identification test import”; they are excluded from AI conversation and taste-memory context. Refresh `/wishlist` to inspect results. Missing pieces are reported in the test result rather than populated with invented matches. Repeating the same completed operation repairs imports without rerunning search. An interrupted search stays visibly incomplete and requires a deliberate new test operation to search again. No new keys or migration are needed.
 
 Current interface: **Photon iMessage**, replacing the original Twilio SMS plan.
 Milestone 1 passed on October 5, 2026: the founder confirmed receiving the greeting.
@@ -26,7 +26,14 @@ conversation context. When disabled, only `hello` triggers the fixed greeting
 and other texts wait for the operator. Reactions, attachments, and group chats
 remain outside this milestone.
 
-`/admin` is a static HTML/CSS/JavaScript inbox. Server endpoints `/api/admin`
+`/admin` is the owner console: static HTML/CSS/JavaScript pages sharing one
+sign-in and a persistent tool menu (`public/admin-console.js`). People
+(`/admin`) is a read-only view of conversations, profiles and developer
+feedback; manual replies were retired on October 13, 2026. Test chat, Replays &
+evals, Search check, Photo identification and Costs live at
+`/admin/test-chat`, `/admin/replays`, `/admin/search`, `/admin/identify` and
+`/admin/costs`; the old page URLs redirect there. The owner's wishlist and
+style headers show an **Admin** link. Server endpoints `/api/admin`
 and `/api/session` handle private data and sign-in. Supabase sends an email
 sign-in link; the server verifies every bearer token with Supabase and only
 allows `ADMIN_EMAIL`. No custom accounts/passwords or frontend dependencies.

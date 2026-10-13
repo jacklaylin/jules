@@ -6,6 +6,43 @@
       "schedule": "0 13 * * *"
     }
   ],
+  "redirects": [
+    {
+      "source": "/simulator",
+      "destination": "/admin/test-chat",
+      "permanent": false
+    },
+    {
+      "source": "/simulator.html",
+      "destination": "/admin/test-chat",
+      "permanent": false
+    },
+    {
+      "source": "/replay.html",
+      "destination": "/admin/replays",
+      "permanent": false
+    },
+    {
+      "source": "/search-diagnostic.html",
+      "destination": "/admin/search",
+      "permanent": false
+    },
+    {
+      "source": "/identification-test.html",
+      "destination": "/admin/identify",
+      "permanent": false
+    },
+    {
+      "source": "/costs.html",
+      "destination": "/admin/costs",
+      "permanent": false
+    },
+    {
+      "source": "/admin.html",
+      "destination": "/admin",
+      "permanent": false
+    }
+  ],
   "rewrites": [
     {
       "source": "/onboarding/connect",
@@ -36,16 +73,32 @@
       "destination": "/login.html"
     },
     {
-      "source": "/simulator",
-      "destination": "/simulator.html"
-    },
-    {
       "source": "/style",
       "destination": "/style.html"
     },
     {
       "source": "/admin",
       "destination": "/admin.html"
+    },
+    {
+      "source": "/admin/test-chat",
+      "destination": "/simulator.html"
+    },
+    {
+      "source": "/admin/replays",
+      "destination": "/replay.html"
+    },
+    {
+      "source": "/admin/search",
+      "destination": "/search-diagnostic.html"
+    },
+    {
+      "source": "/admin/identify",
+      "destination": "/identification-test.html"
+    },
+    {
+      "source": "/admin/costs",
+      "destination": "/costs.html"
     },
     {
       "source": "/wishlist",

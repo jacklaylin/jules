@@ -1,9 +1,6 @@
-import {mountHeader,enableTestChat} from './design-system.js';
-import {createSession} from './wishlist-session.js';
-import {trackedFetch} from './activity.js';
+import {mountAdminShell,adminFetch} from './admin-console.js';
 import {readSimulatorResponse} from './simulator-response.js';
-mountHeader('simulator');
-const session=createSession({storage:localStorage,lock:work=>navigator.locks?navigator.locks.request('jules-wishlist-refresh',work):work()});
+mountAdminShell('test-chat');
 const $=id=>document.getElementById(id);
 let snapshot,turns=[],busy=false,imageURLs=[],seenMessages=new Set();
 try{const saved=JSON.parse(sessionStorage.getItem('jules_simulator')??'null');if(saved?.snapshot){snapshot=saved.snapshot;turns=saved.turns??[];}}catch{}
@@ -44,10 +41,8 @@ $('composer').onsubmit=async event=>{
   $('status').textContent='Jules is thinking…';const typing=document.createElement('div');typing.className='chat-typing';typing.setAttribute('aria-label','Jules is working');typing.innerHTML='<span class="bubble typing" aria-hidden="true"><i></i><i></i><i></i></span>';$('chat').append(typing);$('chat').scrollTop=$('chat').scrollHeight;
   try{
     if(file&&file.size>1000000)throw Error('Use an image under 1 MB.');
-    const token=await session.token()||sessionStorage.getItem('jules_wishlist_token')||sessionStorage.getItem('jules_token');
-    if(!token)throw Error('Sign in through your wishlist first, then return here.');
     const input={text,snapshot,failure:$('failure').value,...(file?{image:await readFile(file)}:{})};
-    const response=await trackedFetch('/api/chat-simulator',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify(input)},'Jules is thinking');
+    const response=await adminFetch('/api/chat-simulator',{method:'POST',body:JSON.stringify(input)});
     const result=await readSimulatorResponse(response,{turn:true});
     snapshot=result.snapshot;turns.push({...result,snapshot:undefined,input:{text,failure:input.failure}});render();
     if($('message').value===text){$('message').value='';$('message').style.height='';}
@@ -64,6 +59,5 @@ $('message').oninput=()=>{$('message').style.height='auto';$('message').style.he
 $('message').onkeydown=event=>{if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();$('composer').requestSubmit();}};
 $('download').onclick=()=>{const link=document.createElement('a'),url=URL.createObjectURL(new Blob([JSON.stringify({kind:'jules-chat-simulator',created_at:new Date().toISOString(),snapshot,turns},null,2)],{type:'application/json'}));link.href=url;link.download='jules-chat-simulator.json';link.click();URL.revokeObjectURL(url);};
 $('import').onchange=async()=>{try{const file=$('import').files[0];if(!file||file.size>4000000)throw Error('Use a simulator report under 4 MB.');const report=JSON.parse(await file.text());if(report.kind!=='jules-chat-simulator'||!Array.isArray(report.snapshot?.messages)||!Array.isArray(report.turns))throw Error('Use a report exported by this simulator.');snapshot=report.snapshot;turns=report.turns;render();preserve();$('status').textContent='Conversation resumed. Send a follow-up to run the real logic again.';}catch(error){$('status').textContent=error.message;}};
-$('logout').onclick=async()=>{try{const token=await session.token();const response=await trackedFetch('/api/wishlist',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({action:'logout'})});if(!response.ok)throw Error('Could not log out. Try again.');session.clear();sessionStorage.removeItem('jules_wishlist_token');sessionStorage.removeItem('jules_token');sessionStorage.removeItem('jules_simulator');location.href='/wishlist';}catch(error){$('status').textContent=error.message;}};
-session.token().then(async token=>{if(token){void enableTestChat(token);$('logout').hidden=false;const response=await trackedFetch('/api/chat-simulator',{headers:{Authorization:'Bearer '+token}},'Loading your wishlist');const data=await readSimulatorResponse(response);snapshot??={messages:[],profile:{facts:[],version:0},items:[],alerts:[],images:[]};snapshot.wishlist_live=data.items;render();}else{$('status').textContent='Sign in through your wishlist, then return to Test chat.';}}).catch(error=>{$('status').textContent=error.message;});
+adminFetch('/api/chat-simulator').then(async response=>{const data=await readSimulatorResponse(response);snapshot??={messages:[],profile:{facts:[],version:0},items:[],alerts:[],images:[]};snapshot.wishlist_live=data.items;render();}).catch(error=>{$('status').textContent=error.message;});
 render();
