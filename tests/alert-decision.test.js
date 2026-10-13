@@ -190,3 +190,49 @@ test('chat status reports the persisted monitoring state without overstating it'
  assert.match(watching,/Watching 2 stores; reference price \$100\.00 at barbour\.com\. Your size was sold out\./);
  assert.match(watching,/nordstrom\.com listed it for \$60\.00, but I couldn’t confirm its shipping/);
 });
+
+test('a store search that cannot run records why and waits a day before retrying',async()=>{
+ const alert={id,name:'Quilted vest',size:'M',links:[{url:home,name:'Quilted vest'}]};
+ assert.equal((await discoverAlertLinks(alert,[],{env:{},sizes:['M']})).reason,'not_configured');
+ const failing=async()=>new Response(JSON.stringify({error:'Invalid API key'}),{status:401});
+ assert.equal((await discoverAlertLinks(alert,[],{env:{...env,SERPAPI_API_KEY:'discovery-fail'},fetcher:failing,sizes:['M']})).reason,'search_failed');
+ const now=Date.parse('2026-10-13T12:00:00Z');
+ const recent={links:[{url:home}],last_result:{discovery:{status:'unavailable',reason:'search_failed',attempted_at:'2026-10-13T00:00:00Z'}}};
+ assert.equal(discoveryDue(recent,{now}),false);assert.equal(discoveryDue(recent,{now,recovery:true}),false);
+ assert.equal(discoveryDue(recent,{now:now+864e5}),true);
+});
+
+test('scheduled checks persist the discovery outcome and chat status explains a failed search',async()=>{
+ const alert=alertWith({links:[{url:home}]});const store=cronStore(alert);
+ const handler=createPriceChecksHandler({env:cronEnv,storeFactory:()=>store,inspect:async()=>({checks:checks(offer(100))}),discover:async()=>({status:'unavailable',reason:'not_configured',links:[],checks:[]}),send:async()=>{}});
+ await handler(cronReq,response());
+ const result=store.records.at(-1).result;
+ assert.equal(result.discovery.status,'unavailable');assert.equal(result.discovery.reason,'not_configured');assert.ok(result.discovery.attempted_at);assert.equal(result.discovered_at,undefined);
+ const {alertState}=await import('../lib/inbox.js');
+ assert.match(alertState({...alert,last_result:result,last_checked_at:new Date().toISOString()}),/couldn’t search for other stores/);
+});
+
+test('duplicate store links collapse to one page while keeping evidence and distinct variants',async()=>{
+ const {uniqueAlertLinks}=await import('../lib/alert-links.js');
+ const links=uniqueAlertLinks([
+  {url:'https://www.barbour.com/us/jacket-MWX1.html',requested_sizes:['L']},
+  {url:'https://barbour.com/jacket-MWX1.html?utm_source=x',requested_sizes:['UK L']},
+  {url:'https://www.barbour.com/jacket-MWX1.html?color=olive'},
+  {url:'https://deeceestyle.ch/jacket'},
+ ]);
+ assert.equal(links.length,3);assert.deepEqual(links[0].requested_sizes,['L','UK L']);assert.equal(links[0].url,'https://www.barbour.com/us/jacket-MWX1.html');
+ // The scheduler saves the de-duplicated list.
+ const alert=alertWith({links:[{url:home},{url:home+'?utm_campaign=sale'},{url:other}]});const store=cronStore(alert);
+ await createPriceChecksHandler({env:cronEnv,storeFactory:()=>store,inspect:async links=>{assert.equal(links.length,2);return {checks:checks(offer(100))};},discover:async()=>({status:'unavailable',reason:'not_configured',links:[],checks:[]}),send:async()=>{}})(cronReq,response());
+ assert.deepEqual(store.records.at(-1).links.map(l=>l.url),[home,other]);
+});
+
+test('the owner rehearsal form lists only the designated test conversation’s alerts',async()=>{
+ const alert=alertWith({conversation_id:testConversation,last_result:{stock:'in_stock'}});const store=cronStore(alert);let asked;
+ store.priceAlerts=async conversation=>{asked=conversation;return [alert];};
+ const {req,admin}=post({action:'list'});const res=response();
+ await createPriceChecksHandler({env:{PRICE_ALERT_TEST_CONVERSATION_ID:testConversation},storeFactory:()=>store,admin})(req,res);
+ assert.equal(asked,testConversation);assert.equal(res.body.alerts[0].id,id);assert.deepEqual(res.body.alerts[0].links,[home,other]);assert.equal(res.body.alerts[0].stock,'in_stock');
+ const missing=response();const second=post({action:'list'});
+ await createPriceChecksHandler({env:{},storeFactory:()=>store,admin:second.admin})(second.req,missing);assert.equal(missing.statusCode,503);
+});
