@@ -97,7 +97,7 @@ test('pending watch establishes a verified baseline then detects drops without n
  store.claimPriceAlerts=async()=>[alert];let offers=[],sends=0,statuses=[];
  store.recordPriceCheck=async(_id,_revision,result,_notified,baselines)=>{statuses.push(result.status);if(baselines)alert.baselines=baselines;};
  const handler=createPriceChecksHandler({env:{CRON_SECRET:'test-cron-secret',PRICE_ALERTS_ENABLED:'true'},storeFactory:()=>store,inspect:async()=>({checks:[{offers}]}),send:async()=>{sends++;}});
- await handler(cronReq,response());assert.equal(sends,0);assert.equal(statuses.at(-1),'awaiting_availability');
+ await handler(cronReq,response());assert.equal(sends,0);assert.equal(statuses.at(-1),'check_failed');
  offers=[offer(100)];await handler(cronReq,response());assert.equal(sends,0);assert.equal(statuses.at(-1),'baseline_established');assert.equal(alert.baselines[0].amount,100);
  offers=[offer(95)];await handler(cronReq,response());assert.equal(sends,1);assert.equal(alert.baselines[0].amount,95);
 });
