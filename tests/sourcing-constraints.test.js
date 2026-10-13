@@ -67,3 +67,50 @@ test('a continued brand search keeps the brand while excluding what was already 
   const next=await run({action:'start',query:'Our Legacy wide-leg pleated khaki trousers, other options',search_plan:plan({continuation:true,required_brands:['Our Legacy'],exclude_option_indices:[0]})},[p('a','Our Legacy'),p('x','CMMN SWDN'),p('y','Our Legacy')],first.state);
   assert.deepEqual(next.state.options.map(o=>o.url),[p('y').url]);assert.ok(next.state.excluded_urls.includes(p('a').url));
 });
+
+// Fallback replies apply the same request scope as options, and keep in-scope partial results.
+const u=(id,brand,{match='likely_match',name='Pleated chino '+id}={})=>({brand,name,url:'https://store.example/p/'+id,match,sourcing_status:'store_not_found',
+  identity_sources:[{url:'https://store.example/p/'+id}],listing_checks:[{status:'check_failed'}]});
+const bonus=(id,brand,match='similar')=>({...p(id,brand,{match}),role:'bonus'});
+test('an unverifiable in-brand match is shown honestly instead of reported as nothing found, in every mode',async()=>{
+  for(const mode of ['identify','discover']){
+    const {reply,state,recorded}=await run(start({mode,required_brands:['Our Legacy']}),[u('a','Our Legacy'),u('b','CMMN SWDN'),bonus('c','The Row')]);
+    assert.match(reply,/haven’t verified/,mode);assert.match(reply,/store\.example\/p\/a/,mode);
+    assert.doesNotMatch(reply,/p\/b|products\/c|Bonus|I found this option|couldn’t find a verified/,mode);
+    assert.notEqual(state.stage,'choice');assert.deepEqual(recorded.text_wishlist_diagnostics.unverified_shown,[u('a').url]);
+  }
+});
+test('an out-of-scope verified extra is never presented as the found item',async()=>{
+  // Identify mode: a verified similar extra from the right brand is not the requested item.
+  const branded=await run(start({mode:'identify',required_brands:['Our Legacy']}),[bonus('c','Our Legacy'),u('b','CMMN SWDN')]);
+  assert.match(branded.reply,/Our Legacy/);assert.match(branded.reply,/similar brands/);assert.doesNotMatch(branded.reply,/https?:|Bonus/);
+  const open=await run(start({mode:'identify'}),[bonus('c','Our Legacy'),p('d','Our Legacy',{match:'similar'})]);
+  assert.doesNotMatch(open.reply,/https?:|Bonus|I found this option/);assert.match(open.reply,/couldn’t verify a match/);
+  // Previously shown or rejected candidates stay out of the fallback too.
+  const first=await run(start({mode:'identify'}),[p('a','Our Legacy')]);
+  const again=await run({action:'start',query:'Our Legacy pleated chino, others',search_plan:plan({mode:'identify',continuation:true,exclude_option_indices:[0]})},[{...u('a','Our Legacy'),url:p('a').url}],first.state);
+  assert.doesNotMatch(again.reply,/products\/a/);
+});
+test('a link the user just sent is offered first when verified and acknowledged when not',async()=>{
+  const link={...p('s','',{name:'Still Chino Trousers'}),reference_provenance:'user_link'};link.listing_check.product_brand=null;
+  const reference=extra=>({stage:'reference',supplied_links:[extra.url],options:[extra]});
+  for(const mode of ['identify','discover']){
+    const verified=await run(start({mode,required_brands:['Our Legacy']}),[p('a','Our Legacy'),p('b','Other')],reference(link));
+    assert.equal(verified.state.options[0].url,link.url,mode);assert.ok(verified.state.options.some(o=>o.url===p('a').url));
+    assert.doesNotMatch(verified.reply,/couldn’t open the page you sent/);
+    const blocked={...link,sourcing_status:'store_not_found',match:'unverified',listing_check:undefined};
+    const failed=await run(start({mode,required_brands:['Our Legacy']}),[p('a','Our Legacy')],reference(blocked));
+    assert.match(failed.reply,/^I couldn’t open the page you sent/,mode);assert.match(failed.reply,/products\/a/);
+    assert.deepEqual(failed.recorded.text_wishlist_diagnostics.supplied_links.map(s=>s.status),['unverified']);
+    const nothing=await run(start({mode,required_brands:['Our Legacy']}),[],reference(blocked));
+    assert.match(nothing.reply,/^I couldn’t open the page you sent/,mode);assert.match(nothing.reply,/similar brands/);
+  }
+  const sold={...link,listing_check:{...link.listing_check,availability:'OutOfStock'}};
+  const soldReply=await run(start({mode:'identify'}),[p('a','Our Legacy')],reference(sold));
+  assert.match(soldReply.reply,/sold out/);assert.notEqual(soldReply.state.options[0].url,link.url);
+});
+test('search replies never end with a technical verification footer, and extras never read as the found item',()=>{
+  const body=formatSearch({products:[p('a','A'),u('b','B'),u('c','C')]});
+  assert.match(body,/^I found this option\./);assert.doesNotMatch(body,/product-page checks|Other retrieved sources|p\/b/);
+  assert.doesNotMatch(formatSearch({products:[bonus('c','Our Legacy','likely_match')]}),/^I found this option/);
+});
