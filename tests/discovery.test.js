@@ -84,3 +84,18 @@ test('rejected discovery results trigger a bounded replacement search before ask
  let calls=0,result;const reply=await textWishlistAction({action:'start',query:'New black track jacket',search_plan:plan},{env:{},text:'find new options',record:async r=>{result=r;},search:async query=>{calls++;if(calls===2)assert.ok(query.includes(p('wrong').url));return {products:[p(calls===1?'wrong':'right')],refinement_attempted:true};},rank:async products=>products.filter(p=>p.name!=='Sneaker wrong')});
  assert.equal(calls,2);assert.ok(reply.includes(p('right').url));assert.ok(!reply.includes(p('wrong').url));assert.equal(result.text_wishlist_state.stage,'choice');
 });
+
+test('search before asking: real candidates shape the question and become selectable options, with no web search',async()=>{
+ let result;const found=[p('geobasket','Rick Owens'),p('ramones','Rick Owens')].map((x,i)=>({...x,listing_check:{...x.listing_check,color:['Black','Milk'][i]}}));
+ const args={action:'clarify_search',query:'Rick Owens sneakers seen today',search_plan:{...plan,mode:'identify'},response:'Were they high tops or low tops?'};
+ const body=await textWishlistAction(args,{env:{},record:async r=>{result=r;},search:()=>assert.fail('No web search to ask a question'),
+  candidates:async brief=>{assert.equal(brief,args.query);return found;},discriminate:async(_b,draft,products)=>{assert.equal(products.length,2);assert.equal(draft,args.response);return 'Was it the chunkier Geobasket or the lower Ramones?';}});
+ assert.match(body,/Geobasket or the lower Ramones/);assert.ok(body.includes(found[0].url));
+ assert.equal(result.text_wishlist_state.stage,'choice');assert.equal(result.text_wishlist_state.options.length,2);assert.equal(result.text_wishlist_state.search_plan.mode,'identify');assert.equal(result.user_confirmed,undefined);
+ // Candidate lookup failure keeps the agent's question and the brief.
+ await textWishlistAction(args,{env:{},record:async r=>{result=r;},candidates:async()=>{throw Error('down');},discriminate:()=>assert.fail()});
+ assert.equal(result.text_wishlist_state.stage,'search_clarification');assert.equal(result.text_wishlist_state.search_brief,args.query);
+ // Unverified candidates are never shown.
+ const unverified=await textWishlistAction(args,{env:{},record:async r=>{result=r;},candidates:async()=>[{...found[0],listing_check:{status:'check_failed'}}],discriminate:()=>assert.fail()});
+ assert.equal(unverified,args.response);
+});

@@ -39,3 +39,21 @@ $('run-saved').onclick=async()=>{
 };
 $('download').onclick=()=>{const url=URL.createObjectURL(new Blob([JSON.stringify({created_at:new Date().toISOString(),reports},null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='jules-private-replay-report.json';a.click();URL.revokeObjectURL(url);};
 try{cases=(await request({action:'replay_manifest'})).cases;for(const item of cases){const option=document.createElement('option');option.value=item.id;option.textContent=item.name;$('case').append(option);}$('status').textContent='Ready. Choose a case or run the suite.';}catch(error){$('status').textContent=error.message;}
+
+// Routing eval: one request per labeled case; results summarize accuracy by category.
+$('run-eval').onclick=async()=>{
+ $('run-eval').disabled=true;const results=[];
+ try{
+  const {cases:evalCases}=await request({action:'agent_eval_manifest'});
+  for(const [i,item] of evalCases.entries()){
+   $('eval-status').textContent=`Running ${i+1}/${evalCases.length}: ${item.id}…`;
+   try{results.push((await request({action:'agent_eval',case_id:item.id})).report);}
+   catch(error){results.push({id:item.id,category:item.category,passed:false,failures:['request_failed: '+error.message],tools:[]});}
+  }
+  const byCategory=Object.entries(results.reduce((m,r)=>{m[r.category]??=[0,0];m[r.category][0]+=r.passed?1:0;m[r.category][1]++;return m;},{}));
+  $('eval-status').textContent=`${results.filter(r=>r.passed).length}/${results.length} passed · `+byCategory.map(([c,[p,n]])=>`${c} ${p}/${n}`).join(' · ');
+  for(const r of results.filter(r=>!r.passed)){const article=document.createElement('article'),heading=document.createElement('h3'),body=document.createElement('pre');
+   heading.textContent=`FAIL · routing · ${r.id}`;body.textContent=[...r.failures,'chose: '+JSON.stringify(r.tools)].join('\n');article.append(heading,body);$('results').append(article);}
+  reports.push({id:'agent_routing_eval',created_at:new Date().toISOString(),results});$('download').disabled=false;
+ }catch(error){$('eval-status').textContent=error.message;}finally{$('run-eval').disabled=false;}
+};

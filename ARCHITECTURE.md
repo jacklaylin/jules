@@ -60,6 +60,20 @@ Every message goes to one agent (`generateReply` in `lib/ai.js`): one model call
 
 Structured arguments replace wording rules: the agent passes `department` (men/women/unisex/unspecified) and `for_someone_else` with each search, so code never parses "for my wife" or "women's" out of text. Consent for saves and alerts is checked in code against the actual offer and options (`invalidOfferConsent`, `selectionOutcome`). Previously there were four separate model calls or routers per message (onboarding, purchase-history check, memory extraction, then one of two interpreters); now there is one.
 
+## Product search: which source runs when
+
+Cheapest reliable source first; the model-driven web search (`gpt-4.1` + web search, the most expensive and slowest step) is the fallback.
+
+| Request | First | Fallback |
+|---|---|---|
+| Photo or screenshot | Google Lens via SerpApi (`VISUAL_SEARCH_ENABLED=true` in production) | Web search with the image |
+| Named product or identifiable brief | SerpApi Google results + our own page checks (no model call) | Web search when nothing verifies |
+| Open discovery ("understated white sneakers, any brand") | Web search (needs breadth) | SerpApi recovery |
+| Identification from context ("the jacket Connor Storrie wore") | Structured lookup usually finds nothing, then web search | |
+
+- **Variants:** the expensive "find variants" web search runs only when the agent sets `show_variants` (the user named a model without its version, or asked which versions exist). Color options listed on the retailer's own page are always read; that costs no model call.
+- **Search before asking:** when the agent decides a question is needed, the executor first runs the structured lookup. With verified candidates, a small model call writes the one question that best separates them, and the candidates are shown as selectable options ("Could it be one of these?"). With none, the agent's question is asked as is.
+
 ## Data stores
 
 ### Proof and beliefs
@@ -70,6 +84,8 @@ Structured arguments replace wording rules: the agent passes `department` (men/w
 | `taste_profiles.facts` | Beliefs about the user: `field, key, value, basis, evidence_ids` (≤150). `basis` is `stated`, `confirmed` or `inferred`. Clothing range (`men`/`women`/`unisex`) and gender (`man`/`woman`/`non-binary`/`prefer-not-to-say`) use fixed values that code compares directly. | What Jules believes about taste, sizes, budgets, brands, market. Used in every chat and search. | `update_profile`, operator, `/style` confirmation | Agent context, search ranking, market, `/style` context |
 
 How beliefs resolve: when two beliefs share a field and key, the stronger basis wins (stated > confirmed > inferred); within the same basis the more recent one wins, so a correction replaces what the user said before (`prevails` in `lib/memory.js`).
+
+How the agent sees purchase history: a compact summary (top brands, stores, purchased sizes, latest items) in its context and in search prompts, read from the cache without replaying evidence. Full per-item history is loaded only for discovery ranking.
 
 How beliefs follow evidence: `prune_unsupported_facts` runs whenever evidence is deleted. It drops citations that no longer exist and removes a belief left with none. A belief supported by both Gmail and chat evidence survives deleting Gmail history, with only its chat citation. Receipt-derived shopping history is never stored as a belief; it is recomputed from evidence on every read, so corrections take effect immediately.
 
@@ -86,7 +102,8 @@ How beliefs follow evidence: `prune_unsupported_facts` runs whenever evidence is
 
 | Store | Purpose |
 |---|---|
-| `gmail_imports` (row) | OAuth token (encrypted), consent version, import job progress, open questions (`data.questions`), lease/revision lock. Receipt items are no longer stored here. |
+| `gmail_imports` (row) | OAuth token (encrypted), consent version, import job progress, open questions (`data.questions`), lease/revision lock, and `history_summary`: a cache of the purchase-history view refreshed on every write. Receipt items are not stored here. |
+| `usage_events` (+ `usage_by_user_day` view) | One row per OpenAI or SerpApi call, attributed to the user action (chat message, Gmail step, style reading) and the agent tool chosen, with tokens, web-search calls and an estimated cost (`lib/usage.js`). The basis for per-user cost and eventual billing; provider invoices remain authoritative. |
 | `style_sessions` | `/style` notes, tone, current report (cards plus references to observation evidence), analysis lock. |
 | `onboarding_sessions` | Onboarding step per invited user. |
 | `wishlist_items`, `wishlist_encounters`, `wishlist_entry_metadata` (view) | What the user saved and where each save came from. |
@@ -118,10 +135,10 @@ Pre-evidence data: the migration backfills existing beliefs and `/style` observa
 - **The replay grader (`lib/replay.js`) still scores replies with phrase checks.** It grades test output; it does not route messages. `REPLAY-SUITE.md` already flags replacing it with structured grading.
 - **Output safety filters use word lists** (commerce claims in search reasons, body comments in style copy). They check what Jules writes, not what the user means.
 - **`messages` mixes transcript and workflow** (`search_result`, `wishlist_payload`). Acceptable at this scale.
-- **Live model behavior is untested.** Unit tests mock the model's tool choice; the replay suite must run against the real model before this reaches testers.
+- **Live model behavior needs regular checks.** Unit tests mock the model's tool choice. The routing eval (`lib/agent-eval-cases.js`, 50 labeled turns, "Run routing eval" on `/replay.html`) scores the real model's tool and argument choices with tools stubbed; run it after any prompt or tool change. Replace synthetic cases with real turns over time (keep those private).
+- **Cost estimates use list prices** in `lib/usage.js`; update them when provider prices change.
 
 ## Deployment order
 
-1. Run `db/019_evidence.sql` in Supabase. It first copies `taste_profiles`, `style_sessions` and `gmail_imports` (without tokens) into private `_backup_019_*` tables, then converts.
-2. Deploy the matching code right away. Until then, transitional versions of the two old database functions keep Gmail progress and `/style` writes working for the previous deployment; chat preferences fail to save (logged, not fatal).
-3. After the release is verified, drop the transitional `finish_gmail_import(uuid,integer,jsonb,text)` and `write_style(uuid,integer,jsonb,jsonb,uuid,jsonb)` functions and the `_backup_019_*` tables in a follow-up migration.
+- `db/019_evidence.sql`: applied October 12, 2026. `db/020_drop_evidence_transition.sql` removes the transitional functions and backups once the release is verified.
+- `db/021_usage_events.sql`: run before relying on cost data. Until then usage writes fail quietly (logged as `usage_record_failed`) and nothing else is affected.

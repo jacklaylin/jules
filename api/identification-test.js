@@ -1,4 +1,5 @@
 import { REPLAY_CASES, runReplay } from '../lib/replay.js';
+import { AGENT_EVAL_CASES, runAgentEval } from '../lib/agent-eval.js';
 import { textWishlistAction } from '../lib/text-wishlist.js';
 import { searchProducts } from '../lib/search.js';
 import { createHash } from 'node:crypto';
@@ -10,7 +11,7 @@ import { imageType, MAX_IMAGE_BYTES } from '../lib/images.js';
 import { json, readJson, uuid } from '../lib/http.js';
 
 export const config = { api: { bodyParser: false }, maxDuration: 120 };
-export function createIdentificationTestHandler({env=process.env,auth=authorize,storeFactory=createStore,search=visualSearchProducts,textSearch=searchProducts,prepare=wishlistProducts,replay=runReplay}={}) {
+export function createIdentificationTestHandler({env=process.env,auth=authorize,storeFactory=createStore,search=visualSearchProducts,textSearch=searchProducts,prepare=wishlistProducts,replay=runReplay,evalAgent=runAgentEval}={}) {
   return async (req,res) => {
     let stage='authorization';
     try {
@@ -20,6 +21,12 @@ export function createIdentificationTestHandler({env=process.env,auth=authorize,
       if(env.WISHLIST_ENABLED!=='true'||!env.OPENAI_API_KEY||!env.SERPAPI_API_KEY)return json(res,503,{error:'Identification and wishlist must be configured.'});
       const input=await readJson(req,4300000);
       if(input.action==='replay_manifest')return json(res,200,{cases:REPLAY_CASES.map(({id,name,message})=>({id,name,message}))});
+      if(input.action==='agent_eval_manifest')return json(res,200,{cases:AGENT_EVAL_CASES.map(({id,category})=>({id,category}))});
+      if(input.action==='agent_eval'){
+        const test=AGENT_EVAL_CASES.find(c=>c.id===input.case_id);
+        if(!test)return json(res,404,{error:'Unknown eval case.'});
+        return json(res,200,{report:await evalAgent(test,env)});
+      }
       if(input.action==='replay'){
         let test=REPLAY_CASES.find(c=>c.id===input.case_id);
         if(input.case_id==='latest_failure'){

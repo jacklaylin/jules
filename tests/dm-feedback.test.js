@@ -44,8 +44,14 @@ test('invalid consent interpretation remains bounded and cannot authorize a save
 test('variant research preserves exact product identity and does not restart consent',async()=>{
  const primary={brand:'LEMAIRE',name:'Piped Crepe Slipper Loafers',url:'https://www.ssense.com/en-us/men/product/lemaire/black-piped-crepe-slipper-loafers/19440991',match:'likely_match',sourcing_status:'store_found',listing_check:{status:'verified',product_name:'Piped Crepe Slipper Loafers',color:'Black'}};
  let calls=0,result;
- await textWishlistAction({action:'start',query:'Lemaire loafers with the seam up the middle'},{env:{},record:async r=>{result=r;},search:async()=>{calls++;return {products:calls===1?[primary]:[{...primary,url:primary.url+'/brown',listing_check:{...primary.listing_check,color:'Brown'}},{...primary,name:'Leather boots',url:primary.url+'/boots',listing_check:{status:'verified',product_name:'Leather boots'}}]};}});
+ await textWishlistAction({action:'start',query:'Lemaire loafers with the seam up the middle',show_variants:true},{env:{},record:async r=>{result=r;},search:async()=>{calls++;return {products:calls===1?[primary]:[{...primary,url:primary.url+'/brown',listing_check:{...primary.listing_check,color:'Brown'}},{...primary,name:'Leather boots',url:primary.url+'/boots',listing_check:{status:'verified',product_name:'Leather boots'}}]};}});
  assert.equal(calls,2);assert.equal(result.text_wishlist_state.options.length,2);assert.deepEqual(result.text_wishlist_state.options.map(p=>p.listing_check.color),['Black','Brown']);assert.equal(result.user_confirmed,undefined);
+});
+test('without the agent asking for versions, a single match costs one search and no variant pass',async()=>{
+ const primary={brand:'LEMAIRE',name:'Piped Crepe Slipper Loafers',url:'https://www.ssense.com/en-us/men/product/lemaire/black-piped-crepe-slipper-loafers/19440991',match:'likely_match',sourcing_status:'store_found',listing_check:{status:'verified',product_name:'Piped Crepe Slipper Loafers',color:'Black'}};
+ let calls=0,result;
+ await textWishlistAction({action:'start',query:'Lemaire black piped crepe slipper loafers',show_variants:false},{env:{},record:async r=>{result=r;},search:async()=>{calls++;return {products:[primary]};}});
+ assert.equal(calls,1);assert.equal(result.text_wishlist_state.options.length,1);
 });
 const id='00000000-0000-4000-8000-000000000001';
 const req={method:'POST',url:'/api/wishlist',headers:{'content-type':'application/json'},async *[Symbol.asyncIterator](){yield Buffer.from(JSON.stringify({action:'recover-alerts'}));}};

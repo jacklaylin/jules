@@ -1,4 +1,5 @@
 import { createStore } from '../lib/store.js';
+import { withUsage } from '../lib/usage.js';
 import { wishlistUser } from '../lib/wishlist.js';
 import { json, readJson, uuid } from '../lib/http.js';
 import { ensureCoreCards, TONES, prepareSource, analyzeStyle, captionStylePhotos, confirmReport, reportFacts, confirmationEvidence, withObservationEvidence, hydrateReport, dehydrateReport, cropSource, fail } from '../lib/style.js';
@@ -70,7 +71,7 @@ export function createStyleHandler({env=process.env,storeFactory=createStore,aut
         reservation={revision:state.revision+1,data:state.data};
         const ids=new Set(state.data.report.analysis.crops.filter(c=>!c.full_caption||c.caption_version!==1).map(c=>c.source_id));
         const sources=await Promise.all([...ids].map(id=>store.styleSource(owner,id)));
-        const report=await caption(state.data.report,sources.filter(Boolean),env,fetcher);
+        const report=await withUsage({store,env,conversation:owner,operation:'style:captions:'+state.revision,feature:'style_reading'},()=>caption(state.data.report,sources.filter(Boolean),env,fetcher));
         const updated={...state.data,report,busy_until:null};
         if(!await save(reservation.revision,updated))throw fail('Your style read changed while checking captions. Reload to see it.',409);
         reservation=null;
@@ -105,7 +106,7 @@ export function createStyleHandler({env=process.env,storeFactory=createStore,aut
         reservation={revision:state.revision+1,data:state.data};
         const profile=env.MEMORY_ENABLED==='true'&&store.profile?await store.profile(owner):{facts:[]};
         const facts=(profile.facts??[]).filter(f=>!f.deleted&&f.source!=='style_report'&&['style','brand','category','budget','size'].includes(f.field)).map(({field,key,value})=>({field,key,value}));
-        const {report,evidence}=withObservationEvidence(await analyze(sources,state.data.notes,env,fetcher,facts));
+        const {report,evidence}=withObservationEvidence(await withUsage({store,env,conversation:owner,operation:'style:analyze:'+state.revision,feature:'style_reading',},()=>analyze(sources,state.data.notes,env,fetcher,facts)));
         const data={...state.data,report,busy_until:null};
         if(!await save(reservation.revision,data,{evidence}))throw fail('Your inputs changed during analysis. Reload to see the current version.',409);
         reservation=null;

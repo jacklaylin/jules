@@ -90,3 +90,23 @@ test('chat-stated beliefs cite the quoted message as evidence',()=>{
  assert.deepEqual(rows.map(r=>[r.id,r.kind,r.source.quote]),[[facts[0].evidence_ids[0],'chat_statement','I wear US men’s 10']]);
  assert.match(rows[0].id,/^chat:00000000-0000-4000-8000-000000000001:[0-9a-f]{32}$/);
 });
+
+test('purchase summary is compact, personal-only and cached on write; detail loads only on demand',async()=>{
+ const {purchaseSummary,purchaseHistory}=await import('../lib/evidence.js');
+ const imported=importEmails([['m1',[event(),event({order_reference:fact('O2'),product:fact('Shirt'),color:fact('White'),size_label:fact('M')})]]]);
+ const [jeans,shirt]=imported.state.items.map(i=>i.id);
+ let state=applyReceiptFeedback(imported.state,correction('self',[jeans],'set_recipient',{value:'self'}));
+ state=applyReceiptFeedback(state,correction('gift',[shirt],'set_recipient',{value:'other',label:'friend'}));
+ const summary=purchaseSummary(state);
+ assert.equal(summary.items,2);assert.equal(summary.personal_items,1);
+ assert.deepEqual(summary.top_brands.map(b=>[b.name,b.count]),[['Brand',1]]);assert.equal(summary.latest_items[0].product,'Jeans');
+ assert.ok(JSON.stringify(summary).length<2000);
+ // Every receipt write refreshes the cache.
+ const write=receiptWrite({},{...projectReceiptEvidence('owner',imported.rows),legacy:[]},state);
+ assert.equal(write.data.history_summary.personal_items,1);
+ // A cached summary is used without reading evidence; detail replays only when asked.
+ let reads=0;const store={gmailImport:async()=>({data:{history_summary:summary}}),evidence:async()=>{reads++;return [...imported.rows,correctionEvidence(correction('self',[jeans],'set_recipient',{value:'self'}))];}};
+ const history=await purchaseHistory(store,'owner');
+ assert.equal(history.summary.personal_items,1);assert.equal(reads,0);
+ assert.equal((await history.detail()).length,1);assert.equal(reads,1);
+});
