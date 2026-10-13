@@ -95,11 +95,11 @@ test('no-store replies separate identification sources, failed checks and useful
   assert.ok(body.includes(url));assert.match(body,/Identification source.*unverified/);assert.match(body,/another color or a similar item/);assert.doesNotMatch(body,/store I can recommend/);
  }
 });
-test('verified shopping options lead the reply while failed source checks stay separate',async()=>{
+test('verified shopping options lead the reply; failed source checks stay out of it',async()=>{
  const {formatSearch}=await import('../lib/search.js');
  const failed='https://www.ssense.com/product/unverified';
  const body=formatSearch({products:[{brand:'Example',name:'Jacket',url,sourcing_status:'store_found',reason:'',listing_check:{status:'verified',availability:'OutOfStock'}},{brand:'Example',name:'Jacket',url:failed,sourcing_status:'store_not_found',identity_sources:[{url:failed}]}]});
- assert.ok(body.includes(url));assert.ok(!body.includes(failed));assert.match(body,/Other retrieved sources/);assert.match(body,/another color or a similar item/);
+ assert.ok(body.includes(url));assert.ok(!body.includes(failed));assert.doesNotMatch(body,/Other retrieved sources|product-page checks/);assert.match(body,/another color or a similar item/);
 });
 
 test('blocked pages recover through a rendered browser and page-bound groups use sale prices rather than struck prices',async()=>{

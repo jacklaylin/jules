@@ -93,3 +93,18 @@ Three reports from one tester conversation. Findings:
 Evals added: brand-category, brand-other-options, brand-more-from-them, brand-widen, brand-as-taste, search-while-onboarding-offered, retry-after-empty-search.
 
 Triage cursor: 2026-10-13T04:08:40.91548+00:00
+
+## October 13 (later): out-of-scope fallback, hidden partial results and supplied links
+
+Two new reports from the same tester conversation as the earlier October 13 batch. Findings:
+
+- **Off-request item presented as the found item (trust).** When a brand search in identify mode verified nothing eligible, the text-wishlist fallback handed the raw search result to the generic formatter, which applies none of the request's scope rules. A verified "similar" extra outside the requested item was shown under a heading that claimed a found option. Same duplication class as the October 9 and earlier October 13 fixes: an eligibility rule enforced for options but not for a fallback list. Fix: every fallback uses the same scope (match type for the mode, required brand, already-shown/kept exclusions); the brand-widen offer now applies in identify mode too; the formatter's heading follows the displayed set and never calls an extra the found item.
+- **Real in-brand candidates reported as nothing found (blocked).** Retrieval had found in-brand likely matches, but their pages failed verification, and the reply said nothing verified existed. Fix: in-scope candidates whose pages could not be verified are shown as a partial result with price and stock explicitly unverified (the October 8 presentation), before offering to widen.
+- **A link the user sent was ignored (trust).** The agent ran a fresh search and the reply never mentioned the supplied link. Fix: in the sourcing turn, a verified supplied link is offered first (it bypasses brand/scope checks because the user identified it, but not the sold-out check); an unverifiable or sold-out one is acknowledged in the reply.
+- **Technical footer read as an error code (degraded, recurring).** The "other sources didn't pass checks" line from October 8 is removed; hidden unverified sources make no claim, and failed checks remain in diagnostics.
+- **Two texts after a failure (unknown).** The packet shows exactly one reply per inbound message (a feedback acknowledgement and a search reply for two rapid messages); no duplicate delivery is recorded. Not changed.
+- **Observability:** diagnostics now record each candidate's role, the supplied links' check status and which unverified candidates were shown.
+
+Evals added: link-after-empty-brand-search, link-this-is-the-one, link-save-after-miss.
+
+Triage cursor: 2026-10-13T16:36:01.094593+00:00
