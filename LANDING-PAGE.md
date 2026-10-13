@@ -2,9 +2,9 @@
 
 **October 9 update:** Invite-only outbound onboarding is now implemented behind `ONBOARDING_ENABLED`. Follow [ONBOARDING.md](ONBOARDING.md) for tester setup and acceptance checks. The consent-only behavior below remains the default when that flag is off.
 
-Implemented locally: `/` follows the supplied design brief with a pinned viewport and iMessage example that autoplays on load and hands playback to user scrolling, chapters, backward scrubbing, an accessible transcript, and reduced-motion behavior. `/signup` collects a number and explicit consent. `/login` uses the existing invited-email magic-link flow and takes signed-in users to the wishlist.
+Implemented locally: `/` follows the supplied design brief with a single-screen viewport and iMessage example that autoplays on load and ends with a Replay button, an accessible transcript, and reduced-motion behavior. Page scrolling does not drive the demo. `/signup` collects a number and explicit consent. `/login` uses the existing invited-email magic-link flow and takes signed-in users to the wishlist.
 
-The demo is an illustrative Satisfy x HOKA conversation: an inspiration photo (`public/demo-satisfy-hoka.jpg`), a tapback, retailer link previews with example prices, a cheaper non-collab option, and a price-alert confirmation. Prices and retailers are believable examples, not live listings; the page labels the transcript as illustrative. A Replay button appears when the conversation finishes. The device dimensions remain fixed throughout the timeline; only the message area scrolls.
+The demo is an illustrative Satisfy x HOKA Mafate Speed 4 Lite “Rubber” conversation: an inspiration photo (`public/demo-satisfy-hoka.jpg`), a tapback, eBay/GOAT/HOKA link previews (`public/demo-link-*.jpg`, product photos from those listings), the collab colorways, the non-collab model, and a price-alert confirmation. Prices were taken from real listings on October 12, 2026 and will drift; the page labels the transcript as illustrative. A Replay button appears when the conversation finishes. The device dimensions remain fixed throughout the timeline; only the message area scrolls.
 
 ## Enable the signup form
 
@@ -27,6 +27,6 @@ Public companion account creation is also separate: existing wishlist/style acce
 
 ## Verification
 
-Automated API tests cover consent, stale versions, phone formatting, origins, disabled configuration, failed persistence, rate limits, optional Messages links, and timeline states. Local browser checks cover desktop, 390px and 320px phones, forward/back scrubbing, reduced motion, and no horizontal overflow or JavaScript errors. Use synthetic fixtures for form success/failure and private pages; do not send real texts to verify the landing design.
+Automated API tests cover consent, stale versions, phone formatting, origins, disabled configuration, failed persistence, rate limits, optional Messages links, and timeline states. Local browser checks cover desktop, 390px and 320px phones, autoplay and Replay, reduced motion, and no horizontal overflow or JavaScript errors. Use synthetic fixtures for form success/failure and private pages; do not send real texts to verify the landing design.
 
 For the Photon confirmation, ask support: “For our iMessage personal-shopping agent, may we send one automated onboarding message after a user submits their mobile number and an unchecked consent checkbox on our website, without an inbound text first? What disclosure, number-verification, opt-out, and SMS-fallback requirements apply to our project?” Save the written response with launch documentation. No secret or new credential is produced by this step.
