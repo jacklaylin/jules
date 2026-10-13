@@ -75,7 +75,7 @@ function renderGmail(data){
  $('gmail-disconnect').hidden=!data.connected;
  const early=data.first_100,latest=data.yield;
  $('gmail-yield').textContent=early&&latest?`The first 100 emails found ${early.purchases} new purchase items. Later emails added ${Math.max(0,latest.purchases-early.purchases)} more.`:'';
- $('gmail-items').replaceChildren();for(const item of data.items){const li=document.createElement('li');li.textContent=[item.brand,item.product,item.merchant&&'from '+item.merchant,item.size_label&&'size '+item.size_label,item.color,item.quantity&&'quantity '+item.quantity,item.recipient.value==='self'?'for you':item.recipient.value==='other'?'for '+(item.recipient.label||'someone else'):'recipient unknown',item.outcome.value!=='unknown'?item.outcome.value:null].filter(Boolean).join(' · ');$('gmail-items').append(li);}
+ $('gmail-items').replaceChildren();for(const item of data.items){const li=document.createElement('li');li.textContent=[item.brand,item.product,item.merchant&&'from '+item.merchant,item.size_label&&'size '+item.size_label,item.color,item.quantity&&'quantity '+item.quantity,item.recipient.value==='self'?(item.recipient.basis==='receipt_evidence'?'likely for you':'for you'):item.recipient.value==='other'?(item.recipient.basis==='receipt_evidence'?'likely a gift':'for '+(item.recipient.label||'someone else')):'recipient unknown',item.outcome.value!=='unknown'?item.outcome.value:null].filter(Boolean).join(' · ');$('gmail-items').append(li);}
 }
 let poll;
 async function runImport(resume=false){
