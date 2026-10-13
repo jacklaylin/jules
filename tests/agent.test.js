@@ -97,3 +97,12 @@ test('alert status and cancel act only on the user’s own saved items and repor
   assert.match(await run('cancel',['boots']),/isn’t an active/);assert.deepEqual(disabled,[]);
   await run('cancel',['coat']);assert.deepEqual(disabled,['coat']);
 });
+
+test('when the agent calls both save and an alert, the alert runs (it includes the save)',async()=>{
+  const choice={stage:'choice',query:'Example Trail',options};let executed;
+  await generateReply([{direction:'inbound',body:'watch the ivory pair in EU 45'}],env,async()=>agentTurn(
+    tool('save_to_wishlist',{option_indices:[0],consent_context:'explicit_request'}),
+    tool('manage_price_alerts',{operation:'create',option_indices:[0],consent_context:'explicit_request',size_choices:[{option_index:0,size:'EU 45'}]})),
+    {facts,wishlistState:choice,wishlistAction:async intent=>{executed=intent;return 'ok';}});
+  assert.equal(executed.consent,'wishlist_alerts');assert.equal(executed.size_choices[0].size,'EU 45');
+});
