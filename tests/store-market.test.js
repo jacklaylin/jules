@@ -46,3 +46,8 @@ test('a confirmed store policy fills in shipping when the page is silent; unconf
   assert.equal(check.ships_to_shopper,true);assert.equal(check.shipping_evidence.basis,'store_policy');
   assert.equal(marketLabel(check,'US'),' · Japan store, ¥98,000, ships to the US, duties included');
 });
+test('click-tracking parameters are removed from links; product-defining parameters stay',async()=>{
+  const {publicURL}=await import('../lib/public-url.js');
+  assert.equal(publicURL('https://www.dtlr.com/products/asics-gel-kayano-14?srsltid=AU7gw4&utm_source=google&gclid=x'),'https://www.dtlr.com/products/asics-gel-kayano-14');
+  assert.equal(publicURL('https://shop.example/products/x?variant=123&srsltid=abc'),'https://shop.example/products/x?variant=123');
+});
