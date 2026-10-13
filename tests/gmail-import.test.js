@@ -189,6 +189,12 @@ test('legacy jobs retain their original history scope after the importer is upgr
  const result=publicImport({data:{consent:{version:'gmail-receipts-90d-v1'},job:{status:'extracting',ids:['old'],processed:[]}}});
  assert.equal(result.period_days,90);assert.equal(result.period_years,null);assert.equal(result.limit,200);assert.equal(result.consent_required,true);
 });
+test('an authorization initiated under the old consent cannot become a five-year import after deployment',async()=>{
+ const store=storage();await store.beginGmailOAuth('owner',digest('legacy-nonce'));
+ const handler=createGmailHandler({env,storeFactory:()=>store,auth,fetcher:()=>assert.fail('old consent cannot exchange or read Gmail')});
+ const res=await request(handler,{url:'/api/wishlist?gmail=callback&state=legacy-nonce&code=old-code',cookie:'__Host-jules-gmail-state=legacy-nonce'});
+ assert.equal(res.statusCode,403);assert.equal(store.row.token_ciphertext,null);
+});
 test('historical purchase observations stay available without becoming current ownership or a size default',()=>{
  let state=reconcileReceipt(emptyReceiptState('owner'),{...source,date:Date.parse('2022-01-01')},{events:[receipt()]}).state;
  state=applyReceiptFeedback(state,{id:'self',owner_id:'owner',source:'chat_answer',at:'2026-10-12',item_ids:[state.items[0].id],action:'set_recipient',value:'self'});
