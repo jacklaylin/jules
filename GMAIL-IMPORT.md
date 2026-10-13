@@ -106,3 +106,12 @@ Found in the founder's live import: it stopped at 82 of 83 emails with no error,
 - **Auto-resume.** If a running import has made no progress for 150 seconds and recorded no error, opening `/onboarding` resumes it. An import paused after repeated failures still waits for **Resume**. Nothing resumes an import while no page is open; a sweep would need a frequent cron.
 - **Versioned skips.** `scanned_ids` are valid only for `SCAN_VERSION`. When triage or extraction changes materially, bump it: emails judged irrelevant earlier, including ones the running job already passed, are read again. `job.quality.rescanned` counts them.
 - **Sender domain.** Taken from From, else Sender, Reply-To or Return-Path. A stored shopping email missing its domain is filled in when it is next seen, so related-order searches can use it.
+
+### October 13 follow-up: Vercel loop protection and rejected quotes
+
+The first live run after the fix above advanced three or four steps, then every hand-off failed instantly. No request reached Vercel. Vercel rejects a function that keeps calling its own URL ("508 Loop Detected") after a few hops, and the Hobby plan only allows daily crons.
+
+- **Fewer hops.** One background invocation now runs steps back to back for up to 150 seconds (`WORK_BUDGET_MS`; `api/wishlist.js` `maxDuration` is 300), then hands off once. A single start should cover hundreds of emails within the few hops Vercel allows. Dispatch failures now log the HTTP status.
+- **Faster recovery while the page is open.** Opening `/onboarding` resumes an import that has been quiet for 60 seconds with no lease (was 150). If the page is closed and the chain is stopped, the import waits until the page is next opened. A reliable unattended run needs a scheduler outside Vercel (for example Supabase `pg_cron`) or Vercel Pro.
+- **Quote tolerance.** Quote checks ignore typographic differences: curly/straight quotes, dashes, non-breaking and zero-width spaces, and compatibility forms. Letters and digits must still match. If the event's own quote fails but its product or order quote verifies, that verified quote becomes the evidence and `evidence` is listed in `withheld_fields`. An event with no verified quote is still withheld; `gmail_event_withheld` logs the reason without email content.
+- `SCAN_VERSION` is `2026-10-13b`, so emails whose purchases were rejected are read again.

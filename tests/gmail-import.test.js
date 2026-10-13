@@ -57,7 +57,7 @@ test('purchases deduplicate exact variants; return requests do not imply a refun
 });
 test('foreign targets, mismatched orders/sizes and fabricated fields cannot mutate history',()=>{
  const state=reconcileReceipt(emptyReceiptState('owner'),source,{events:[receipt()]}).state,id=state.items[0].id;
- for(const change of [{existing_item_id:'foreign'},{existing_item_id:id,size_label:fact('32')},{existing_item_id:id,order_reference:fact('O2')},{evidence:'invented'}])assert.throws(()=>reconcileReceipt(state,{...source,text:text+' 32 O2'},{events:[receipt(change)]}));assert.equal(state.items.length,1);
+ for(const change of [{existing_item_id:'foreign'},{existing_item_id:id,size_label:fact('32')},{existing_item_id:id,order_reference:fact('O2')},{evidence:'invented',product:fact('invented'),order_reference:fact('invented')}])assert.throws(()=>reconcileReceipt(state,{...source,text:text+' 32 O2'},{events:[receipt(change)]}));assert.equal(state.items.length,1);
  // An unverifiable detail is left unknown instead of being stored or discarding the purchase.
  const partial=reconcileReceipt(emptyReceiptState('owner'),source,{events:[receipt({brand:fact('invented'),color:{value:'Blue',quote:'Navy Blue'}})]});
  assert.equal(partial.state.items[0].brand,null);assert.equal(partial.state.items[0].color,null);assert.deepEqual(partial.records[0].withheld_fields,['brand','color']);
@@ -253,9 +253,17 @@ test('contact redaction preserves long receipt/order identities and omits raw cr
  const {redactReceiptText}=await import('../lib/receipt-email.js');const redacted=redactReceiptText('Order: 1234567890123456\nPhone: +1 555 123 4567\ncard: 4111 1111 1111 1111\npassword: secretvalue\nhttps://shop.example/login?token=private');
  assert.ok(redacted.includes('Order: 1234567890123456'));assert.ok(!redacted.includes('555'));assert.ok(!redacted.includes('4111'));assert.ok(!redacted.includes('secretvalue'));assert.ok(!redacted.includes('token=private'));
 });
+test('typographic quote differences still verify, and a verified product quote can stand in for a mismatched event quote',()=>{
+ const email={...source,text:'Order O1 \u2014 Men\u2019s \u201cRanger\u201d Boot\u00a0Size 10 purchased'};
+ const boot={kind:'purchased',existing_item_id:null,evidence:'Men\'s "Ranger" Boot Size 10',merchant:fact(null),order_reference:fact('O1'),product:{value:'Men\'s "Ranger" Boot',quote:'Men\'s "Ranger" Boot'},sku:fact(null),brand:fact(null),color:fact(null),size_label:fact('10'),size_system:fact(null),quantity:fact(null),units_per_pack:fact(null)};
+ let result=reconcileReceipt(emptyReceiptState('owner'),email,{events:[boot]});assert.equal(result.records[0].values.product,'Men\'s "Ranger" Boot');assert.equal(result.records[0].withheld_fields,undefined);
+ result=reconcileReceipt(emptyReceiptState('owner'),email,{events:[{...boot,evidence:'Bought the Ranger boot in size ten'}]});
+ assert.equal(result.records[0].evidence,'Men\'s "Ranger" Boot');assert.ok(result.records[0].withheld_fields.includes('evidence'));
+ assert.throws(()=>reconcileReceipt(emptyReceiptState('owner'),email,{events:[{...boot,evidence:'invented',product:fact('Loafer'),order_reference:fact('O9')}]}));
+});
 test('a malformed event is withheld without dropping supported purchase evidence from the same email',async()=>{
  const row={conversation_id:'owner',token_ciphertext:sealToken(tokens,'owner',env),data:{feedback:emptyReceiptState('owner'),job:{...newImportJob(),status:'extracting',ids:['m1']}}};
- const next=await step(row,{fetcher:async()=>jsonResponse({id:'m1',payload:{}}),prepare:async()=>({...source,warnings:[]}),interpret:async()=>({events:[receipt({evidence:'invented'}),receipt()]})});
+ const next=await step(row,{fetcher:async()=>jsonResponse({id:'m1',payload:{}}),prepare:async()=>({...source,warnings:[]}),interpret:async()=>({events:[receipt({evidence:'invented',product:fact('invented'),order_reference:fact('invented')}),receipt()]})});
  assert.equal(itemsOf(next).length,1);assert.equal(itemsOf(next)[0].source_events[0].id,'m1:1');assert.equal(next.data.sources[0].warnings.length,1);assert.deepEqual(next.data.job.processed,['m1']);
 });
 test('expanding an existing connection requires new consent and leaves its saved evidence intact',async()=>{
