@@ -48,14 +48,14 @@ test('login only emails invited people; repair requires admin and never sends iM
  for(const email of ['unknown@example.com','invited@example.com']){const res=response();await handler(request('POST','/api/wishlist',{action:'login',email}),res);assert.equal(res.statusCode,200);}
  assert.equal(emails,1);const res=response();await handler(request('POST','/api/wishlist',{action:'repair'}),res);assert.equal(res.statusCode,403);
 });
-test('identification snapshots before send and saves only after accepted send; failures remain repairable',async()=>{
+test('finding image matches never snapshots or saves a wishlist without user consent',async()=>{
  const events=[];let fail=false;
  const store={receive:async()=>id,claimAI:async()=>true,context:async()=>[{direction:'inbound',message_images:[{id}]}],searchResult:async()=>{},wishlistPayload:async()=>events.push('snapshot'),wishlistHasItems:async()=>false,prepareAI:async()=>events.push('prepared'),finish:async(op,status)=>events.push(status),saveWishlist:async()=>events.push('saved')};
  const options={store,progress:async()=>async()=>{},generate:async(ctx,e,f,m)=>{await m.recordSearch({...result,products:[{...product,candidate_image:null}]});return product.url;},send:async()=>{events.push('send');if(fail)throw new Error();}};
  const delivery={message:{id:'provider',content:{text:'Find the jacket'}}};
- await receiveInInbox(delivery,{...env,AI_ENABLED:'true'},options);assert.deepEqual(events,['snapshot','prepared','send','sent','saved']);
- events.length=0;fail=true;await receiveInInbox(delivery,{...env,AI_ENABLED:'true'},options);assert.deepEqual(events,['snapshot','prepared','send','uncertain']);
- events.length=0;fail=false;store.saveWishlist=async()=>{throw new Error();};assert.equal(await receiveInInbox(delivery,{...env,AI_ENABLED:'true'},options),'imessage_ai_reply_sent');assert.deepEqual(events,['snapshot','prepared','send','sent']);
+ await receiveInInbox(delivery,{...env,AI_ENABLED:'true'},options);assert.deepEqual(events,['prepared','send','sent']);
+ events.length=0;fail=true;await receiveInInbox(delivery,{...env,AI_ENABLED:'true'},options);assert.deepEqual(events,['prepared','send','uncertain']);
+ events.length=0;fail=false;store.saveWishlist=async()=>{throw new Error();};assert.equal(await receiveInInbox(delivery,{...env,AI_ENABLED:'true'},options),'imessage_ai_reply_sent');assert.deepEqual(events,['prepared','send','sent']);
 });
 test('database list/detail queries always include conversation ownership',async()=>{
  const paths=[];const store=createStore({SUPABASE_URL:'https://database.invalid',SUPABASE_SERVICE_ROLE_KEY:'test'},async url=>{paths.push(url);return{ok:true,text:async()=>'[]'};});
