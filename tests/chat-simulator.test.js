@@ -2,7 +2,10 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {simulateTurn,validateSimulation} from '../lib/chat-simulator.js';
 import {createSimulatorHandler} from '../api/chat-simulator.js';
-import {generateReply} from '../lib/ai.js';
+import {generateReply as agentReply} from '../lib/ai.js';
+import {withConsent} from './helpers/agent.js';
+// These tests cover tool routing; the consent check approves (its own tests are in agent.test.js).
+const generateReply=(messages,env,fetcher,memory)=>agentReply(messages,env,withConsent(fetcher),memory);
 import {agentTurn,fromIntent} from './helpers/agent.js';
 const env={OPENAI_API_KEY:'fixture',SEARCH_ENABLED:'true',WISHLIST_ENABLED:'true',MEMORY_ENABLED:'true',PRICE_ALERTS_ENABLED:'true'};
 const interpretation={action:'selection',decision:'confirm',consent:'wishlist',consent_context:'explicit_request',option_indices:[0],size_choices:[]};

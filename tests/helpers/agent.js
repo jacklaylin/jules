@@ -25,3 +25,7 @@ export function fromIntent(intent){
   if(intent.decision==='confirm')return tool('save_to_wishlist',{...choices,consent_context:intent.consent_context,...pick(['offer_alerts'])});
   return tool('respond_to_options',{decision:intent.decision??'interest',...choices,...pick(['response'])});
 }
+// Answers the independent consent check (a separate small model call before any save or alert).
+export const isConsentCheck=options=>JSON.parse(options?.body??'{}').text?.format?.name==='consent';
+export const consentResponse=authorizes=>({ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({authorizes})}]}]})});
+export const withConsent=(fetcher,authorizes=true)=>async(url,options)=>isConsentCheck(options)?consentResponse(typeof authorizes==='function'?authorizes(options):authorizes):fetcher(url,options);

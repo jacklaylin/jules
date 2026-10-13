@@ -47,11 +47,11 @@ $('run-eval').onclick=async()=>{
   const {cases:evalCases}=await request({action:'agent_eval_manifest'});
   for(const [i,item] of evalCases.entries()){
    $('eval-status').textContent=`Running ${i+1}/${evalCases.length}: ${item.id}…`;
-   try{results.push((await request({action:'agent_eval',case_id:item.id})).report);}
+   try{results.push((await request({action:'agent_eval',case_id:item.id,...($('eval-model').value?{model:$('eval-model').value}:{})})).report);}
    catch(error){results.push({id:item.id,category:item.category,passed:false,failures:['request_failed: '+error.message],tools:[]});}
   }
   const byCategory=Object.entries(results.reduce((m,r)=>{m[r.category]??=[0,0];m[r.category][0]+=r.passed?1:0;m[r.category][1]++;return m;},{}));
-  $('eval-status').textContent=`${results.filter(r=>r.passed).length}/${results.length} passed · `+byCategory.map(([c,[p,n]])=>`${c} ${p}/${n}`).join(' · ');
+  $('eval-status').textContent=`${results[0]?.model??''} · ${results.filter(r=>r.passed).length}/${results.length} passed · `+byCategory.map(([c,[p,n]])=>`${c} ${p}/${n}`).join(' · ');
   for(const r of results.filter(r=>!r.passed)){const article=document.createElement('article'),heading=document.createElement('h3'),body=document.createElement('pre');
    heading.textContent=`FAIL · routing · ${r.id}`;body.textContent=[...r.failures,'chose: '+JSON.stringify(r.tools)].join('\n');article.append(heading,body);$('results').append(article);}
   reports.push({id:'agent_routing_eval',created_at:new Date().toISOString(),results});$('download').disabled=false;

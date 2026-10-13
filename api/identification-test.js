@@ -25,7 +25,10 @@ export function createIdentificationTestHandler({env=process.env,auth=authorize,
       if(input.action==='agent_eval'){
         const test=AGENT_EVAL_CASES.find(c=>c.id===input.case_id);
         if(!test)return json(res,404,{error:'Unknown eval case.'});
-        return json(res,200,{report:await evalAgent(test,env)});
+        // Owner-only model comparison: the eval can run the agent on a different model for this request only.
+        const model=input.model==null?null:typeof input.model==='string'&&/^gpt-[a-z0-9.-]{1,40}$/.test(input.model)?input.model:false;
+        if(model===false)return json(res,400,{error:'Unsupported eval model.'});
+        return json(res,200,{report:await evalAgent(test,env,{model})});
       }
       if(input.action==='replay'){
         let test=REPLAY_CASES.find(c=>c.id===input.case_id);

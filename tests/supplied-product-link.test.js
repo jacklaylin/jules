@@ -2,7 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {listingRequestOptions} from '../lib/product-photos.js';
 import {verifyListing} from '../lib/listings.js';
-import {generateReply} from '../lib/ai.js';
+import {generateReply as agentReply} from '../lib/ai.js';
+import {withConsent} from './helpers/agent.js';
+// These tests cover tool routing; the consent check approves (its own tests are in agent.test.js).
+const generateReply=(messages,env,fetcher,memory)=>agentReply(messages,env,withConsent(fetcher),memory);
 import {agentTurn,tool,agentContext} from './helpers/agent.js';
 const url='https://satisfyrunning.com/products/therocker-sterling-blue';
 test('Satisfy uses the requested US storefront without overriding an explicit market or another store',()=>{
