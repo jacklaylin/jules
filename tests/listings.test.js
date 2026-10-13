@@ -9,6 +9,13 @@ test('whole model token groups tolerate spacing while preserving numeric identit
  for(const [requested,actual] of [['Speed Rock sneakers','Speedrock sneakers'],['XT-6 sneakers','XT6 sneakers'],['XT6 sneakers','XT-6 sneakers']])assert.equal((await verifyListing(url,requested,async()=>html({...product,name:actual}))).status,'verified');
  for(const [requested,actual] of [['Air Max 90 sneakers','Airmax95 sneakers'],['XT-6 sneakers','XT60 sneakers']])assert.equal((await verifyListing(url,requested,async()=>html({...product,name:actual}))).status,'not_product');
 });
+test('a listing is sold out only when every offer reports an unavailable state',async()=>{
+ const offer=availability=>({'@type':'Offer',price:'700.00',priceCurrency:'USD',availability:'https://schema.org/'+availability});
+ const check=async offers=>(await verifyListing(url,name,async()=>html({...product,offers}))).availability;
+ assert.equal(await check([offer('OutOfStock'),offer('SoldOut'),offer('Discontinued')]),'OutOfStock');
+ assert.equal(await check([offer('OutOfStock'),offer('InStock')]),null,'some sizes available is not sold out');
+ assert.equal(await check([offer('OutOfStock'),{'@type':'Offer',price:'700.00',priceCurrency:'USD'}]),null,'an offer without stock data stays unknown');
+});
 test('live sold-out listings retain sourced prices and availability',async()=>{
  const value=await verifyListing(url,name,async()=>html(product));assert.equal(value.status,'verified');assert.equal(value.price_snapshot.amount,700);assert.equal(value.price_snapshot.source_url,url);assert.equal(value.availability,'OutOfStock');assert.ok(value.checked_at);
 });

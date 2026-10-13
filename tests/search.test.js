@@ -19,7 +19,7 @@ test('failed category URLs are excluded on refinement and their page checks surv
 test('product links require completed live search and retrieved source URLs; invented and duplicate URLs are dropped',()=>{
   const verified=validateSearch({output},{...result,products:[...result.products,{...result.products[0],url:'https://retailer.example/invented'},result.products[0]]});
   assert.equal(verified.products.length,1);assert.equal(verified.status,'found');
-  assert.match(formatSearch(verified),/similar options/);
+  assert.match(formatSearch(verified),/this is a similar option\./);
   assert.throws(()=>validateSearch({output:[]},result));
   const missing=validateSearch({output}, {...result,products:[{...result.products[0],url:'https://retailer.example/invented'}]});
   assert.equal(missing.status,'needs_review');assert.match(formatSearch(missing),/similar options/);

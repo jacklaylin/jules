@@ -36,6 +36,16 @@ test('latest returns only the newest reports and an empty inbox keeps the cursor
 test('redaction masks contact formats and diagnostics tolerate missing results', () => {
   assert.equal(redact('mail a.b@example.com or 415-555-0100 about size 44'), 'mail [email] or [phone] about size 44');
   assert.equal(diagnostics(null), null);
+  assert.equal(redact('checked_at 2026-10-13T03:54:53Z, call +1 415 555 0100'), 'checked_at 2026-10-13T03:54:53Z, call [phone]');
+});
+
+test('diagnostics keep the search plan and what was shown, including brand and availability', () => {
+  const kept = diagnostics({ identification_policy: 'text_wishlist',
+    text_wishlist_state: { stage: 'choice', search_plan: { mode: 'discover', required_brands: ['Our Legacy'] }, options: [] },
+    products: [{ name: 'Bridge Chino', url: 'https://shop.example/p', brand: 'guess', listing_check: { product_brand: 'Our Legacy', availability: 'OutOfStock' } }] });
+  assert.equal(kept.text_wishlist_state_stage, 'choice');
+  assert.deepEqual(kept.text_wishlist_state_search_plan.required_brands, ['Our Legacy']);
+  assert.deepEqual(kept.products[0], { name: 'Bridge Chino', url: 'https://shop.example/p', verified: undefined, brand: 'Our Legacy', availability: 'OutOfStock' });
 });
 
 test('triage store reads are private, cursor-ordered and exclude sender identity', async () => {
