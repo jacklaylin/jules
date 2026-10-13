@@ -19,7 +19,7 @@ import {createSignupHandler} from '../lib/public-signup.js';
 export const config = { api: { bodyParser: false }, maxDuration: 120 };
 export function createWishlistHandler({ env = process.env, storeFactory = createStore, auth = wishlistUser, admin = authorize, fetcher = fetch, verify = verifyListing, inspect = inspectAlertLinks, photos = fetchListingPhotos } = {}) {
   const onboarding=createOnboardingHandler({env,storeFactory});
-  const gmail=createGmailHandler({env,storeFactory,auth,fetcher,schedule:owner=>scheduleGmail(owner,env)});
+  const gmail=createGmailHandler({env,storeFactory,auth,fetcher,schedule:(owner,worker)=>scheduleGmail(owner,env,{worker})});
   const phoneLogin=createPhoneLoginHandler({env,storeFactory,fetcher});
   const signup=createSignupHandler({env,storeFactory});
   return async (req, res) => {
