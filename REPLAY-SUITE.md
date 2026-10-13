@@ -10,7 +10,7 @@ Follow the conversation operating principle in `AGENTS.md` and PRD Section 4.1. 
 
 Wishlist selection now uses model-resolved option references, selected sets, and scoped consent. Feedback acknowledgements do not erase pending product state. The live suite includes subset, exclusion, all, and none turns; grading checks the resulting set and next action rather than reply wording. Phrase-based reaction handling and some older clarification grading still need refactoring to meet this principle.
 
-1. Open `/replay.html` signed in as the owner.
+1. Open **Replays & evals** (`/admin/replays`) in the admin console.
 2. Replay the latest reported turn with the expected brand/model, and download its private snapshot. The snapshot uses the current profile: it cannot reconstruct the profile at the time of an older failure. Keep these reports outside Git.
 3. Run all synthetic sourcing and selection cases, across Nike, ASICS, New Balance, Salomon, and Prada; include correction, explicit recipient, misspelling/spacing, ambiguous versions, unknown models, subsets, exclusions, all, and none.
 4. Run the affected case three times and repeat the suite after deployment. Each run reports pass/fail, reasons, returned reply, checked products, elapsed time, request count, and token usage. Dollar cost is explicitly unknown; billing may include search tool fees not inferable from tokens alone.

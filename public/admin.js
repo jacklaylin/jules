@@ -1,26 +1,9 @@
-import {trackedFetch as fetch} from './activity.js';
-import {createSession} from './wishlist-session.js';
-const session=createSession({storage:localStorage,fetcher:fetch,lock:work=>navigator.locks?navigator.locks.request('jules-wishlist-refresh',work):work()});
+import {mountAdminShell,adminJson,adminToken} from './admin-console.js';
+mountAdminShell('people');
 const $ = id => document.getElementById(id);
-let token = sessionStorage.getItem('jules_token') ?? session.read()?.access_token;
-let dedicatedLogin=Boolean(sessionStorage.getItem('jules_token'));
-const fragment = new URLSearchParams(location.hash.slice(1));
-if (fragment.has('access_token')) {
-  dedicatedLogin=true; token = fragment.get('access_token'); sessionStorage.setItem('jules_token', token);
-}
-const loginError = fragment.get('error_description');
-if (location.hash) history.replaceState(null, '', '/admin');
-let current = null, requestVersion = 0, cursor = null, historyMessages = [], sending = false, operation = null, profileBusy = false, profileVersion = 0;
+let current = null, requestVersion = 0, cursor = null, historyMessages = [], profileBusy = false, profileVersion = 0;
 function notice(message) { $('notice').textContent = message; $('notice').hidden = !message; }
-function showLogin() { token = null; dedicatedLogin=true; sessionStorage.removeItem('jules_token'); $('login').hidden = false; $('inbox').hidden = true; $('signout').hidden = true; }
-async function api(path, options = {}) {
-  if(!dedicatedLogin&&session.read())token=await session.token();
-  let response = await fetch(path, { ...options, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, cache: 'no-store' });
-  if(response.status===401&&!dedicatedLogin&&session.read()?.refresh_token){token=await session.token(true);response=await fetch(path,{...options,headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},cache:'no-store'});}
-  const data = await response.json();
-  if (!response.ok) { if (response.status === 401 || response.status === 403) showLogin(); throw new Error(data.error ?? 'Request failed.'); }
-  return data;
-}
+const api = (path, options) => adminJson(path, options);
 const date = at => new Date(at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 let imageURLs = [];
 function renderMessages() {
@@ -32,7 +15,7 @@ function renderMessages() {
     for (const image of message.message_images ?? []) {
       const preview = document.createElement('img'); preview.alt = 'Private inspiration image'; preview.className = 'inspiration';
       bubble.append(preview);
-      fetch(`/api/image?id=${encodeURIComponent(image.id)}`, {headers:{Authorization:`Bearer ${token}`},cache:'no-store'})
+      adminToken().then(token => fetch(`/api/image?id=${encodeURIComponent(image.id)}`, {headers:{Authorization:`Bearer ${token}`},cache:'no-store'}))
         .then(async response => { if (!response.ok) throw new Error(); return response.blob(); })
         .then(blob => { if (!preview.isConnected) return; const url=URL.createObjectURL(blob); imageURLs.push(url); preview.src=url; })
         .catch(() => { if (preview.isConnected) { const error=document.createElement('p'); error.textContent='Image unavailable — refresh or sign in again.'; preview.replaceWith(error); } });
@@ -76,7 +59,6 @@ async function loadInbox() {
     button.onclick = () => [...$('people').children].find(item => item.dataset.conversation === report.conversation_id)?.click();
     $('feedback').append(button);
   }
-  $('login').hidden = true; $('inbox').hidden = false; $('signout').hidden = false;
   $('people').replaceChildren();
   if (!data.conversations.length) { const p = document.createElement('p'); p.className = 'no-people'; p.textContent = 'No conversations yet. Send an iMessage to your assigned line to begin.'; $('people').append(p); }
   for (const person of data.conversations) {
@@ -84,11 +66,9 @@ async function loadInbox() {
     button.dataset.conversation = person.id;
     const title = document.createElement('strong'); title.textContent = person.sender_id;
     const subtitle = document.createElement('span'); subtitle.textContent = `Last activity · ${date(person.updated_at)}`;
-    button.append(title, subtitle); button.disabled = sending;
+    button.append(title, subtitle);
     button.onclick = async () => {
-      if (sending || profileBusy) return;
-      if (current !== person.id && $('reply').value && !confirm('Discard your unsent draft?')) return;
-      if (current !== person.id) { $('reply').value = ''; operation = null; }
+      if (profileBusy) return;
       current = person.id;
       document.querySelectorAll('.person-button').forEach(item => item.classList.remove('selected')); button.classList.add('selected');
       $('conversation').hidden = true; $('empty').hidden = false;
@@ -98,31 +78,9 @@ async function loadInbox() {
   }
   if (current) await loadConversation(current);
 }
-$('login-form').onsubmit = async event => {
-  event.preventDefault(); $('login-button').disabled = true;
-  try { await api('/api/session', { method: 'POST', body: JSON.stringify({ email: $('email').value }) }); notice('Check your email and open the sign-in link. It expires after one hour.'); }
-  catch (error) { notice(error.message); }
-  finally { $('login-button').disabled = false; }
-};
-$('signout').onclick = () => { session.clear(); current = null; $('reply').value = ''; operation = null; showLogin(); notice('Signed out on this browser.'); };
 $('refresh').onclick = async () => { try { await loadInbox(); notice(''); } catch (error) { notice(error.message); } };
 $('older').onclick = async () => { $('older').disabled = true; try { await loadConversation(current, true); } catch (error) { notice(error.message); } finally { $('older').disabled = false; } };
-$('reply').oninput = () => { operation = null; };
-$('reply-form').onsubmit = async event => {
-  event.preventDefault(); if (sending || !current || !$('reply').value.trim()) return;
-  sending = true; $('send').disabled = true; $('reply').disabled = true; $('refresh').disabled = true;
-  document.querySelectorAll('.person-button').forEach(item => { item.disabled = true; });
-  operation ??= crypto.randomUUID();
-  try {
-    const result = await api('/api/admin', { method: 'POST', body: JSON.stringify({ conversation: current, operation, body: $('reply').value }) });
-    if (result.status === 'sent') { $('reply').value = ''; operation = null; notice('Reply accepted by Photon.'); }
-    else { notice('Delivery is uncertain. Check the phone before composing a new reply. Repeating this request will not send twice.'); }
-    await loadConversation(current);
-  } catch (error) { notice(error.message + ' Your draft is saved here; refresh the history before retrying.'); }
-  finally { sending = false; $('send').disabled = false; $('reply').disabled = false; $('refresh').disabled = false; document.querySelectorAll('.person-button').forEach(item => { item.disabled = false; }); }
-};
-if (loginError) notice('The sign-in link expired or was already used. Request a new link.');
-if (token) loadInbox().catch(error => notice(error.message));
+loadInbox().catch(error => notice(error.message));
 
 function profileNotice(text) { $('profile-notice').textContent = text; }
 async function loadProfile(id) {
@@ -166,7 +124,7 @@ async function changeProfile(change) {
     profileNotice(result.limited ? 'Imported the latest 100 incoming messages. Earlier history was not included.' : 'Profile saved.');
     if (change.action === 'set') { $('fact-key').value=''; $('fact-value').value=''; }
   } catch (error) { profileNotice(error.message); }
-  finally { profileBusy=false; buttons.forEach(b => { b.disabled=false; }); document.querySelectorAll('.person-button').forEach(b => { b.disabled=sending; }); }
+  finally { profileBusy=false; buttons.forEach(b => { b.disabled=false; }); document.querySelectorAll('.person-button').forEach(b => { b.disabled=false; }); }
 }
 $('profile-reload').onclick = () => { if (current && !profileBusy) loadProfile(current); };
 $('profile-import').onclick = () => changeProfile({action:'import'});

@@ -1,6 +1,6 @@
-/* Internal inbox composition. All brand/type/control primitives are shared. */
-header{min-height:96px;padding:20px var(--page-gutter);display:flex;align-items:center;justify-content:space-between;gap:20px;border-bottom:1px solid var(--line)}
-.brand{font-size:44px;text-decoration:none}.header-right{display:flex;align-items:center;gap:16px;flex-wrap:wrap}.private{font:500 11px var(--font-mono);color:var(--text-2)}
+/* Admin People composition. All brand/type/control primitives are shared. */
+/* Shared by the People page and the owner test tools. */
+.private{font:500 11px var(--font-mono);color:var(--text-2)}
 p{line-height:1.65}.login-card{max-width:490px;margin:7vh auto}.login-card>p{color:var(--text-2)}.login-card .primary{margin-top:16px;width:100%}
 .inbox{display:grid;grid-template-columns:310px minmax(0,1fr);border:1px solid var(--line);border-radius:var(--r-card);overflow:hidden;min-height:650px;background:var(--white)}
 .inbox aside{border-right:1px solid var(--line);background:var(--fog)}.list-heading{padding:28px 22px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid var(--line)}.list-heading h1{font-size:30px}.list-heading button{font-size:12px;padding:8px 12px}
@@ -8,7 +8,7 @@ button.person-button{border:0;border-bottom:1px solid var(--line);border-radius:
 .thread{min-width:0}.empty{min-height:500px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:40px;gap:16px}.empty-mark .orb{--s:70px}.empty p{font-size:13px;color:var(--text-2)}
 .thread-heading{padding:28px 32px 20px;display:flex;justify-content:space-between;align-items:center;gap:16px;border-bottom:1px solid var(--line)}.thread-heading h2{font-size:30px}
 #messages{padding:24px 32px;max-height:480px;min-height:300px;overflow:auto;display:flex;flex-direction:column;gap:18px}.message{max-width:85%;align-self:flex-start}.message.outbound{align-self:flex-end}.bubble{background:var(--fog);padding:14px 18px;border-radius:18px;white-space:pre-wrap;overflow-wrap:anywhere;font:400 15px/1.5 var(--font-sans)}.outbound .bubble{border:1px solid var(--line);background:var(--white)}.meta{font:400 10px/1.6 var(--font-mono);color:var(--text-2);padding:6px 2px}.outbound .meta{text-align:right}.uncertain .meta{color:#995122}
-#reply-form{padding:20px 32px 28px;border-top:1px solid var(--line)}.composer-footer{display:flex;align-items:center;justify-content:space-between;gap:20px}#send-note{font-size:12px;color:var(--text-2)}
 #profile-panel{padding:20px 32px;border-bottom:1px solid var(--line)}summary{cursor:pointer}.profile-inner{padding-top:12px}.profile-actions{display:flex;flex-wrap:wrap;gap:8px}.fact-row{padding:12px 0;border-bottom:1px solid var(--line)}.fact-row p{overflow-wrap:anywhere}#profile-summary{white-space:pre-line}#profile-add{margin-top:24px}
 .inspiration{display:block;max-width:100%;max-height:480px;object-fit:contain;margin-top:12px;border-radius:16px}.product-link{display:block;margin-top:10px}.inbox aside>details{padding:20px}#feedback{overflow-wrap:anywhere}
-@media(max-width:800px){.inbox{grid-template-columns:1fr}.inbox aside{border-right:0;border-bottom:1px solid var(--line)}header{align-items:start}.header-right{gap:10px;font-size:12px}#messages,.thread-heading,#profile-panel,#reply-form{padding-inline:20px}.composer-footer{flex-wrap:wrap}}
+@media(max-width:800px){.inbox{grid-template-columns:1fr}.inbox aside{border-right:0;border-bottom:1px solid var(--line)}#messages,.thread-heading,#profile-panel{padding-inline:20px}}
+.tool-card{max-width:620px;margin:28px 0}main>button[data-mode]{margin:0 8px 10px 0}

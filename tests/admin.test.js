@@ -71,14 +71,17 @@ test('admin blocks unauthenticated reads and sends before accessing private data
     assert.equal(res.headers['Cache-Control'], 'no-store');
   }
 });
-test('admin rejects blank, oversized and arbitrary recipients, and uses stored line for valid replies', async () => {
-  const store = memoryStore(); let count = 0;
-  const handler = createAdminHandler({ auth: async () => 200, storeFactory: () => store, send: async (delivery, body) => { count++; assert.equal(delivery.space.phone, 'shared'); assert.equal(delivery.message.sender.id, 'fake-sender'); assert.equal(body, 'Reply'); } });
-  for (const input of [{ conversation: id, operation, body: ' ' }, { conversation: id, operation, body: 'x'.repeat(4001) }, { conversation: 'recipient', operation, body: 'Reply' }]) {
-    const res = response(); await handler(request(input), res); assert.equal(res.statusCode, 400);
-  }
-  const unknown = response(); await handler(request({ conversation: operation, operation, body: 'Reply' }), unknown); assert.equal(unknown.statusCode, 404);
-  const valid = response(); await handler(request({ conversation: id, operation, body: 'Reply' }), valid); assert.equal(valid.body.status, 'sent'); assert.equal(count, 1);
+test('admin is read-only: manual replies are retired and never reach the store or Photon', async () => {
+  const handler = createAdminHandler({ auth: async () => 200, storeFactory: () => assert.fail('must not access database') });
+  const res = response(); await handler(request({ conversation: id, operation, body: 'Reply' }), res);
+  assert.equal(res.statusCode, 405); assert.equal(res.headers.Allow, 'GET');
+});
+test('owner access check answers without reading private data, and non-owners are refused', async () => {
+  const get = url => ({ method: 'GET', url, headers: {} });
+  const owner = response(); await createAdminHandler({ auth: async () => 200, storeFactory: () => assert.fail('must not access database') })(get('/api/admin?view=access'), owner);
+  assert.equal(owner.statusCode, 200); assert.deepEqual(owner.body, { owner: true });
+  const other = response(); await createAdminHandler({ auth: async () => 403, storeFactory: () => assert.fail('must not access database') })(get('/api/admin?view=access'), other);
+  assert.equal(other.statusCode, 403);
 });
 test('history pages retain stable ordering and use service credentials only on server requests', async () => {
   const store = createStore({ SUPABASE_URL: 'https://example.invalid', SUPABASE_SERVICE_ROLE_KEY: 'fake-private' }, async (url, options) => {

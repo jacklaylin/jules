@@ -1,15 +1,8 @@
-import {mountHeader} from './design-system.js';
-import {createSession} from './wishlist-session.js';
-mountHeader('replay');
-const session=createSession({storage:localStorage,lock:work=>navigator.locks?navigator.locks.request('jules-wishlist-refresh',work):work()});
+import {mountAdminShell,adminJson} from './admin-console.js';
+mountAdminShell('replays');
 const $=id=>document.getElementById(id);
 let cases=[],reports=[],stopping=false;
-async function request(input){
- const token=await session.token()||sessionStorage.getItem('jules_wishlist_token')||sessionStorage.getItem('jules_token');
- if(!token)throw Error('Sign in through the private inbox or wishlist first.');
- const response=await fetch('/api/identification-test',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify(input)});
- const data=await response.json();if(!response.ok)throw Error(data.error);return data;
-}
+const request=input=>adminJson('/api/identification-test',{method:'POST',body:JSON.stringify(input)});
 function show(report){
  reports.push(report);$('download').disabled=false;
  const article=document.createElement('article'),heading=document.createElement('h3'),body=document.createElement('pre'),detail=document.createElement('p');
