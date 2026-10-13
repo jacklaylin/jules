@@ -5,7 +5,7 @@ const defaults={
   respond_to_options:{decision:'interest',option_indices:[],color_choices:[],size_choices:[],response:''},
   save_to_wishlist:{option_indices:[],consent_context:'explicit_request',color_choices:[],size_choices:[],offer_alerts:true},
   manage_price_alerts:{operation:'create',option_indices:[],consent_context:'explicit_request',color_choices:[],size_choices:[],saved_item_ids:[]},
-  wishlist_status:{response:''},update_purchase_history:{},update_profile:{changes:[],acknowledgment:''},profile_status:{response:''},
+  wishlist_status:{response:'',include_link:false},update_purchase_history:{},update_profile:{changes:[],acknowledgment:''},profile_status:{response:''},
   onboarding:{action:'status'},send_developer_feedback:{feedback:''},conversation_reply:{response:''},
 };
 export const tool=(name,args={})=>({type:'function_call',name,arguments:JSON.stringify({...defaults[name],...args})});
