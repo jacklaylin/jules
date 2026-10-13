@@ -124,12 +124,39 @@ test('visual attribute retrieval recovers from Lens outage without guessing a br
  const {stateFromSearch}=await import('../lib/shopping-context.js');
  const black={...target,description:'Oversized black track jacket with white piping',features:['black','white chest piping','oversized'],search_mode:'similar',visible_product_text:''};
  const found={brand:'Unfamiliar Brand',name:'Black track jacket',url:'https://new-store.example/products/track',match:'similar',sourcing_status:'store_found',listing_check:{status:'verified'}};
- let brief,seenConstraints;
- const result=await visualSearchProducts('Where can I find a track jacket like this?',[{}],{},null,{constraints:{taste:[{field:'brand',key:'lemaire',value:'favorite'}]},plan:async()=>({scope:'item',items:[black],omitted:[]}),crop:async()=>({}),retrieve:async()=>{throw Error('quota');},compare:async()=>({candidates:[]}),searchText:async(query,_images,_env,_fetch,constraints)=>{brief=query;seenConstraints=constraints;return {products:[found]};},corroborate:async(_t,_im,products)=>products,verifyListing:async url=>({status:'verified',url})});
+ let brief,seenConstraints,attempts=0;
+ const result=await visualSearchProducts('Where can I find a track jacket like this?',[{}],{},null,{constraints:{taste:[{field:'brand',key:'lemaire',value:'favorite'}]},plan:async()=>({scope:'item',items:[black],omitted:[]}),crop:async()=>({}),retrieve:async()=>{throw Error('quota');},compare:async()=>({candidates:[]}),searchText:async(query,_images,_env,_fetch,constraints)=>{brief=query;seenConstraints=constraints;if(++attempts===1)throw Error('First descriptive source unavailable');return {products:[found]};},corroborate:async(_t,_im,products)=>products,verifyListing:async url=>({status:'verified',url})});
  assert.ok(brief.includes(black.description));assert.ok(!brief.includes('beige'));assert.equal(seenConstraints.taste[0].key,'lemaire');assert.equal(result.products[0].brand,'Unfamiliar Brand');assert.equal(result.diagnostics[0].recovery,'visual_attributes');
  const state=stateFromSearch(result);assert.ok(state.search_brief.includes('black'));assert.equal(state.search_plan.mode,'discover');assert.equal(state.visual_targets[0].description,black.description);
  assert.equal(stateFromSearch({...result,products:[]}).stage,'search_clarification');
 });
 test('a visually unsuitable candidate does not become a similar recommendation merely because it is the same category',()=>{
  assert.equal(assessCandidates(candidates,{candidates:[{...assessment('1'),suitable_for_request:false,contradictions:['wrong main color']}]},true).length,0);
+});
+
+test('the complete visual search path retains a verified candidate with unknown department rather than returning a department dead end',async()=>{
+ const {searchProducts}=await import('../lib/search.js');
+ const image=await sharp({create:{width:32,height:32,channels:3,background:'black'}}).jpeg().toBuffer();
+ const url='https://unlisted-store.example/products/black-track-jacket';
+ const fetcher=async(endpoint,options)=>{
+  if(endpoint==='https://serpapi.com/image')return {ok:true,json:async()=>({image_id:'test-upload'})};
+  if(endpoint.startsWith('https://serpapi.com/'))return {ok:true,json:async()=>({search_metadata:{status:'Success'},visual_matches:[{link:url,title:'Black Track Jacket',thumbnail:thumb}]})};
+  if(endpoint===url)return new Response('<script type="application/ld+json">'+JSON.stringify({'@type':'Product',url,name:'Black Track Jacket',brand:'Example',image:'https://unlisted-store.example/black.jpg',offers:{price:100,priceCurrency:'USD'}})+'</script>',{headers:{'content-type':'text/html'}});
+  const body=JSON.parse(options.body);
+  if(body.tools)return {ok:true,json:async()=>({status:'completed',output:[{type:'web_search_call',status:'completed',action:{sources:[]}},{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify({intro:'No results',products:[],needs_review:true,requested_alternatives:true})}]}]})};
+  const schema=body.text.format.schema;
+  const value=schema.properties.scope?{scope:'item',question:'',items:[{...target,description:'Oversized black jacket with white piping',search_mode:'similar',visible_product_text:''}],omitted:[]}:schema.properties.indices?{indices:[0],rejected_indices:[]}:{candidates:[{...assessment('1'),brand:'Example',name:'Black Track Jacket',suitable_for_request:true}]};
+  return {ok:true,json:async()=>({status:'completed',output:[{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify(value)}]}]})};
+ };
+ const result=await searchProducts('Find something resembling this jacket',[{mime_type:'image/jpeg',data:image.toString('base64')}],{VISUAL_SEARCH_ENABLED:'true',OPENAI_API_KEY:'test',SERPAPI_API_KEY:'visual-range-fixture'},fetcher,{range:'men'});
+ assert.equal(result.products.length,1);assert.equal(result.products[0].listing_check.status,'verified');assert.equal(result.products[0].listing_check.shopping_range,null);assert.ok(!result.relevance_rejections?.length);assert.equal(result.products[0].match,'similar');
+});
+test('descriptive-source corroboration supplies actual retailer images and allows observable evidence for similar styles',async()=>{
+ const {corroborateTextSources}=await import('../lib/visual-search.js');
+ const photo='https://retailer.example/black-track.jpg';
+ const product={brand:'Example',name:'Track jacket',url:'https://retailer.example/products/track',sourcing_status:'store_found',listing_check:{status:'verified',product_images:[photo]}};
+ const matches=await corroborateTextSources({...target,search_mode:'similar'},{mime_type:'image/jpeg',data:'test'},[product],{},async(_url,options)=>{
+  const content=JSON.parse(options.body).input[0].content;assert.ok(content.some(c=>c.type==='input_image'&&c.image_url===photo));return {ok:true,json:async()=>({status:'completed',output:[{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify({matches:[{index:0,match:'similar',visible_evidence:'Black roomy silhouette and white chest piping',contradictions:[]}]})}]}]})};
+ });
+ assert.equal(matches.length,1);assert.equal(matches[0].match,'similar');
 });
