@@ -36,3 +36,13 @@ test('ranking prefers the shopper’s market, then foreign stores with shipping 
   assert.deepEqual([no,unconfirmed,ships,unknown,local].sort((a,b)=>marketRank(a)-marketRank(b)),[local,ships,unknown,unconfirmed,no]);
   assert.equal(marketLabel(local,'US'),'');assert.match(marketLabel({...ships,store_market:{country:'CA'}},'US'),/Canada store, ships to the US/);
 });
+test('a confirmed store policy fills in shipping when the page is silent; unconfirmed research is never used',async()=>{
+  const {storeShipping,STORE_SHIPPING}=await import('../lib/store-shipping.js');
+  assert.equal(storeShipping('https://auralee.jp/products/x','US').duties,'included');assert.equal(storeShipping('https://www.mrporter.com/en-gb/x','US'),null);
+  assert.equal(storeShipping('https://auralee.jp/products/x','CA'),null);
+  assert.ok(Object.values(STORE_SHIPPING).every(e=>['confirmed','likely','unknown'].includes(e.status)&&(e.status!=='confirmed'||e.source)));
+  const page='<html lang="ja-JP">'+'<script type="application/ld+json">'+JSON.stringify({'@type':'Product',name:'Wool coat',brand:{name:'AURALEE'},offers:{price:'98000',priceCurrency:'JPY'}})+'</script>';
+  const check=await verifyListing('https://auralee.jp/products/wool-coat','Wool coat',async()=>new Response(page,{headers:{'content-type':'text/html'}}),async()=>{throw Error('no browser');},{SHOPPING_COUNTRY:'US'});
+  assert.equal(check.ships_to_shopper,true);assert.equal(check.shipping_evidence.basis,'store_policy');
+  assert.equal(marketLabel(check,'US'),' · Japan store, ¥98,000, ships to the US, duties included');
+});
