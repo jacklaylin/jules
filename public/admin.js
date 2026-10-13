@@ -129,3 +129,43 @@ async function changeProfile(change) {
 $('profile-reload').onclick = () => { if (current && !profileBusy) loadProfile(current); };
 $('profile-import').onclick = () => changeProfile({action:'import'});
 $('profile-add').onsubmit = event => { event.preventDefault(); changeProfile({action:'set',field:$('fact-field').value,key:$('fact-key').value,value:$('fact-value').value}); };
+
+// Price alert rehearsal: the server runs the real decision on supplied offers and
+// never changes the alert; sends go only to the designated test conversation.
+let testAlertList = [];
+const alertResult = text => { $('alert-test-result').textContent = text; };
+function selectAlert() {
+  const alert = testAlertList.find(a => a.id === $('alert-test-alert').value);
+  $('alert-test-store').replaceChildren(...(alert?.links ?? []).map(url => { const o = document.createElement('option'); o.value = url; o.textContent = new URL(url).hostname.replace(/^www\./, ''); return o; }));
+  $('alert-test-size').value = alert?.size ?? '';
+  const ref = alert?.baselines?.[0];
+  if (ref) { $('alert-test-currency').value = ref.currency; $('alert-test-price').value = ''; $('alert-test-price').placeholder = `Reference ${ref.amount}`; }
+  alertResult(alert ? `Reference: ${alert.baselines.map(b => `${b.amount} ${b.currency}`).join(', ') || 'none yet'} · Last stock: ${alert.stock ?? 'unknown'}` : '');
+}
+$('alert-rehearsal').addEventListener('toggle', async () => {
+  if (!$('alert-rehearsal').open || testAlertList.length) return;
+  alertResult('Loading test alerts…');
+  try {
+    testAlertList = (await api('/api/price-checks', { method: 'POST', body: JSON.stringify({ action: 'list' }) })).alerts;
+    $('alert-test-alert').replaceChildren(...testAlertList.map(a => { const o = document.createElement('option'); o.value = a.id; o.textContent = `${a.name} · ${a.size}${a.active ? '' : ' (off)'}`; return o; }));
+    if (!testAlertList.length) alertResult('The test account has no price alerts yet. Ask Jules for one from the test phone.');
+    else selectAlert();
+  } catch (error) { alertResult(error.message); }
+});
+$('alert-test-alert').onchange = selectAlert;
+async function rehearse(deliver) {
+  if (!$('alert-test-form').reportValidity()) return;
+  const buttons = [...$('alert-test-form').querySelectorAll('button')]; buttons.forEach(b => { b.disabled = true; });
+  alertResult(deliver ? 'Sending test text…' : 'Running…');
+  try {
+    const shipping = $('alert-test-shipping').value;
+    const result = await api('/api/price-checks', { method: 'POST', body: JSON.stringify({
+      alert_id: $('alert-test-alert').value, deliver, previous_stock: $('alert-test-previous').value || undefined,
+      offers: [{ url: $('alert-test-store').value, size: $('alert-test-size').value, amount: Number($('alert-test-price').value), currency: $('alert-test-currency').value.toUpperCase(), available: $('alert-test-available').checked, ...(shipping ? { shipping: Number(shipping) } : {}) }],
+    }) });
+    alertResult(`Outcome: ${result.status}${result.event ? ` (${result.event})` : ''}${result.delivery ? ` · Delivery: ${result.delivery}` : ''}\n\n${result.message ?? 'No text would be sent.'}`);
+  } catch (error) { alertResult(error.message); }
+  finally { buttons.forEach(b => { b.disabled = false; }); }
+}
+$('alert-test-form').onsubmit = event => { event.preventDefault(); rehearse(false); };
+$('alert-test-send').onclick = () => rehearse(true);

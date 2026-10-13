@@ -99,3 +99,20 @@ test('search before asking: real candidates shape the question and become select
  const unverified=await textWishlistAction(args,{env:{},record:async r=>{result=r;},candidates:async()=>[{...found[0],listing_check:{status:'check_failed'}}],discriminate:()=>assert.fail()});
  assert.equal(unverified,args.response);
 });
+
+test('identified pages of a required brand that block verification are shown as unverified, not hidden',async()=>{
+ let result;const page={brand:'ASICS',name:'GEL-KAYANO 14',url:'https://www.asics.com/us/en-us/gel-kayano-14/p/ANA_1202A105-700.html',match:'likely_match',sourcing_status:'store_not_found',listing_checks:[{status:'check_failed'}],merchant_options:[]};
+ const body=await textWishlistAction({action:'start',query:'ASICS Gel-Kayano 14',search_plan:{...plan,required_brands:['ASICS']}},{env:{},record:async r=>{result=r;},search:async()=>({status:'identified_no_store',products:[page],refinement_attempted:true})});
+ // Named honestly, without a link that could not be opened (unverified links are never sent).
+ assert.match(body,/GEL-KAYANO 14/);assert.doesNotMatch(body,/couldn’t find a verified/);assert.ok(!body.includes(page.url));assert.equal(result.user_confirmed,undefined);
+});
+
+test('when every verified match is sold out, one more search looks for in-stock listings elsewhere',async()=>{
+ let result,calls=0,lastQuery='';const sold={...p('sold','ASICS'),listing_check:{status:'verified',product_name:'Sneaker sold',availability:'OutOfStock'}},stocked=p('stocked','ASICS');
+ await textWishlistAction({action:'start',query:'ASICS Gel-Kayano 14',search_plan:{...plan,mode:'identify'}},{env:{},record:async r=>{result=r;},
+  search:async q=>{calls++;lastQuery=q;return calls===1?{products:[sold],refinement_attempted:true}:{products:[stocked],refinement_attempted:true};}});
+ assert.equal(calls,2);assert.ok(lastQuery.includes(sold.url));assert.deepEqual(result.text_wishlist_state.options.map(o=>o.url),[stocked.url]);
+ // If the retry finds nothing in stock, the sold-out matches are still reported honestly.
+ calls=0;const body=await textWishlistAction({action:'start',query:'ASICS Gel-Kayano 14',search_plan:{...plan,mode:'identify'}},{env:{},record:async r=>{result=r;},search:async()=>{calls++;return {products:[sold],refinement_attempted:true};}});
+ assert.equal(calls,2);assert.match(body,/sold out/i);
+});
