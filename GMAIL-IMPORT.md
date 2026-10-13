@@ -97,3 +97,12 @@ Automated tests use synthetic emails and do not establish real-world accuracy. T
 ### Merchant and brand names
 
 Linking events across emails, deduplicating items and grouping merchants/brands in the purchase summary compare a normalized name: case, accents, punctuation, web suffixes, legal-entity suffixes (ApS, Inc, Ltd, GmbH, AB…) and storefront words (Retail, Store, Shop, Online, Official) are ignored, so "MFPEN Retail ApS", "MFPEN" and "mfpen.com" are one merchant. Names that differ in substance stay separate ("H&M Hennes & Mauritz AB" and "H&M" are not merged); the stored merchant text is never rewritten. When a receipt comes from a brand's own store, extraction now records the brand from the legal entity or storefront name. Purchases imported before this change keep their stored fields; fix a missing brand by texting Jules a correction.
+
+## October 13 update: stalled imports and stale skips
+
+Found in the founder's live import: it stopped at 82 of 83 emails with no error, and 68 of those 82 were never analyzed because an earlier, weaker import version had marked them irrelevant.
+
+- **One live background chain.** Each start, resume or completed step records a fresh `job.worker` id before dispatching the next step; a step carrying an older id stops. When the import is briefly locked (for example by a chat correction), the step retries after 5, 10, 20 and 40 seconds instead of ending the chain. A failed dispatch is retried twice before giving up.
+- **Auto-resume.** If a running import has made no progress for 150 seconds and recorded no error, opening `/onboarding` resumes it. An import paused after repeated failures still waits for **Resume**. Nothing resumes an import while no page is open; a sweep would need a frequent cron.
+- **Versioned skips.** `scanned_ids` are valid only for `SCAN_VERSION`. When triage or extraction changes materially, bump it: emails judged irrelevant earlier, including ones the running job already passed, are read again. `job.quality.rescanned` counts them.
+- **Sender domain.** Taken from From, else Sender, Reply-To or Return-Path. A stored shopping email missing its domain is filled in when it is next seen, so related-order searches can use it.

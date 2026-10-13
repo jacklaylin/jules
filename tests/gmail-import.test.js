@@ -5,7 +5,7 @@ import {GMAIL_SCOPE,sealToken,openToken,authorizationURL,digest} from '../lib/gm
 import {receiptHTML,prepareReceiptEmail,receiptPDF} from '../lib/receipt-email.js';
 import {RECEIPT_SCHEMA,TRIAGE_SCHEMA,merchantKey,reconcileReceipt,emptyReceiptState,projectReceiptState,relinkPending,receiptShoppingFacts} from '../lib/receipt-extraction.js';
 import {applyReceiptFeedback,receiptLearningView} from '../lib/receipt-feedback.js';
-import {newImportJob,importStep,createGmailHandler,publicImport,CONSENT_VERSION} from '../lib/gmail-import.js';
+import {newImportJob,importStep,createGmailHandler,publicImport,CONSENT_VERSION,SCAN_VERSION} from '../lib/gmail-import.js';
 import {loadReceipts} from '../lib/evidence.js';
 const env={GMAIL_IMPORT_ENABLED:'true',SITE_ORIGIN:'https://jules.example',GOOGLE_GMAIL_CLIENT_ID:'synthetic-client',GOOGLE_GMAIL_CLIENT_SECRET:'synthetic-secret',GMAIL_TOKEN_KEY:Buffer.alloc(32,7).toString('base64')};
 const tokens={access_token:'synthetic-access',refresh_token:'synthetic-refresh',expires_at:Date.now()+3600000};
@@ -212,6 +212,33 @@ test('irrelevant emails keep only their id and are never fetched again; shopping
  assert.equal(row.data.job.quality.triage_skip,1);assert.ok(!JSON.stringify(row.data).includes('Weekly newsletter'));
  fetched.length=0;row.data.job={...newImportJob(),status:'extracting',ids:['shop','news','skip']};row=await step(row,{fetcher,prepare,interpret});
  assert.deepEqual(fetched,['shop']);assert.equal(itemsOf(row).length,1);
+});
+test('emails an older analysis version judged irrelevant are read again, including ones the running job already passed',async()=>{
+ const shop={id:'shop',date:1000,fingerprint:'shop',shopping_evidence:true};
+ let row={conversation_id:'owner',token_ciphertext:sealToken(tokens,'owner',env),data:{feedback:emptyReceiptState('owner'),sources:[shop],scanned_ids:['old','passed'],job:{...newImportJob(),status:'extracting',ids:['shop','passed','old'],processed:['shop','passed'],triage:{old:'skip'}}}};
+ const fetched=[],fetcher=async url=>{const id=url.match(/messages\/([^?/]+)/)[1];if(url.includes('format=full'))fetched.push(id);return jsonResponse({id,payload:{headers:[]}});};
+ const prepare=async m=>({id:m.id,text,date:1000,fingerprint:m.id,sender_domain:'shop.example',warnings:[]});
+ const interpret=async r=>r.schema===TRIAGE_SCHEMA?{decisions:r.context.emails.map(e=>({id:e.id,action:'extract'}))}:{events:r.context.source.id==='passed'?[receipt()]:[]};
+ row=await step(row,{fetcher,prepare,interpret});
+ assert.deepEqual(fetched.sort(),['old','passed']);assert.equal(row.data.scan_version,SCAN_VERSION);assert.equal(row.data.job.quality.rescanned,1);
+ assert.equal(itemsOf(row).length,1);assert.deepEqual(row.data.scanned_ids,['old']);
+ // Same version: the irrelevant email stays skipped on the next import.
+ fetched.length=0;row.data.job={...newImportJob(),status:'extracting',ids:['old']};row=await step(row,{fetcher,prepare,interpret});assert.deepEqual(fetched,[]);
+});
+test('sender domains fall back to other sender headers and backfill a stored shopping email that lacked one',async()=>{
+ const message=headers=>({id:'m',internalDate:'1000',payload:{mimeType:'text/plain',headers,body:{data:Buffer.from(text).toString('base64url')}}});
+ assert.equal((await prepareReceiptEmail(message([{name:'From',value:'Shop Orders'},{name:'Reply-To',value:'Care <care@shop.example>'}]),tokens)).sender_domain,'shop.example');
+ assert.equal((await prepareReceiptEmail(message([{name:'From',value:'"Shop" <orders@mail.shop.example>'}]),tokens)).sender_domain,'mail.shop.example');
+ let row={conversation_id:'owner',token_ciphertext:sealToken(tokens,'owner',env),data:{feedback:emptyReceiptState('owner'),scan_version:SCAN_VERSION,sources:[{id:'m',date:1000,fingerprint:'same',sender_domain:null,shopping_evidence:true}],job:{...newImportJob(),status:'extracting',ids:['m']}}};
+ row=await step(row,{fetcher:async()=>jsonResponse({id:'m',payload:{}}),prepare:async()=>({id:'m',text,date:1000,fingerprint:'same',sender_domain:'shop.example',warnings:[]}),interpret:()=>assert.fail()});
+ assert.equal(row.data.sources[0].sender_domain,'shop.example');assert.equal(row.data.changed_sources,undefined);
+});
+test('opening the page resumes a background import that stopped without an error, but not one paused after failures',async()=>{
+ const store=storage(),scheduled=[];const handler=createGmailHandler({env,storeFactory:()=>store,auth:async()=>({status:200,conversation:'owner'}),schedule:(owner,worker)=>scheduled.push(worker)});
+ store.seed({conversation_id:'owner',revision:1,token_ciphertext:sealToken(tokens,'owner',env),updated_at:new Date(Date.now()-600000).toISOString(),lease_until:null,data:{job:{...newImportJob(),status:'extracting',worker:'lost'}}});
+ let response=await request(handler);assert.equal(response.data.failed,false);assert.equal(scheduled.length,1);assert.notEqual(scheduled[0],'lost');assert.equal(store.row.data.job.worker,scheduled[0]);
+ store.seed({...store.row,updated_at:new Date(Date.now()-600000).toISOString(),data:{...store.row.data,job:{...store.row.data.job,error:'paused'}}});
+ response=await request(handler);assert.equal(response.data.failed,true);assert.equal(scheduled.length,1);
 });
 test('a failed triage analyzes every email, and one failing email cannot stall the rest of the batch',async()=>{
  let row={conversation_id:'owner',token_ciphertext:sealToken(tokens,'owner',env),data:{feedback:emptyReceiptState('owner'),job:{...newImportJob(),status:'extracting',ids:['bad','m1']}}};
