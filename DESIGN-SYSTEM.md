@@ -9,7 +9,7 @@ The current visual system adapts the founder-supplied [brief](docs/design-system
 - `public/brand-ui.js` supplies the shared outlined wordmark, orb dot, request-driven thinking/completion states and favicon controller. SVG outlines come from the locally licensed Instrument Serif; the logo never depends on a fallback dotless-j glyph.
 - `public/brand-mark.js` paints the same outlines and a frozen orb into PNG exports. `public/brand/` contains the wordmark and font-independent favicon frames.
 - Page CSS owns composition only. Repeated controls belong in the shared layer; base control selectors have low specificity so explicit page compositions such as image overlays retain their positioning.
-- `public/admin-console.js` mounts the owner console on every admin page: the sticky admin bar, the persistent tool menu (a horizontal strip at 800px and below), and the single owner sign-in. Its styles are the admin-console section of `design-system.css`; admin page CSS owns composition only.
+- `public/admin-console.js` mounts the owner console on every admin page: the standard companion header (via `mountHeader('admin')`, so Admin is the current page and Log out signs out of admin), the persistent tool menu (a horizontal strip at 800px and below), and the single owner sign-in. Its styles are the admin-console section of `design-system.css`; admin page CSS owns composition only.
 
 ## Visual rules
 
