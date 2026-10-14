@@ -150,16 +150,8 @@ The review is available only when the import's Gmail account matches `ADMIN_EMAI
 
 ## October 14 update: imports finish with the page closed
 
-Vercel rejects a function that keeps calling its own URL after a few hops, and the Hobby plan allows only daily crons, so a long import could stop when the page closed. A Supabase scheduled job now runs `gmail_sweep_tick()` every minute (`db/023_gmail_sweep.sql`). It calls Vercel only when an import is running and has written nothing for over a minute. `GET /api/wishlist?gmail=sweep` (header `Authorization: Bearer GMAIL_SWEEP_SECRET`) restarts each quiet import with a fresh worker chain. Each call is a new request, so Vercel's hop count starts over. An import paused after repeated step failures is retried after 5, 10, 20, 40 and 80 minutes, then left for review (`gmail_sweep` log line, `job.sweep_retries`). A successful step clears the retry count. The onboarding page's own resume still works when the page is open.
+Vercel rejects a function that keeps calling its own URL after a few hops, and the Hobby plan allows only daily crons, so a long import could stop when the page closed. A Supabase scheduled job now runs `gmail_sweep_tick()` every minute (`db/023_gmail_sweep.sql`). It calls Vercel only when an import is running and has written nothing for over a minute. `GET /api/wishlist?gmail=sweep` restarts each quiet import with a fresh worker chain. Each call is a new request, so Vercel's hop count starts over. The bearer secret is generated inside Supabase Vault by the migration; the server reads it through the service-role-only `gmail_sweep_secret()` function, so no secret is copied between services. An import paused after repeated step failures is retried after 5, 10, 20, 40 and 80 minutes, then left for review (`gmail_sweep` log line, `job.sweep_retries`). A successful step clears the retry count. The onboarding page's own resume still works when the page is open.
 
 ### Setup (once)
 
-1. **Create the shared secret.** In Terminal, run `openssl rand -hex 32`. It prints a 64-character secret. Copy it.
-2. **Store it in Vercel.** Go to Vercel → Jules project → Settings → Environment Variables and add `GMAIL_SWEEP_SECRET` with that value for Production. Mark it sensitive. Don't paste it into chat or Git.
-3. **Store it and the site address in Supabase Vault.** In Supabase → SQL Editor, run the following, replacing the second value with the secret you copied. The secret lives only in Supabase's encrypted Vault.
-   ```sql
-   select vault.create_secret('https://jules-gamma.vercel.app', 'jules_site_origin');
-   select vault.create_secret('PASTE-THE-SECRET-HERE', 'jules_gmail_sweep_secret');
-   ```
-4. **Install the scheduler.** In the SQL Editor, run `db/023_gmail_sweep.sql`. It enables the `pg_cron` and `pg_net` extensions and schedules the once-a-minute job. No credential is produced.
-5. **Deploy** after the Vercel variable is saved. To confirm it works: start an import, close the page, and check Supabase → Integrations → Cron → `jules-gmail-sweep` runs, or the Vercel `gmail_sweep` log lines.
+In Supabase → SQL Editor, run `db/023_gmail_sweep.sql`. It enables `pg_cron`, `pg_net` and `pgcrypto`, creates the secret in Vault and schedules the job. No credential is shown or copied. The production URL is written into the file; edit it if the domain changes. To confirm it works: start an import, close the page, then check Supabase → Integrations → Cron → `jules-gmail-sweep` runs or the Vercel `gmail_sweep` log lines.

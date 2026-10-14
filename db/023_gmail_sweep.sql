@@ -3,23 +3,33 @@
 -- so the Supabase scheduler calls the sweep instead. It calls Vercel only when an import is running
 -- and has been quiet for over a minute.
 --
--- Before running: store two Vault secrets in this project (SQL Editor, values never in Git):
---   select vault.create_secret('https://YOUR-JULES-DOMAIN', 'jules_site_origin');
---   select vault.create_secret('THE-SAME-VALUE-AS-VERCEL-GMAIL_SWEEP_SECRET', 'jules_gmail_sweep_secret');
+-- The shared secret is generated here, inside Supabase Vault; the Vercel server reads it with its
+-- service-role database access. Nobody copies it. Re-running this file keeps the existing secret.
+-- Change the site origin below only if the production domain changes.
 begin;
 create extension if not exists pg_cron;
 create extension if not exists pg_net;
+create extension if not exists pgcrypto;
+do $$ begin
+ if not exists(select 1 from vault.secrets where name='jules_gmail_sweep_secret') then
+  perform vault.create_secret(encode(extensions.gen_random_bytes(32),'hex'),'jules_gmail_sweep_secret');
+ end if;
+end $$;
+create or replace function public.gmail_sweep_secret()
+returns text language sql stable security definer set search_path=public as $$
+ select decrypted_secret from vault.decrypted_secrets where name='jules_gmail_sweep_secret';
+$$;
+revoke all on function public.gmail_sweep_secret() from public,anon,authenticated;
+grant execute on function public.gmail_sweep_secret() to service_role;
 create or replace function public.gmail_sweep_tick()
 returns void language plpgsql security definer set search_path=public as $$
-declare origin text; secret text;
 begin
  if not exists(select 1 from gmail_imports where data->'job'->>'status' in ('listing','extracting','questions')
    and updated_at<now()-interval '1 minute' and (lease_until is null or lease_until<now())) then return; end if;
- select decrypted_secret into origin from vault.decrypted_secrets where name='jules_site_origin';
- select decrypted_secret into secret from vault.decrypted_secrets where name='jules_gmail_sweep_secret';
- if origin is null or secret is null then raise warning 'gmail sweep: vault secrets missing'; return; end if;
- perform net.http_get(url:=rtrim(origin,'/')||'/api/wishlist?gmail=sweep',headers:=jsonb_build_object('Authorization','Bearer '||secret),timeout_milliseconds:=10000);
+ perform net.http_get(url:='https://jules-gamma.vercel.app/api/wishlist?gmail=sweep',
+  headers:=jsonb_build_object('Authorization','Bearer '||gmail_sweep_secret()),timeout_milliseconds:=10000);
 end; $$;
 revoke all on function public.gmail_sweep_tick() from public,anon,authenticated;
+select cron.unschedule(jobid) from cron.job where jobname='jules-gmail-sweep';
 select cron.schedule('jules-gmail-sweep','* * * * *','select public.gmail_sweep_tick()');
 commit;

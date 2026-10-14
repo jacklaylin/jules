@@ -53,11 +53,16 @@ test('a retried import counts the retry and clears the error before restarting',
  const store=sweepStore([{id:'paused',updated_at:minutes(30),job:{status:'extracting',error:'paused',sweep_retries:1}}]);
  await sweepGmailImports(store,{},{schedule:()=>{}});assert.equal(store.finished[0].job.sweep_retries,2);assert.equal(store.finished[0].job.error,undefined);
 });
-test('the sweep endpoint requires its own long secret',async()=>{
+test('the sweep endpoint requires the secret generated in Supabase Vault',async()=>{
+ const {resetSweepSecret}=await import('../lib/gmail-worker.js');
  const res=()=>({headers:{},setHeader(k,v){this.headers[k]=v;},end(b){this.body=JSON.parse(b);}});
- const env={GMAIL_IMPORT_ENABLED:'true',GMAIL_SWEEP_SECRET:'s'.repeat(40)},store={quietGmailImports:async()=>[]};
- let r=res();await handleGmailSweep({headers:{}},r,store,env);assert.equal(r.statusCode,401);
- r=res();await handleGmailSweep({headers:{authorization:'Bearer '+'s'.repeat(40)}},r,store,{...env,GMAIL_SWEEP_SECRET:'short'});assert.equal(r.statusCode,401);
- r=res();await handleGmailSweep({headers:{authorization:'Bearer '+'s'.repeat(40)}},r,store,env);assert.equal(r.statusCode,200);assert.deepEqual(r.body,{quiet:0,restarted:0,abandoned:0});
+ const env={GMAIL_IMPORT_ENABLED:'true'},secret='s'.repeat(64),store={gmailSweepSecret:async()=>secret,quietGmailImports:async()=>[]};
+ resetSweepSecret();let r=res();await handleGmailSweep({headers:{}},r,store,env);assert.equal(r.statusCode,401);
+ r=res();await handleGmailSweep({headers:{authorization:'Bearer wrong'}},r,store,env);assert.equal(r.statusCode,401);
+ r=res();await handleGmailSweep({headers:{authorization:'Bearer '+secret}},r,store,env);assert.equal(r.statusCode,200);assert.deepEqual(r.body,{quiet:0,restarted:0,abandoned:0});
+ // Not installed yet (no secret): refused, never open.
+ resetSweepSecret();r=res();await handleGmailSweep({headers:{authorization:'Bearer null'}},r,{gmailSweepSecret:async()=>null},env);assert.equal(r.statusCode,401);
+ resetSweepSecret();r=res();await handleGmailSweep({headers:{authorization:'Bearer x'}},r,{gmailSweepSecret:async()=>{throw Error('missing function');}},env);assert.equal(r.statusCode,503);
+ resetSweepSecret();
 });
 test('a successful step clears sweep retries',async()=>{const store=fixture();store.row.data.job.sweep_retries=3;await runGmailStep('owner',store,{},{},{step:async row=>row,schedule:()=>{}});assert.equal(store.row.data.job.sweep_retries,undefined);});
