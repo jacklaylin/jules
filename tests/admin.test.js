@@ -71,10 +71,11 @@ test('admin blocks unauthenticated reads and sends before accessing private data
     assert.equal(res.headers['Cache-Control'], 'no-store');
   }
 });
-test('admin is read-only: manual replies are retired and never reach the store or Photon', async () => {
+test('admin conversations are read-only: manual replies are retired and never reach the store or Photon', async () => {
   const handler = createAdminHandler({ auth: async () => 200, storeFactory: () => assert.fail('must not access database') });
   const res = response(); await handler(request({ conversation: id, operation, body: 'Reply' }), res);
-  assert.equal(res.statusCode, 405); assert.equal(res.headers.Allow, 'GET');
+  assert.equal(res.statusCode, 400);
+  const put = response(); await handler({ ...request({}), method: 'PUT' }, put); assert.equal(put.statusCode, 405); assert.equal(put.headers.Allow, 'GET, POST');
 });
 test('owner access check answers without reading private data, and non-owners are refused', async () => {
   const get = url => ({ method: 'GET', url, headers: {} });

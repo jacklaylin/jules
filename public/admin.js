@@ -1,9 +1,11 @@
 import {mountAdminShell,adminJson,adminToken} from './admin-console.js';
+import {mountPurchases,loadPurchases} from './admin-purchases.js';
 mountAdminShell('people');
 const $ = id => document.getElementById(id);
 let current = null, requestVersion = 0, cursor = null, historyMessages = [], profileBusy = false, profileVersion = 0;
 function notice(message) { $('notice').textContent = message; $('notice').hidden = !message; }
 const api = (path, options) => adminJson(path, options);
+mountPurchases(api);
 const date = at => new Date(at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 let imageURLs = [];
 function renderMessages() {
@@ -44,7 +46,7 @@ async function loadConversation(id, earlier = false) {
   $('person').textContent = data.conversation.sender_id;
   historyMessages = earlier ? [...data.messages, ...historyMessages] : data.messages;
   cursor = data.before; renderMessages();
-  if (!earlier) await loadProfile(id);
+  if (!earlier) { loadPurchases(id); await loadProfile(id); }
   if (!earlier) $('messages').scrollTop = $('messages').scrollHeight;
 }
 async function loadInbox() {
