@@ -88,7 +88,7 @@ async function runImport(resume=false){
 }
 // Connected history sources (Shop today). Each has a section whose element IDs start with its name:
 // <name>-orders, -title, -consent, -consent-label, -progress, -approve, -code, -approve-link, -connect,
-// -import, -disconnect. Approval happens in the source's app with a short code; the page then reads
+// -import, -reread, -disconnect. Approval happens in the source's app with a short code; the page then reads
 // records in steps.
 const SOURCES={shop:{label:'Shop',noun:'orders',consent:'shop-orders-5y-100-v1'}},wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const sourceBusy=new Set();
@@ -98,7 +98,7 @@ function renderSources(data){
   el('orders').hidden=!(data.connections_available??[]).includes(name);el('title').textContent=c.connected?`Your ${source.label} ${source.noun}`:`Add your ${source.label} ${source.noun}`;
   el('consent-label').hidden=el('connect').hidden=c.connected||approving;
   el('approve').hidden=!approving;el('code').textContent=c.user_code??'';if(c.verification_url)el('approve-link').href=c.verification_url;
-  el('import').hidden=el('disconnect').hidden=!c.connected||c.status==='extracting';
+  el('import').hidden=el('reread').hidden=el('disconnect').hidden=!c.connected||c.status==='extracting';
   el('progress').textContent=[approving?`Waiting for you to approve Jules in ${source.label}…`:c.status==='extracting'?`Reading your ${source.label} ${source.noun}: ${c.processed} of ${c.processed+c.queued}.`:c.status==='ready'?`${source.label} ${source.noun} imported: ${c.found} checked.`:c.connected?`${source.label} connected.`:'',c.error??''].filter(Boolean).join(' ');
  }
 }
@@ -118,6 +118,8 @@ for(const [name,source] of Object.entries(SOURCES)){
  const el=id=>$(name+'-'+id);
  el('connect').onclick=async()=>{if(!el('consent').checked){$('status').textContent=`Review and confirm ${source.label} history analysis consent first.`;return;}el('connect').disabled=true;$('status').textContent='';try{const data=await sourceCall(name,'connect',{consent:source.consent});renderGmail(data);await runSource(name,data);}catch(error){$('status').textContent=error.message;}finally{el('connect').disabled=false;}};
  el('import').onclick=async()=>{try{const data=await sourceCall(name,'import');renderGmail(data);await runSource(name,data);}catch(error){$('status').textContent=error.message;}};
+ // Re-reading replaces this source's earlier results with the current reading rules.
+ el('reread').onclick=async()=>{if(!confirm(`Re-read every ${source.label} ${source.noun.replace(/s$/,'')} with the latest reading? Earlier ${source.label} results are replaced; Gmail history stays.`))return;try{const data=await sourceCall(name,'reread');renderGmail(data);await runSource(name,data);}catch(error){$('status').textContent=error.message;}};
  el('disconnect').onclick=async()=>{try{renderGmail(await sourceCall(name,'disconnect'));$('status').textContent=`${source.label} disconnected. Imported ${source.noun} remain saved. You can also remove Jules in ${source.label}’s settings.`;}catch(error){$('status').textContent=error.message;}};
 }
 async function loadGmail(){

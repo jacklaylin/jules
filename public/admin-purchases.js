@@ -13,6 +13,9 @@ const RECIPIENTS = { self: 'For them', other: 'For someone else', unknown: 'Reci
 const OUTCOMES = { returned: 'Returned', return_requested: 'Return requested', cancelled: 'Cancelled' };
 const KINDS = { purchased: 'Purchase', shipped: 'Shipped', return_requested: 'Return requested', returned: 'Returned', cancelled: 'Cancelled', refunded: 'Refunded' };
 const REASON_LABEL = Object.fromEntries(REASONS);
+const SOURCE_LABEL = { gmail: 'Gmail', shop: 'Shop' };
+const sourceName = s => SOURCE_LABEL[s] ?? s;
+const STOPS = { no_more_pages: 'the service said there were no more pages', next_page_without_cursor: 'the service said more pages exist but gave no way to request them', limit: 'the import limit was reached', page_cap: 'the page limit was reached', end: 'listing ended' };
 
 let api, conversation = null, data = null, busy = false, version = 0;
 const notice = text => { $('purchases-notice').textContent = text; };
@@ -22,7 +25,7 @@ const statusOf = item => item.duplicate_of ? 'duplicate' : item.removed ? 'remov
 
 export function mountPurchases(request) {
   api = request;
-  for (const id of ['purchases-search', 'purchases-status', 'purchases-store']) $(id).addEventListener('input', render);
+  for (const id of ['purchases-search', 'purchases-status', 'purchases-store', 'purchases-source']) $(id).addEventListener('input', render);
   $('purchases-reload').onclick = () => conversation && loadPurchases(conversation);
   $('recheck-run').onclick = recheck;
   $('skipped-load').onclick = loadSkipped;
@@ -62,13 +65,15 @@ function render() {
   $('purchases-count').textContent = items.length ? `(${items.length})` : '';
   $('purchases-summary').textContent = data.status === 'not_started' && !items.length ? 'No Gmail import for this person yet.' :
     `${items.length} items · ${count('review')} to review · ${count('reviewed')} reviewed · ${count('removed')} removed · ${count('duplicate')} duplicates` +
-    `${data.pending.length ? ` · ${data.pending.length} unlinked events` : ''} · import ${data.status.replace('_', ' ')}`;
+    `${data.pending.length ? ` · ${data.pending.length} unlinked events` : ''} · import ${data.status.replace('_', ' ')}` +
+    (data.connections?.length ? ` · ${items.filter(i => i.sources.length > 1).length} found by more than one source` : '');
   const stores = [...new Set(items.map(i => i.merchant).filter(Boolean))].sort((a, b) => a.localeCompare(b));
   const chosen = $('purchases-store').value;
   $('purchases-store').replaceChildren(el('option', { value: '', textContent: 'All stores' }), ...stores.map(s => el('option', { value: s, textContent: s })));
   $('purchases-store').value = stores.includes(chosen) ? chosen : '';
-  const query = $('purchases-search').value.trim().toLowerCase(), status = $('purchases-status').value, store = $('purchases-store').value;
+  const query = $('purchases-search').value.trim().toLowerCase(), status = $('purchases-status').value, store = $('purchases-store').value, source = $('purchases-source').value;
   const shown = items.filter(i => (!status || statusOf(i) === status) && (!store || i.merchant === store) &&
+    (!source || (source === 'multiple' ? i.sources.length > 1 : i.sources.includes(source))) &&
     (!query || [i.brand, i.product, i.merchant, i.color, i.size_label, i.order_reference].some(v => v && v.toLowerCase().includes(query))));
   const open = new Set([...$('purchases-list').querySelectorAll('details[open]')].map(d => d.dataset.item));
   $('purchases-list').replaceChildren(...(shown.length ? shown.map(i => itemRow(i, open.has(i.id))) : [el('p', { className: 'muted', textContent: items.length ? 'No items match these filters.' : 'No purchases found yet.' })]));
@@ -77,13 +82,14 @@ function render() {
   $('purchases-pending-list').replaceChildren(...data.pending.map(p => el('div', { className: 'evidence' },
     el('p', { className: 'meta', textContent: `${KINDS[p.kind] ?? p.kind} · ${p.merchant ?? 'store unknown'} · ${p.order_reference ? `order ${p.order_reference} · ` : ''}${day(p.at)}` }),
     p.evidence ? el('blockquote', { textContent: p.evidence }) : null)));
+  renderConnections();
   $('missed-list').replaceChildren(...[...data.missed].reverse().map(m => el('p', { className: 'fact-row', textContent: `${m.store}${m.when ? ` · ${m.when}` : ''} — ${m.description}` })));
 }
 
 function itemRow(item, open) {
   const facts = [item.merchant, item.size_label && `size ${item.size_label}${item.size_system ? ` (${item.size_system})` : ''}`, item.color, item.quantity > 1 && `×${item.quantity}`,
     day(item.events.find(e => e.kind === 'purchased')?.at), RECIPIENTS[item.recipient.value] + (item.recipient.basis === 'receipt_evidence' ? ' (receipt)' : ''), OUTCOMES[item.outcome]].filter(Boolean);
-  const badges = [item.removed && !item.duplicate_of && 'Removed', item.duplicate_of && 'Duplicate', item.confirmed && 'Confirmed', item.confirmed_fields.length && 'Edited', reviewed(item) && 'Reviewed'].filter(Boolean);
+  const badges = [item.sources.map(sourceName).join(' + '), item.removed && !item.duplicate_of && 'Removed', item.duplicate_of && 'Duplicate', item.confirmed && 'Confirmed', item.confirmed_fields.length && 'Edited', reviewed(item) && 'Reviewed'].filter(Boolean);
   const details = el('details', { className: `purchase ${statusOf(item)}`, open },
     el('summary', {}, el('strong', { textContent: title(item) }), el('span', { className: 'meta', textContent: facts.join(' · ') }),
       badges.length ? el('span', { className: 'badges' }, ...badges.map(b => el('span', { className: 'tag', textContent: b }))) : null),
@@ -94,10 +100,11 @@ function itemRow(item, open) {
 
 function evidence(item) {
   const emails = new Map(item.emails.map(e => [e.id, e]));
-  return el('div', {}, el('h4', { textContent: 'Evidence from email' }),
+  return el('div', {}, el('h4', { textContent: 'Evidence' }),
     ...item.events.map(event => {
-      const email = emails.get(event.source_id);
-      const link = el('a', { href: `https://mail.google.com/mail/u/0/#all/${encodeURIComponent(event.source_id)}`, target: '_blank', rel: 'noopener noreferrer', textContent: 'Open in Gmail' });
+      const email = emails.get(event.source_id), gmail = event.source === 'gmail';
+      // Only Gmail records can be opened; a connected service's record is summarised under Connected sources.
+      const link = gmail ? el('a', { href: `https://mail.google.com/mail/u/0/#all/${encodeURIComponent(event.source_id)}`, target: '_blank', rel: 'noopener noreferrer', textContent: 'Open in Gmail' }) : `${sourceName(event.source)} record`;
       return el('div', { className: 'evidence' },
         el('p', { className: 'meta' }, `${KINDS[event.kind] ?? event.kind} · ${day(event.at ?? email?.date)}${email?.sender_domain ? ` · ${email.sender_domain}` : ''} · `, link),
         event.evidence ? el('blockquote', { textContent: event.evidence }) : null);
@@ -226,4 +233,23 @@ async function saveSkipped(email, label, row) {
     $('skipped-status').textContent = `Saved · ${result.labelled} labelled so far.`;
   } catch (error) { $('skipped-status').textContent = error.message; row.querySelectorAll('input').forEach(i => { i.checked = i.value === email.label; }); }
   finally { row.querySelectorAll('input').forEach(i => { i.disabled = false; }); }
+}
+
+// Connected sources: the listing report (why the history is as long as it is) and each record's outcome.
+function renderConnections() {
+  const connections = data.connections ?? [];
+  $('purchases-sources').hidden = !connections.length;
+  $('purchases-sources-count').textContent = connections.length ? `(${connections.length})` : '';
+  $('purchases-sources-list').replaceChildren(...connections.map(c => {
+    const pages = c.listing?.pages ?? [];
+    const lists = pages.flatMap(p => Object.entries(p.lists)).reduce((m, [k, n]) => { m[k] = (m[k] ?? 0) + n; return m; }, {});
+    const nothing = c.reads.filter(r => r.status === 'read' && !r.purchases), failed = c.reads.filter(r => r.status === 'failed');
+    return el('div', { className: 'evidence' },
+      el('h4', { textContent: `${c.label} · ${c.status.replace('_', ' ')}${c.imported_at ? ` · imported ${day(c.imported_at)}` : ''}` }),
+      el('p', { className: 'meta', textContent: c.listing ? `Returned ${c.listing.total} records in ${pages.length} ${pages.length === 1 ? 'page' : 'pages'} (${Object.entries(lists).map(([k, n]) => `${k.replace(/_/g, ' ')} ${n}`).join(', ') || 'none'}) since ${c.listing.from ?? 'any date'}; stopped because ${STOPS[c.listing.stop] ?? c.listing.stop}.` : 'No listing report yet. Re-read to record one.' }),
+      ...pages.map((p, n) => el('p', { className: 'meta', textContent: `Page ${n + 1}: ${Object.entries(p.lists).map(([k, v]) => `${k} ${v}`).join(', ') || 'no records'} · more pages: ${p.has_next_page ?? 'not stated'} · next-page cursor: ${p.cursor ? 'yes' : 'no'} · pagination fields: ${p.pagination_keys.join(', ') || 'none'}${p.messages.length ? ` · messages: ${p.messages.join(' | ')}` : ''}` })),
+      el('p', { className: 'meta', textContent: `${c.processed} read · ${c.reads.filter(r => r.purchases).length} with purchases · ${c.reads.filter(r => r.linked).length} linked to another source · ${nothing.length} with nothing found · ${failed.length} failed · ${c.withheld} events withheld${c.error ? ` · ${c.error}` : ''}` }),
+      ...c.reads.map(r => el('details', {}, el('summary', { className: 'meta', textContent: `${day(r.date)} · ${r.kind?.replace(/_/g, ' ') ?? 'record'} · ${r.status === 'failed' ? 'could not be read' : r.purchases ? `${r.purchases} ${r.purchases === 1 ? 'purchase' : 'purchases'}${r.linked ? `, ${r.linked} linked` : ''}` : 'nothing found'}${r.withheld ? ` · ${r.withheld} withheld` : ''}` }),
+        el('blockquote', { textContent: r.summary ?? 'No summary.' }))));
+  }));
 }
