@@ -232,6 +232,10 @@ fieldset label input[type=radio]{accent-color:var(--grape)}
 @media(prefers-reduced-motion:reduce){.mobile-menu[open]{animation:none}}
 
 /* Owner admin console: the standard header above, and a tool menu that stays in view below the compact header. */
+/* Pages keep the same width whether or not they scroll, so switching tools never shifts content sideways. */
+html{scrollbar-gutter:stable}
+/* Before the shell script runs, main already sits where the layout will put it (left menu, or the phone strip). */
+body.admin-console>main{padding:var(--page-top) var(--page-gutter) 80px calc(var(--page-gutter) + 270px)}
 body.admin-console{--admin-sticky:64px}
 .admin-layout{display:grid;grid-template-columns:230px minmax(0,1fr);padding:var(--page-top) var(--page-gutter) 0}
 .admin-nav{position:sticky;top:var(--admin-sticky);align-self:start;max-height:calc(100dvh - var(--admin-sticky));overflow:auto;padding:4px 24px 28px 0;border-right:1px solid var(--line);display:grid;gap:24px}
@@ -245,4 +249,5 @@ body.admin-console{--admin-sticky:64px}
  .admin-layout{grid-template-columns:minmax(0,1fr)}
  .admin-nav{z-index:9;background:var(--white);max-height:none;display:flex;gap:6px;overflow-x:auto;padding:8px 0;margin-top:calc(var(--page-top)*-1);border-right:0;border-bottom:1px solid var(--line);scrollbar-width:none}
  .admin-nav-group{display:contents}.admin-nav h2,.admin-nav a small{display:none}.admin-nav a{flex:none;white-space:nowrap;display:flex;align-items:center;font-size:14px}
- .admin-layout>main,.admin-gate{padding:24px 0 60px}}
+ .admin-layout>main,.admin-gate{padding:24px 0 60px}
+ body.admin-console>main{padding:85px var(--page-gutter) 60px}}
