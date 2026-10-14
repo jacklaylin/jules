@@ -1,12 +1,12 @@
-// Owner console shell: one sign-in shared by every admin tool, and one menu that stays on screen.
+// Owner console shell: the standard Jules header, one sign-in shared by every admin tool, and a tool menu that stays on screen.
 // Pages keep their own actions; they call adminFetch so expired or non-owner sessions return to sign-in.
-import {createLogo,initBrandActivity} from './brand-ui.js';
+import {mountHeader} from './design-system.js';
 import {createSession} from './wishlist-session.js';
 import {captureSignIn,LEGACY_KEYS} from './admin-session.js';
 import {trackedFetch} from './activity.js';
 
 export const ADMIN_SECTIONS=[
- ['Conversations',[['people','People','/admin','Threads, profiles and feedback']]],
+ ['Conversations',[['people','People','/admin','Threads, memory and purchases']]],
  ['Test lab',[
   ['test-chat','Test chat','/admin/test-chat','Real Jules logic, no phone messages'],
   ['replays','Replays & evals','/admin/replays','Sourcing replays and routing eval'],
@@ -16,7 +16,7 @@ export const ADMIN_SECTIONS=[
  ['Operations',[['costs','Costs','/admin/costs','Daily spend and budget']]],
 ];
 const session=createSession({storage:localStorage,lock:work=>navigator.locks?navigator.locks.request('jules-wishlist-refresh',work):work()});
-let gate,content,signout;
+let gate,content,signout,adminLink;
 export const adminToken=()=>session.token();
 
 export async function adminFetch(path,options={}){
@@ -37,10 +37,10 @@ export async function adminJson(path,options){
 
 function showGate(message=''){
  if(!gate)return;
- gate.hidden=false;content.hidden=true;signout.hidden=true;
+ gate.hidden=false;content.hidden=true;signout.hidden=true;adminLink.hidden=true;
  gate.querySelector('.admin-gate-notice').textContent=message;
 }
-function hideGate(){gate.hidden=true;content.hidden=false;signout.hidden=false;}
+function hideGate(){gate.hidden=true;content.hidden=false;signout.hidden=false;adminLink.hidden=false;}
 
 function element(tag,props={},...children){const node=Object.assign(document.createElement(tag),props);node.append(...children);return node;}
 
@@ -48,10 +48,10 @@ export function mountAdminShell(page){
  const error=captureSignIn({location,history,localStore:localStorage,tabStore:sessionStorage});
  document.body.classList.add('admin-console');
  content=document.querySelector('main');
- const brand=element('a',{className:'wordmark',href:'/admin'},createLogo());brand.setAttribute('aria-label','Jules admin');
- signout=element('button',{type:'button',className:'admin-signout',textContent:'Sign out'});
- const bar=element('header',{className:'admin-bar'},brand,element('span',{className:'admin-label',textContent:'Admin'}),
-  element('div',{className:'admin-bar-actions'},element('a',{href:'/wishlist',textContent:'Your wishlist ↗'}),signout));
+ // Admin pages use the same header as Wishlist and Your style; Admin is the current page.
+ if(!document.querySelector('.app-header'))document.body.prepend(element('header',{className:'app-header'}));
+ mountHeader('admin');
+ signout=document.getElementById('logout');adminLink=document.getElementById('admin-link');
  const nav=element('nav',{className:'admin-nav'});nav.setAttribute('aria-label','Admin tools');
  for(const [title,pages] of ADMIN_SECTIONS){
   const list=element('div',{className:'admin-nav-group'},element('h2',{textContent:title}));
@@ -83,7 +83,6 @@ export function mountAdminShell(page){
   signout.disabled=false;showGate('Signed out on this browser.');
  };
  const layout=element('div',{className:'admin-layout'},nav);
- content.before(bar,layout);layout.append(content,gate);
- initBrandActivity();
+ content.before(layout);layout.append(content,gate);
  if(error||!session.read())showGate(error??'');else hideGate();
 }
