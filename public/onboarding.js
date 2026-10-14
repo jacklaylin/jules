@@ -8,7 +8,7 @@ if(fragment.has('access_token'))session.save({access_token:fragment.get('access_
 if(location.hash)history.replaceState(null,'',location.pathname+location.search);
 $('connect-logo').replaceChildren(createLogo());
 const logo=createLogo();$('thinking-logo').append(logo);
-let busy=false;
+let busy=false,textURL=false;
 async function api(action){
  const token=await session.token();
  if(!token){$('login').hidden=false;throw Error('Log in with the number you text Jules from to continue.');}
@@ -26,6 +26,7 @@ function completed(data){
 async function load(){
  $('retry').hidden=true;
  try{const data=await api();$('status').textContent='';
+  if(data.text_url){$('open-messages').href=data.text_url;textURL=true;}
   if(data.gmail_available){await loadGmail();return;}
   if(data.state==='ready'){
     thinking();$('thinking-message').textContent='Taking you to your wishlist…';
@@ -73,6 +74,7 @@ function renderGmail(data){
  $('gmail-notice').textContent=data.failed&&running?'The import paused. Jules will keep trying automatically, or you can resume now.':'';
  $('gmail-manage').open=Boolean(data.failed&&running);
  $('text-followup').hidden=data.status!=='ready';
+ $('open-messages').hidden=data.status!=='ready'||!textURL;
  $('gmail-start').hidden=running||!data.connected||expandedConsent;$('gmail-start').textContent=data.status==='ready'?'Import again':'Import five years';$('gmail-resume').hidden=!running;
  $('gmail-disconnect').hidden=!data.connected;
  renderSources(data);

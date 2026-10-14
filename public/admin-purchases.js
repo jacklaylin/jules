@@ -87,7 +87,7 @@ function render() {
 }
 
 function itemRow(item, open) {
-  const facts = [item.merchant, item.size_label && `size ${item.size_label}${item.size_system ? ` (${item.size_system})` : ''}`, item.color, item.quantity > 1 && `×${item.quantity}`,
+  const facts = [item.merchant, item.size_label && `size ${item.size_label}${item.size_system ? ` (${item.size_system})` : ''}`, item.color, item.quantity > 1 && `×${item.quantity}`, item.price && item.price.text,
     day(item.events.find(e => e.kind === 'purchased')?.at), RECIPIENTS[item.recipient.value] + (item.recipient.basis === 'receipt_evidence' ? ' (receipt)' : ''), OUTCOMES[item.outcome]].filter(Boolean);
   const badges = [item.sources.map(sourceName).join(' + '), item.removed && !item.duplicate_of && 'Removed', item.duplicate_of && 'Duplicate', item.confirmed && 'Confirmed', item.confirmed_fields.length && 'Edited', reviewed(item) && 'Reviewed'].filter(Boolean);
   const details = el('details', { className: `purchase ${statusOf(item)}`, open },
