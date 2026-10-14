@@ -29,3 +29,35 @@ test('one invocation runs steps back to back until its time budget, then hands o
  await runGmailStep('owner',store,{},{deadline:Date.now()+60000},{step:async row=>{steps++;return {...row,data:{...row.data,job:{...row.data.job,status:steps<5?'extracting':'ready'}}};},notify:async()=>({status:'sent'}),question:async()=>{},schedule:()=>scheduled++});
  assert.equal(steps,5);assert.equal(scheduled,0);
  const timed=fixture();steps=0;await runGmailStep('owner',timed,{},{deadline:0},{step:async row=>{steps++;return row;},schedule:()=>scheduled++});assert.equal(steps,1);assert.equal(scheduled,1);});
+
+// Restart sweep (Supabase scheduler)
+import {sweepGmailImports,sweepDue,handleGmailSweep} from '../lib/gmail-worker.js';
+const minutes=n=>new Date(Date.now()-n*60000).toISOString();
+function sweepStore(rows){const finished=[];return {finished,quietGmailImports:async before=>{assert.ok(Date.parse(before)<=Date.now()-59000);return rows.map(r=>({conversation_id:r.id,updated_at:r.updated_at,lease_until:r.lease_until??null,job:r.job}));},
+ claimGmailImport:async id=>{const r=rows.find(x=>x.id===id);return r.busy?null:{revision:1,token_ciphertext:'sealed',data:{job:structuredClone(r.job)}};},
+ finishGmailImport:async(id,rev,data)=>{finished.push({id,job:data.job});return true;}};}
+test('the sweep restarts quiet imports with a fresh chain and leaves busy, recent or finished ones alone',async()=>{
+ const store=sweepStore([{id:'quiet',updated_at:minutes(3),job:{status:'extracting',worker:'old'}},{id:'leased',updated_at:minutes(3),lease_until:new Date(Date.now()+60000).toISOString(),job:{status:'listing'}},
+  {id:'recent',updated_at:minutes(0.5),job:{status:'extracting'}},{id:'busy',busy:true,updated_at:minutes(3),job:{status:'questions'}}]);
+ const scheduled=[];const result=await sweepGmailImports(store,{},{schedule:(owner,env,info)=>scheduled.push([owner,info.worker])});
+ assert.equal(result.restarted,1);assert.deepEqual(scheduled.map(s=>s[0]),['quiet']);assert.notEqual(scheduled[0][1],'old');assert.equal(store.finished[0].job.worker,scheduled[0][1]);
+});
+test('imports paused after failures are retried with growing gaps, then left for review',()=>{
+ const row=(quietMinutes,retries)=>({updated_at:minutes(quietMinutes),lease_until:null,job:{status:'extracting',error:'paused',sweep_retries:retries}});
+ assert.equal(sweepDue(row(4,0)),false);assert.equal(sweepDue(row(6,0)),true);
+ assert.equal(sweepDue(row(15,2)),false);assert.equal(sweepDue(row(21,2)),true);
+ assert.equal(sweepDue(row(10000,5)),false);
+ assert.equal(sweepDue({updated_at:minutes(10),job:{status:'ready'}}),false);
+});
+test('a retried import counts the retry and clears the error before restarting',async()=>{
+ const store=sweepStore([{id:'paused',updated_at:minutes(30),job:{status:'extracting',error:'paused',sweep_retries:1}}]);
+ await sweepGmailImports(store,{},{schedule:()=>{}});assert.equal(store.finished[0].job.sweep_retries,2);assert.equal(store.finished[0].job.error,undefined);
+});
+test('the sweep endpoint requires its own long secret',async()=>{
+ const res=()=>({headers:{},setHeader(k,v){this.headers[k]=v;},end(b){this.body=JSON.parse(b);}});
+ const env={GMAIL_IMPORT_ENABLED:'true',GMAIL_SWEEP_SECRET:'s'.repeat(40)},store={quietGmailImports:async()=>[]};
+ let r=res();await handleGmailSweep({headers:{}},r,store,env);assert.equal(r.statusCode,401);
+ r=res();await handleGmailSweep({headers:{authorization:'Bearer '+'s'.repeat(40)}},r,store,{...env,GMAIL_SWEEP_SECRET:'short'});assert.equal(r.statusCode,401);
+ r=res();await handleGmailSweep({headers:{authorization:'Bearer '+'s'.repeat(40)}},r,store,env);assert.equal(r.statusCode,200);assert.deepEqual(r.body,{quiet:0,restarted:0,abandoned:0});
+});
+test('a successful step clears sweep retries',async()=>{const store=fixture();store.row.data.job.sweep_retries=3;await runGmailStep('owner',store,{},{},{step:async row=>row,schedule:()=>{}});assert.equal(store.row.data.job.sweep_retries,undefined);});

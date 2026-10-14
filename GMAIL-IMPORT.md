@@ -147,3 +147,19 @@ Receipt reading and triage now set `temperature: 0` for `gpt-4*` models. The sec
 After the reading fixes, the re-check agreed with 26 of 26 labels on two runs, but a full import found no new purchases while triage skipped 806 of 926 candidate emails. Labels on found items can't show what was skipped, so Admin › People › Purchase history › **Skipped emails** samples them for review. The sample takes every skipped email from a store the person has bought from (a Gmail search on the registrable sender domains of known shopping emails, filtered to `scanned_ids`), up to 60, plus a random 30 of the rest. The owner marks each as **Missed order** or **Not an order**. Labels are stored in `gmail_imports.data.triage_labels` as id, label, sender domain and time. Subjects and senders are fetched from Gmail when the sample loads and are never stored.
 
 The review is available only when the import's Gmail account matches `ADMIN_EMAIL`: other testers' subject lines stay private even from the owner. **Re-check labelled emails** includes these labels. For each one it re-runs triage on the email's metadata and, where triage reads it, full reading. A missed order agrees only if triage reads it and a purchase is found; a "not an order" agrees if it is not read as a purchase. Routes: `POST /api/wishlist?gmail=recheck` with `action: skipped_list | skipped_label | skipped_recheck`, owner-only.
+
+## October 14 update: imports finish with the page closed
+
+Vercel rejects a function that keeps calling its own URL after a few hops, and the Hobby plan allows only daily crons, so a long import could stop when the page closed. A Supabase scheduled job now runs `gmail_sweep_tick()` every minute (`db/023_gmail_sweep.sql`). It calls Vercel only when an import is running and has written nothing for over a minute. `GET /api/wishlist?gmail=sweep` (header `Authorization: Bearer GMAIL_SWEEP_SECRET`) restarts each quiet import with a fresh worker chain. Each call is a new request, so Vercel's hop count starts over. An import paused after repeated step failures is retried after 5, 10, 20, 40 and 80 minutes, then left for review (`gmail_sweep` log line, `job.sweep_retries`). A successful step clears the retry count. The onboarding page's own resume still works when the page is open.
+
+### Setup (once)
+
+1. **Create the shared secret.** In Terminal, run `openssl rand -hex 32`. It prints a 64-character secret. Copy it.
+2. **Store it in Vercel.** Go to Vercel → Jules project → Settings → Environment Variables and add `GMAIL_SWEEP_SECRET` with that value for Production. Mark it sensitive. Don't paste it into chat or Git.
+3. **Store it and the site address in Supabase Vault.** In Supabase → SQL Editor, run the following, replacing the second value with the secret you copied. The secret lives only in Supabase's encrypted Vault.
+   ```sql
+   select vault.create_secret('https://jules-gamma.vercel.app', 'jules_site_origin');
+   select vault.create_secret('PASTE-THE-SECRET-HERE', 'jules_gmail_sweep_secret');
+   ```
+4. **Install the scheduler.** In the SQL Editor, run `db/023_gmail_sweep.sql`. It enables the `pg_cron` and `pg_net` extensions and schedules the once-a-minute job. No credential is produced.
+5. **Deploy** after the Vercel variable is saved. To confirm it works: start an import, close the page, and check Supabase → Integrations → Cron → `jules-gmail-sweep` runs, or the Vercel `gmail_sweep` log lines.
