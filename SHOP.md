@@ -28,6 +28,12 @@ Shop order history is the first *connected source*. It runs on shared purchase-h
 
 No new secrets are needed. Shop's sign-in token is encrypted with `GMAIL_TOKEN_KEY` and stored with the Gmail import data. It is never sent to the browser or to OpenAI. Only order records are sent to OpenAI, under the consent shown on the page.
 
+## Checking a Shop import
+
+- **Admin → People → a person → purchase history.** Each item shows which sources found it (for example "Gmail + Shop"), and the "Found by" filter can show items found by more than one source. "Connected sources" shows what Shop returned page by page and why listing stopped. It also lists each Shop record with a short summary (no addresses or contact details) and what was found: purchases, links to another source's item, or nothing.
+- **Matching across sources:** a Shop record links to an existing item when the store's order number matches. If Shop has no store order number, it links to an item from the same store bought within 14 days, provided the product names agree and no stated size, colour or SKU differs. Gmail-to-Gmail matching still requires the order number.
+- **Re-read all Shop orders** (on `/onboarding`) reads every Shop record again with the current rules and replaces earlier Shop results. Gmail history is untouched.
+
 ## Keeping the store list current
 
 `lib/shopify-stores.json` records which registry stores Shop carries. Refresh it monthly, or after editing `lib/source-registry.js`:
