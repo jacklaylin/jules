@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Jules admin · Person</title><link rel="stylesheet" href="/design-system.css"><link rel="stylesheet" href="/admin.css">
+  <script src="/admin-person.js" type="module"></script><link rel="modulepreload" href="/admin-console.js"><link rel="modulepreload" href="/design-system.js"><link rel="modulepreload" href="/brand-ui.js"><link rel="modulepreload" href="/activity.js"><link rel="modulepreload" href="/wishlist-session.js"><link rel="modulepreload" href="/admin-session.js"><link rel="modulepreload" href="/admin-purchases.js">
+<link rel="icon" href="/brand/icon.svg" type="image/svg+xml"></head>
+<body class="admin-console">
+  <main>
+    <p class="breadcrumb"><a href="/admin">People</a> / <span id="crumb">…</span></p>
+    <div class="person-title"><h1 id="person-name">Loading…</h1><div id="person-badges" class="badges"></div></div>
+    <div class="stats"><div><span class="mono-label">Last active</span><strong id="stat-active">—</strong></div><div><span class="mono-label">Messages</span><strong id="stat-messages">—</strong></div><div><span class="mono-label">Memory facts</span><strong id="stat-facts">—</strong></div></div>
+    <nav class="tabs" aria-label="Person sections">
+      <a href="?tab=memory" data-tab="memory">Personal memory <span class="count" id="count-memory"></span></a>
+      <a href="?tab=conversation" data-tab="conversation">Conversation <span class="count" id="count-conversation"></span></a>
+      <a href="?tab=purchases" data-tab="purchases">Purchase history <span class="count" id="purchases-count"></span></a>
+      <a href="?tab=wishlist" data-tab="wishlist">Wishlist <span class="count" id="count-wishlist"></span></a>
+    </nav>
+    <p id="notice" role="status" aria-live="polite" class="muted"></p>
+
+    <section id="tab-memory" data-panel="memory" hidden>
+      <div class="toolbar"><button id="profile-reload" class="small" type="button">Reload profile</button><button id="profile-import" class="small" type="button">Learn from existing messages</button><span id="memory-dirty" class="badge warn" hidden></span></div>
+      <div id="memory-conflict" class="notice-bar" hidden><span>This profile changed since you loaded it. Reload to see the latest; your unsaved values stay in their rows.</span><button id="conflict-reload" class="small" type="button">Reload profile</button></div>
+      <details class="fold"><summary>Summary</summary><p id="profile-summary" class="muted"></p></details>
+      <div class="table-scroll"><table class="data-table memory-table"><thead><tr><th>Type</th><th>Key</th><th>Value</th><th>Evidence</th><th>Actions</th></tr></thead><tbody id="profile-facts"></tbody></table></div>
+      <form id="profile-add" class="add-fact"><h3>Add a preference</h3><div class="add-fact-fields"><label>Type<select id="fact-field"><option value="gender">Gender identity</option><option value="shopping_range">Clothing range</option><option value="size">Size</option><option value="brand">Brand</option><option value="category">Category</option><option value="style">Style attribute</option><option value="budget">Usual budget</option></select></label><label>Key<input id="fact-key" maxlength="100" required placeholder="e.g. shoes/us_men or lemaire"></label><label>Value<input id="fact-value" maxlength="500" required placeholder="e.g. 10 or prefers relaxed tailoring"></label><button type="submit" class="primary">Add preference</button></div></form>
+      <p id="profile-notice" role="status" aria-live="polite" class="muted"></p>
+    </section>
+
+    <section id="tab-conversation" data-panel="conversation" hidden>
+      <div class="toolbar"><label class="sr-only" for="convo-filter">Show</label><select id="convo-filter"><option value="all">All messages</option><option value="problems">Problems only</option></select><button id="older" class="small" type="button" hidden>Load earlier messages</button><span class="spacer"></span><span id="convo-count" class="muted"></span></div>
+      <div id="messages" class="bubbles" aria-label="Conversation history"></div>
+    </section>
+
+    <section id="tab-purchases" data-panel="purchases" hidden>
+      <div class="toolbar"><label class="sr-only" for="purchases-search">Search purchases</label><input id="purchases-search" type="search" maxlength="100" placeholder="Brand, product, store, size"><div id="purchases-chips" class="filter-chips" role="group" aria-label="Filter by status"></div><label class="sr-only" for="purchases-store">Store</label><select id="purchases-store"><option value="">All stores</option></select><button id="purchases-reload" class="small" type="button">Reload</button></div>
+      <p id="purchases-summary" class="muted"></p>
+      <p id="purchases-notice" role="status" aria-live="polite" class="muted"></p>
+      <div id="purchases-list" class="purchase-list"></div>
+      <details class="fold" id="skipped-panel"><summary>Skipped emails</summary><p class="muted">A sample of emails the import judged irrelevant: every skipped email from a store they've bought from, plus a random sample of the rest. Mark any that were real orders. Subjects come from Gmail when you load the sample and aren't stored. Only available for your own mailbox.</p><button id="skipped-load" class="small" type="button">Load sample</button><p id="skipped-status" role="status" aria-live="polite" class="muted"></p><div id="skipped-list"></div></details>
+      <details class="fold" id="purchases-pending" hidden><summary>Unlinked events <span class="count" id="purchases-pending-count"></span></summary><p class="muted">Shipping, return or refund emails Jules could not safely link to a purchase.</p><div class="table-scroll"><table class="data-table"><thead><tr><th>Kind</th><th>Store</th><th>Order</th><th>Date</th><th>Quote</th></tr></thead><tbody id="purchases-pending-list"></tbody></table></div></details>
+      <details class="fold" id="recheck-panel"><summary>Re-check labelled emails</summary><p class="muted">Re-reads the emails behind every item you labelled, using the current reading rules, and reports how many labels it now agrees with. Nothing is saved. Takes a few seconds per item.</p><button id="recheck-run" class="small" type="button">Run re-check</button><p id="recheck-status" role="status" aria-live="polite" class="muted"></p><div id="recheck-results"></div></details>
+      <details class="fold"><summary>Report a missed purchase</summary><p class="muted">Something they bought that Jules did not find. This measures what Gmail reading misses.</p><form id="missed-form" class="add-fact-fields"><label>Store<input id="missed-store" maxlength="120" required placeholder="e.g. SSENSE"></label><label>Roughly when<input id="missed-when" maxlength="60" placeholder="e.g. March 2025"></label><label>What was bought<input id="missed-what" maxlength="500" required placeholder="e.g. Our Legacy Third Cut jeans, size 32"></label><button type="submit" class="primary">Add report</button></form><div id="missed-list"></div></details>
+    </section>
+
+    <section id="tab-wishlist" data-panel="wishlist" hidden>
+      <p id="wishlist-note" class="muted"></p>
+      <div id="wishlist-list" class="wishlist-list"></div>
+    </section>
+  </main>
+</body>
+</html>

@@ -81,6 +81,10 @@
       "destination": "/admin.html"
     },
     {
+      "source": "/admin/people/:id",
+      "destination": "/admin-person.html"
+    },
+    {
       "source": "/admin/test-chat",
       "destination": "/simulator.html"
     },
