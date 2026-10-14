@@ -1,5 +1,5 @@
 import { wishlistEvidence } from '../lib/evidence.js';
-import {scheduleGmail,handleGmailWork} from '../lib/gmail-worker.js';
+import {scheduleGmail,handleGmailWork,handleGmailSweep} from '../lib/gmail-worker.js';
 import {createPhoneLoginHandler} from '../lib/phone-login.js';
 import {resolveAlertSizeLabel} from '../lib/alert-size-label.js';
 import {createOnboardingHandler} from '../lib/onboarding.js';
@@ -27,6 +27,7 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
   return async (req, res) => {
     try {
       if(new URL(req.url,'https://jules.invalid').searchParams.get('gmail')==='work')return handleGmailWork(req,res,storeFactory(env),env);
+      if(new URL(req.url,'https://jules.invalid').searchParams.get('gmail')==='sweep')return handleGmailSweep(req,res,storeFactory(env),env);
       // Owner-only re-check of labelled receipts; lives here for the PDF reader files bundled with this function.
       if(new URL(req.url,'https://jules.invalid').searchParams.get('gmail')==='recheck')return recheck(req,res);
       if(new URL(req.url,'https://jules.invalid').searchParams.has('phone_login'))return phoneLogin(req,res);
