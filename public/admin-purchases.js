@@ -1,3 +1,4 @@
+import {adminFetch} from './admin-console.js';
 // Admin People: browse and correct a person's imported purchase history. Every correction
 // carries a "what was wrong" label; the server records it as correction evidence.
 const $ = id => document.getElementById(id);
@@ -23,6 +24,7 @@ export function mountPurchases(request) {
   api = request;
   for (const id of ['purchases-search', 'purchases-status', 'purchases-store']) $(id).addEventListener('input', render);
   $('purchases-reload').onclick = () => conversation && loadPurchases(conversation);
+  $('recheck-run').onclick = recheck;
   $('missed-form').onsubmit = async event => {
     event.preventDefault();
     const ok = await send({ action: 'missed', store: $('missed-store').value, when: $('missed-when').value, description: $('missed-what').value }, 'Saving missed purchase…');
@@ -145,4 +147,37 @@ function extraFields(item, reason) {
     el('label', {}, 'Who it was for', el('select', { name: 'recipient', required: true }, ...Object.entries(RECIPIENTS).map(([value, label]) => el('option', { value, textContent: label, selected: item.recipient.value === value })))),
     el('label', {}, 'Who (optional, if someone else)', el('input', { name: 'recipient_label', maxLength: 100 }))];
   return [];
+}
+
+// Re-check: one request per labelled item (each re-reads up to a few emails), two at a time.
+const REASON_SHORT = { correct: 'Looks right', not_a_purchase: 'Not a purchase', not_apparel: 'Not clothing', wrong_details: 'Wrong details', duplicate: 'Duplicate', recipient: 'Recipient', returned: 'Returned' };
+async function recheck() {
+  if (!data || busy) return;
+  const labelled = data.items.filter(i => i.reviews.some(r => r.source === 'operator_review')).slice(0, 100);
+  if (!labelled.length) { $('recheck-status').textContent = 'Label some items first.'; return; }
+  const id = conversation, results = [], queue = [...labelled]; let done = 0;
+  $('recheck-run').disabled = true; $('recheck-results').replaceChildren();
+  const status = () => { $('recheck-status').textContent = `Re-checking ${done} of ${labelled.length}…`; };
+  status();
+  const worker = async () => {
+    for (let item; (item = queue.shift());) {
+      try {
+        const response = await adminFetch('/api/wishlist?gmail=recheck', { method: 'POST', body: JSON.stringify({ conversation: id, item_id: item.id }) });
+        const result = await response.json().catch(() => ({}));
+        results.push(response.ok ? { item, ...result } : { item, error: result.error ?? 'Could not re-check.' });
+      } catch (error) { results.push({ item, error: error.message }); }
+      done++; if (id === conversation) status();
+    }
+  };
+  await Promise.all([worker(), worker()]);
+  $('recheck-run').disabled = false;
+  if (id !== conversation) return;
+  const checked = results.filter(r => !r.error), agree = checked.filter(r => r.match);
+  const byReason = Object.entries(checked.reduce((m, r) => { m[r.reason] ??= [0, 0]; m[r.reason][1]++; if (r.match) m[r.reason][0]++; return m; }, {}));
+  $('recheck-status').textContent = `Current rules agree with ${agree.length} of ${checked.length} labels` + (results.length > checked.length ? ` (${results.length - checked.length} could not be checked)` : '') + '. ' +
+    byReason.map(([reason, [ok, total]]) => `${REASON_SHORT[reason] ?? reason}: ${ok}/${total}`).join(' · ');
+  const order = r => r.error ? 1 : r.match ? 2 : 0;
+  $('recheck-results').replaceChildren(...results.sort((a, b) => order(a) - order(b)).map(r => el('div', { className: 'fact-row' },
+    el('strong', { textContent: `${r.error ? 'Not checked' : r.match ? 'Agrees' : 'Disagrees'} · ${title(r.item)}` }),
+    el('p', { className: 'meta', textContent: r.error ? r.error : `${REASON_SHORT[r.reason] ?? r.reason} · ${r.explanation}` + (r.found?.length ? ` · Read as: ${r.found.map(f => [f.product, f.size_label, f.category].filter(Boolean).join(' / ')).join('; ')}` : '') + (r.withheld?.length ? ` · Rejected: ${r.withheld.map(w => `${w.product ?? 'event'} (${w.reason})`).join('; ')}` : '') }))));
 }

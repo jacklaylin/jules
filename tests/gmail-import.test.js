@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Readable} from 'node:stream';
 import {GMAIL_SCOPE,sealToken,openToken,authorizationURL,digest} from '../lib/gmail-client.js';
-import {receiptHTML,prepareReceiptEmail,receiptPDF} from '../lib/receipt-email.js';
+import {receiptHTML,prepareReceiptEmail,receiptPDF,triageCandidate} from '../lib/receipt-email.js';
 import {RECEIPT_SCHEMA,TRIAGE_SCHEMA,merchantKey,reconcileReceipt,emptyReceiptState,projectReceiptState,relinkPending,receiptShoppingFacts} from '../lib/receipt-extraction.js';
 import {applyReceiptFeedback,receiptLearningView} from '../lib/receipt-feedback.js';
 import {newImportJob,importStep,createGmailHandler,publicImport,CONSENT_VERSION,SCAN_VERSION} from '../lib/gmail-import.js';
@@ -12,7 +12,10 @@ const tokens={access_token:'synthetic-access',refresh_token:'synthetic-refresh',
 const text='Shop Order O1 Jeans Blue 31 Brand quantity 1 purchased';
 const source={id:'m1',text,date:1000,fingerprint:'synthetic'};
 const fact=value=>({value,quote:value});
-const receipt=(extra={})=>({kind:'purchased',existing_item_id:null,evidence:'purchased',merchant:fact('Shop'),order_reference:fact('O1'),product:fact('Jeans'),sku:fact(null),brand:fact('Brand'),color:fact('Blue'),size_label:fact('31'),size_system:fact(null),quantity:fact('1'),units_per_pack:fact(null),...extra});
+// Events carry the transaction basis and category the model classifies; by default the basis
+// quote is the event's own evidence text.
+const withBasis=e=>({basis:{value:e.kind==='purchased'?'order_confirmation':e.kind==='shipped'?'shipping_notice':'return_or_refund_notice',quote:e.evidence},category:'clothing',...e});
+const receipt=(extra={})=>withBasis({kind:'purchased',existing_item_id:null,evidence:'purchased',merchant:fact('Shop'),order_reference:fact('O1'),product:fact('Jeans'),sku:fact(null),brand:fact('Brand'),color:fact('Blue'),size_label:fact('31'),size_system:fact(null),quantity:fact('1'),units_per_pack:fact(null),...extra});
 const jsonResponse=value=>new Response(JSON.stringify(value),{status:200,headers:{'Content-Type':'application/json'}});
 function storage(){let row=null,nonce=null,busy=false,rows=[];const self={
  onboardingSession:async()=>({state:'accepted'}),wishlistMember:async email=>email==='tester@example.test'?{conversation_id:'owner'}:null,
@@ -264,11 +267,51 @@ test('contact redaction preserves long receipt/order identities and omits raw cr
 });
 test('typographic quote differences still verify, and a verified product quote can stand in for a mismatched event quote',()=>{
  const email={...source,text:'Order O1 \u2014 Men\u2019s \u201cRanger\u201d Boot\u00a0Size 10 purchased'};
- const boot={kind:'purchased',existing_item_id:null,evidence:'Men\'s "Ranger" Boot Size 10',merchant:fact(null),order_reference:fact('O1'),product:{value:'Men\'s "Ranger" Boot',quote:'Men\'s "Ranger" Boot'},sku:fact(null),brand:fact(null),color:fact(null),size_label:fact('10'),size_system:fact(null),quantity:fact(null),units_per_pack:fact(null)};
+ const boot={kind:'purchased',basis:{value:'order_confirmation',quote:'Order O1'},category:'footwear',existing_item_id:null,evidence:'Men\'s "Ranger" Boot Size 10',merchant:fact(null),order_reference:fact('O1'),product:{value:'Men\'s "Ranger" Boot',quote:'Men\'s "Ranger" Boot'},sku:fact(null),brand:fact(null),color:fact(null),size_label:fact('10'),size_system:fact(null),quantity:fact(null),units_per_pack:fact(null)};
  let result=reconcileReceipt(emptyReceiptState('owner'),email,{events:[boot]});assert.equal(result.records[0].values.product,'Men\'s "Ranger" Boot');assert.equal(result.records[0].withheld_fields,undefined);
  result=reconcileReceipt(emptyReceiptState('owner'),email,{events:[{...boot,evidence:'Bought the Ranger boot in size ten'}]});
  assert.equal(result.records[0].evidence,'Men\'s "Ranger" Boot');assert.ok(result.records[0].withheld_fields.includes('evidence'));
  assert.throws(()=>reconcileReceipt(emptyReceiptState('owner'),email,{events:[{...boot,evidence:'invented',product:fact('Loafer'),order_reference:fact('O9')}]}));
+});
+test('only quoted buyer transactions for clothing and accessories become purchases',()=>{
+ const cart={...source,text:'Still thinking about it? Black Slack Trousers Size: IT 48 in your bag'};
+ const item={merchant:fact(null),order_reference:fact(null),product:fact('Black Slack Trousers'),size_label:fact('IT 48'),brand:fact(null),color:fact(null),quantity:fact(null)};
+ assert.throws(()=>reconcileReceipt(emptyReceiptState('owner'),cart,{events:[receipt({...item,evidence:'Black Slack Trousers',basis:{value:'cart_or_marketing',quote:'Still thinking about it?'}})]}),/Not a buyer transaction/);
+ assert.throws(()=>reconcileReceipt(emptyReceiptState('owner'),cart,{events:[receipt({...item,evidence:'Black Slack Trousers',basis:{value:'seller_notification',quote:'in your bag'}})]}),/Not a buyer transaction/);
+ // A purchase must cite an order or receipt; a basis quote the email does not contain is refused.
+ assert.throws(()=>reconcileReceipt(emptyReceiptState('owner'),cart,{events:[receipt({...item,evidence:'Black Slack Trousers',basis:{value:'order_confirmation',quote:'Thank you for your order'}})]}),/Unverified transaction basis/);
+ const classes={...source,text:'Order 45059480 confirmed SERIES-SOULRENEW-NYC 4 classes'};
+ assert.throws(()=>reconcileReceipt(emptyReceiptState('owner'),classes,{events:[receipt({merchant:fact(null),order_reference:fact('45059480'),product:fact('SERIES-SOULRENEW-NYC'),brand:fact(null),color:fact(null),size_label:fact('4'),quantity:fact(null),evidence:'SERIES-SOULRENEW-NYC',basis:{value:'order_confirmation',quote:'Order 45059480 confirmed'},category:'service'})]}),/Outside clothing/);
+ assert.throws(()=>reconcileReceipt(emptyReceiptState('owner'),source,{events:[receipt({category:'other_goods'})]}),/Outside clothing/);
+ // A shipping notice can still support a shipped event, never a purchase.
+ assert.throws(()=>reconcileReceipt(emptyReceiptState('owner'),source,{events:[receipt({basis:{value:'shipping_notice',quote:'purchased'}})]}),/Not a buyer transaction/);
+ assert.equal(reconcileReceipt(emptyReceiptState('owner'),source,{events:[receipt({kind:'shipped',basis:{value:'shipping_notice',quote:'purchased'}})]}).records.length,1);
+});
+test('a date is never an order reference, and one line written twice in an email is one item',()=>{
+ const email={...source,text:'Order confirmed 06/23/2024 Linen SS Cloak Button Up / Black - Linen SS Cloak Button Up / Black / 3 / Large 1 $298.00'};
+ const line=product=>receipt({merchant:fact(null),order_reference:fact(null),brand:fact(null),color:fact(null),quantity:fact('1'),size_label:fact('Large'),product:fact(product),evidence:product,basis:{value:'order_confirmation',quote:'Order confirmed'}});
+ const result=reconcileReceipt(emptyReceiptState('owner'),{...email,text:'Shop '+email.text},{events:[{...line('Linen SS Cloak Button Up / Black'),merchant:fact('Shop')},{...line('Linen SS Cloak Button Up / Black - Linen SS Cloak Button Up / Black / 3'),merchant:fact('Shop'),order_reference:fact('06/23/2024')}]});
+ assert.equal(result.state.items.length,1);assert.equal(result.state.items[0].source_events.length,2);assert.ok(result.records[1].withheld_fields.includes('order_reference'));
+ // Different sizes of the same product in one email stay separate items.
+ const two=reconcileReceipt(emptyReceiptState('owner'),{...source,text:text+' 32'},{events:[receipt(),receipt({size_label:fact('32')})]});assert.equal(two.state.items.length,2);
+});
+test('an order-level refund that names no item stays unlinked when the order has several items',()=>{
+ const email={...source,text:text+' 32 your refund has been processed'};
+ let result=reconcileReceipt(emptyReceiptState('owner'),email,{events:[receipt(),receipt({size_label:fact('32')})]});
+ const [a]=result.state.items;
+ const refund=receipt({kind:'refunded',existing_item_id:a.id,product:fact(null),sku:fact(null),brand:fact(null),color:fact(null),size_label:fact(null),quantity:fact(null),evidence:'your refund has been processed',basis:{value:'return_or_refund_notice',quote:'your refund has been processed'}});
+ result=reconcileReceipt(result.state,{...email,id:'m2'},{events:[refund]});
+ assert.equal(result.pending.length,1);assert.ok(result.state.items.every(i=>i.source_events.length===1));
+ // With a single item in the order, the same refund links to it.
+ const single=reconcileReceipt(emptyReceiptState('owner'),email,{events:[receipt()]});
+ const linked=reconcileReceipt(single.state,{...email,id:'m2'},{events:[{...refund,existing_item_id:single.state.items[0].id}]});
+ assert.equal(linked.pending.length,0);assert.equal(linked.state.items[0].source_events.length,2);
+});
+test('subject, sender name and addressee name reach analysis and triage regardless of header case',async()=>{
+ const message={id:'m',internalDate:'1000',snippet:'Thanks for your order',payload:{mimeType:'text/plain',headers:[{name:'Subject',value:'Your order QVGSTS'},{name:'From',value:'"Thom Browne" <orders@mail-thombrowne.com>'},{name:'To',value:'Pat Doe <pat@example.test>'}],body:{data:Buffer.from(text).toString('base64url')}}};
+ const prepared=await prepareReceiptEmail(message,tokens);
+ assert.match(prepared.text,/SUBJECT\nYour order QVGSTS\nFROM\nThom Browne \(mail-thombrowne\.com\)\nTO\nPat Doe/);assert.ok(!prepared.text.includes('pat@example.test'));
+ const candidate=triageCandidate(message);assert.equal(candidate.subject,'Your order QVGSTS');assert.equal(candidate.from_name,'Thom Browne');
 });
 test('a malformed event is withheld without dropping supported purchase evidence from the same email',async()=>{
  const row={conversation_id:'owner',token_ciphertext:sealToken(tokens,'owner',env),data:{feedback:emptyReceiptState('owner'),job:{...newImportJob(),status:'extracting',ids:['m1']}}};
