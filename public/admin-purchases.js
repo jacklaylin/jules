@@ -25,6 +25,7 @@ export function mountPurchases(request) {
   for (const id of ['purchases-search', 'purchases-status', 'purchases-store']) $(id).addEventListener('input', render);
   $('purchases-reload').onclick = () => conversation && loadPurchases(conversation);
   $('recheck-run').onclick = recheck;
+  $('skipped-load').onclick = loadSkipped;
   $('missed-form').onsubmit = async event => {
     event.preventDefault();
     const ok = await send({ action: 'missed', store: $('missed-store').value, when: $('missed-when').value, description: $('missed-what').value }, 'Saving missed purchase…');
@@ -34,6 +35,7 @@ export function mountPurchases(request) {
 
 export async function loadPurchases(id) {
   conversation = id; data = null; const mine = ++version;
+  $('skipped-list').replaceChildren(); $('skipped-status').textContent = '';
   $('purchases-count').textContent = ''; $('purchases-list').replaceChildren(); notice('Loading purchase history…');
   try {
     const result = await api(`/api/admin?view=purchases&conversation=${encodeURIComponent(id)}`);
@@ -150,10 +152,11 @@ function extraFields(item, reason) {
 }
 
 // Re-check: one request per labelled item (each re-reads up to a few emails), two at a time.
-const REASON_SHORT = { correct: 'Looks right', not_a_purchase: 'Not a purchase', not_apparel: 'Not clothing', wrong_details: 'Wrong details', duplicate: 'Duplicate', recipient: 'Recipient', returned: 'Returned' };
+const REASON_SHORT = { missed_order: 'Skipped order', not_order: 'Skipped, not an order', correct: 'Looks right', not_a_purchase: 'Not a purchase', not_apparel: 'Not clothing', wrong_details: 'Wrong details', duplicate: 'Duplicate', recipient: 'Recipient', returned: 'Returned' };
 async function recheck() {
   if (!data || busy) return;
-  const labelled = data.items.filter(i => i.reviews.some(r => r.source === 'operator_review')).slice(0, 100);
+  const labelled = [...data.items.filter(i => i.reviews.some(r => r.source === 'operator_review')),
+    ...data.skipped_labels.map(l => ({ email: l }))].slice(0, 150);
   if (!labelled.length) { $('recheck-status').textContent = 'Label some items first.'; return; }
   const id = conversation, results = [], queue = [...labelled]; let done = 0;
   $('recheck-run').disabled = true; $('recheck-results').replaceChildren();
@@ -162,7 +165,8 @@ async function recheck() {
   const worker = async () => {
     for (let item; (item = queue.shift());) {
       try {
-        const response = await adminFetch('/api/wishlist?gmail=recheck', { method: 'POST', body: JSON.stringify({ conversation: id, item_id: item.id }) });
+        const body = item.email ? { conversation: id, action: 'skipped_recheck', email_id: item.email.id } : { conversation: id, item_id: item.id };
+        const response = await adminFetch('/api/wishlist?gmail=recheck', { method: 'POST', body: JSON.stringify(body) });
         const result = await response.json().catch(() => ({}));
         results.push(response.ok ? { item, ...result } : { item, error: result.error ?? 'Could not re-check.' });
       } catch (error) { results.push({ item, error: error.message }); }
@@ -178,6 +182,48 @@ async function recheck() {
     byReason.map(([reason, [ok, total]]) => `${REASON_SHORT[reason] ?? reason}: ${ok}/${total}`).join(' · ');
   const order = r => r.error ? 1 : r.match ? 2 : 0;
   $('recheck-results').replaceChildren(...results.sort((a, b) => order(a) - order(b)).map(r => el('div', { className: 'fact-row' },
-    el('strong', { textContent: `${r.error ? 'Not checked' : r.match ? 'Agrees' : 'Disagrees'} · ${title(r.item)}` }),
+    el('strong', { textContent: `${r.error ? 'Not checked' : r.match ? 'Agrees' : 'Disagrees'} · ${r.item.email ? `Skipped email from ${r.item.email.sender_domain ?? 'unknown sender'}` : title(r.item)}` }),
     el('p', { className: 'meta', textContent: r.error ? r.error : `${REASON_SHORT[r.reason] ?? r.reason} · ${r.explanation}` + (r.found?.length ? ` · Read as: ${r.found.map(f => [f.product, f.size_label, f.category].filter(Boolean).join(' / ')).join('; ')}` : '') + (r.withheld?.length ? ` · Rejected: ${r.withheld.map(w => `${w.product ?? 'event'} (${w.reason})`).join('; ')}` : '') }))));
+}
+
+// Skipped emails: the owner marks sampled skipped emails as missed orders or not orders.
+const SKIPPED = [['missed_order', 'Missed order'], ['not_order', 'Not an order']];
+async function loadSkipped() {
+  if (!conversation) return;
+  const id = conversation; $('skipped-load').disabled = true; $('skipped-status').textContent = 'Loading skipped emails from Gmail…';
+  try {
+    const result = await adminFetch('/api/wishlist?gmail=recheck', { method: 'POST', body: JSON.stringify({ conversation: id, action: 'skipped_list' }) });
+    const sample = await result.json().catch(() => ({}));
+    if (!result.ok) throw new Error(sample.error ?? 'Could not load skipped emails.');
+    if (id !== conversation) return;
+    const known = sample.emails.filter(e => e.group === 'known_store').length;
+    $('skipped-status').textContent = `${sample.skipped_total} emails were skipped. Showing ${known} from stores you’ve bought from and ${sample.emails.length - known} at random. ${sample.labelled} labelled so far.`;
+    $('skipped-list').replaceChildren(...sample.emails.map(skippedRow));
+  } catch (error) { if (id === conversation) $('skipped-status').textContent = error.message; }
+  finally { $('skipped-load').disabled = false; }
+}
+function skippedRow(email) {
+  const name = `skipped-${email.id}`, row = el('div', { className: 'fact-row skipped-row' },
+    el('strong', { textContent: email.unavailable ? 'Email unavailable' : email.subject || '(no subject)' }),
+    el('p', { className: 'meta' }, `${email.from_name ?? ''}${email.sender_domain ? ` · ${email.sender_domain}` : ''} · ${day(email.date)} · ${email.group === 'known_store' ? 'Store you’ve bought from' : 'Random sample'} · `,
+      el('a', { href: `https://mail.google.com/mail/u/0/#all/${encodeURIComponent(email.id)}`, target: '_blank', rel: 'noopener noreferrer', textContent: 'Open in Gmail' })));
+  const choices = el('fieldset', {}, el('legend', { className: 'visually-hidden', textContent: 'Was this an order?' }), ...SKIPPED.map(([value, label]) => {
+    const input = el('input', { type: 'radio', name, value, checked: email.label === value });
+    input.onchange = () => saveSkipped(email, value, row);
+    return el('label', { className: 'chip' }, input, label);
+  }));
+  row.append(choices);
+  return row;
+}
+async function saveSkipped(email, label, row) {
+  const id = conversation; row.querySelectorAll('input').forEach(i => { i.disabled = true; });
+  try {
+    const response = await adminFetch('/api/wishlist?gmail=recheck', { method: 'POST', body: JSON.stringify({ conversation: id, action: 'skipped_label', email_id: email.id, label, sender_domain: email.sender_domain }) });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error ?? 'Could not save.');
+    email.label = label;
+    if (id === conversation && data) { data.skipped_labels = [...data.skipped_labels.filter(l => l.id !== email.id), { id: email.id, label, sender_domain: email.sender_domain }]; }
+    $('skipped-status').textContent = `Saved · ${result.labelled} labelled so far.`;
+  } catch (error) { $('skipped-status').textContent = error.message; row.querySelectorAll('input').forEach(i => { i.checked = i.value === email.label; }); }
+  finally { row.querySelectorAll('input').forEach(i => { i.disabled = false; }); }
 }
