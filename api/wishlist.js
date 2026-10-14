@@ -4,6 +4,7 @@ import {createPhoneLoginHandler} from '../lib/phone-login.js';
 import {resolveAlertSizeLabel} from '../lib/alert-size-label.js';
 import {createOnboardingHandler} from '../lib/onboarding.js';
 import {createGmailHandler} from '../lib/gmail-import.js';
+import {createRecheckHandler} from '../lib/receipt-recheck.js';
 import {marketEnvironment} from '../lib/shopping-market.js';
 import {enrichWishlistItem} from '../lib/wishlist-details.js';
 import {repairWishlistPhotos} from '../lib/wishlist-photos.js';
@@ -22,9 +23,12 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
   const gmail=createGmailHandler({env,storeFactory,auth,fetcher,schedule:(owner,worker)=>scheduleGmail(owner,env,{worker})});
   const phoneLogin=createPhoneLoginHandler({env,storeFactory,fetcher});
   const signup=createSignupHandler({env,storeFactory});
+  const recheck=createRecheckHandler({env,storeFactory,admin,fetcher});
   return async (req, res) => {
     try {
       if(new URL(req.url,'https://jules.invalid').searchParams.get('gmail')==='work')return handleGmailWork(req,res,storeFactory(env),env);
+      // Owner-only re-check of labelled receipts; lives here for the PDF reader files bundled with this function.
+      if(new URL(req.url,'https://jules.invalid').searchParams.get('gmail')==='recheck')return recheck(req,res);
       if(new URL(req.url,'https://jules.invalid').searchParams.has('phone_login'))return phoneLogin(req,res);
       if(new URL(req.url,'https://jules.invalid').searchParams.has('gmail'))return gmail(req,res);
       if(new URL(req.url,'https://jules.invalid').searchParams.get('onboarding')==='1')return onboarding(req,res);
