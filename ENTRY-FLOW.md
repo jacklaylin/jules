@@ -28,3 +28,14 @@ The workspace already contained numerous unrelated uncommitted changes when this
 Implementation references: [Vercel background-task support](https://vercel.com/docs/functions/functions-api-reference/vercel-functions-package), [Supabase generated login links](https://supabase.com/docs/reference/javascript/auth-admin-generatelink).
 
 Publishing completed after normal Vercel sign-in. The release was staged from application files only, without local environment files. Entry pages returned HTTP 200; unsigned Gmail worker requests returned 401; the landing rendered without browser errors. See `HANDOFF-CHECK.md` for the scoped reference audit.
+
+## October 14 update: results by text
+
+Founder decision: import results are internal (Admin › People › Purchase history); testers hear them by text.
+
+- **Page.** While reading, `/onboarding` shows one progress line ("Checked N emails so far") and "You can close this screen". This is now true because of the Supabase sweep (`GMAIL-IMPORT.md`). When finished it says "All done." and points to Messages. Disconnect, delete and import-again sit under *Manage your Gmail connection*. The purchase list, diagnostics, yield counts and `/style` link were removed from this page.
+- **Texts** (`lib/receipt-notifications.js`, each sent once per import through the message ledger):
+  1. **Completion:** "done reading your shopping emails. i found N clothing purchases and M returns." Removed, duplicate and cancelled items are excluded. If any questions are open, "a few quick questions…" is added. With nothing found, it explains that and invites a photo or link.
+  2. **Questions:** the open questions, one at a time, as before.
+  3. **Who you are:** sent when no questions remain, or 24 hours after the last unanswered question. It lists the top 4 brands, top 3 stores and the most-bought sizes from the person's own purchases (gifts and removed items excluded; legal suffixes like "Retail ApS" dropped). Sizes are purchased sizes, never a confirmed fit. It sends nothing with fewer than 2 purchases. No prices yet: receipts aren't read for prices (phase 2). No style-report link yet: the purchase-based report isn't built (phase 3).
+- **24-hour fallback.** `db/024_gmail_profile_due.sql` adds `gmail_profiles_due()`, which reads timing from the message ledger for imports finished in the last 14 days. It also makes the once-a-minute sweep call Vercel when a summary is due. The sweep sends it.

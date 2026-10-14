@@ -26,7 +26,7 @@ test('a new source needs only an adapter: sign-in, listing, extraction and evide
   const other={name:'example',origin:'example',source_type:'example_order',label:'Example',consent:'v1',enabled:()=>true,instructions:'Read the order.',
     start:async()=>({secret:'private',user_code:'CODE',verification_url:'https://example.test/approve',interval:1,expires_at:Date.now()+60000}),
     poll:async secret=>{assert.equal(secret,'private');return {status:'approved',credential:{key:'k'}};},
-    list:async credential=>{assert.deepEqual(credential,{key:'k'});return [{id:'example:R-9',date:1,text}];}};
+    list:async credential=>{assert.deepEqual(credential,{key:'k'});return {records:[{id:'example:R-9',date:1,text}],listing:null};}};
   let next=await connectionAction(other,'connect',ctx({}));
   assert.ok(!JSON.stringify(next.data).includes('private'));
   next=await connectionAction(other,'poll',ctx(next.data));
@@ -77,7 +77,7 @@ test('a rejected credential asks to reconnect, and disconnect forgets it but kee
   const expired=await connectionAction(SHOP_SOURCE,'import',ctx(data,{fetcher:async()=>({ok:false,status:401})}));
   assert.equal(expired.data.connections.shop.status,'reconnect');assert.equal(expired.data.connections.shop.credential,null);
   const off=await connectionAction(SHOP_SOURCE,'disconnect',ctx(data));
-  assert.deepEqual(off.data.connections.shop,{seen:['shop:1'],status:'not_connected',error:null});assert.deepEqual(off.evidence,[]);
+  assert.deepEqual(off.data.connections.shop,{seen:['shop:1'],reads:[],listing:null,status:'not_connected',error:null});assert.deepEqual(off.evidence,[]);
 });
 
 function req(body){return Object.assign(Readable.from([JSON.stringify(body)]),{method:'POST',url:'/api/wishlist?gmail=1',headers:{authorization:'Bearer test','content-type':'application/json',origin:'https://jules.example'}});}
@@ -94,4 +94,77 @@ test('a connected source needs its own consent and its flag, and its failure nev
   response=res();await handler()(req({action:'connection-connect',source:'shop',consent:SHOP_CONSENT_VERSION}),response);
   assert.equal(response.statusCode,503);assert.equal(ensured,true);
   assert.equal(row.data.job.error,undefined);assert.match(row.data.connections.shop.error,/didn’t finish/);
+});
+
+test('Shop records hide internal IDs from the model and keep a summary without personal details',()=>{
+  const order={id:'gid://shopify/Order/9',name:'#1001',uuid:'01a0b556-2447-7954-a6f7-f403698ac46c',created_at:'2026-05-01T00:00:00Z',shop:{name:'Kith'},
+    shipping_address:{name:'Pat Example',address1:'1 Main St'},customer:{email:'pat@example.test'},line_items:[{title:'LAX Tee',variant_title:'M',quantity:1}]};
+  const record=orderSource(order,'orders');
+  assert.equal(record.id,'shop:gid://shopify/Order/9');assert.equal(record.kind,'orders');
+  assert.ok(!record.text.includes('01a0b556')&&!record.text.includes('gid://'));assert.match(record.text,/\[Shop internal ID\]/);assert.match(record.text,/#1001/);
+  assert.match(record.summary,/LAX Tee/);assert.match(record.summary,/Kith/);
+  for(const personal of ['Pat Example','1 Main St','pat@example.test','01a0b556'])assert.ok(!record.summary.includes(personal),personal);
+});
+
+const gmailCoat=()=>{
+  const text='FARFETCH order 5M7KZR confirmed: Our Legacy Slack trousers size 48 quantity 1';
+  return reconcileReceipt(emptyReceiptState('owner'),{id:'email-1',date:Date.parse('2026-03-01'),text},{events:[{kind:'purchased',basis:{value:'order_confirmation',quote:'order 5M7KZR confirmed'},category:'clothing',existing_item_id:null,evidence:'Our Legacy Slack trousers',
+    merchant:fact('FARFETCH'),order_reference:fact('5M7KZR'),product:fact('Slack trousers'),sku:fact(null),brand:fact('Our Legacy'),color:fact(null),size_label:fact('48'),size_system:fact(null),quantity:fact('1'),units_per_pack:fact(null),recipient:{value:'unknown',quote:null}}]}).state;
+};
+const shopCopy=(date,store='Farfetch')=>({id:'shop:o1',date:Date.parse(date),text:JSON.stringify({shop:{name:store},line_items:[{title:'Our Legacy Slack Trousers'}],id:'[Shop internal ID]'})});
+const shopEvent=existing=>({kind:'purchased',basis:{value:'order_confirmation',quote:'Farfetch'},category:'clothing',existing_item_id:existing,evidence:'Our Legacy Slack Trousers',
+  merchant:fact('Farfetch'),order_reference:fact(null),product:fact('Our Legacy Slack Trousers'),sku:fact(null),brand:fact(null),color:fact(null),size_label:fact(null),size_system:fact(null),quantity:fact(null),units_per_pack:fact(null),recipient:{value:'unknown',quote:null}});
+
+test('a Shop copy of a Gmail order links to the same item even without the store’s order number',async()=>{
+  const state=gmailCoat(),existing=state.items[0].id,offered=[];
+  const interpret=async({context,schema})=>{if(!schema.properties.events)return {questions:[]};offered.push(context.existing_items.map(i=>i.id));return {events:[shopEvent(context.existing_items[0]?.id??null)]};};
+  const data={connections:{shop:{status:'extracting',credential:'sealed',queue:[{...shopCopy('2026-03-03'),kind:'orders',summary:'{}'}]}}};
+  const next=await connectionAction(SHOP_SOURCE,'step',{...ctx(data,{interpret}),state});
+  assert.deepEqual(offered,[[existing]],'the same store within the window is offered to the model');
+  assert.equal(next.state.items.length,1,'no duplicate');assert.ok(next.state.items[0].source_ids.includes('shop:o1'));
+  assert.deepEqual(next.data.connections.shop.reads.map(r=>[r.status,r.purchases,r.linked]),[['read',1,1]]);
+});
+
+test('without a shared order number, matching never reaches another store, a distant date or Gmail-to-Gmail links',()=>{
+  const state=gmailCoat(),existing=state.items[0].id;
+  assert.throws(()=>reconcileReceipt(state,shopCopy('2026-06-01'),{events:[shopEvent(existing)]},{matchWindowDays:14}),/Order identity mismatch/);
+  assert.throws(()=>reconcileReceipt(state,shopCopy('2026-03-03','Ssense'),{events:[{...shopEvent(existing),basis:{value:'order_confirmation',quote:'Ssense'},merchant:fact('Ssense')}]},{matchWindowDays:14}),/Order identity mismatch/);
+  assert.throws(()=>reconcileReceipt(state,shopCopy('2026-03-03'),{events:[shopEvent(existing)]}),/Order identity mismatch/,'off by default (Gmail)');
+  assert.equal(reconcileReceipt(state,shopCopy('2026-03-03'),{events:[shopEvent(existing)]},{matchWindowDays:14}).state.items.length,1);
+});
+
+test('re-reading lists everything again and asks for the source’s earlier evidence to be replaced',async()=>{
+  const fetcher=async()=>({ok:true,status:200,json:async()=>({result:{structuredContent:{orders:[order],pagination:{has_next_page:false}}}})});
+  const data={connections:{shop:{credential:sealToken({access_token:'a'},'owner',env),seen:[orderSource(order).id],status:'ready',reads:[{id:'x'}],withheld:2}}};
+  assert.equal((await connectionAction(SHOP_SOURCE,'import',ctx(data,{fetcher}))).data.connections.shop.status,'ready','a plain import skips records already read');
+  const next=await connectionAction(SHOP_SOURCE,'reread',ctx(data,{fetcher}));
+  const c=next.data.connections.shop;
+  assert.equal(next.clear_origin,'shop');assert.equal(c.status,'extracting');assert.equal(c.queue.length,1);assert.deepEqual(c.reads,[]);assert.equal(c.withheld,0);
+  assert.equal(c.listing.stop,'no_more_pages');
+});
+
+test('the handler replaces a source’s evidence on re-read and keeps Gmail evidence',async()=>{
+  let row={conversation_id:'owner',revision:1,token_ciphertext:null,data:{connections:{shop:{credential:sealToken({access_token:'a'},'owner',env),status:'ready'}}}},rows=[{id:'gmail:1',origin:'gmail'},{id:'shop:1',origin:'shop'}];
+  const store={onboardingSession:async()=>({}),claimGmailImport:async()=>{row.revision++;return structuredClone(row);},finishGmailImport:async(_o,_r,data)=>{row={...row,data};return true;},
+    deleteEvidence:async(_o,origin)=>{rows=rows.filter(r=>r.origin!==origin);},evidence:async()=>structuredClone(rows.filter(r=>r.kind)),profile:async()=>({facts:[]})};
+  const fetcher=async()=>({ok:true,status:200,json:async()=>({result:{structuredContent:{orders:[order],pagination:{has_next_page:false}}}})});
+  const handler=createGmailHandler({env,storeFactory:()=>store,auth:async()=>({status:200,conversation:'owner'}),fetcher});
+  const response=res();await handler(req({action:'connection-reread',source:'shop'}),response);
+  assert.equal(response.statusCode??200,200);assert.deepEqual(rows.map(r=>r.id),['gmail:1']);assert.equal(row.data.connections.shop.status,'extracting');
+});
+
+test('admin review labels each item’s sources and reports what each connected source returned',async()=>{
+  const {purchaseReview}=await import('../lib/purchase-review.js');
+  const state=gmailCoat();
+  const linked=reconcileReceipt(state,shopCopy('2026-03-03'),{events:[shopEvent(state.items[0].id)]},{matchWindowDays:14});
+  const evidence=[...linked.records].map(r=>r);
+  const {purchaseEvidence,sourceEvidence}=await import('../lib/receipt-extraction.js');
+  const first=reconcileReceipt(emptyReceiptState('owner'),{id:'email-1',date:Date.parse('2026-03-01'),text:'FARFETCH order 5M7KZR confirmed: Our Legacy Slack trousers size 48 quantity 1'},{events:[{kind:'purchased',basis:{value:'order_confirmation',quote:'order 5M7KZR confirmed'},category:'clothing',existing_item_id:null,evidence:'Our Legacy Slack trousers',merchant:fact('FARFETCH'),order_reference:fact('5M7KZR'),product:fact('Slack trousers'),sku:fact(null),brand:fact('Our Legacy'),color:fact(null),size_label:fact('48'),size_system:fact(null),quantity:fact('1'),units_per_pack:fact(null),recipient:{value:'unknown',quote:null}}]});
+  const rows=[...first.records.map(r=>purchaseEvidence(r)),...evidence.map(r=>sourceEvidence('shop','shop_order',r))];
+  const row={conversation_id:'owner',data:{sources:[{id:'email-1',date:1,sender_domain:'farfetch.com'}],connections:{shop:{status:'ready',found:18,processed:18,listing:{from:'2021-10-14',total:18,stop:'no_more_pages',pages:[{lists:{orders:18},has_next_page:false,cursor:false,pagination_keys:['has_next_page'],messages:[]}]},reads:[{id:'shop:o1',status:'read',purchases:1,linked:1}]}}}};
+  const review=await purchaseReview({gmailImport:async()=>row,evidence:async()=>structuredClone(rows)},'owner');
+  assert.equal(review.items.length,1);assert.deepEqual(review.items[0].sources,['gmail','shop']);
+  assert.deepEqual(review.items[0].emails.map(e=>e.id),['email-1'],'only Gmail records are listed as emails');
+  assert.deepEqual(review.items[0].events.map(e=>e.source),['gmail','shop']);
+  assert.equal(review.connections[0].label,'Shop');assert.equal(review.connections[0].listing.stop,'no_more_pages');assert.equal(review.connections[0].reads[0].linked,1);
 });

@@ -57,26 +57,25 @@ function renderGmail(data){
  $('connect').hidden=$('thinking').hidden=true;
  gmailConnection=data.connected;expandedConsent=Boolean(data.consent_required);
  $('gmail-connect').hidden=data.connected&&(!expandedConsent||working);
- $('gmail-connect-button').textContent=data.connected?'Approve expanded import':'Connect Gmail ↗';$('gmail-history').hidden=!data.connected&&!data.items.length;
- $('gmail-history-title').textContent=working?'Purchases found so far.':'Your purchase history.';
+ $('gmail-connect-button').textContent=data.connected?'Approve expanded import':'Connect Gmail ↗';$('gmail-history').hidden=!data.connected&&!data.items.length;$('demo-wishlist').hidden=true;
  $('gmail-account').textContent=data.account?'Connected account: '+data.account:'';
  const running=['listing','extracting','questions'].includes(data.status);
- $('gmail-progress').textContent=data.status==='ready'?`Import complete: ${data.items.length} purchase ${data.items.length===1?'item':'items'} found in ${data.processed} matching emails.`:data.status==='listing'?'Finding matching shopping emails…':data.status==='questions'?'Selecting the most useful questions…':data.status==='extracting'?`Reviewed ${data.processed} matching emails; ${data.total} found so far.`:data.status==='paused'?'Import paused. Reconnect Gmail to continue.':data.connected?'Gmail connected. Ready to import.':'';
- $('gmail-loader').hidden=true;
+ $('gmail-history-title').textContent=data.status==='ready'?'All done.':running?'Still reading.':'Your Gmail connection.';
+ $('gmail-progress').textContent=data.status==='ready'?'':data.status==='listing'?'Finding your shopping emails…':data.status==='questions'?'Almost done…':data.status==='extracting'?`Checked ${data.processed.toLocaleString()} ${data.processed===1?'email':'emails'} so far.`:data.status==='paused'?'Import paused. Reconnect Gmail to continue.':data.connected?'Gmail connected. Ready to import.':'';
  if(running&&!data.failed){
-  $('gmail-history').hidden=!data.first_100;$('thinking').hidden=false;$('demo-disclosure').hidden=true;$('thinking-loader').hidden=false;
+  $('gmail-history').hidden=true;$('thinking').hidden=false;$('demo-disclosure').hidden=true;$('thinking-loader').hidden=false;
   logo.classList.add('logo--thinking');$('thinking-title').textContent='Reading your receipts.';
   $('playful').textContent=$('gmail-progress').textContent;
   $('thinking-message').textContent=data.background?'You can close this screen. We’ll text you when it’s done.':'Keep this screen open while Jules reads.';
  }else{logo.classList.remove('logo--thinking');$('thinking').hidden=true;}
 
- $('gmail-notice').textContent=[running?data.background?'You can close this screen. We’ll text you when it’s done.':'Keep this page open to finish the import.':'',data.limited?`The ${data.limit.toLocaleString()}-email limit was reached; this history is partial.`:'',data.warnings?`${data.warnings} ${data.warnings===1?'email has':'emails have'} unreadable, unsupported or truncated content; their readable evidence was retained.`:'',data.changed_sources?`${data.changed_sources} changed emails were held separately; prior corrections remain. Text Jules to correct an item.`:'',data.pending_events?`${data.pending_events} shopping events could not be safely linked to purchases and remain unresolved.`:'',data.failed?'The import paused. Resume to continue without losing completed work.':''].filter(Boolean).join(' ');
+ // Purchase details and import diagnostics are internal (Admin › People); testers hear results by text.
+ $('gmail-notice').textContent=data.failed&&running?'The import paused. Jules will keep trying automatically, or you can resume now.':'';
+ $('gmail-manage').open=Boolean(data.failed&&running);
+ $('text-followup').hidden=data.status!=='ready';
  $('gmail-start').hidden=running||!data.connected||expandedConsent;$('gmail-start').textContent=data.status==='ready'?'Import again':'Import five years';$('gmail-resume').hidden=!running;
  $('gmail-disconnect').hidden=!data.connected;
- const early=data.first_100,latest=data.yield;
- $('gmail-yield').textContent=early&&latest?`The first 100 emails found ${early.purchases} new purchase items. Later emails added ${Math.max(0,latest.purchases-early.purchases)} more.`:'';
  renderSources(data);
- $('gmail-items').replaceChildren();for(const item of data.items){const li=document.createElement('li');li.textContent=[item.brand,item.product,item.merchant&&'from '+item.merchant,item.size_label&&'size '+item.size_label,item.color,item.quantity&&'quantity '+item.quantity,item.recipient.value==='self'?(item.recipient.basis==='receipt_evidence'?'likely for you':'for you'):item.recipient.value==='other'?(item.recipient.basis==='receipt_evidence'?'likely a gift':'for '+(item.recipient.label||'someone else')):'recipient unknown',item.outcome.value!=='unknown'?item.outcome.value:null].filter(Boolean).join(' · ');$('gmail-items').append(li);}
 }
 let poll;
 async function runImport(resume=false){
@@ -89,7 +88,7 @@ async function runImport(resume=false){
 }
 // Connected history sources (Shop today). Each has a section whose element IDs start with its name:
 // <name>-orders, -title, -consent, -consent-label, -progress, -approve, -code, -approve-link, -connect,
-// -import, -disconnect. Approval happens in the source's app with a short code; the page then reads
+// -import, -reread, -disconnect. Approval happens in the source's app with a short code; the page then reads
 // records in steps.
 const SOURCES={shop:{label:'Shop',noun:'orders',consent:'shop-orders-5y-100-v1'}},wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const sourceBusy=new Set();
@@ -99,7 +98,7 @@ function renderSources(data){
   el('orders').hidden=!(data.connections_available??[]).includes(name);el('title').textContent=c.connected?`Your ${source.label} ${source.noun}`:`Add your ${source.label} ${source.noun}`;
   el('consent-label').hidden=el('connect').hidden=c.connected||approving;
   el('approve').hidden=!approving;el('code').textContent=c.user_code??'';if(c.verification_url)el('approve-link').href=c.verification_url;
-  el('import').hidden=el('disconnect').hidden=!c.connected||c.status==='extracting';
+  el('import').hidden=el('reread').hidden=el('disconnect').hidden=!c.connected||c.status==='extracting';
   el('progress').textContent=[approving?`Waiting for you to approve Jules in ${source.label}…`:c.status==='extracting'?`Reading your ${source.label} ${source.noun}: ${c.processed} of ${c.processed+c.queued}.`:c.status==='ready'?`${source.label} ${source.noun} imported: ${c.found} checked.`:c.connected?`${source.label} connected.`:'',c.error??''].filter(Boolean).join(' ');
  }
 }
@@ -119,6 +118,8 @@ for(const [name,source] of Object.entries(SOURCES)){
  const el=id=>$(name+'-'+id);
  el('connect').onclick=async()=>{if(!el('consent').checked){$('status').textContent=`Review and confirm ${source.label} history analysis consent first.`;return;}el('connect').disabled=true;$('status').textContent='';try{const data=await sourceCall(name,'connect',{consent:source.consent});renderGmail(data);await runSource(name,data);}catch(error){$('status').textContent=error.message;}finally{el('connect').disabled=false;}};
  el('import').onclick=async()=>{try{const data=await sourceCall(name,'import');renderGmail(data);await runSource(name,data);}catch(error){$('status').textContent=error.message;}};
+ // Re-reading replaces this source's earlier results with the current reading rules.
+ el('reread').onclick=async()=>{if(!confirm(`Re-read every ${source.label} ${source.noun.replace(/s$/,'')} with the latest reading? Earlier ${source.label} results are replaced; Gmail history stays.`))return;try{const data=await sourceCall(name,'reread');renderGmail(data);await runSource(name,data);}catch(error){$('status').textContent=error.message;}};
  el('disconnect').onclick=async()=>{try{renderGmail(await sourceCall(name,'disconnect'));$('status').textContent=`${source.label} disconnected. Imported ${source.noun} remain saved. You can also remove Jules in ${source.label}’s settings.`;}catch(error){$('status').textContent=error.message;}};
 }
 async function loadGmail(){
