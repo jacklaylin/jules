@@ -43,3 +43,52 @@ test('labels are judged by structured outcome: removal, duplicates and corrected
  assert.equal(judgeLabel({reason:'wrong_details'},item,[{product:'Linen SS Cloak Button Up / Black',size_label:'M'}]).match,false);
  assert.equal(judgeLabel({reason:'wrong_details'},item,[{product:'Linen SS Cloak Button Up / Black',size_label:'l'}]).match,true);
 });
+
+// Skipped-email review
+import {storeDomain} from '../lib/receipt-recheck.js';
+function mailbox({account='owner@example.test',labels=[]}={}){
+ let row={conversation_id:owner,revision:1,token_ciphertext:sealToken(tokens,owner,env),data:{account,job:{after:1,before:2},sources:[{id:'s1',sender_domain:'m.ssense.com',shopping_evidence:true}],scanned_ids:['k1','k2','r1','r2','r3'],triage_labels:labels,questions:[]}},busy=false;
+ return {get row(){return row;},gmailImport:async()=>structuredClone(row),evidence:async()=>[],claimGmailImport:async()=>{if(busy)return null;busy=true;row.revision++;return structuredClone(row);},
+  finishGmailImport:async(o,r,data,token)=>{if(r!==row.revision)return false;busy=false;row={...row,data,token_ciphertext:token};return true;}};
+}
+const ownerEnv={...env,ADMIN_EMAIL:'Owner@example.test'};
+const gmail=async url=>{
+ const json=v=>new Response(JSON.stringify(v),{status:200,headers:{'Content-Type':'application/json'}});
+ if(url.includes('messages?'))return json({messages:[{id:'k1'},{id:'s1'},{id:'k2'}]});
+ const id=url.match(/messages\/([^?]+)/)[1];
+ return json({id,internalDate:'1700000000000',snippet:'',payload:{headers:[{name:'From',value:`Store <orders@${id.startsWith('k')?'ssense.com':'news.example'}>`},{name:'Subject',value:`Subject ${id}`}]}});
+};
+async function skippedCall(store,body,{admin=200,interpret}={}){const res=response();await createRecheckHandler({env:ownerEnv,storeFactory:()=>store,admin:async()=>admin,fetcher:gmail,prepare,interpret})(post(body),res);return res;}
+test('skipped-email sample lists skipped emails from known stores first, then a random sample, with subjects fetched on demand',async()=>{
+ const store=mailbox();assert.equal(storeDomain('m.ssense.com'),'ssense.com');assert.equal(storeDomain('mail.shop.co.uk'),'shop.co.uk');
+ const res=await skippedCall(store,{action:'skipped_list'});
+ assert.equal(res.statusCode,200);assert.deepEqual(res.body.emails.filter(e=>e.group==='known_store').map(e=>e.id),['k1','k2']);
+ assert.deepEqual(res.body.emails.filter(e=>e.group==='random').map(e=>e.id).sort(),['r1','r2','r3']);
+ assert.equal(res.body.emails[0].subject,'Subject k1');assert.equal(res.body.skipped_total,5);
+ assert.ok(!JSON.stringify(store.row.data).includes('Subject'),'subjects are never stored');
+});
+test('skipped-email review is limited to the owner’s own mailbox',async()=>{
+ const res=await skippedCall(mailbox({account:'tester@example.test'}),{action:'skipped_list'});
+ assert.equal(res.statusCode,403);assert.match(res.body.error,/own mailbox/);
+ assert.equal((await skippedCall(mailbox(),{action:'skipped_list'},{admin:401})).statusCode,401);
+});
+test('labels keep only id, label and domain, can be changed or cleared, and must point at a skipped email',async()=>{
+ const store=mailbox();
+ assert.equal((await skippedCall(store,{action:'skipped_label',email_id:'k1',label:'missed_order',sender_domain:'ssense.com'})).body.labelled,1);
+ await skippedCall(store,{action:'skipped_label',email_id:'k1',label:'not_order',sender_domain:'ssense.com'});
+ assert.deepEqual(store.row.data.triage_labels.map(({id,label,sender_domain})=>({id,label,sender_domain})),[{id:'k1',label:'not_order',sender_domain:'ssense.com'}]);
+ await skippedCall(store,{action:'skipped_label',email_id:'k1',label:null});assert.deepEqual(store.row.data.triage_labels,[]);
+ assert.equal((await skippedCall(store,{action:'skipped_label',email_id:'s1',label:'missed_order'})).statusCode,400);
+ assert.equal((await skippedCall(store,{action:'skipped_label',email_id:'k1',label:'maybe'})).statusCode,400);
+});
+test('re-checking a missed order reports whether triage now reads it and whether a purchase is found',async()=>{
+ const store=mailbox({labels:[{id:'k1',label:'missed_order',sender_domain:'ssense.com'},{id:'r1',label:'not_order',sender_domain:'news.example'}]});
+ texts.k1='SSENSE Order confirmed #9 Blue Third Cut Jeans 32';texts.r1='Newsletter';
+ const reads=async r=>r.schema.properties.decisions?{decisions:r.context.emails.map(e=>({id:e.id,action:e.id==='k1'?'extract':'skip'}))}:{events:r.context.source.id==='k1'?[event('Blue Third Cut Jeans')]:[]};
+ let res=await skippedCall(store,{action:'skipped_recheck',email_id:'k1'},{interpret:reads});
+ assert.equal(res.body.triage,'extract');assert.equal(res.body.match,true);assert.equal(res.body.found[0].product,'Blue Third Cut Jeans');
+ res=await skippedCall(store,{action:'skipped_recheck',email_id:'r1'},{interpret:reads});assert.equal(res.body.match,true);assert.equal(res.body.triage,'skip');
+ // Triage still skipping a labelled order is a disagreement, even if reading alone would find it.
+ res=await skippedCall(store,{action:'skipped_recheck',email_id:'k1'},{interpret:async r=>r.schema.properties.decisions?{decisions:[{id:'k1',action:'skip'}]}:{events:[event('Blue Third Cut Jeans')]}});
+ assert.equal(res.body.match,false);assert.match(res.body.explanation,/Triage still skips/);
+});
