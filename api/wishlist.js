@@ -72,9 +72,13 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
           const access=await auth(req.headers,env,store,fetcher);
           if(access.status!==200)return json(res,access.status,{error:'Please sign in with your invited email.'});
           if(!uuid(input.group))return json(res,400,{error:'Invalid item.'});
-          const groups=groupWishlist(await store.wishlistEntries(access.conversation,{includeRemoved:true}));
-          const item=groups.find(group=>group.id===input.group);
+          const rows=await store.wishlistEntries(access.conversation,{includeRemoved:true});
+          const item=groupWishlist(rows).find(group=>group.id===input.group);
           if(!item)return json(res,404,{error:'Item not found.'});
+          // A repeated remove or restore (a retry after a timeout) changes nothing and records no second event.
+          const removed=row=>row.removed===true||row.removed==='true';
+          const current=rows.filter(row=>item.entries.some(e=>e.item_id===row.item_id&&e.reply_id===row.reply_id));
+          if(current.length&&current.every(row=>removed(row)===(input.action==='remove')))return json(res,200,{ok:true,unchanged:true});
           // Stop alerts before hiding the item; restoring leaves alerts off.
           if(input.action==='remove')await store.disablePriceAlert(access.conversation,item.id);
           await store.setWishlistRemoved(access.conversation,item.entries,input.action==='remove');

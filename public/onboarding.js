@@ -47,7 +47,7 @@ const gmailConsentVersion="gmail-receipts-5y-1000-v2";
 async function gmailAPI(action,extra={}){
  const token=await session.token();if(!token){$('login').hidden=false;throw Error('Log in with the number you text Jules from to continue.');}
  const response=await fetch('/api/wishlist?gmail=1',{method:action?'POST':'GET',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},...(action?{body:JSON.stringify({action,...extra})}:{}),cache:'no-store'});
- const data=await response.json();if(!response.ok)throw Error(data.error||'Could not complete this step.');return data;
+ const data=await response.json();if(!response.ok)throw Object.assign(Error(data.error||'Could not complete this step.'),{status:response.status});return data;
 }
 function renderGmail(data){
  const working=['listing','extracting','questions'].includes(data.status)&&!data.failed;
@@ -61,7 +61,7 @@ function renderGmail(data){
  $('gmail-history-title').textContent=working?'Purchases found so far.':'Your purchase history.';
  $('gmail-account').textContent=data.account?'Connected account: '+data.account:'';
  const running=['listing','extracting','questions'].includes(data.status);
- $('gmail-progress').textContent=data.status==='ready'?`Import complete: ${data.items.length} purchase ${data.items.length===1?'item':'items'} found in ${data.processed} matching emails.`:data.status==='listing'?'Finding matching shopping emails…':data.status==='questions'?'Selecting the most useful questions…':data.status==='extracting'?`Reviewed ${data.processed} matching emails; ${data.total} found so far.`:data.status==='paused'?'Import paused. Reconnect Gmail to continue.':'Gmail connected. Ready to import.';
+ $('gmail-progress').textContent=data.status==='ready'?`Import complete: ${data.items.length} purchase ${data.items.length===1?'item':'items'} found in ${data.processed} matching emails.`:data.status==='listing'?'Finding matching shopping emails…':data.status==='questions'?'Selecting the most useful questions…':data.status==='extracting'?`Reviewed ${data.processed} matching emails; ${data.total} found so far.`:data.status==='paused'?'Import paused. Reconnect Gmail to continue.':data.connected?'Gmail connected. Ready to import.':'';
  $('gmail-loader').hidden=true;
  if(running&&!data.failed){
   $('gmail-history').hidden=!data.first_100;$('thinking').hidden=false;$('demo-disclosure').hidden=true;$('thinking-loader').hidden=false;
@@ -75,6 +75,7 @@ function renderGmail(data){
  $('gmail-disconnect').hidden=!data.connected;
  const early=data.first_100,latest=data.yield;
  $('gmail-yield').textContent=early&&latest?`The first 100 emails found ${early.purchases} new purchase items. Later emails added ${Math.max(0,latest.purchases-early.purchases)} more.`:'';
+ renderSources(data);
  $('gmail-items').replaceChildren();for(const item of data.items){const li=document.createElement('li');li.textContent=[item.brand,item.product,item.merchant&&'from '+item.merchant,item.size_label&&'size '+item.size_label,item.color,item.quantity&&'quantity '+item.quantity,item.recipient.value==='self'?(item.recipient.basis==='receipt_evidence'?'likely for you':'for you'):item.recipient.value==='other'?(item.recipient.basis==='receipt_evidence'?'likely a gift':'for '+(item.recipient.label||'someone else')):'recipient unknown',item.outcome.value!=='unknown'?item.outcome.value:null].filter(Boolean).join(' · ');$('gmail-items').append(li);}
 }
 let poll;
@@ -86,8 +87,43 @@ async function runImport(resume=false){
  }catch(error){$('thinking').hidden=true;$('status').textContent=error.message;$('retry').hidden=false;}
  finally{importBusy=false;}
 }
+// Connected history sources (Shop today). Each has a section whose element IDs start with its name:
+// <name>-orders, -title, -consent, -consent-label, -progress, -approve, -code, -approve-link, -connect,
+// -import, -disconnect. Approval happens in the source's app with a short code; the page then reads
+// records in steps.
+const SOURCES={shop:{label:'Shop',noun:'orders',consent:'shop-orders-5y-100-v1'}},wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+const sourceBusy=new Set();
+function renderSources(data){
+ for(const [name,source] of Object.entries(SOURCES)){
+  const c=data.connections?.[name]??{status:'not_connected'},approving=c.status==='awaiting_approval',el=id=>$(name+'-'+id);
+  el('orders').hidden=!(data.connections_available??[]).includes(name);el('title').textContent=c.connected?`Your ${source.label} ${source.noun}`:`Add your ${source.label} ${source.noun}`;
+  el('consent-label').hidden=el('connect').hidden=c.connected||approving;
+  el('approve').hidden=!approving;el('code').textContent=c.user_code??'';if(c.verification_url)el('approve-link').href=c.verification_url;
+  el('import').hidden=el('disconnect').hidden=!c.connected||c.status==='extracting';
+  el('progress').textContent=[approving?`Waiting for you to approve Jules in ${source.label}…`:c.status==='extracting'?`Reading your ${source.label} ${source.noun}: ${c.processed} of ${c.processed+c.queued}.`:c.status==='ready'?`${source.label} ${source.noun} imported: ${c.found} checked.`:c.connected?`${source.label} connected.`:'',c.error??''].filter(Boolean).join(' ');
+ }
+}
+// Lease conflicts (a Gmail step running) are retried briefly; other errors stop and are shown.
+async function sourceCall(name,action,extra={}){
+ for(let attempt=0;;attempt++){try{return await gmailAPI('connection-'+action,{source:name,...extra});}catch(error){if(error.status!==409||attempt>=5)throw error;await wait(2000);}}
+}
+async function runSource(name,data){
+ if(sourceBusy.has(name))return;sourceBusy.add(name);
+ try{
+  while(data.connections?.[name]?.status==='awaiting_approval'){await wait((data.connections[name].interval??5)*1000);data=await sourceCall(name,'poll');renderGmail(data);}
+  while(data.connections?.[name]?.status==='extracting'){data=await sourceCall(name,'step');renderGmail(data);}
+ }catch(error){$('status').textContent=error.message;}
+ finally{sourceBusy.delete(name);}
+}
+for(const [name,source] of Object.entries(SOURCES)){
+ const el=id=>$(name+'-'+id);
+ el('connect').onclick=async()=>{if(!el('consent').checked){$('status').textContent=`Review and confirm ${source.label} history analysis consent first.`;return;}el('connect').disabled=true;$('status').textContent='';try{const data=await sourceCall(name,'connect',{consent:source.consent});renderGmail(data);await runSource(name,data);}catch(error){$('status').textContent=error.message;}finally{el('connect').disabled=false;}};
+ el('import').onclick=async()=>{try{const data=await sourceCall(name,'import');renderGmail(data);await runSource(name,data);}catch(error){$('status').textContent=error.message;}};
+ el('disconnect').onclick=async()=>{try{renderGmail(await sourceCall(name,'disconnect'));$('status').textContent=`${source.label} disconnected. Imported ${source.noun} remain saved. You can also remove Jules in ${source.label}’s settings.`;}catch(error){$('status').textContent=error.message;}};
+}
 async function loadGmail(){
  const data=await gmailAPI();renderGmail(data);
+ for(const name of Object.keys(SOURCES))if(['awaiting_approval','extracting'].includes(data.connections?.[name]?.status))void runSource(name,data);
  if(data.connected&&data.status==='not_started'&&new URLSearchParams(location.search).get('gmail')==='connected')await gmailAPI('start');
  if(data.connected&&!data.failed)await runImport();
  if(new URLSearchParams(location.search).get('gmail')==='declined')$('status').textContent='Gmail access was declined. You can still use Jules by text.';
@@ -96,5 +132,5 @@ $('gmail-connect-button').onclick=async()=>{if(!$('gmail-consent').checked){$('s
 $('gmail-start').onclick=async()=>{try{await gmailAPI('start');await runImport();}catch(error){$('status').textContent=error.message;}};
 $('gmail-resume').onclick=()=>runImport(true);
 $('gmail-disconnect').onclick=async()=>{try{renderGmail(await gmailAPI('disconnect'));$('status').textContent='Gmail disconnected. Imported history remains saved.';}catch(error){$('status').textContent=error.message;}};
-$('gmail-delete').onclick=async()=>{if(!confirm('Delete imported history and its receipt-derived learning? This also disconnects Gmail. Independent shopping preferences remain.'))return;try{renderGmail(await gmailAPI('delete-history',{confirm:true}));$('status').textContent='Imported history deleted and Gmail disconnected.';}catch(error){$('status').textContent=error.message;}};
+$('gmail-delete').onclick=async()=>{if(!confirm('Delete imported history and its receipt-derived learning? This also disconnects Gmail and Shop. Independent shopping preferences remain.'))return;try{renderGmail(await gmailAPI('delete-history',{confirm:true}));$('status').textContent='Imported history deleted. Gmail and Shop are disconnected.';}catch(error){$('status').textContent=error.message;}};
 await load();

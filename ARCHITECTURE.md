@@ -7,7 +7,7 @@ Status: October 12, 2026. Describes the code after the evidence store (`db/019_e
 ```
  INPUTS                         EVIDENCE (proof)                 BELIEFS (profile)              VIEWS (computed)
  iMessage text/photos  ─┐                                                                       shopping history
- Gmail receipts        ─┼─► extract ─► evidence table ──cite──► taste_profiles.facts ──┐        style report
+ Gmail / Shop orders   ─┼─► extract ─► evidence table ──cite──► taste_profiles.facts ──┐        style report
  /style photos         ─┤      (model reads,  (immutable rows,     (stated / confirmed /  ├──►  Wrapped cards
  wishlist actions      ─┤       code checks)   one per proof)       inferred)            │        search ranking
  operator edits        ─┘                                                                │
@@ -32,6 +32,7 @@ Five rules keep this from drifting:
 | Self-statements in chat | Agent calls `update_profile` | Remember / correct / forget, with the exact quote | `chat_statement` evidence + `stated` belief |
 | Corrections to purchase history in chat | Agent calls `update_purchase_history` | Recipient, return, dispute, field fix, duplicate, defer | `correction` evidence |
 | Gmail receipts | Read-only OAuth import (`lib/gmail-import.js`, `lib/gmail-worker.js`) | Purchase, shipping, return, cancellation and refund events with quoted fields | `purchase_event` evidence |
+| Connected sources (Shop today) | Sign-in with a code on `/onboarding`, then up to 100 records (`lib/connected-sources.js` plus a small adapter such as `lib/shop-orders.js`); same extraction and validation as Gmail, sharing the `gmail_imports` row | Same events, quoting the record; an order another source already found links to the same item | `purchase_event` evidence, origin = the source's name |
 | `/style` photos (outfits, inspiration) | Upload on the private page (`api/style.js`) | Photo observations; user notes and occasions | `photo_observation` and `user_note` evidence |
 | `/style` card confirmation | User accepts a card's preference | The accepted preference | `confirmation` evidence + `confirmed` belief |
 | Wishlist actions | Confirmed save in chat; remove/restore on the wishlist page | Which item, which action, when | `wishlist_event` evidence |
@@ -51,6 +52,7 @@ Every message goes to one agent (`generateReply` in `lib/ai.js`): one model call
 | `save_to_wishlist` | wishlist enabled | `lib/wishlist-selection.js`, then save after delivery | `wishlist_items`, `wishlist_event` evidence |
 | `manage_price_alerts` (create / status / cancel) | wishlist enabled | create: `lib/wishlist-selection.js`; status/cancel: `manageAlerts` in `lib/inbox.js` | `price_alerts` |
 | `wishlist_status` | wishlist enabled | grounded reply; link added by code | none |
+| `prepare_checkout` | `CHECKOUT_LINKS_ENABLED`, with pending options or saved items | `lib/checkout.js`: a cart link with the exact size for stores in Shop's catalog, otherwise the product page; never pays | `messages.search_result` (`purchase_intent`) |
 | `update_purchase_history` | the user has imported purchases | `lib/receipt-chat.js` | `correction` evidence, open questions |
 | `update_profile` (remember / correct / forget) | memory enabled | `updateProfile` in `lib/memory.js` | `chat_statement` evidence + beliefs |
 | `profile_status` | memory enabled | grounded reply | none |
@@ -71,8 +73,21 @@ Cheapest reliable source first; the model-driven web search (`gpt-4.1` + web sea
 | Open discovery ("understated white sneakers, any brand") | Web search (needs breadth) | SerpApi recovery |
 | Identification from context ("the jacket Connor Storrie wore") | Structured lookup usually finds nothing, then web search | |
 
+- **Shop's catalog** (`SHOP_CATALOG_ENABLED`) runs beside the first web search as one more source (`shopCandidates` in `lib/text-sources.js`). It covers Shopify stores only. Its results are candidate URLs: each plain product page passes the same listing check, results interleave with web results, and market/taste ranking decides order. A required brand whose own store is listed in `lib/shopify-stores.json` (refresh with `node scripts/shopify-stores.js`) is searched inside that store. If web search fails, verified Shop results are shown instead of a failure. `text_wishlist_sources` logs and the replay report count shown merchants per source.
 - **Variants:** the expensive "find variants" web search runs only when the agent sets `show_variants` (the user named a model without its version, or asked which versions exist). Color options listed on the retailer's own page are always read; that costs no model call.
 - **Search before asking:** when the agent decides a question is needed, the executor first runs the structured lookup. With verified candidates, a small model call writes the one question that best separates them, and the candidates are shown as selectable options ("Could it be one of these?"). With none, the agent's question is asked as is.
+
+## Adding a purchase-history source
+
+Every source rides the same rails (`lib/purchase-sources.js`): it produces prepared records `{id, date, text}`. The shared code reads each record with the model, keeps only fields quoted from the record, links it to items any source already found (so an order in both Gmail and Shop is one item), writes `purchase_event` evidence with the source's origin, and reselects follow-up questions. Gmail keeps its own email search and triage but uses these rails for extraction, evidence and questions.
+
+For a new connected service (another MCP or order API):
+1. Write an adapter like `SHOP_SOURCE` in `lib/shop-orders.js`: name, origin, label, consent version, enabling flag, extraction instructions, `start`/`poll` (code-based sign-in) and `list` (records).
+2. Register it in `CONNECTED_SOURCES` (`lib/connected-sources.js`). Shared code handles the sealed sign-in, resumable queue, retries, evidence, questions and status.
+3. Add a migration inserting its origin into `evidence_origins` with `purchase_history=true`.
+4. Add its section to `/onboarding` (element IDs prefixed with its name) and an entry in `SOURCES` in `public/onboarding.js`.
+
+Sign-in is code-based (device flow) today. A service that only supports redirect sign-in would also need a callback route, like Gmail's.
 
 ## Data stores
 
@@ -131,7 +146,7 @@ Pre-evidence data: the migration backfills existing beliefs and `/style` observa
 - **iMessage photos are not evidence yet.** They are used for the current search only; nothing learns taste from them. If something does, they must become evidence rows first.
 - **Receipts texted to Jules are not supported yet.** The `chat` origin and `purchase_event` kind are ready for it.
 - **Alerts on an already-saved item that isn't in the current options** can be checked and cancelled in chat but not created there yet; creation goes through current options or the wishlist page.
-- **Wishlist evidence is written right after the save or change, not in the same transaction.** Row IDs are deterministic, so retries don't duplicate, but a crash between the two could miss a row.
+- **Wishlist evidence is written right after the save or change, not in the same transaction.** Row IDs are deterministic, so retries don't duplicate, but a crash between the two could miss a row. After an unclear save or alert failure, chat repeats only the failed keyed write once and then replies from what is stored (`settleTextWishlist`); a repeated remove/restore on the wishlist page writes nothing.
 - **The replay grader (`lib/replay.js`) still scores replies with phrase checks.** It grades test output; it does not route messages. `REPLAY-SUITE.md` already flags replacing it with structured grading.
 - **Output safety filters use word lists** (commerce claims in search reasons, body comments in style copy). They check what Jules writes, not what the user means.
 - **`messages` mixes transcript and workflow** (`search_result`, `wishlist_payload`). Acceptable at this scale.
@@ -141,4 +156,5 @@ Pre-evidence data: the migration backfills existing beliefs and `/style` observa
 ## Deployment order
 
 - `db/019_evidence.sql`: applied October 12, 2026. `db/020_drop_evidence_transition.sql` removes the transitional functions and backups once the release is verified.
+- `db/022_history_sources.sql`: replaces the fixed origin list with the `evidence_origins` table (adds `shop`), clears every purchase-history origin with imported history, and lets a connected source create the history row. Run before `SHOP_ORDERS_ENABLED=true`.
 - `db/021_usage_events.sql`: run before relying on cost data. Until then usage writes fail quietly (logged as `usage_record_failed`) and nothing else is affected.

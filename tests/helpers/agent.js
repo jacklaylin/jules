@@ -6,7 +6,7 @@ const defaults={
   save_to_wishlist:{option_indices:[],consent_context:'explicit_request',color_choices:[],size_choices:[],offer_alerts:true},
   manage_price_alerts:{operation:'create',option_indices:[],consent_context:'explicit_request',color_choices:[],size_choices:[],saved_item_ids:[]},
   wishlist_status:{response:'',include_link:false},update_purchase_history:{},update_profile:{changes:[],acknowledgment:''},profile_status:{response:''},
-  onboarding:{action:'status'},send_developer_feedback:{feedback:''},conversation_reply:{response:''},
+  onboarding:{action:'status'},send_developer_feedback:{feedback:''},conversation_reply:{response:''},prepare_checkout:{items:[]},
 };
 export const tool=(name,args={})=>({type:'function_call',name,arguments:JSON.stringify({...defaults[name],...args})});
 export const agentTurn=(...calls)=>({ok:true,json:async()=>({status:'completed',output:calls})});

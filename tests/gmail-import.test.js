@@ -25,7 +25,7 @@ function storage(){let row=null,nonce=null,busy=false,rows=[];const self={
  claimGmailImport:async()=>{if(busy||!row)return null;busy=true;row.revision++;return structuredClone(row);},
  finishGmailImport:async(owner,revision,data,token,evidence=[],clear=false)=>{if(owner!==row.conversation_id||revision!==row.revision)return false;row.data=structuredClone(data);row.token_ciphertext=token;busy=false;
   if(clear)rows=rows.filter(r=>r.origin!=='gmail');for(const e of evidence)if(!rows.some(r=>r.id===e.id))rows.push(structuredClone(e));return true;},
- evidence:async(_owner,origin)=>structuredClone(rows.filter(r=>!origin||r.origin===origin)),get rows(){return rows;},
+ evidence:async(_owner,origin)=>structuredClone(rows.filter(r=>!origin||[].concat(origin).includes(r.origin))),get rows(){return rows;},
  profile:async()=>({facts:[]}),
  seed(value){row=structuredClone(value);},get row(){return row;},get busy(){return busy;}
 };return self;}
