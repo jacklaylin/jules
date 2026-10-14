@@ -98,12 +98,12 @@ test('a connected source needs its own consent and its flag, and its failure nev
 
 test('Shop records hide internal IDs from the model and keep a summary without personal details',()=>{
   const order={id:'gid://shopify/Order/9',name:'#1001',uuid:'01a0b556-2447-7954-a6f7-f403698ac46c',created_at:'2026-05-01T00:00:00Z',shop:{name:'Kith'},
-    shipping_address:{name:'Pat Example',address1:'1 Main St'},customer:{email:'pat@example.test'},line_items:[{title:'LAX Tee',variant_title:'M',quantity:1}]};
+    shipping_address:{name:'Pat Example',address1:'1 Main St'},customer:{email:'pat@example.test'},tracking_number:'1ZY24B160233958543',line_items:[{title:'LAX Tee',variant_title:'M',quantity:1}]};
   const record=orderSource(order,'orders');
   assert.equal(record.id,'shop:gid://shopify/Order/9');assert.equal(record.kind,'orders');
   assert.ok(!record.text.includes('01a0b556')&&!record.text.includes('gid://'));assert.match(record.text,/\[Shop internal ID\]/);assert.match(record.text,/#1001/);
   assert.match(record.summary,/LAX Tee/);assert.match(record.summary,/Kith/);
-  for(const personal of ['Pat Example','1 Main St','pat@example.test','01a0b556'])assert.ok(!record.summary.includes(personal),personal);
+  for(const personal of ['Pat Example','1 Main St','pat@example.test','01a0b556','1ZY24B160233958543'])assert.ok(!record.summary.includes(personal),personal);
 });
 
 const gmailCoat=()=>{
