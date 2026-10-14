@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {Readable} from 'node:stream';
 import {GMAIL_SCOPE,sealToken,openToken,authorizationURL,digest} from '../lib/gmail-client.js';
 import {receiptHTML,prepareReceiptEmail,receiptPDF,triageCandidate} from '../lib/receipt-email.js';
-import {RECEIPT_SCHEMA,TRIAGE_SCHEMA,merchantKey,reconcileReceipt,emptyReceiptState,projectReceiptState,relinkPending,receiptShoppingFacts} from '../lib/receipt-extraction.js';
+import {receiptModel,RECEIPT_SCHEMA,TRIAGE_SCHEMA,merchantKey,reconcileReceipt,emptyReceiptState,projectReceiptState,relinkPending,receiptShoppingFacts} from '../lib/receipt-extraction.js';
 import {applyReceiptFeedback,receiptLearningView} from '../lib/receipt-feedback.js';
 import {newImportJob,importStep,createGmailHandler,publicImport,CONSENT_VERSION,SCAN_VERSION} from '../lib/gmail-import.js';
 import {loadReceipts} from '../lib/evidence.js';
@@ -70,6 +70,24 @@ test('quotes tolerate HTML whitespace and table separators but not different con
  const ok=reconcileReceipt(emptyReceiptState('owner'),html,{events:[receipt({product:{value:'Jeans',quote:'Jeans Blue 31'},color:{value:'Blue',quote:'Jeans  Blue'}})]});
  assert.equal(ok.state.items[0].product,'Jeans');assert.equal(ok.state.items[0].color,'Blue');
  assert.equal(reconcileReceipt(emptyReceiptState('owner'),html,{events:[receipt({color:{value:'Red',quote:'Red'}})]}).state.items[0].color,null);
+});
+test('quotes ignore letter case, and a verified order reference proves an order when the transaction quote does not match',()=>{
+ const caps={...source,text:'THOM BROWNE THANK YOU FOR YOUR ORDER Order QVGSTS Classic Pique 4-Bar Polo'};
+ const polo=extra=>receipt({merchant:{value:'Thom Browne',quote:'THOM BROWNE'},brand:{value:'Thom Browne',quote:'THOM BROWNE'},order_reference:fact('QVGSTS'),product:fact('Classic Pique 4-Bar Polo'),color:fact(null),size_label:fact(null),quantity:fact(null),evidence:'Classic Pique 4-Bar Polo',...extra});
+ let result=reconcileReceipt(emptyReceiptState('owner'),caps,{events:[polo({basis:{value:'order_confirmation',quote:'Thank you for your order'}})]});
+ assert.equal(result.state.items[0].brand,'Thom Browne');assert.equal(result.records[0].withheld_fields,undefined);
+ result=reconcileReceipt(emptyReceiptState('owner'),caps,{events:[polo({basis:{value:'order_confirmation',quote:'Your order is confirmed'}})]});
+ assert.equal(result.state.items.length,1);assert.ok(result.records[0].withheld_fields.includes('basis'));
+ // Without a verified order reference an unmatched transaction quote is still refused.
+ assert.throws(()=>reconcileReceipt(emptyReceiptState('owner'),caps,{events:[polo({order_reference:fact(null),basis:{value:'order_confirmation',quote:'Your order is confirmed'}})]}),/Unverified transaction basis/);
+ // Folding case never lets different letters through.
+ assert.equal(reconcileReceipt(emptyReceiptState('owner'),caps,{events:[polo({basis:{value:'order_confirmation',quote:'THANK YOU'},color:{value:'Navy',quote:'NAVY'}})]}).state.items[0].color,null);
+});
+test('receipt reading turns sampling off where the model allows it',async()=>{
+ const bodies=[],fetcher=async(url,init)=>{bodies.push(JSON.parse(init.body));return jsonResponse({status:'completed',output:[{content:[{type:'output_text',text:'{"events":[]}'}]}]});};
+ await receiptModel({schema:RECEIPT_SCHEMA,context:{},instructions:'x'},{OPENAI_API_KEY:'k'},fetcher);
+ await receiptModel({schema:RECEIPT_SCHEMA,context:{},instructions:'x'},{OPENAI_API_KEY:'k',OPENAI_MODEL:'o4-mini'},fetcher);
+ assert.equal(bodies[0].temperature,0);assert.equal('temperature' in bodies[1],false);
 });
 test('purchases without a labeled order reference become items scoped to their email',()=>{
  const noOrder=receipt({order_reference:fact(null)});

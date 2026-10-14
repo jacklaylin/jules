@@ -136,3 +136,8 @@ The founder labelled 21 of the 44 items found. Six weren't purchases: five SSENS
 - **Re-check labelled emails.** In Admin › People › Purchase history, this re-fetches (read-only) the emails behind each labelled item, analyzes them with the current rules without saving anything, and reports how many labels the rules now agree with, by label, along with what was read and what was rejected. It is served at `POST /api/wishlist?gmail=recheck` (owner-only) so PDF receipts use the bundled PDF reader.
 
 Existing evidence is not rewritten. Items the founder already labelled stay corrected, and the new rules apply to future imports.
+
+### October 14 follow-up: letter case in quotes
+
+The first re-check agreed with 25 of 26 labels. The one disagreement was a Thom Browne order confirmation whose purchase was rejected with "Unverified transaction basis". The same email had earlier lost its brand and needed the quote fallback, which fits a receipt set in capitals being quoted in normal case. Quote checks now fold letter case; letters and digits must still match. If the transaction quote still doesn't match, a verified labelled order reference proves the order, and `basis` is listed in `withheld_fields`. Cart and marketing emails have no order reference, so they are still refused.
+Receipt reading and triage now set `temperature: 0` for `gpt-4*` models. The second re-check showed a labelled John Elliott order switch from found to not found with no code change in between, because the default sampling read the same email differently on different runs. Reasoning models, which reject the setting, keep their default. Re-check failures now log a short error message.
