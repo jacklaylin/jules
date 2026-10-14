@@ -39,3 +39,11 @@ Founder decision: import results are internal (Admin › People › Purchase his
   2. **Questions:** the open questions, one at a time, as before.
   3. **Who you are:** sent when no questions remain, or 24 hours after the last unanswered question. It lists the top 4 brands, top 3 stores and the most-bought sizes from the person's own purchases (gifts and removed items excluded; legal suffixes like "Retail ApS" dropped). Sizes are purchased sizes, never a confirmed fit. It sends nothing with fewer than 2 purchases. No prices yet: receipts aren't read for prices (phase 2). No style-report link yet: the purchase-based report isn't built (phase 3).
 - **24-hour fallback.** `db/024_gmail_profile_due.sql` adds `gmail_profiles_due()`, which reads timing from the message ledger for imports finished in the last 14 days. It also makes the once-a-minute sweep call Vercel when a summary is due. The sweep sends it.
+
+## October 14 update: account page
+
+Founder decision: onboarding does one job: link accounts, show progress, finish. Managing connections lives on **`/account`**, reached from the avatar at the right of the main navigation.
+
+- **`/account`** (`account.html/js/css`, rewrite in `vercel.json`) shows Gmail (connected address, last import or live progress, a paused notice, **Import again**, **Disconnect Gmail**) and Shop (status, **Import again**, **Re-read all orders**, **Disconnect Shop**). **Delete imported history** removes Gmail and Shop learning and disconnects both; chat preferences and the wishlist stay. **Log out** is also here. Not-connected accounts link to `/onboarding` to connect. It uses the existing `/api/wishlist?gmail=1` actions; there is no new API.
+- **Onboarding** keeps Connect Gmail, the consent, Shop connect and approval, progress, and the done screen (Open Jules in Messages, plus *Manage your connections* → `/account`). Start import appears only for a connected account that hasn't imported yet, and Resume only when an import has paused. Disconnect, delete, import again and the Shop re-import controls moved to `/account`.
+- `GET /api/wishlist?gmail=1` also returns `last_import_at`. `/login?next=account` returns to the account page.
