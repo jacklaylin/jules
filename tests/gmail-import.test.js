@@ -71,6 +71,18 @@ test('quotes tolerate HTML whitespace and table separators but not different con
  assert.equal(ok.state.items[0].product,'Jeans');assert.equal(ok.state.items[0].color,'Blue');
  assert.equal(reconcileReceipt(emptyReceiptState('owner'),html,{events:[receipt({color:{value:'Red',quote:'Red'}})]}).state.items[0].color,null);
 });
+test('quotes ignore letter case, and a verified order reference proves an order when the transaction quote does not match',()=>{
+ const caps={...source,text:'THOM BROWNE THANK YOU FOR YOUR ORDER Order QVGSTS Classic Pique 4-Bar Polo'};
+ const polo=extra=>receipt({merchant:{value:'Thom Browne',quote:'THOM BROWNE'},brand:{value:'Thom Browne',quote:'THOM BROWNE'},order_reference:fact('QVGSTS'),product:fact('Classic Pique 4-Bar Polo'),color:fact(null),size_label:fact(null),quantity:fact(null),evidence:'Classic Pique 4-Bar Polo',...extra});
+ let result=reconcileReceipt(emptyReceiptState('owner'),caps,{events:[polo({basis:{value:'order_confirmation',quote:'Thank you for your order'}})]});
+ assert.equal(result.state.items[0].brand,'Thom Browne');assert.equal(result.records[0].withheld_fields,undefined);
+ result=reconcileReceipt(emptyReceiptState('owner'),caps,{events:[polo({basis:{value:'order_confirmation',quote:'Your order is confirmed'}})]});
+ assert.equal(result.state.items.length,1);assert.ok(result.records[0].withheld_fields.includes('basis'));
+ // Without a verified order reference an unmatched transaction quote is still refused.
+ assert.throws(()=>reconcileReceipt(emptyReceiptState('owner'),caps,{events:[polo({order_reference:fact(null),basis:{value:'order_confirmation',quote:'Your order is confirmed'}})]}),/Unverified transaction basis/);
+ // Folding case never lets different letters through.
+ assert.equal(reconcileReceipt(emptyReceiptState('owner'),caps,{events:[polo({basis:{value:'order_confirmation',quote:'THANK YOU'},color:{value:'Navy',quote:'NAVY'}})]}).state.items[0].color,null);
+});
 test('purchases without a labeled order reference become items scoped to their email',()=>{
  const noOrder=receipt({order_reference:fact(null)});
  const first=reconcileReceipt(emptyReceiptState('owner'),source,{events:[noOrder,noOrder]});assert.equal(first.state.items.length,1);assert.equal(first.pending.length,0);
