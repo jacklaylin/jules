@@ -114,9 +114,16 @@ test('Shop sign-in returns only the public code and keeps waiting, approval and 
   assert.deepEqual(await pollShopSignIn('private',answer({access_token:'token'})),{status:'approved',access_token:'token'});
 });
 
-test('order listing pages with cursors and stops at the limit',async()=>{
-  let calls=0;
-  const orders=await listShopOrders('token',{limit:30,fetcher:async(_u,o)=>{calls++;assert.equal(o.headers.Authorization,'Bearer token');const page=JSON.parse(o.body).params.arguments.pagination;
-    return rpc({orders:Array.from({length:25},(_,i)=>({id:`${calls}-${i}`})),pagination:{has_next_page:true,cursor:page.cursor?null:'next'}});}});
-  assert.equal(calls,2);assert.equal(orders.length,30);
+test('order listing reads every record list on a page, follows any cursor name and reports why it stopped',async()=>{
+  const pages=[
+    {orders:Array.from({length:20},(_,i)=>({id:'o'+i})),standalone_shipments:[{id:'s1'}],pagination:{has_next_page:true,next_cursor:'two'}},
+    {orders:[{id:'o20'}],pagination:{has_next_page:false}}];
+  let calls=0;const sent=[];
+  const result=await listShopOrders('token',{from:'2021-10-14',fetcher:async(_u,o)=>{assert.equal(o.headers.Authorization,'Bearer token');sent.push(JSON.parse(o.body).params.arguments);return rpc({...pages[calls++],messages:[]});}});
+  assert.equal(calls,2);assert.equal(sent[1].pagination.cursor,'two');assert.equal(sent[0].date_from,'2021-10-14');
+  assert.equal(result.records.length,22);assert.deepEqual([...new Set(result.records.map(r=>r.kind))],['orders','standalone_shipments']);
+  assert.equal(result.listing.stop,'no_more_pages');assert.deepEqual(result.listing.pages[0].lists,{orders:20,standalone_shipments:1});
+  // A page that says more exist but gives no cursor is reported, not silently treated as the end.
+  const stuck=await listShopOrders('token',{fetcher:async()=>rpc({orders:[{id:'x'}],pagination:{has_next_page:true,page_token:'?'}})});
+  assert.equal(stuck.listing.stop,'next_page_without_cursor');assert.deepEqual(stuck.listing.pages[0].pagination_keys,['has_next_page','page_token']);
 });
