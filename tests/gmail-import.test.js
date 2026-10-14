@@ -240,6 +240,15 @@ test('opening the page resumes a background import that stopped without an error
  store.seed({...store.row,updated_at:new Date(Date.now()-600000).toISOString(),data:{...store.row.data,job:{...store.row.data.job,error:'paused'}}});
  response=await request(handler);assert.equal(response.data.failed,true);assert.equal(scheduled.length,1);
 });
+test('question selection drops invalid proposals and never blocks a finished import',async()=>{
+ const base=await step({conversation_id:'owner',token_ciphertext:sealToken(tokens,'owner',env),data:{feedback:emptyReceiptState('owner'),job:{...newImportJob(),status:'extracting',ids:['m1']}}},{fetcher:async()=>jsonResponse({id:'m1',payload:{}}),prepare:async()=>({...source,warnings:[]}),interpret:async r=>r.schema===TRIAGE_SCHEMA?{decisions:[]}:{events:[receipt()]}});
+ const item=itemsOf(base)[0].id,good={item_ids:[item],topic:'recipient',fields:[],question:'Were these jeans for you?',reason:'Decides whether they teach your sizes.',evidence_ids:['m1']};
+ const atQuestions={...base,data:{...base.data,job:{...base.data.job,status:'questions'}}};
+ let next=await step(atQuestions,{interpret:async()=>({questions:[good,{...good,item_ids:['unknown-item']},{...good,question:'Other?',evidence_ids:['foreign-email']}]})});
+ assert.equal(next.data.job.status,'ready');assert.deepEqual(next.receipts.state.questions.filter(q=>q.status==='open').map(q=>q.question),['Were these jeans for you?']);
+ next=await step({...next,data:{...next.data,job:{...next.data.job,status:'questions'}}},{interpret:async()=>{throw Error('model down');}});
+ assert.equal(next.data.job.status,'ready');assert.equal(next.data.job.quality.questions_failed,true);assert.equal(next.receipts.state.questions.filter(q=>q.status==='open').length,1);
+});
 test('a failed triage analyzes every email, and one failing email cannot stall the rest of the batch',async()=>{
  let row={conversation_id:'owner',token_ciphertext:sealToken(tokens,'owner',env),data:{feedback:emptyReceiptState('owner'),job:{...newImportJob(),status:'extracting',ids:['bad','m1']}}};
  const fetcher=async url=>jsonResponse({id:url.match(/messages\/([^?/]+)/)[1],payload:{}});
