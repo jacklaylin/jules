@@ -11,6 +11,7 @@ p{line-height:1.65}.login-card{max-width:490px;margin:7vh auto}.login-card>p{col
 /* Person page */
 .person-title{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin-bottom:10px}.person-title h1{font-size:34px;line-height:1;margin:0}.person-title .spacer{flex:1}
 .person-title .breadcrumb{margin:0;font:500 11px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;text-decoration:none}
+#person-more:not([data-tab=purchases]) [data-menu-tab=purchases],#person-more:not([data-tab=memory]) [data-menu-tab=memory]{display:none}
 .person-stats{margin:0}.person-stats strong{font-weight:500;color:var(--ink)}
 [data-panel]{padding-top:4px}
 .memory-table .fact-key{font:400 13px var(--font-mono);overflow-wrap:anywhere;min-width:130px}.memory-table .fact-evidence{font-size:13px;color:var(--text-2);min-width:220px}

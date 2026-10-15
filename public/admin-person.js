@@ -19,6 +19,7 @@ function showTab(tab, push = false) {
   if (!TABS.includes(tab)) tab = 'memory';
   for (const link of document.querySelectorAll('.tabs a')) { if (link.dataset.tab === tab) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current'); }
   for (const panel of document.querySelectorAll('[data-panel]')) panel.hidden = panel.dataset.panel !== tab;
+  $('person-more').dataset.tab = tab;
   // On phones the tab strip scrolls sideways; keep the selected tab in view.
   const active = document.querySelector('.tabs a[aria-current]'), strip = active.parentElement;
   strip.scrollLeft = Math.max(0, active.offsetLeft - strip.offsetLeft - 16);
@@ -194,7 +195,7 @@ async function changeProfile(change, keyId) {
 }
 const reloadProfile = () => loadProfile().then(() => { $('profile-notice').textContent = dirty.size ? 'Reloaded. Your unsaved values are kept; save them again.' : 'Reloaded.'; }).catch(error => { $('profile-notice').textContent = error.message; });
 $('conflict-reload').onclick = reloadProfile;
-$('profile-import').onclick = () => { $('memory-more').hidePopover(); changeProfile({ action: 'import' }); };
+$('profile-import').onclick = () => changeProfile({ action: 'import' });
 $('memory-search').addEventListener('input', renderFacts);
 function showAddFact(open) {
   $('tool-add-fact').hidden = !open; $('memory-add-open').setAttribute('aria-expanded', String(open));

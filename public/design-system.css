@@ -319,7 +319,7 @@ button.small{min-height:32px;padding:0 14px;font-size:13px}
 .dv-count{font:500 10px/1 var(--font-mono);background:var(--ink);color:var(--white);border-radius:var(--r-pill);padding:3px 6px}
 .dv-pop{margin:0;inset:auto;padding:6px;border:1px solid var(--line);border-radius:16px;background:var(--white);color:var(--ink);box-shadow:var(--shadow-panel);min-width:240px;max-width:calc(100vw - 32px)}
 .dv-menu{display:none;flex-direction:column}.dv-menu:popover-open{display:flex}
-.dv-menu button{justify-content:flex-start;gap:10px;width:100%;min-height:36px;padding:0 10px;border:0;border-radius:10px;background:transparent;box-shadow:none;font-size:13px;text-align:left}
+.dv-menu button{display:flex;align-items:center;justify-content:flex-start;gap:10px;width:100%;min-height:36px;padding:0 10px;border:0;border-radius:10px;background:transparent;box-shadow:none;font-size:13px;text-align:left}
 .dv-menu button:hover,.dv-menu button:focus-visible{background:var(--fog)}.dv-menu .hint{margin-left:auto;font-weight:400;font-size:12px;color:var(--text-2)}
 .dv-menu .mono-label{padding:8px 10px 2px}.dv-menu hr{border:0;border-top:1px solid var(--line);margin:4px 6px}
 .dv-filters{padding:14px}.dv-filters:popover-open{display:grid;gap:12px}.dv-filters label{display:grid;gap:6px;font-size:13px}.dv-filters select{margin:0}
@@ -370,8 +370,7 @@ button.quiet{border-color:transparent;box-shadow:none;background:transparent;col
 
 /* Collection pages (wishlist, wardrobe): large serif title with the item count opposite; on phones the count sits beneath. */
 .collection-heading{align-items:baseline;margin-bottom:48px}.collection-heading h1{font-size:clamp(72px,7.5vw,112px)}
-.heading-mobile{display:none}
-@media(max-width:800px){.collection-heading{display:block;margin-bottom:28px}.collection-heading h1{font-size:clamp(50px,16vw,68px);margin-bottom:12px;text-transform:none}.heading-mobile{display:inline}.heading-desktop{display:none}}
+@media(max-width:800px){.collection-heading{display:block;margin-bottom:28px}.collection-heading h1{font-size:clamp(50px,16vw,68px);margin-bottom:12px;text-transform:none}}
 
 /* Product cards: equal-height tiles with a portrait photo, bold name and one mono line. Shared by every collection grid. */
 .product-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(max(min(100%,280px),calc((100% - 90px)/4)),1fr));gap:42px 30px}
