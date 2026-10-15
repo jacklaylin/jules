@@ -119,7 +119,7 @@ test('metric rows page through results and still read before migration 027 adds 
   const urls = [];
   const fetcher = async url => {
     urls.push(decodeURIComponent(url));
-    if (url.includes('sent_at')) return new Response(JSON.stringify({ code: '42703' }), { status: 400 });
+    if (url.includes('sent_at') || url.includes('reply_diagnostics')) return new Response(JSON.stringify({ code: '42703' }), { status: 400 });
     const offset = Number(new URL(url).searchParams.get('offset'));
     return new Response(JSON.stringify(Array.from({ length: offset === 0 ? 1000 : 3 }, () => ({ direction: 'inbound' }))), { status: 200 });
   };
@@ -128,4 +128,14 @@ test('metric rows page through results and still read before migration 027 adds 
   assert.equal(rows.length, 1003);
   assert.ok(urls.every(u => !/\bbody\b/.test(u)), 'message text is never read');
   assert.equal(urls.filter(u => u.includes('offset=1000')).length, 1);
+});
+
+test('reply diagnostics: recorded outcomes and composition win, and a watchdog-recovered reply counts as a stall', () => {
+  const rows = [
+    inbound('r1', 0), reply('ai', 'r1', 0, { source: 'ai_recovery', sent_at: at(700), reply_diagnostics: { outcome: 'stalled', recovery: 'watchdog' } }),
+    inbound('r2', 10), reply('ai', 'r2', 10, { sent_at: at(20), reply_diagnostics: { outcome: 'sent', composed_by: 'model' } }),
+    inbound('r3', 20), reply('ai', 'r3', 20, { sent_at: at(30), reply_diagnostics: { outcome: 'fallback' } }),
+  ];
+  const turns = turnsFrom(rows, { actions: new Map([['ai:r2', 'find_products']]) });
+  assert.deepEqual(turns.map(t => [t.stuck, t.fallback, t.composed_by]), [[true, false, 'template'], [false, false, 'model'], [false, true, 'template']]);
 });
