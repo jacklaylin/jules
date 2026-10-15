@@ -3,9 +3,12 @@
 <body class="report-page">
 <main class="report-stage">
   <section id="view-message" class="report-message" hidden>
+    <a id="message-leave" class="report-leave" href="/wishlist">← Back to Jules</a>
     <p class="label" id="message-eyebrow">Style report</p>
     <h1 class="display" id="message-title">One moment…</h1>
     <p id="message-body"></p>
+    <div id="message-progress" class="report-loading" role="progressbar" aria-label="Progress" hidden><span id="message-bar"></span></div>
+    <p id="message-step" class="report-step" aria-live="polite" hidden></p>
     <a id="message-action" class="btn btn--butter" hidden></a>
   </section>
 

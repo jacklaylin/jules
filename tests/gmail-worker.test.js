@@ -132,9 +132,14 @@ test('queued chat answers are applied with the lease, cleared, and followed by t
  assert.ok(evidence.some(e=>JSON.stringify(e).includes('imessage:fake')),'the answer is written as correction evidence');
 });
 
-test('once an import has finished, the chain tags purchases for the style report after announcing',async()=>{const store=fixture(),calls=[];
- await runGmailStep('owner',store,{},{},{step:async row=>({...row,data:{...row.data,job:{...row.data.job,status:'ready'}}}),announce:async()=>calls.push('announce'),tag:async(s,o)=>{assert.equal(o,'owner');calls.push('tag');return {tagged:0};},schedule:()=>{}});
- assert.deepEqual(calls,['announce','tag']);
+test('once an import has finished, the chain tags purchases and builds the style report after announcing',async()=>{const store=fixture(),calls=[];
+ await runGmailStep('owner',store,{},{},{step:async row=>({...row,data:{...row.data,job:{...row.data.job,status:'ready'}}}),announce:async()=>calls.push('announce'),tag:async(s,o)=>{assert.equal(o,'owner');calls.push('tag');return {tagged:0};},build:async(s,o)=>{assert.equal(o,'owner');calls.push('build');return {status:'built'};},schedule:()=>{}});
+ assert.deepEqual(calls,['announce','tag','build'],'the report is ready before the person opens it');
+ // With nothing left to read, only a missing report is built: an existing one is not rewritten on every wake.
+ const idle=fixture(),built=[];idle.row.data.job.status='ready';idle.row.data.style_report={id:'r1'};
+ await runGmailStep('owner',idle,{},{},{tag:async()=>({tagged:0}),build:async()=>{built.push('build');return {status:'built'};},schedule:()=>{}});assert.deepEqual(built,[]);
+ delete idle.row.data.style_report;
+ await runGmailStep('owner',idle,{},{},{tag:async()=>({tagged:0}),build:async()=>{built.push('build');return {status:'built'};},schedule:()=>{}});assert.deepEqual(built,['build']);
  // A failed tagging run never fails the import.
  const failing=fixture();failing.row.data.job.status='ready';
- await runGmailStep('owner',failing,{},{},{tag:async()=>{throw Error('model down');},schedule:()=>{}});assert.equal(failing.row.data.job.status,'ready');});
+ await runGmailStep('owner',failing,{},{},{tag:async()=>{throw Error('model down');},build:async()=>{throw Error('model down');},schedule:()=>{}});assert.equal(failing.row.data.job.status,'ready');});

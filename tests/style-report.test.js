@@ -141,9 +141,10 @@ test('opening Your style builds the report on the first visit, but not while an 
  assert.equal(built,1);assert.equal(res.body.report.cards[0].type,'receipt');assert.ok(store.row.data.style_report);
  // Later visits read the saved report.
  res=response();await handleReport(get,res,{store,env:{OPENAI_API_KEY:'k'},auth,fetcher:fetch,build});assert.equal(built,1);
- store=fixture();store.row.data.job.status='extracting';res=response();
+ store=fixture();Object.assign(store.row.data.job,{status:'extracting',ids:['a','b','c','d'],processed:['a']});res=response();
  await handleReport(get,res,{store,env:{OPENAI_API_KEY:'k'},auth,fetcher:fetch,build});
  assert.equal(res.body.report,null);assert.equal(res.body.status,'reading');assert.equal(built,1);
+ assert.deepEqual(res.body.progress,{read:1,total:4},'the page can show how far the import has got');
 });
 
 test('the owner can open any tester’s report read-only from admin',async()=>{
