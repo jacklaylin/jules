@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {validateSearch,formatSearch,searchProducts,publicURL} from '../lib/search.js';
 import {generateReply} from '../lib/ai.js';
-import {tool} from './helpers/agent.js';
+import {tool,restating} from './helpers/agent.js';
 const url='https://retailer.example/products/waxed-jacket';
 const result={intro:'I can’t confirm the exact jacket; here is a similar option.',products:[{brand:'Example',name:'Waxed jacket',url,match:'similar',reason:'Dark waxed cotton with a corduroy collar.'}],needs_review:false};
 const response=(output)=>({ok:true,json:async()=>({status:'completed',output})});
@@ -37,11 +37,11 @@ test('product sourcing sends the referenced image, validates live web search, an
 });
 test('explicit follow-up can source the recent image without attaching it to ordinary conversation turns',async()=>{
   let calls=0,loaded=0,recorded;
-  const text=await generateReply([{direction:'inbound',body:'Find that jacket and send links'}],{OPENAI_API_KEY:'fake',SEARCH_ENABLED:'true'},async(endpoint,options)=>{
+  const text=await generateReply([{direction:'inbound',body:'Find that jacket and send links'}],{OPENAI_API_KEY:'fake',SEARCH_ENABLED:'true'},restating(async(endpoint,options)=>{
     const request=JSON.parse(options.body);
     if(++calls===1){assert.ok(request.tools.some(t=>t.name==='find_products'));return response([tool('find_products',{query:'Dark waxed jacket with corduroy collar',use_image:true})]);}
     assert.equal(request.input[0].content[1].type,'input_image');return response(output);
-  },{loadImages:async()=>{loaded++;return [{mime_type:'image/jpeg',data:'fake'}];},recordSearch:async r=>recorded=r});
+  }),{loadImages:async()=>{loaded++;return [{mime_type:'image/jpeg',data:'fake'}];},recordSearch:async r=>recorded=r});
   assert.equal(calls,2);assert.equal(loaded,1);assert.equal(recorded.products.length,0);assert.match(text,/similar options/);
 });
 test('search errors are recorded for review and never generate invented links',async()=>{
@@ -138,23 +138,26 @@ test('hosted search uses its own verified model rather than inheriting the conve
  }
 });
 
-test('structured sources come first: a verified indexed result makes no web-search model call; misses and discovery fall back',async()=>{
+test('the exact Google query runs first: a verified exact match answers without waiting for the model search, in any mode',async()=>{
   const page='https://www.prada.com/us/en/p/speed-rock-sneakers/2EG400';
   const html='<script type="application/ld+json">'+JSON.stringify({'@type':'Product',name:'Prada Speed Rock sneakers',brand:{name:'Prada'},offers:{price:'990',priceCurrency:'USD',availability:'https://schema.org/InStock',url:page}})+'</script>';
   const run=async({organic,mode=null})=>{
-    const calls={serp:0,openai:0,order:[]};
-    const fetcher=async(url)=>{
+    const calls={serp:0,openai:0,order:[],aborted:0};
+    const fetcher=async(url,options={})=>{
       if(String(url).startsWith('https://serpapi.com/')){calls.serp++;calls.order.push('serp');return new Response(JSON.stringify({organic_results:organic}));}
-      if(String(url).startsWith('https://api.openai.com/')){calls.openai++;calls.order.push('openai');return new Response(JSON.stringify({status:'completed',output:[{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify({intro:'none',products:[],needs_review:true})}]}]}));}
+      if(String(url).startsWith('https://api.openai.com/')){calls.openai++;calls.order.push('openai');options.signal?.addEventListener('abort',()=>calls.aborted++);return new Response(JSON.stringify({status:'completed',output:[{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify({intro:'none',products:[],needs_review:true})}]}]}));}
       return new Response(html,{headers:{'content-type':'text/html'}});
     };
     const result=await searchProducts('Prada Speed Rock sneakers',[],{OPENAI_API_KEY:'test',SERPAPI_API_KEY:'structured-fixture',SEARCH_DEADLINE_MS:'5000'},fetcher,{search_brief:'Prada Speed Rock sneakers',search_mode:mode}).catch(error=>({error}));
     return {calls,result};
   };
-  const hit=await run({organic:[{link:page}]});
-  assert.equal(hit.calls.openai,0);assert.equal(hit.result.structured_first,true);assert.equal(hit.result.products[0].url,page);
+  const hit=await run({organic:[{link:page,title:'Prada Speed Rock sneakers | PRADA'}]});
+  assert.equal(hit.result.structured_first,true);assert.equal(hit.result.products[0].url,page);assert.equal(hit.result.products[0].match,'likely_match');
+  assert.equal(hit.result.sourcing.answered_by,'exact_search');assert.equal(hit.result.sourcing.exact_found_first_attempt,true);
+  assert.equal(hit.calls.order[0],'serp');
   const miss=await run({organic:[]});assert.ok(miss.calls.openai>=1);
-  // Discovery goes straight to web search (structured lookups only run later as recovery).
-  const discovery=await run({organic:[{link:page}],mode:'discover'});assert.equal(discovery.calls.order[0],'openai');
-  assert.equal(hit.calls.order[0],'serp');assert.equal(miss.calls.order[0],'serp');
+  assert.equal(miss.result.sourcing.first_attempt,'exact_search');assert.equal(miss.result.sourcing.exact_found_first_attempt,false);
+  // A named model is found the same way when the request was read as discovery.
+  const discovery=await run({organic:[{link:page,title:'Prada Speed Rock sneakers'}],mode:'discover'});
+  assert.equal(discovery.result.sourcing.answered_by,'exact_search');assert.equal(discovery.result.products[0].url,page);
 });

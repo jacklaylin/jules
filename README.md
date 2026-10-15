@@ -196,7 +196,7 @@ OpenAI billing, the restricted Responses API key, Production environment setting
 
 1. Run `db/002_ai.sql` once in the existing Supabase SQL editor. It extends message statuses/sources and adds a server-only AI reply reservation function; private-table permissions stay unchanged.
 2. Set up API billing in the OpenAI Platform and create a project API key. Store it only as the secret `OPENAI_API_KEY` in Vercel Production. Never put it in Git or chat.
-3. Set Production `OPENAI_MODEL=gpt-4.1-mini` and `AI_ENABLED=true`, then deploy. Set `AI_ENABLED=false` and redeploy to return to the Milestone 2 hello/manual mode.
+3. Set Production `OPENAI_MODEL=gpt-4.1-mini` and `AI_ENABLED=true`, then deploy. Optionally set `OPENAI_CHAT_MODEL` (for example `gpt-4.1`) to give the chat conversation a stronger model than the background calls; it defaults to `OPENAI_MODEL`. Set `AI_ENABLED=false` and redeploy to return to the Milestone 2 hello/manual mode.
 
 ### Behavior and limits
 
