@@ -314,7 +314,7 @@ Vercel: create a token scoped to the Jules team, save it as `VERCEL_BILLING_TOKE
 
 ## Developer feedback in iMessage
 
-Run `db/007_feedback.sql` (feedback field) and `db/022_quality_signals.sql` (quality signals) in the Supabase SQL editor. The code can deploy before `022` runs: quality signals are then only logged.
+Run `db/007_feedback.sql` (feedback field) and `db/025_quality_signals.sql` (quality signals) in the Supabase SQL editor. The code can deploy before `022` runs: quality signals are then only logged.
 
 Testers send feedback about Jules itself in one of two ways. Nothing else is saved as developer feedback, so thinking out loud or asking Jules to change results never creates a report.
 
