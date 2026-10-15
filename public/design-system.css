@@ -196,7 +196,9 @@ textarea{resize:vertical;line-height:1.5}input[type=checkbox],input[type=radio]{
 #login{max-width:440px;margin:9vh auto}#login h1{font-size:56px;margin:20px 0 32px}#login form button{justify-self:start}
 #notice{font-size:14px;color:var(--text-2);line-height:1.6}
 .app-heading{display:flex;align-items:center;justify-content:space-between;gap:28px;margin-bottom:42px}
-.app-header{height:var(--header-height);position:fixed;top:0;left:var(--page-gutter);right:var(--page-gutter);z-index:10;display:flex;align-items:center;justify-content:space-between;gap:20px;background:var(--white);border-bottom:1px solid var(--line);transition:height .22s}
+/* Full-width so scrolled content never shows in the gutters; the hairline stays inset to the gutters. */
+.app-header{height:var(--header-height);position:fixed;top:0;left:0;right:0;z-index:10;display:flex;align-items:center;justify-content:space-between;gap:20px;padding:0 var(--page-gutter);background:var(--white);transition:height .22s}
+.app-header::after{content:'';position:absolute;left:var(--page-gutter);right:var(--page-gutter);bottom:0;border-bottom:1px solid var(--line);pointer-events:none}
 .app-header.compact{height:64px}
 .wordmark{display:block;flex:none;font-size:52px;text-decoration:none;line-height:1}
 .wordmark .logo{transition:font-size .22s}.app-header.compact .wordmark{font-size:40px}
@@ -207,7 +209,7 @@ dialog::backdrop{background:var(--backdrop)}dialog[open]{animation:detail-enter 
 @keyframes enter{from{opacity:0}to{opacity:1}}@keyframes detail-enter{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
 .dialog-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 @media(max-width:700px){:root{--header-height:84px;--page-top:30px}.app-header{gap:10px}.app-header.compact{height:64px}.wordmark{font-size:42px}.app-header.compact .wordmark{font-size:36px}h1{font-size:38px}.app-heading{margin-bottom:28px;gap:16px}#login h1{font-size:48px}:where(button:not(.tile)){padding:10px 16px}}
-@media(max-width:380px){.app-header{left:12px;right:12px}.wordmark{font-size:36px}}
+@media(max-width:380px){.app-header{padding:0 12px}.app-header::after{left:12px;right:12px}.wordmark{font-size:36px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 @media(forced-colors:active){:where(button:not(.tile)),dialog{border-color:ButtonText;box-shadow:none}.orb::before{display:none}.orb::after{background:Highlight}.logo__art{filter:none}button::after{display:none}}
 
