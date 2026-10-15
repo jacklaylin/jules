@@ -1,20 +1,15 @@
-import {mountHeader} from './design-system.js';
-import {createSession} from './wishlist-session.js';
-mountHeader('replay');
-const session=createSession({storage:localStorage,lock:work=>navigator.locks?navigator.locks.request('jules-wishlist-refresh',work):work()});
+import {mountAdminShell,adminJson} from './admin-console.js';
+mountAdminShell('replays');
 const $=id=>document.getElementById(id);
 let cases=[],reports=[],stopping=false;
-async function request(input){
- const token=await session.token()||sessionStorage.getItem('jules_wishlist_token')||sessionStorage.getItem('jules_token');
- if(!token)throw Error('Sign in through the private inbox or wishlist first.');
- const response=await fetch('/api/identification-test',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify(input)});
- const data=await response.json();if(!response.ok)throw Error(data.error);return data;
-}
+const request=input=>adminJson('/api/identification-test',{method:'POST',body:JSON.stringify(input)});
+// Shown merchants per search source, so a shift toward one source (such as Shop) is visible.
+const mix=list=>Object.entries(list.flatMap(r=>r.sources??[]).reduce((m,s)=>{m[s]=(m[s]??0)+1;return m;},{})).map(([s,n])=>`${s} ${n}`).join(', ');
 function show(report){
  reports.push(report);$('download').disabled=false;
  const article=document.createElement('article'),heading=document.createElement('h3'),body=document.createElement('pre'),detail=document.createElement('p');
  heading.textContent=`${report.passed?'PASS':'FAIL'} · ${report.name}`;
- detail.textContent=`${(report.elapsed_ms/1000).toFixed(1)} seconds · ${report.links} links${report.failures.length?' · '+report.failures.join(', '):''}`;
+ detail.textContent=`${(report.elapsed_ms/1000).toFixed(1)} seconds · ${report.links} links${report.sources?.length?' · sources: '+mix([report]):''}${report.failures.length?' · '+report.failures.join(', '):''}`;
  body.textContent=report.body;article.append(heading,detail,body);$('results').append(article);
 }
 async function run(inputs){
@@ -27,7 +22,7 @@ async function run(inputs){
    try{show((await request({action:'replay',...input})).report);done++;}
    catch(error){show({id:input.case_id,name:cases.find(c=>c.id===input.case_id)?.name||input.case_id,passed:false,failures:['replay_request_failed'],elapsed_ms:Date.now()-started,links:0,body:'Replay request failed. No response was available to grade.',repeat:i+1});stopping=true;throw error;}
   }
-  $('status').textContent=`${stopping?'Stopped. ':''}${done} runs completed. ${reports.filter(r=>r.passed).length}/${reports.length} passed across this report. Nothing sent or saved.`;
+  $('status').textContent=`${stopping?'Stopped. ':''}${done} runs completed. ${reports.filter(r=>r.passed).length}/${reports.length} passed across this report.${mix(reports)?' Shown merchants by source: '+mix(reports)+'.':''} Nothing sent or saved.`;
  }catch(error){$('status').textContent=error.message;}finally{buttons.forEach(id=>$(id).disabled=false);$('stop').disabled=true;}
 }
 $('run-case').onclick=()=>run([{case_id:$('case').value}]);

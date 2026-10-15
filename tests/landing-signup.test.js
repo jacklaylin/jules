@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {Readable} from 'node:stream';
 import {createSignupHandler,normalizeSignupPhone} from '../lib/public-signup.js';
 import {SIGNUP_VERSION,SIGNUP_CONSENT} from '../public/signup-consent.js';
-import {demoState,DEMO_DURATION} from '../public/landing-timeline.js';
+import {demoState,DEMO_DURATION,DEMOS,DEMO_IDS,pickDemo} from '../public/landing-timeline.js';
 const env={PUBLIC_SIGNUP_ENABLED:'true',SITE_ORIGIN:'https://jules.example',SUPABASE_SERVICE_ROLE_KEY:'test-secret'};
 const body={phone:'(415) 555-0123',consent:true,consent_version:SIGNUP_VERSION,request_id:'00000000-0000-4000-8000-000000000001'};
 function request(input=body,headers={}){return Object.assign(Readable.from([JSON.stringify(input)]),{method:'POST',headers:{'content-type':'application/json',origin:env.SITE_ORIGIN,...headers},socket:{remoteAddress:'test-connection'}});}
@@ -26,7 +26,7 @@ test('disabled signup reports unavailable and does not persist',async()=>{const 
 test('rate limits and database failures do not claim a saved signup',async()=>{for(const [save,status] of [[async()=> 'limited',429],[async()=>{throw new Error('private database error');},503],[async()=>null,503]]){const res=response();await handler(save)(request(),res);assert.equal(res.statusCode,status);assert.equal(res.data.saved,undefined);assert.ok(!res.data.error.includes('private'));}});
 test('optional Messages link uses only the configured verified-format line',async()=>{const res=response();await handler(undefined,{JULES_PUBLIC_LINE:'+14155550124'})(request(),res);assert.equal(res.data.text_url,'sms:+14155550124');});
 test('timeline scrubs forward and backward consistently and reduced motion shows final state',()=>{
- assert.equal(demoState(4).typing,true);assert.equal(demoState(5.2).typing,false);assert.equal(demoState(13).chapter,1);assert.equal(demoState(DEMO_DURATION).chapter,2);assert.equal(demoState(2).chapter,0);assert.equal(demoState(-100).time,0);assert.equal(demoState(999).time,DEMO_DURATION);assert.equal(demoState(0,true).progress,1);assert.equal(demoState(0,true).typing,false);
+ assert.equal(demoState(4).typing,true);assert.equal(demoState(5.2).typing,false);assert.equal(demoState(DEMO_DURATION).done,true);assert.equal(demoState(2).done,false);assert.equal(demoState(-100).time,0);assert.equal(demoState(999).time,DEMO_DURATION);assert.equal(demoState(0,true).progress,1);assert.equal(demoState(0,true).typing,false);
 });
 test('the public signup route shares an existing function without exposing private wishlist actions',async()=>{
  const {createWishlistHandler}=await import('../api/wishlist.js');
@@ -40,4 +40,22 @@ test('message entrance motion is reversible and typing indicator fades in',async
  assert.ok(Math.abs(bubbleProgress(1.025,.8)-.5)<1e-9);
  assert.equal(bubbleProgress(0,.8),0);assert.equal(bubbleProgress(2,.8),1);
  assert.equal(demoState(4).typingProgress,1);assert.equal(demoState(4,true).typingProgress,0);
+});
+
+test('each landing conversation has its own timeline and the markup matches it',async()=>{
+ const html=(await import('node:fs')).readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+ assert.ok(DEMO_IDS.length>=2);
+ for(const id of DEMO_IDS){
+  const scene=html.match(new RegExp('data-demo="'+id+'">([\\s\\S]*?)</div><div (?:class="demo-scene"|id="demo-typing")'));assert.ok(scene,id);
+  const times=[...scene[1].matchAll(/class="demo-(?:bubble|link)[^"]*received[^"]*" data-at="([\d.]+)"/g)].map(m=>Number(m[1]));
+  const {duration,typing}=DEMOS[id];
+  for(const [,end] of typing)assert.ok(times.includes(end),id+' typing ends at a Jules message: '+end);
+  assert.ok(Math.max(...times)<duration,id);
+  assert.equal(demoState(duration,false,id).done,true);assert.equal(demoState(0,true,id).time,duration);
+ }
+});
+test('shuffle never repeats the current conversation and random load covers every conversation',()=>{
+ for(const id of DEMO_IDS)for(const r of [0,.5,.999])assert.notEqual(pickDemo(id,()=>r),id);
+ assert.deepEqual(new Set([0,.999].map(r=>pickDemo(null,()=>r))).size,2);
+ assert.ok(DEMO_IDS.includes(pickDemo('unknown',()=>1)));
 });

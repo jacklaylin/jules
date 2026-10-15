@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Account · Jules</title><meta name="description" content="Your Jules account and connected shopping history."><link rel="icon" href="/brand/icon.svg"><link rel="stylesheet" href="/design-system.css"><link rel="stylesheet" href="/account.css"><script type="module" src="/account.js"></script></head>
+<body class="account-page"><header class="app-header"></header><main>
+<section id="login" hidden><p class="eyebrow">YOUR ACCOUNT</p><h1>Log in to manage<br>your account.</h1><a class="btn btn--butter" href="/login?next=account">Log in ↗</a></section>
+<section id="account" hidden>
+<div class="account-heading"><p class="eyebrow">YOUR ACCOUNT</p><h1>Account</h1></div>
+<section class="account-card" id="gmail-card" aria-labelledby="gmail-title">
+<div class="account-card-head"><h2 id="gmail-title">Gmail</h2><span class="tag" id="gmail-state"></span></div>
+<p id="gmail-summary"></p>
+<div class="account-actions">
+<a class="btn btn--butter" id="gmail-connect" href="/onboarding" hidden>Connect Gmail ↗</a>
+<button class="btn--butter" id="gmail-import" hidden>Import again</button>
+<button id="gmail-disconnect" hidden>Disconnect Gmail</button>
+</div>
+<p class="fine">Disconnecting stops Jules reading your email. Purchases already found stay saved until you delete them.</p>
+</section>
+<section class="account-card" id="shop-card" aria-labelledby="shop-title" hidden>
+<div class="account-card-head"><h2 id="shop-title">Shop</h2><span class="tag" id="shop-state"></span></div>
+<p id="shop-summary"></p>
+<div class="account-actions">
+<a class="btn btn--butter" id="shop-connect" href="/onboarding" hidden>Connect Shop ↗</a>
+<button class="btn--butter" id="shop-import" hidden>Import again</button>
+<button id="shop-reread" hidden>Re-read all orders</button>
+<button id="shop-disconnect" hidden>Disconnect Shop</button>
+</div>
+</section>
+<section class="account-card" aria-labelledby="history-title">
+<div class="account-card-head"><h2 id="history-title">Imported history</h2></div>
+<p>Delete everything Jules learned from your Gmail and Shop history. This also disconnects both. Preferences you told Jules directly and your wishlist stay.</p>
+<div class="account-actions"><button id="delete-history">Delete imported history</button></div>
+</section>
+<div class="account-actions"><button id="logout-button">Log out</button></div>
+</section>
+<p id="notice" role="status" aria-live="polite">Loading your account…</p>
+</main></body></html>

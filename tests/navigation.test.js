@@ -20,14 +20,15 @@ const body=new Element('body'),header=new Element('header');header.className='ap
 const media=[];
 globalThis.document={body,getElementById:id=>body.querySelector('#'+id),createElement:tag=>new Element(tag),querySelector:selector=>body.querySelector(selector),querySelectorAll:selector=>body.querySelectorAll(selector),addEventListener(){}};
 globalThis.window={addEventListener(){}};globalThis.scrollY=0;globalThis.matchMedia=query=>{const value={query,matches:false,addEventListener(type,fn){this.change=fn;}};media.push(value);return value;};
-const {mountHeader,enableTestChat,updateWishlistCount}=await import('../public/design-system.js');
+const {mountHeader,enableAdminLink,updateWishlistCount}=await import('../public/design-system.js');
 mountHeader('wishlist');
 const nav=()=>document.querySelector('.header-actions');
 
 test('shared navigation exposes both companion pages, marks the current page, and keeps restricted actions hidden',()=>{
- const controls=nav().children;assert.deepEqual(controls.filter(c=>c.href).map(c=>c.href),['/wishlist','/style','/simulator']);
+ const controls=nav().children;assert.deepEqual(controls.filter(c=>c.href).map(c=>c.href),['/wishlist','/style','/admin','/account']);
+ const account=controls.find(c=>c.href==='/account');assert.ok(account.className.includes('nav-account'),'account is shown as an avatar');
  assert.equal(controls[0].getAttribute('aria-current'),'page');assert.equal(controls[1].getAttribute('aria-current'),undefined);
- assert.equal(document.querySelector('#test-chat-link').hidden,true);assert.equal(document.querySelector('#logout').hidden,true);
+ assert.equal(document.querySelector('#admin-link').hidden,true);assert.equal(document.querySelector('#logout').hidden,true);
 });
 test('mobile menu moves the existing actions without replacing their handlers and restores them on Escape or desktop resize',()=>{
  const logout=document.querySelector('#logout');const handler=()=>{};logout.onclick=handler;
@@ -40,7 +41,7 @@ test('menu count reflects actual wishlist state and can be cleared at sign-out',
  updateWishlistCount(5);const count=document.querySelector('.menu-count');assert.equal(count.textContent,'5 items on your wishlist');assert.equal(count.hidden,false);
  updateWishlistCount(1);assert.equal(count.textContent,'1 item on your wishlist');updateWishlistCount(null);assert.equal(count.hidden,true);
 });
-test('a delayed permission response cannot reveal Test chat after sign-out',async()=>{
- let release;globalThis.fetch=()=>new Promise(resolve=>{release=resolve;});const checking=enableTestChat('fixture-token');await enableTestChat(null);release({ok:true});await checking;assert.equal(document.querySelector('#test-chat-link').hidden,true);
- globalThis.fetch=async()=>({ok:true});await enableTestChat('another-fixture-token');assert.equal(document.querySelector('#test-chat-link').hidden,false);
+test('a delayed permission response cannot reveal Admin after sign-out',async()=>{
+ let release;globalThis.fetch=()=>new Promise(resolve=>{release=resolve;});const checking=enableAdminLink('fixture-token');await enableAdminLink(null);release({ok:true});await checking;assert.equal(document.querySelector('#admin-link').hidden,true);
+ globalThis.fetch=async url=>{assert.equal(url,'/api/admin?view=access');return {ok:true};};await enableAdminLink('another-fixture-token');assert.equal(document.querySelector('#admin-link').hidden,false);
 });

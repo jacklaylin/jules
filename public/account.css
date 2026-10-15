@@ -1,0 +1,11 @@
+/* Account page composition. Header, type, controls and cards come from design-system.css. */
+#account,#login{max-width:760px}
+.account-heading{margin:8px 0 28px}.account-heading h1{margin-top:8px}
+.account-card{border:1px solid var(--line);border-radius:var(--r-card);padding:24px;margin-bottom:20px;background:var(--white)}
+.account-card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+.account-card h2{font-size:30px}
+.account-card p{overflow-wrap:anywhere}
+.account-card .tag{white-space:nowrap}
+.account-card .tag.off{background:var(--fog)}
+.account-actions{display:flex;flex-wrap:wrap;gap:10px;margin:16px 0 4px}
+#notice:empty{display:none}

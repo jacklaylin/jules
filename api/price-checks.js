@@ -1,6 +1,7 @@
 import { timingSafeEqual, randomUUID } from 'node:crypto';
 import { createStore } from '../lib/store.js';
 import { inspectAlertLinks, sizeKey } from '../lib/price-alerts.js';
+import { uniqueAlertLinks } from '../lib/alert-links.js';
 import { decidePriceCheck, alertSizes } from '../lib/alert-decision.js';
 import { discoverAlertLinks, discoveryDue } from '../lib/alert-discovery.js';
 import { marketEnvironment } from '../lib/shopping-market.js';
@@ -17,8 +18,10 @@ const persisted=({market_country,market_currency,...link})=>link;
 export async function checkAlert(alert,{store,env,inspect,discover,send,discoveries}){
   const market=marketEnvironment((await store.profile?.(alert.conversation_id))?.facts??[],env),country=market.SHOPPING_COUNTRY;
   const withMarket=link=>({...link,market_country:country,market_currency:market.SHOPPING_CURRENCY});
+  const unique=uniqueAlertLinks(alert.links);let links=unique.length<alert.links.length?unique:undefined,discovery;
+  if(links)alert={...alert,links};
   let {checks}=await inspect(alert.links.map(withMarket));
-  let decision=decidePriceCheck(alert,checks,{country}),links,discovery;
+  let decision=decidePriceCheck(alert,checks,{country});
   // Look for other stores weekly, and sooner when every watched store keeps failing.
   if(env.PRICE_ALERT_DISCOVERY!=='false'&&discoveries.remaining>0&&discoveryDue(alert,{recovery:decision.needs_recovery})){
     discoveries.remaining--;
@@ -39,15 +42,26 @@ export async function checkAlert(alert,{store,env,inspect,discover,send,discover
     if(result.status==='sent'&&decision.after_send)baselines=decision.after_send;
   }
   const result={status,event:decision.event?.kind??null,delivery,checks,...decision.record,
-    ...(discovery?.status==='completed'?{discovered_at:new Date().toISOString(),discovery:{candidates:discovery.candidates,added:discovery.links.length,searches:discovery.searches}}:{discovered_at:alert.last_result?.discovered_at})};
+    discovered_at:discovery?.status==='completed'?new Date().toISOString():alert.last_result?.discovered_at,
+    discovery:!discovery?alert.last_result?.discovery:discovery.status==='completed'
+      ?{status:'completed',attempted_at:new Date().toISOString(),candidates:discovery.candidates,added:discovery.links.length,searches:discovery.searches}
+      :{status:'unavailable',reason:discovery.reason??'unknown',attempted_at:new Date().toISOString()}};
   await store.recordPriceCheck(alert.id,alert.revision,result,['sent','uncertain','sending'].includes(delivery),baselines,links?.map(persisted));
   return {status,delivery,duplicate};
 }
 
 // Owner-only rehearsal: run the real decision on supplied offers without touching the alert.
 // Delivery is limited to the designated test conversation and always labelled as a test.
+// The designated test conversation's alerts, for the owner's rehearsal form.
+async function testAlerts(res,{env,store}){
+  if(!env.PRICE_ALERT_TEST_CONVERSATION_ID)return json(res,503,{error:'Set PRICE_ALERT_TEST_CONVERSATION_ID to rehearse alerts.'});
+  const alerts=await store.priceAlerts(env.PRICE_ALERT_TEST_CONVERSATION_ID);
+  return json(res,200,{alerts:alerts.map(a=>({id:a.id,name:a.name,size:a.size,active:a.active,links:(a.links??[]).map(l=>l.url),
+    baselines:(a.baselines??[]).map(({amount,currency,url,available})=>({amount,currency,url,available})),stock:a.last_result?.stock??null}))});
+}
 async function simulate(req,res,{env,store,send}){
   const input=await readJson(req);
+  if(input.action==='list')return testAlerts(res,{env,store});
   if(!uuid(input.alert_id))return json(res,400,{error:'Invalid alert.'});
   const alert=await store.priceAlert(input.alert_id);
   if(!alert)return json(res,404,{error:'Alert not found.'});
@@ -67,7 +81,7 @@ async function simulate(req,res,{env,store,send}){
   if(input.deliver===true&&decision.event){
     if(!env.PRICE_ALERT_TEST_CONVERSATION_ID||alert.conversation_id!==env.PRICE_ALERT_TEST_CONVERSATION_ID)return json(res,403,{error:'Test delivery is limited to the designated test conversation.'});
     const conversation=await store.conversation(alert.conversation_id);
-    delivery=(await deliverReply({store,send,conversation,operation:`price-alert-test:${alert.id}:${randomUUID()}`,body:'[Test alert — not a real price]\n'+decision.event.body,source:'operator',env})).status;
+    delivery=(await deliverReply({store,send,conversation,operation:`price-alert-test:${alert.id}:${randomUUID()}`,body:'[test alert — not a real price]\n'+decision.event.body,source:'operator',env})).status;
   }
   return json(res,200,{status:decision.status,event:decision.event?.kind??null,message:decision.event?.body??null,next_baselines:decision.after_send??decision.establish??null,record:decision.record,delivery});
 }

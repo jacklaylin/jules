@@ -40,7 +40,15 @@ body.landing-page{padding-top:0}.scroll-story{height:100dvh}.landing-stage{posit
 .demo-link .message-avatar{display:none;position:absolute;left:-38px;bottom:0;width:28px;height:28px;border-radius:50%;overflow:hidden}.demo-link.group-end .message-avatar{display:block}
 
 .demo-link-text{min-width:0;display:flex;flex-direction:column;gap:2px;padding:8px 12px 10px}.demo-link-text b{font-size:14px;line-height:18px;font-weight:600;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.demo-link-text span{font-size:13px;line-height:16px;color:#6e6e73}
-.phone{position:relative}.demo-chat.demo-complete{padding-bottom:64px}.demo-replay{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);font-size:14px;padding:8px 18px}.demo-replay:not([hidden]){animation:replay-in .4s ease-out both}
+.phone{position:relative}.demo-chat.demo-complete{padding-bottom:64px}
 @keyframes replay-in{from{opacity:0;transform:translate(-50%,6px)}to{opacity:1;transform:translateX(-50%)}}
 @media(max-width:699px){.demo-link{width:72%}}
-@media print{.demo-replay{display:none!important}}
+
+/* Multiple conversations: one scene plays at a time; the end shows Replay and Shuffle. */
+.demo-scene:not([hidden]){display:contents}
+.demo-controls{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);display:flex;gap:8px;white-space:nowrap}.demo-controls .btn{font-size:14px;padding:8px 18px}.demo-controls[hidden],.demo-controls .btn[hidden]{display:none}.demo-controls:not([hidden]){animation:replay-in .4s ease-out both}
+@media print{.demo-controls{display:none!important}}
+
+/* Tapback: a centered heart in a round grey badge (iMessage reactions have no tail). */
+.demo-photo>.demo-tapback{padding:0;top:-16px;left:-20px;width:34px;height:34px;display:grid;place-items:center;box-shadow:0 0 0 2.5px var(--white)}
+.demo-tapback svg{width:17px;height:17px;margin:1px 0 0}

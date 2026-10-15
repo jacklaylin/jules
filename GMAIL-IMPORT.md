@@ -97,3 +97,73 @@ Automated tests use synthetic emails and do not establish real-world accuracy. T
 ### Merchant and brand names
 
 Linking events across emails, deduplicating items and grouping merchants/brands in the purchase summary compare a normalized name: case, accents, punctuation, web suffixes, legal-entity suffixes (ApS, Inc, Ltd, GmbH, AB…) and storefront words (Retail, Store, Shop, Online, Official) are ignored, so "MFPEN Retail ApS", "MFPEN" and "mfpen.com" are one merchant. Names that differ in substance stay separate ("H&M Hennes & Mauritz AB" and "H&M" are not merged); the stored merchant text is never rewritten. When a receipt comes from a brand's own store, extraction now records the brand from the legal entity or storefront name. Purchases imported before this change keep their stored fields; fix a missing brand by texting Jules a correction.
+
+## October 13 update: stalled imports and stale skips
+
+Found in the founder's live import: it stopped at 82 of 83 emails with no error, and 68 of those 82 were never analyzed because an earlier, weaker import version had marked them irrelevant.
+
+- **One live background chain.** Each start, resume or completed step records a fresh `job.worker` id before dispatching the next step; a step carrying an older id stops. When the import is briefly locked (for example by a chat correction), the step retries after 5, 10, 20 and 40 seconds instead of ending the chain. A failed dispatch is retried twice before giving up.
+- **Auto-resume.** If a running import has made no progress for 150 seconds and recorded no error, opening `/onboarding` resumes it. An import paused after repeated failures still waits for **Resume**. Nothing resumes an import while no page is open; a sweep would need a frequent cron.
+- **Versioned skips.** `scanned_ids` are valid only for `SCAN_VERSION`. When triage or extraction changes materially, bump it: emails judged irrelevant earlier, including ones the running job already passed, are read again. `job.quality.rescanned` counts them.
+- **Sender domain.** Taken from From, else Sender, Reply-To or Return-Path. A stored shopping email missing its domain is filled in when it is next seen, so related-order searches can use it.
+
+### October 13 follow-up: Vercel loop protection and rejected quotes
+
+The first live run after the fix above advanced three or four steps, then every hand-off failed instantly. No request reached Vercel. Vercel rejects a function that keeps calling its own URL ("508 Loop Detected") after a few hops, and the Hobby plan only allows daily crons.
+
+- **Fewer hops.** One background invocation now runs steps back to back for up to 150 seconds (`WORK_BUDGET_MS`; `api/wishlist.js` `maxDuration` is 300), then hands off once. A single start should cover hundreds of emails within the few hops Vercel allows. Dispatch failures now log the HTTP status.
+- **Faster recovery while the page is open.** Opening `/onboarding` resumes an import that has been quiet for 60 seconds with no lease (was 150). If the page is closed and the chain is stopped, the import waits until the page is next opened. A reliable unattended run needs a scheduler outside Vercel (for example Supabase `pg_cron`) or Vercel Pro.
+- **Quote tolerance.** Quote checks ignore typographic differences: curly/straight quotes, dashes, non-breaking and zero-width spaces, and compatibility forms. Letters and digits must still match. If the event's own quote fails but its product or order quote verifies, that verified quote becomes the evidence and `evidence` is listed in `withheld_fields`. An event with no verified quote is still withheld; `gmail_event_withheld` logs the reason without email content.
+- `SCAN_VERSION` is `2026-10-13b`, so emails whose purchases were rejected are read again.
+
+## October 14 update: owner purchase review
+
+Admin › People › **Purchase history** lists a person's imported items: product, store, size, colour, date, recipient and outcome. Each item shows its email evidence (quote, sender domain, date and an *Open in Gmail* link, which only the mailbox owner can open), its corrections, and a correction form. Search plus status (to review, reviewed, removed, duplicates) and store filters keep long histories browsable. Shipping and return emails that couldn't be linked to a purchase are listed separately.
+
+Every correction requires a **What's wrong?** label: looks right, not a purchase, not clothing or accessories, wrong details, duplicate, who it was for, or returned. A note is optional. The label maps to the existing structured correction (restore, dispute, correct fields, duplicate, recipient, return) and is recorded as `correction` evidence with `source.type = operator_review`, `recorded_by = operator`, and `data.review = {reason, note}`. Original evidence is never changed. The labels form the measurement set for Gmail reading: corrections give precision and field accuracy. **Report a missed purchase** (store, roughly when, what was bought) is stored in `gmail_imports.data.missed_reports` and gives recall. Deleting imported history removes both. Notes are free text for people reading them; code never interprets them.
+
+The panel reads `GET /api/admin?view=purchases&conversation=…` and writes through `POST /api/admin` (`action: review | missed`). Both are owner-only. Writes use the import lease, so an edit made while an import step is running returns a "busy" message and is retried by hand.
+
+## October 14 update: reading fixes from the first labelled review
+
+The founder labelled 21 of the 44 items found. Six weren't purchases: five SSENSE abandoned-cart emails and one Depop sale where the founder was the seller. Two weren't clothing (SoulCycle class packs, where "4 classes" was read as size 4). One was a duplicate line read from the same email, where a date was also taken as the order number. Changes:
+
+- **Header bug.** Email headers were looked up case-sensitively (`'Subject'` against lowercased names), so analysis never saw the subject and triage saw only the snippet. Fixed. Prepared text now starts with the subject, the sender's name and domain, and the addressee's name (never their address), so a brand's own store and a ship-to name that matches the account holder can be recognized. `SCAN_VERSION` is `2026-10-14`, so emails skipped by the blind triage are read again on the next import.
+- **Buyer transactions only.** Each event now carries a model-classified `basis` (order confirmation, receipt or invoice, shipping notice, return or refund notice, cart or marketing, seller notification, other) and a quote proving it. Code keeps a purchase only when the basis is an order confirmation or receipt, the other events only for buyer bases, and only when the basis quote is in the email.
+- **Category.** Each event carries a `category`. Code keeps clothing, footwear, bags, accessories, jewelry/watches and eyewear, and rejects `other_goods` (home goods, fragrance, beauty, tech) and `service` (classes, memberships, tickets, repairs).
+- **Duplicates and dates.** A calendar date is never stored as an order reference. Two lines in one email whose product text contains the other's, with matching size, colour and SKU and compatible order references, become one item.
+- **Order-level outcomes.** A refund or return that names no product or SKU stays unlinked when its order has several items, instead of marking every item.
+- **Re-check labelled emails.** In Admin › People › Purchase history, this re-fetches (read-only) the emails behind each labelled item, analyzes them with the current rules without saving anything, and reports how many labels the rules now agree with, by label, along with what was read and what was rejected. It is served at `POST /api/wishlist?gmail=recheck` (owner-only) so PDF receipts use the bundled PDF reader.
+
+Existing evidence is not rewritten. Items the founder already labelled stay corrected, and the new rules apply to future imports.
+
+### October 14 follow-up: letter case in quotes
+
+The first re-check agreed with 25 of 26 labels. The one disagreement was a Thom Browne order confirmation whose purchase was rejected with "Unverified transaction basis". The same email had earlier lost its brand and needed the quote fallback, which fits a receipt set in capitals being quoted in normal case. Quote checks now fold letter case; letters and digits must still match. If the transaction quote still doesn't match, a verified labelled order reference proves the order, and `basis` is listed in `withheld_fields`. Cart and marketing emails have no order reference, so they are still refused.
+Receipt reading and triage now set `temperature: 0` for `gpt-4*` models. The second re-check showed a labelled John Elliott order switch from found to not found with no code change in between, because the default sampling read the same email differently on different runs. Reasoning models, which reject the setting, keep their default. Re-check failures now log a short error message.
+
+## October 14 update: skipped-email review
+
+After the reading fixes, the re-check agreed with 26 of 26 labels on two runs, but a full import found no new purchases while triage skipped 806 of 926 candidate emails. Labels on found items can't show what was skipped, so Admin › People › Purchase history › **Skipped emails** samples them for review. The sample takes every skipped email from a store the person has bought from (a Gmail search on the registrable sender domains of known shopping emails, filtered to `scanned_ids`), up to 60, plus a random 30 of the rest. The owner marks each as **Missed order** or **Not an order**. Labels are stored in `gmail_imports.data.triage_labels` as id, label, sender domain and time. Subjects and senders are fetched from Gmail when the sample loads and are never stored.
+
+The review is available only when the import's Gmail account matches `ADMIN_EMAIL`: other testers' subject lines stay private even from the owner. **Re-check labelled emails** includes these labels. For each one it re-runs triage on the email's metadata and, where triage reads it, full reading. A missed order agrees only if triage reads it and a purchase is found; a "not an order" agrees if it is not read as a purchase. Routes: `POST /api/wishlist?gmail=recheck` with `action: skipped_list | skipped_label | skipped_recheck`, owner-only.
+
+## October 14 update: imports finish with the page closed
+
+Vercel rejects a function that keeps calling its own URL after a few hops, and the Hobby plan allows only daily crons, so a long import could stop when the page closed. A Supabase scheduled job now runs `gmail_sweep_tick()` every minute (`db/023_gmail_sweep.sql`). It calls Vercel only when an import is running and has written nothing for over a minute. `GET /api/wishlist?gmail=sweep` restarts each quiet import with a fresh worker chain. Each call is a new request, so Vercel's hop count starts over. The bearer secret is generated inside Supabase Vault by the migration; the server reads it through the service-role-only `gmail_sweep_secret()` function, so no secret is copied between services. An import paused after repeated step failures is retried after 5, 10, 20, 40 and 80 minutes, then left for review (`gmail_sweep` log line, `job.sweep_retries`). A successful step clears the retry count. The onboarding page's own resume still works when the page is open.
+
+### Setup (once)
+
+In Supabase → SQL Editor, run `db/023_gmail_sweep.sql`. It enables `pg_cron`, `pg_net` and `pgcrypto`, creates the secret in Vault and schedules the job. No credential is shown or copied. The production URL is written into the file; edit it if the domain changes. To confirm it works: start an import, close the page, then check Supabase → Integrations → Cron → `jules-gmail-sweep` runs or the Vercel `gmail_sweep` log lines.
+
+## October 14 update: prices
+
+- **Reading.** Each purchase line now returns `unit_price` and `currency` with quotes. The model is told to give the price for one unit exactly as printed on the line (after a discount shown on that line), and null for multi-unit totals or order totals. It never computes, converts or estimates.
+- **Validation.** Code keeps the price only when the quote is in the email and contains the value. The amount is parsed technically (`parsePrice` handles `$1,234.50`, `2.450,00 DKK`, `CHF 1'250.00`). The currency is a three-letter code if printed, or €/£ mapped to EUR/GBP; an ambiguous `$`, `kr` or `¥` stays as written. A price with no currency printed is withheld. Items store `price: {amount, currency, text}`; prices are never converted between currencies.
+- **Existing emails.** Shopping emails read before this change are re-read once for prices only (`PRICE_VERSION`, stored as `price_version` on each source). `priceRecords` matches each priced line to an item from the same email and adds only the price; it never creates items. An email whose content changed is skipped. New emails are marked as priced when first read. `job.quality.repriced` counts the added prices. Click **Import again** to price an existing history.
+- **"Who you are" text.** It adds "what you usually spend: $X–$Y per item" when at least 3 purchases in one currency have prices. The range is the middle half (25th–75th percentile, interpolated), rounded to the nearest 10 under 200 and the nearest 50 above. It uses the currency with the most priced purchases and never converts.
+- **Admin.** The Purchase history panel shows each item's price as printed.
+
+## October 14 update: Open in Messages
+
+The onboarding done screen shows **Open Jules in Messages** when `JULES_PUBLIC_LINE` (Jules's iMessage number in international format, also used after signup) is set. The link is `sms:<number>`, which opens the Messages thread on iPhone and Mac. Without the setting, the button stays hidden.
