@@ -66,3 +66,16 @@ test('Vercel rejects malformed money and ambiguous multi-day costs',async()=>{
 test('unavailable provider billing stays unknown',async()=>{
  const report=await billingSnapshot('2026-10-06',vercelEnv,async()=>({ok:false,status:403}));assert.equal(report.vercel.status,'error');assert.equal(report.github.status,'not_connected');
 });
+test('metered spend is broken down by feature, with eval test runs shown separately',async()=>{
+ const usage=[{feature:'chat',calls:10,cost_usd:'0.30'},{feature:'chat',calls:2,cost_usd:'0.05'},{feature:'eval_agent',calls:280,cost_usd:'1.90'},{feature:'eval_replay',calls:12,cost_usd:'0.40'}];
+ const handler=createCostsHandler({auth:async()=>200,storeFactory:()=>({costEntries:async()=>[],meteredUsage:async date=>{assert.equal(date,'2026-10-15');return usage;}}),billing:async()=>({openai:{status:'not_connected'},serpapi:{status:'not_connected'}})});
+ const res={setHeader(){},end(body){this.body=JSON.parse(body);}};
+ await handler({headers:{},method:'GET',url:'/api/costs?date=2026-10-15'},res);
+ const {metered}=res.body;
+ assert.deepEqual(metered.features.map(f=>[f.feature,f.calls,Number(f.cost.toFixed(2)),f.eval]),[['eval_agent',280,1.9,true],['eval_replay',12,0.4,true],['chat',12,0.35,false]]);
+ assert.equal(Number(metered.total.toFixed(2)),2.65);assert.equal(Number(metered.evals.toFixed(2)),2.3);
+ // A missing usage table never takes the costs page down.
+ const broken=createCostsHandler({auth:async()=>200,storeFactory:()=>({costEntries:async()=>[],meteredUsage:async()=>{throw Error('missing view');}}),billing:async()=>({openai:{status:'not_connected'},serpapi:{status:'not_connected'}})});
+ const res2={setHeader(){},end(body){this.body=JSON.parse(body);}};
+ await broken({headers:{},method:'GET',url:'/api/costs?date=2026-10-15'},res2);assert.equal(res2.body.metered,null);assert.ok(res2.body.rows);
+});
