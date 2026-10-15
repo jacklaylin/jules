@@ -8,6 +8,15 @@ Personal style / starter pack: `/style` adds private uploads, adaptive style car
 
 Owner identification testing without texting: open **Photo identification** (`/admin/identify`) in the admin console. Upload one JPEG/PNG/WebP under 3 MB and enter the original request. Explicit provider-sharing approval is required; OpenAI and SerpApi credits are used. The endpoint runs the existing visual identification code and imports returned findings only into the owner email's existing wishlist membership. It does not send messages or mark replies as sent. Imported source records say “Identification test import”; they are excluded from AI conversation and taste-memory context. Refresh `/wishlist` to inspect results. Missing pieces are reported in the test result rather than populated with invented matches. Repeating the same completed operation repairs imports without rerunning search. An interrupted search stays visibly incomplete and requires a deliberate new test operation to search again. No new keys or migration are needed.
 
+## Before every deploy: migrations to run
+
+Migrations in `db/` are run by hand in the Supabase SQL editor, and the code fails if one is missing (on October 15, 2026 an unrun `db/025_sms_opt_out.sql` stopped every reply for hours). For every PR:
+
+- [ ] **Migrations to run:** list each new `db/*.sql` file in the PR description, run it in Supabase **SQL Editor → New query → Run** before the deploy, and add what it creates to `lib/schema-check.js`.
+- [ ] Run `node --env-file=.env.local scripts/schema-check.js` before deploying and again right after. It names any missing migration by filename (`Schema OK` means nothing is missing). The replay gate (`scripts/replay-gate.js`) runs the same check first.
+
+If Jules goes quiet anyway, the founder gets one `[jules alert]` text per incident (with `FOUNDER_ALERT_PHONE` set), and the Vercel log line `inbound_failed` gives the error class, database code and step. `schema_missing` means an unrun migration: run the schema check.
+
 Current interface: **Photon iMessage**, replacing the original Twilio SMS plan.
 Milestone 1 passed on October 5, 2026: the founder confirmed receiving the greeting.
 Milestone 2 passed on October 5, 2026: the founder’s fresh message appeared in `/admin`, the manual reply reached the phone, and history persisted after reloading. Owner sign-in and a live unauthenticated API rejection (HTTP 401) were verified. Both private tables have RLS enabled with no browser-role read privileges; only the server can invoke message RPCs. All 17 automated tests pass.

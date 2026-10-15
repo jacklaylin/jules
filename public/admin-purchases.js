@@ -13,7 +13,7 @@ const RECIPIENTS = { self: 'For them', other: 'For someone else', unknown: 'Reci
 const OUTCOMES = { returned: 'Returned', return_requested: 'Return requested', cancelled: 'Cancelled' };
 const KINDS = { purchased: 'Purchase', shipped: 'Shipped', return_requested: 'Return requested', returned: 'Returned', cancelled: 'Cancelled', refunded: 'Refunded' };
 const REASON_LABEL = Object.fromEntries(REASONS);
-const SOURCE_LABEL = { gmail: 'Gmail', shop: 'Shop' };
+const SOURCE_LABEL = { gmail: 'Gmail', shop: 'Shop', screenshot: 'Chat screenshot' };
 const sourceName = s => SOURCE_LABEL[s] ?? s;
 const STOPS = { no_more_pages: 'the service said there were no more pages', next_page_without_cursor: 'the service said more pages exist but gave no way to request them', limit: 'the import limit was reached', page_cap: 'the page limit was reached', call_cap: 'the request limit was reached', throttled: 'the service asked Jules to slow down', search_failed: 'a search failed', end: 'listing ended' };
 
