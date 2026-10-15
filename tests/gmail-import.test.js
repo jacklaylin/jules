@@ -444,3 +444,25 @@ test('account re-import asks for the current consent and sends the version the s
  assert.equal(publicImport({data:{consent:{version:CONSENT_VERSION}}}).consent_required,false);
  const js=read('account.js');assert.match(js,/api\('start',consentVersion\?\{consent:consentVersion\}:\{\}\)/);
 });
+// The founder's MAAP case: the store's first order email only turns up partway through the import
+// (after the start-of-import store search ran), and its older orders must still be found in the same run.
+test('a store first found partway through an import has its other orders found in the same import',async()=>{
+ const queries=[];
+ const mail={c1:'SUBJECT\nCycling Brand Order Summary\nOrder #CB1001\nThermal Jersey\nSize: M',c2:'SUBJECT\nCycling Brand Order Summary\nOrder #CB0042\nBib Shorts\nSize: M'};
+ const fetcher=async url=>{
+  const u=new URL(url);if(!u.pathname.endsWith('/messages'))return jsonResponse({id:u.pathname.split('/').pop(),payload:{headers:[]}});
+  const q=u.searchParams.get('q');queries.push(q);
+  if(q.includes('from:cyclingbrand.example'))return jsonResponse({messages:[{id:'c1'},{id:'c2'}]});
+  if(q.includes('category:purchases')&&!q.includes('filename:pdf'))return jsonResponse({messages:[{id:'c1'}]});
+  return jsonResponse({messages:[]});
+ };
+ const prepare=async message=>({id:message.id,text:mail[message.id],date:1000,fingerprint:message.id,sender_domain:'cyclingbrand.example',warnings:[]});
+ const line=(order,product)=>withBasis({kind:'purchased',existing_item_id:null,evidence:'Order '+order,merchant:fact('Cycling Brand'),order_reference:fact(order),product:fact(product),sku:fact(null),brand:fact('Cycling Brand'),color:fact(null),size_label:fact('M'),size_system:fact(null),quantity:fact(null),units_per_pack:fact(null),unit_price:fact(null),currency:fact(null),recipient:{value:'unknown',quote:null}});
+ const interpret=async r=>r.schema===RECEIPT_SCHEMA?{events:r.context.source.id==='c1'?[line('#CB1001','Thermal Jersey')]:[line('#CB0042','Bib Shorts')]}:r.schema===TRIAGE_SCHEMA?{decisions:r.context.emails.map(e=>({id:e.id,action:'extract'}))}:{questions:[]};
+ let row={conversation_id:'owner',token_ciphertext:sealToken(tokens,'owner',env),data:{feedback:emptyReceiptState('owner'),scan_version:SCAN_VERSION,job:newImportJob()}};
+ for(let i=0;i<120&&row.data.job.status!=='ready';i++)row=await step(row,{fetcher,prepare,interpret});
+ assert.equal(row.data.job.status,'ready');
+ assert.deepEqual(itemsOf(row).map(i=>i.product).sort(),['Bib Shorts','Thermal Jersey']);
+ assert.deepEqual(row.data.job.stores_searched,['cyclingbrand.example']);
+ assert.equal(queries.filter(q=>q.includes('from:cyclingbrand.example')&&!q.includes('filename:pdf')).length,1,'searched once, not again by the later store stage');
+});
