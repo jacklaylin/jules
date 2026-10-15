@@ -8,7 +8,10 @@ import {validateChanges,chatStatementEvidence} from '../lib/memory.js';
 
 const fact=value=>({value,quote:value});
 const text='Shop Order O1 O2 Jeans Shirt Blue White 31 M Brand quantity 1 purchased returned';
-const event=(extra={})=>({kind:'purchased',existing_item_id:null,evidence:'purchased',merchant:fact('Shop'),order_reference:fact('O1'),product:fact('Jeans'),sku:fact(null),brand:fact('Brand'),color:fact('Blue'),size_label:fact('31'),size_system:fact(null),quantity:fact('1'),units_per_pack:fact(null),...extra});
+// Events carry the transaction basis and category the model classifies; by default the basis
+// quote is the event's own evidence text.
+const withBasis=e=>({basis:{value:e.kind==='purchased'?'order_confirmation':e.kind==='shipped'?'shipping_notice':'return_or_refund_notice',quote:e.evidence},category:'clothing',...e});
+const event=(extra={})=>withBasis({kind:'purchased',existing_item_id:null,evidence:'purchased',merchant:fact('Shop'),order_reference:fact('O1'),product:fact('Jeans'),sku:fact(null),brand:fact('Brand'),color:fact('Blue'),size_label:fact('31'),size_system:fact(null),quantity:fact('1'),units_per_pack:fact(null),...extra});
 const correction=(id,item_ids,action,extra={})=>({id,owner_id:'owner',source:'closet_edit',at:'2026-10-12',item_ids,action,...extra});
 const summary=state=>projectReceiptState(state).items.map(i=>({id:i.id,product:i.product,brand:i.brand,recipient:i.recipient,outcome:i.outcome,duplicate_of:i.duplicate_of,disputed:i.purchase_disputed,sources:[...i.source_ids].sort(),events:i.source_events.map(e=>e.id).sort()}));
 

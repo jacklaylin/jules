@@ -1,0 +1,221 @@
+{
+ "checked_at": "2026-10-14",
+ "stores": {
+  "canadagoose.com": {
+   "name": "Canada Goose",
+   "tier": "official",
+   "brands": [
+    "canada goose"
+   ],
+   "shop_domain": "yrznkj-3v.myshopify.com"
+  },
+  "driesvannoten.com": {
+   "name": "Dries Van Noten",
+   "tier": "official",
+   "brands": [
+    "dries van noten"
+   ],
+   "shop_domain": "driesvannoten.myshopify.com"
+  },
+  "rickowens.eu": {
+   "name": "Rick Owens",
+   "tier": "official",
+   "brands": [
+    "rick owens"
+   ],
+   "shop_domain": "owenscorp.myshopify.com"
+  },
+  "sacai.jp": {
+   "name": "Sacai",
+   "tier": "official",
+   "brands": [
+    "sacai"
+   ],
+   "shop_domain": "sacai-jp.myshopify.com"
+  },
+  "lemaire.fr": {
+   "name": "LEMAIRE",
+   "tier": "official",
+   "brands": [
+    "lemaire"
+   ],
+   "shop_domain": "lemaire-eu.myshopify.com"
+  },
+  "mfpen.com": {
+   "name": "mfpen",
+   "tier": "official",
+   "brands": [
+    "mfpen"
+   ],
+   "shop_domain": "mfpen.myshopify.com"
+  },
+  "studionicholson.com": {
+   "name": "Studio Nicholson",
+   "tier": "official",
+   "brands": [
+    "studio nicholson"
+   ],
+   "shop_domain": "studio-nicholson.myshopify.com"
+  },
+  "margarethowell.co.uk": {
+   "name": "Margaret Howell",
+   "tier": "official",
+   "brands": [
+    "margaret howell"
+   ],
+   "shop_domain": "margarethowell-gbp.myshopify.com"
+  },
+  "apc-us.com": {
+   "name": "A.P.C.",
+   "tier": "official",
+   "brands": [
+    "a.p.c."
+   ],
+   "shop_domain": "apc-us.myshopify.com"
+  },
+  "amiparis.com": {
+   "name": "AMI Paris",
+   "tier": "official",
+   "brands": [
+    "ami paris"
+   ],
+   "shop_domain": "amiparis-prod.myshopify.com"
+  },
+  "toteme.com": {
+   "name": "Toteme",
+   "tier": "official",
+   "brands": [
+    "toteme"
+   ],
+   "shop_domain": "toteme-studio-int.myshopify.com"
+  },
+  "khaite.com": {
+   "name": "Khaite",
+   "tier": "official",
+   "brands": [
+    "khaite"
+   ],
+   "shop_domain": "khaite.myshopify.com"
+  },
+  "satisfyrunning.com": {
+   "name": "SATISFY",
+   "tier": "official",
+   "brands": [
+    "satisfy"
+   ],
+   "shop_domain": "satisfyrunning.myshopify.com"
+  },
+  "belstaff.com": {
+   "name": "Belstaff",
+   "tier": "official",
+   "brands": [
+    "belstaff"
+   ],
+   "shop_domain": "belstaff-castore-group.myshopify.com"
+  },
+  "mackintosh.com": {
+   "name": "Mackintosh",
+   "tier": "official",
+   "brands": [
+    "mackintosh"
+   ],
+   "shop_domain": "mackintosh-store.myshopify.com"
+  },
+  "norseprojects.com": {
+   "name": "Norse Projects",
+   "tier": "official",
+   "brands": [
+    "norse projects"
+   ],
+   "shop_domain": "norseprojects-webshop.myshopify.com"
+  },
+  "gramicci.com": {
+   "name": "Gramicci",
+   "tier": "official",
+   "brands": [
+    "gramicci"
+   ],
+   "shop_domain": "gramicci.myshopify.com"
+  },
+  "corridornyc.com": {
+   "name": "Corridor",
+   "tier": "official",
+   "brands": [
+    "corridor"
+   ],
+   "shop_domain": "corridor-2.myshopify.com"
+  },
+  "bode.com": {
+   "name": "Bode",
+   "tier": "official",
+   "brands": [
+    "bode"
+   ],
+   "shop_domain": "bode-new-york.myshopify.com"
+  },
+  "stussy.com": {
+   "name": "Stüssy",
+   "tier": "official",
+   "brands": [
+    "stüssy"
+   ],
+   "shop_domain": "stussy-na.myshopify.com"
+  },
+  "noahny.com": {
+   "name": "Noah",
+   "tier": "official",
+   "brands": [
+    "noah"
+   ],
+   "shop_domain": "noahnyc.myshopify.com"
+  },
+  "aimeleondore.com": {
+   "name": "Aimé Leon Dore",
+   "tier": "official",
+   "brands": [
+    "aimé leon dore"
+   ],
+   "shop_domain": "aime-leon-dore.myshopify.com"
+  },
+  "kith.com": {
+   "name": "Kith",
+   "tier": "preferred",
+   "brands": [],
+   "shop_domain": "kithnyc.myshopify.com"
+  },
+  "trickers.com": {
+   "name": "Tricker’s",
+   "tier": "official",
+   "brands": [
+    "tricker’s"
+   ],
+   "shop_domain": "trickers-shoes.myshopify.com"
+  },
+  "natalino.co": {
+   "name": "Natalino",
+   "tier": "official",
+   "brands": [
+    "natalino"
+   ],
+   "shop_domain": "natalinoco.myshopify.com"
+  },
+  "thewebster.com": {
+   "name": "The Webster",
+   "tier": "preferred",
+   "brands": [],
+   "shop_domain": "the-webster-replatform.myshopify.com"
+  },
+  "bdgastore.com": {
+   "name": "Bodega",
+   "tier": "preferred",
+   "brands": [],
+   "shop_domain": "bdga.myshopify.com"
+  },
+  "slamjam.com": {
+   "name": "Slam Jam",
+   "tier": "preferred",
+   "brands": [],
+   "shop_domain": "slam-jam-produzione.myshopify.com"
+  }
+ }
+}

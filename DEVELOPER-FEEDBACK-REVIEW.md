@@ -93,3 +93,34 @@ Three reports from one tester conversation. Findings:
 Evals added: brand-category, brand-other-options, brand-more-from-them, brand-widen, brand-as-taste, search-while-onboarding-offered, retry-after-empty-search.
 
 Triage cursor: 2026-10-13T04:08:40.91548+00:00
+
+## October 13 (later): out-of-scope fallback, hidden partial results and supplied links
+
+Two new reports from the same tester conversation as the earlier October 13 batch. Findings:
+
+- **Off-request item presented as the found item (trust).** When a brand search in identify mode verified nothing eligible, the text-wishlist fallback handed the raw search result to the generic formatter, which applies none of the request's scope rules. A verified "similar" extra outside the requested item was shown under a heading that claimed a found option. Same duplication class as the October 9 and earlier October 13 fixes: an eligibility rule enforced for options but not for a fallback list. Fix: every fallback uses the same scope (match type for the mode, required brand, already-shown/kept exclusions); the brand-widen offer now applies in identify mode too; the formatter's heading follows the displayed set and never calls an extra the found item.
+- **Real in-brand candidates reported as nothing found (blocked).** Retrieval had found in-brand likely matches, but their pages failed verification, and the reply said nothing verified existed. Fix: in-scope candidates whose pages could not be verified are shown as a partial result with price and stock explicitly unverified (the October 8 presentation), before offering to widen.
+- **A link the user sent was ignored (trust).** The agent ran a fresh search and the reply never mentioned the supplied link. Fix: in the sourcing turn, a verified supplied link is offered first (it bypasses brand/scope checks because the user identified it, but not the sold-out check); an unverifiable or sold-out one is acknowledged in the reply.
+- **Technical footer read as an error code (degraded, recurring).** The "other sources didn't pass checks" line from October 8 is removed; hidden unverified sources make no claim, and failed checks remain in diagnostics.
+- **Two texts after a failure (unknown).** The packet shows exactly one reply per inbound message (a feedback acknowledgement and a search reply for two rapid messages); no duplicate delivery is recorded. Not changed.
+- **Observability:** diagnostics now record each candidate's role, the supplied links' check status and which unverified candidates were shown.
+
+Evals added: link-after-empty-brand-search, link-this-is-the-one, link-save-after-miss.
+
+Triage cursor: 2026-10-13T16:36:01.094593+00:00
+
+## October 14: iMessage threads, named models and purchase-history answers
+
+Six reports from one tester conversation, all sent as threaded replies. Findings:
+
+- **Thread replies resolved against the wrong product set (trust, blocked).** iMessage points every reply in a thread at the thread's first message. Reply resolution followed only that chain, so a reply inside a thread ignored everything Jules had sent later in the same thread: a save request right after the right product was shown was matched to the older empty search, and a brand/model clue threaded onto a photo lost Jules' analysis of that photo (colour, material). Same class as the October 9 "reply to an older message" rule, missed for threads. Fix: reply context now includes the thread's later turns (the user's replies to the root and Jules' sent answers to them, newest eight, excluding developer feedback and unsent replies), so the newest result in the thread is what a reply refers to. Verified read-only against the reported turns.
+- **Named model searched as open discovery (trust).** Three named-product requests in this conversation (eyewear, a bag, trousers) were planned as `discover`; for the trousers the plan also dropped the model name, so only similar items were found until the user repeated it. Fix: a model-filled `named_model` search-plan field; code treats a named model as identification and guarantees the query carries the name.
+- **Unanswerable purchase-history answer failed the whole reply (blocked).** An answer that mixed a clear recipient update with an unspecified "kept one" got the generic failure text. The packet had no failure reason; the likeliest mechanism is all-or-nothing application of the interpreted actions. Fix: chat answers keep valid actions and withhold invalid ones (logged as `purchase_history_actions_withheld`), then ask which item the rest was about; nothing applicable asks a clarifying question instead of failing. Instrumentation: every AI fallback now logs `ai_reply_failed` with error class and database code (no message text).
+- **Receipt question asked for already-known details of returned items (degraded).** Fix: code withholds `details` questions about items whose receipts or corrections show a return, refund or cancellation (return requests still qualify); the question prompt says so too.
+- **Repetitive fixed reply text, and the "starting price hasn't been verified" alert wording (degraded, recurring).** Both come from fixed template text and one-size alert baselines that open PR #31 (model-written replies, size-aware alerts) replaces; not changed here to avoid conflicting with it. Re-check after #31 merges.
+- **Visually different product after a text identification (trust).** Partly the thread defect above (the photo brief was lost). Comparing text-found candidates to the referenced photo is proposed, not built (adds a vision call per search).
+- **Observed in context, not reported:** a developer-feedback message whose reply stayed in `generating` and was never delivered or saved. Unknown cause; the new fallback log does not cover a stalled (rather than failed) reply.
+
+Evals added: named-model-in-my-size, named-model-want-a-pair, named-model-best-price, named-model-retry-after-miss, named-model-as-inspiration, save-right-after-found-in-thread.
+
+Triage cursor: 2026-10-15T01:23:06.195194+00:00

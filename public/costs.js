@@ -1,13 +1,9 @@
-import {trackedFetch as fetch} from './activity.js';
+import {mountAdminShell,adminJson} from './admin-console.js';
+mountAdminShell('costs');
 const $ = id => document.getElementById(id);
 const money = value => value === null ? 'Unknown' : new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',minimumFractionDigits:2,maximumFractionDigits:4}).format(value);
 $('date').value = new Intl.DateTimeFormat('en-CA',{timeZone:'UTC',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-async function api(options={}) {
-  const token=sessionStorage.getItem('jules_token');
-  if(!token) throw new Error('Sign in through the Jules inbox, then return to Costs.');
-  const response=await fetch(`/api/costs?date=${encodeURIComponent($('date').value)}`,{...options,headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},cache:'no-store'});
-  const data=await response.json(); if(!response.ok)throw new Error(data.error); return data;
-}
+const api=(options={})=>adminJson(`/api/costs?date=${encodeURIComponent($('date').value)}`,options);
 let version=0;
 async function load() {
   const request=++version;

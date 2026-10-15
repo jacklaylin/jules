@@ -71,14 +71,18 @@ test('admin blocks unauthenticated reads and sends before accessing private data
     assert.equal(res.headers['Cache-Control'], 'no-store');
   }
 });
-test('admin rejects blank, oversized and arbitrary recipients, and uses stored line for valid replies', async () => {
-  const store = memoryStore(); let count = 0;
-  const handler = createAdminHandler({ auth: async () => 200, storeFactory: () => store, send: async (delivery, body) => { count++; assert.equal(delivery.space.phone, 'shared'); assert.equal(delivery.message.sender.id, 'fake-sender'); assert.equal(body, 'Reply'); } });
-  for (const input of [{ conversation: id, operation, body: ' ' }, { conversation: id, operation, body: 'x'.repeat(4001) }, { conversation: 'recipient', operation, body: 'Reply' }]) {
-    const res = response(); await handler(request(input), res); assert.equal(res.statusCode, 400);
-  }
-  const unknown = response(); await handler(request({ conversation: operation, operation, body: 'Reply' }), unknown); assert.equal(unknown.statusCode, 404);
-  const valid = response(); await handler(request({ conversation: id, operation, body: 'Reply' }), valid); assert.equal(valid.body.status, 'sent'); assert.equal(count, 1);
+test('admin conversations are read-only: manual replies are retired and never reach the store or Photon', async () => {
+  const handler = createAdminHandler({ auth: async () => 200, storeFactory: () => assert.fail('must not access database') });
+  const res = response(); await handler(request({ conversation: id, operation, body: 'Reply' }), res);
+  assert.equal(res.statusCode, 400);
+  const put = response(); await handler({ ...request({}), method: 'PUT' }, put); assert.equal(put.statusCode, 405); assert.equal(put.headers.Allow, 'GET, POST');
+});
+test('owner access check answers without reading private data, and non-owners are refused', async () => {
+  const get = url => ({ method: 'GET', url, headers: {} });
+  const owner = response(); await createAdminHandler({ auth: async () => 200, storeFactory: () => assert.fail('must not access database') })(get('/api/admin?view=access'), owner);
+  assert.equal(owner.statusCode, 200); assert.deepEqual(owner.body, { owner: true });
+  const other = response(); await createAdminHandler({ auth: async () => 403, storeFactory: () => assert.fail('must not access database') })(get('/api/admin?view=access'), other);
+  assert.equal(other.statusCode, 403);
 });
 test('history pages retain stable ordering and use service credentials only on server requests', async () => {
   const store = createStore({ SUPABASE_URL: 'https://example.invalid', SUPABASE_SERVICE_ROLE_KEY: 'fake-private' }, async (url, options) => {
@@ -87,4 +91,26 @@ test('history pages retain stable ordering and use service credentials only on s
   });
   const page = await store.messages(id);
   assert.equal(page.messages.length, 100); assert.equal(page.messages[0].id, '99'); assert.equal(page.before.id, '99');
+});
+test('owner wishlist view joins each item to its price alert and only allows test texts for the test conversation', async () => {
+  const { groupWishlist } = await import('../lib/wishlist.js');
+  const row = { text_origin: 'true', reply_id: 'r1', item_id: 'one', name: 'Fixture loafer', match: 'likely_match', links: [{ url: 'https://shop.example.invalid/loafer' }], messages: { created_at: '2026-10-06' } };
+  const groupId = groupWishlist([row])[0].id;
+  const alert = { id: 'a1', group_id: groupId, active: true, size: '10', last_checked_at: null, notified: false, links: [{ url: 'https://shop.example.invalid/loafer' }],
+    baselines: [{ amount: 300, currency: 'USD', url: 'https://shop.example.invalid/loafer', available: true, private: 'dropped' }], last_result: { stock: 'in_stock' } };
+  let alertReads = 0;
+  const store = { async conversation(v) { return v === id ? conversation : null; }, async wishlistEntries() { return [row]; },
+    async priceAlerts() { alertReads++; return [alert]; }, async profile() { return { facts: [] }; } };
+  const get = env => { const res = response(); return createAdminHandler({ auth: async () => 200, storeFactory: () => store, env })({ method: 'GET', url: `/api/admin?view=wishlist&conversation=${id}`, headers: {} }, res).then(() => res); };
+  const forTest = await get({ PRICE_ALERTS_ENABLED: 'true', PRICE_ALERT_TEST_CONVERSATION_ID: id });
+  assert.equal(forTest.statusCode, 200); assert.equal(forTest.body.test_delivery, true); assert.equal(forTest.body.alerts_enabled, true);
+  const [item] = forTest.body.items;
+  assert.equal(item.name, 'Fixture loafer'); assert.equal(item.entries, undefined);
+  assert.deepEqual(item.price_alert.links, ['https://shop.example.invalid/loafer']);
+  assert.deepEqual(item.price_alert.baselines, [{ amount: 300, currency: 'USD', url: 'https://shop.example.invalid/loafer', available: true }]);
+  assert.equal(item.price_alert.stock, 'in_stock');
+  const other = await get({ PRICE_ALERTS_ENABLED: 'true', PRICE_ALERT_TEST_CONVERSATION_ID: operation });
+  assert.equal(other.body.test_delivery, false);
+  const reads = alertReads, off = await get({});
+  assert.equal(off.body.alerts_enabled, false); assert.equal(off.body.items[0].price_alert, null); assert.equal(alertReads, reads);
 });

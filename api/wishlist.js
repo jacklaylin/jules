@@ -1,9 +1,10 @@
 import { wishlistEvidence } from '../lib/evidence.js';
-import {scheduleGmail,handleGmailWork} from '../lib/gmail-worker.js';
+import {scheduleGmail,handleGmailWork,handleGmailSweep} from '../lib/gmail-worker.js';
 import {createPhoneLoginHandler} from '../lib/phone-login.js';
 import {resolveAlertSizeLabel} from '../lib/alert-size-label.js';
 import {createOnboardingHandler} from '../lib/onboarding.js';
 import {createGmailHandler} from '../lib/gmail-import.js';
+import {createRecheckHandler} from '../lib/receipt-recheck.js';
 import {marketEnvironment} from '../lib/shopping-market.js';
 import {enrichWishlistItem} from '../lib/wishlist-details.js';
 import {repairWishlistPhotos} from '../lib/wishlist-photos.js';
@@ -19,12 +20,16 @@ import {createSignupHandler} from '../lib/public-signup.js';
 export const config = { api: { bodyParser: false }, maxDuration: 120 };
 export function createWishlistHandler({ env = process.env, storeFactory = createStore, auth = wishlistUser, admin = authorize, fetcher = fetch, verify = verifyListing, inspect = inspectAlertLinks, photos = fetchListingPhotos } = {}) {
   const onboarding=createOnboardingHandler({env,storeFactory});
-  const gmail=createGmailHandler({env,storeFactory,auth,fetcher,schedule:owner=>scheduleGmail(owner,env)});
+  const gmail=createGmailHandler({env,storeFactory,auth,fetcher,schedule:(owner,worker)=>scheduleGmail(owner,env,{worker})});
   const phoneLogin=createPhoneLoginHandler({env,storeFactory,fetcher});
   const signup=createSignupHandler({env,storeFactory});
+  const recheck=createRecheckHandler({env,storeFactory,admin,fetcher});
   return async (req, res) => {
     try {
       if(new URL(req.url,'https://jules.invalid').searchParams.get('gmail')==='work')return handleGmailWork(req,res,storeFactory(env),env);
+      if(new URL(req.url,'https://jules.invalid').searchParams.get('gmail')==='sweep')return handleGmailSweep(req,res,storeFactory(env),env);
+      // Owner-only re-check of labelled receipts; lives here for the PDF reader files bundled with this function.
+      if(new URL(req.url,'https://jules.invalid').searchParams.get('gmail')==='recheck')return recheck(req,res);
       if(new URL(req.url,'https://jules.invalid').searchParams.has('phone_login'))return phoneLogin(req,res);
       if(new URL(req.url,'https://jules.invalid').searchParams.has('gmail'))return gmail(req,res);
       if(new URL(req.url,'https://jules.invalid').searchParams.get('onboarding')==='1')return onboarding(req,res);
@@ -68,9 +73,13 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
           const access=await auth(req.headers,env,store,fetcher);
           if(access.status!==200)return json(res,access.status,{error:'Please sign in with your invited email.'});
           if(!uuid(input.group))return json(res,400,{error:'Invalid item.'});
-          const groups=groupWishlist(await store.wishlistEntries(access.conversation,{includeRemoved:true}));
-          const item=groups.find(group=>group.id===input.group);
+          const rows=await store.wishlistEntries(access.conversation,{includeRemoved:true});
+          const item=groupWishlist(rows).find(group=>group.id===input.group);
           if(!item)return json(res,404,{error:'Item not found.'});
+          // A repeated remove or restore (a retry after a timeout) changes nothing and records no second event.
+          const removed=row=>row.removed===true||row.removed==='true';
+          const current=rows.filter(row=>item.entries.some(e=>e.item_id===row.item_id&&e.reply_id===row.reply_id));
+          if(current.length&&current.every(row=>removed(row)===(input.action==='remove')))return json(res,200,{ok:true,unchanged:true});
           // Stop alerts before hiding the item; restoring leaves alerts off.
           if(input.action==='remove')await store.disablePriceAlert(access.conversation,item.id);
           await store.setWishlistRemoved(access.conversation,item.entries,input.action==='remove');

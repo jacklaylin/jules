@@ -6,7 +6,7 @@
     "node": "24.x"
   },
   "scripts": {
-    "test": "node --test tests/*.test.js",
+    "test": "node --test --import ./tests/helpers/offline.js --test-timeout=60000 tests/*.test.js",
     "test:readiness": "node scripts/probe-readiness.js"
   },
   "pnpm": {

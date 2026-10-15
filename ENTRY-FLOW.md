@@ -28,3 +28,37 @@ The workspace already contained numerous unrelated uncommitted changes when this
 Implementation references: [Vercel background-task support](https://vercel.com/docs/functions/functions-api-reference/vercel-functions-package), [Supabase generated login links](https://supabase.com/docs/reference/javascript/auth-admin-generatelink).
 
 Publishing completed after normal Vercel sign-in. The release was staged from application files only, without local environment files. Entry pages returned HTTP 200; unsigned Gmail worker requests returned 401; the landing rendered without browser errors. See `HANDOFF-CHECK.md` for the scoped reference audit.
+
+## October 14 update: results by text
+
+Founder decision: import results are internal (Admin › People › Purchase history); testers hear them by text.
+
+- **Page.** While reading, `/onboarding` shows one progress line ("Checked N emails so far") and "You can close this screen". This is now true because of the Supabase sweep (`GMAIL-IMPORT.md`). When finished it says "All done." and points to Messages. Disconnect, delete and import-again sit under *Manage your Gmail connection*. The purchase list, diagnostics, yield counts and `/style` link were removed from this page.
+- **Texts** (`lib/receipt-notifications.js`, each sent once per import through the message ledger):
+  1. **Completion:** "done reading your shopping emails. i found N clothing purchases and M returns." Removed, duplicate and cancelled items are excluded. If any questions are open, "a few quick questions…" is added. With nothing found, it explains that and invites a photo or link.
+  2. **Questions:** the open questions, one at a time, as before.
+  3. **Who you are:** sent when no questions remain, or 24 hours after the last unanswered question. It lists the top 4 brands, top 3 stores and the most-bought sizes from the person's own purchases (gifts and removed items excluded; legal suffixes like "Retail ApS" dropped). Sizes are purchased sizes, never a confirmed fit. It sends nothing with fewer than 2 purchases. No prices yet: receipts aren't read for prices (phase 2). No style-report link yet: the purchase-based report isn't built (phase 3).
+- **24-hour fallback.** `db/024_gmail_profile_due.sql` adds `gmail_profiles_due()`, which reads timing from the message ledger for imports finished in the last 14 days. It also makes the once-a-minute sweep call Vercel when a summary is due. The sweep sends it.
+
+## October 14 update: account page
+
+Founder decision: onboarding does one job: link accounts, show progress, finish. Managing connections lives on **`/account`**, reached from the avatar at the right of the main navigation.
+
+- **`/account`** (`account.html/js/css`, rewrite in `vercel.json`) shows Gmail (connected address, last import or live progress, a paused notice, **Import again**, **Disconnect Gmail**) and Shop (status, **Import again**, **Re-read all orders**, **Disconnect Shop**). **Delete imported history** removes Gmail and Shop learning and disconnects both; chat preferences and the wishlist stay. **Log out** is also here. Not-connected accounts link to `/onboarding` to connect. It uses the existing `/api/wishlist?gmail=1` actions; there is no new API.
+- **Onboarding** keeps Connect Gmail, the consent, Shop connect and approval, progress, and the done screen (Open Jules in Messages, plus *Manage your connections* → `/account`). Start import appears only for a connected account that hasn't imported yet, and Resume only when an import has paused. Disconnect, delete, import again and the Shop re-import controls moved to `/account`.
+- `GET /api/wishlist?gmail=1` also returns `last_import_at`. `/login?next=account` returns to the account page.
+- **Re-imports** (October 15): the "got it, i'm reading your shopping emails" text is sent only on a person's first import, before any email has been read. Question texts are keyed by import (`question:<started_at>:<id>`), so a question still unanswered from an earlier import is asked again once after the new completion text, instead of the completion promising questions that never arrive.
+
+## October 14 update: consent and text opt-out
+
+Founder-requested after the onboarding consent review. **The privacy wording is a draft that needs founder (and ideally lawyer) review before deploying.**
+
+- **STOP / HELP / START** (`lib/sms-compliance.js`). A message that is only STOP, STOPALL, UNSUBSCRIBE, CANCEL, END or QUIT opts the person out and gets one confirmation. HELP gets a short description, the opt-out instructions and the privacy link. START (or UNSTOP) turns texts back on after an opt-out; from someone who never opted out it is an ordinary message. These carrier keywords are legally required controls checked before the agent, not conversational routing. Longer messages ("cancel my price alert") still go to the agent.
+- **The block lives in the message ledger** (`db/025_sms_opt_out.sql`). While opted out, `reserve_reply` records every send (replies, onboarding, receipt texts, price alerts) as `blocked` and sends nothing; `claim_ai_reply` refuses, and sign-in codes are not texted. Blocked texts are never sent later, even after START. Incoming messages are still stored.
+- **New pages:** `/privacy` (draft) and `/terms` (placeholder for the founder to write). Replace every `[bracketed]` item, including the contact email, before deploying.
+- **New consent wording.** Signup SMS consent (`2026-10-14-v2`) adds STOP/HELP, policy links and "I am 18 or older"; the server rejects birthdays under 18. Gmail (`gmail-receipts-5y-1000-v3`) and Shop (`shop-orders-5y-100-v2`) use the shared connected-accounts wording. It says the Jules team can see imported purchase history and its quotes, that OpenAI doesn't train on the data (requests use `store:false`), that only short quotes are kept rather than full emails, and that data is kept until the person deletes it or closes their account. The version bump means an existing Gmail connection must approve the new wording before its next import.
+
+**Setup, in this order:**
+1. In Supabase **SQL Editor**, run `db/025_sms_opt_out.sql`. Deploy only after this succeeds: the new code reads `sms_opted_out_at`, and sign-in breaks without it. No credential is produced.
+2. Fill in the `[bracketed]` items in `public/privacy.html` and `public/terms.html`.
+3. Deploy. Check from a tester phone: text STOP (one confirmation, then nothing), HELP (description), START (confirmation, texts resume).

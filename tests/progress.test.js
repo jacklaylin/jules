@@ -12,24 +12,25 @@ test('reactions follow structured intent rather than message phrases', () => {
   assert.equal(progressEmoji({content:{text:'Find this outfit I love'}}), null);
 });
 
-test('typing and reactions use the incoming line and message; failures allow cleanup', async () => {
+test('read receipt, typing and reactions use the incoming line and message; failures allow cleanup', async () => {
   const calls = [];
   const conversation = { startTyping: async () => calls.push('start'), stopTyping: async () => calls.push('stop'),
     send: async builder => { const content = await builder.build(); assert.equal(content.target.id, 'test-message');
+      if (content.type === 'read') { calls.push('read'); throw new Error('private failure'); }
       assert.equal(content.emoji, '🔎'); calls.push('reaction'); throw new Error('private failure'); } };
   const provider = () => ({ user: async id => id, space: { create: async (id, params) => {
     assert.equal(id, 'test-user'); assert.equal(params.phone, 'test-line'); return conversation;
   } } });
   provider.config = () => ({});
   const stop = await beginProgress({ space: { phone: 'test-line' }, message: {
-    id: 'test-message', sender: { id: 'test-user' }, content: { type: 'text', text: 'Find this' },
+    id: 'test-message', direction: 'inbound', sender: { id: 'test-user' }, content: { type: 'text', text: 'Find this' },
   } }, { SPECTRUM_PROJECT_ID: 'test-project', SPECTRUM_PROJECT_SECRET: 'test-secret' }, {
     provider, connect: async () => ({ stop: async () => calls.push('disconnect') }), log: () => {},
   });
   await stop.react({action:'search'});
   await stop.react({action:'search'});
   await stop();
-  assert.deepEqual(calls, ['start', 'reaction', 'stop', 'disconnect']);
+  assert.deepEqual(calls, ['read', 'start', 'reaction', 'stop', 'disconnect']);
 });
 
 test('durable duplicates do not react twice and cleanup runs when preparing a reply fails', async () => {
