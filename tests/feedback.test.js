@@ -21,7 +21,7 @@ test('the agent routes developer feedback to its tool; it is saved once and ackn
   await receiveInInbox(delivery('DM replies are long'),env,options);
   assert.equal(await receiveInInbox(delivery('DM replies are long'),env,options),'imessage_ai_duplicate');
   assert.equal(options.reports.size,1); assert.equal(options.reports.get('test-message'),'replies are long');
-  assert.deepEqual(options.sent,['Feedback saved for the developer. Thank you.']);
+  assert.deepEqual(options.sent,['feedback saved for the developer. thank you.']);
 });
 test('a message mentioning DM is interpreted like any other message, not prefix-matched',async()=>{
   const options=fixture(tool('conversation_reply',{response:'Want me to look for DMV-friendly shoes?'}));
