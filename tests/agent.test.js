@@ -194,3 +194,14 @@ test('alert status and cancel on a saved item named as a pending option act on t
     {facts,wishlistState:{stage:'reference',options},wishlistAction:async()=>'ok',alertsAction:async(_op,ids)=>{targets=ids;return 'Stopped watching the coat.';}});
   assert.deepEqual(targets,['coat']);
 });
+test('a size stated alongside a search is saved by the independent profile check before the search runs',async()=>{
+  const order=[];let searchedWith;
+  const message={id:'00000000-0000-4000-8000-000000000009',direction:'inbound',status:'received',body:'I wear US 12 in boots. Find me some boots',created_at:new Date().toISOString()};
+  await agentReply([message],env,async(_url,options)=>{
+    const format=JSON.parse(options.body).text?.format?.name;
+    if(format==='profile_check'){order.push('check');return {ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({changes:[{action:'remember',field:'size',key:'boots/us',value:'12',quote:'I wear US 12 in boots'}]})}]}]})};}
+    return toolOutputs(options).length?agentTurn(tool('conversation_reply',{response:'Here they are.'})):agentTurn(tool('find_products',{query:'boots'}));
+  },{facts,wishlistState:null,profileAction:async args=>{order.push('profile');return {facts:[...facts,{field:'size',key:args.changes[0].key,value:args.changes[0].value,basis:'stated'}],saved:1};},
+    wishlistAction:async(_intent)=>{order.push('search');return 'Found boots.';}});
+  assert.deepEqual(order,['check','profile','search']);
+});
