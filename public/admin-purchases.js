@@ -40,8 +40,8 @@ export function mountPurchases(request) {
   $('purchases-clear').onclick = () => { $('purchases-store').value = ''; $('purchases-source').value = ''; render(); };
   for (const button of $('purchases-views').querySelectorAll('button')) button.onclick = () => setView(button.dataset.view);
   // More: each choice closes the menu; tools open as a panel above the list.
-  $('purchases-more').addEventListener('click', event => { if (event.target.closest('button')) $('purchases-more').hidePopover(); });
-  for (const button of $('purchases-more').querySelectorAll('[data-tool]')) button.onclick = () => openTool(button.dataset.tool);
+  $('person-more').addEventListener('click', event => { if (event.target.closest('button')) $('person-more').hidePopover(); });
+  for (const button of $('person-more').querySelectorAll('[data-tool]')) button.onclick = () => openTool(button.dataset.tool);
   for (const button of $('tab-purchases').querySelectorAll('[data-close-tool]')) button.onclick = () => { button.closest('.dv-tool').hidden = true; };
   $('recheck-run').onclick = recheck;
   $('report-build').onclick = () => send({ action: 'build-report' }, 'Building the style report…');

@@ -9,8 +9,19 @@
   <main>
     <div class="person-title"><a class="breadcrumb" href="/admin">← People</a><h1 id="person-name">Loading…</h1><div id="person-badges" class="badges"></div><span class="spacer"></span>
       <p class="person-stats mono-label">Last active <strong id="stat-active">—</strong> · <strong id="stat-messages">—</strong> messages · <strong id="stat-facts">—</strong> facts</p>
-      <button class="small" type="button" popovertarget="person-actions" aria-label="Person actions">⋯</button></div>
-    <div id="person-actions" class="dv-pop dv-menu" popover aria-label="Person actions"><button id="reset-onboarding" type="button" aria-haspopup="dialog">Reset onboarding…</button></div>
+      <button class="small" type="button" popovertarget="person-more">More ⋯</button></div>
+    <!-- One menu for the page: the open tab's occasional actions, then actions on the person. -->
+    <div id="person-more" class="dv-pop dv-menu" popover aria-label="More actions">
+      <span class="mono-label" data-menu-tab="purchases">Purchase history</span>
+      <button id="purchases-reload" type="button" data-menu-tab="purchases">Reload purchases</button>
+      <button id="tags-run" type="button" data-menu-tab="purchases" hidden>Tag purchases</button>
+      <button type="button" data-menu-tab="purchases" data-tool="recheck">Re-check labelled emails</button>
+      <button type="button" data-menu-tab="purchases" data-tool="report">Style report</button>
+      <button type="button" data-menu-tab="purchases" data-tool="missed">Report a missed purchase…</button>
+      <hr data-menu-tab="purchases">
+      <span class="mono-label">Person</span>
+      <button id="reset-onboarding" type="button" aria-haspopup="dialog">Reset onboarding…</button>
+    </div>
     <nav class="tabs" aria-label="Person sections">
       <a href="?tab=memory" data-tab="memory">Personal memory <span class="count" id="count-memory"></span></a>
       <a href="?tab=conversation" data-tab="conversation">Conversation <span class="count" id="count-conversation"></span></a>
@@ -46,23 +57,12 @@
         <label class="dv-search" data-list-only><span class="sr-only">Search purchases</span><input id="purchases-search" type="search" maxlength="100" placeholder="Brand, product, store, size"><span class="kbd" aria-hidden="true">/</span></label>
         <button class="small" type="button" popovertarget="purchases-filters" data-list-only>Filters <span id="purchases-filter-count" class="dv-count" hidden></span></button>
         <span class="spacer"></span>
-        <button class="small" type="button" popovertarget="purchases-more">More ⋯</button>
         <button id="purchases-start" class="btn--butter small" type="button" hidden>Start reviewing →</button>
       </div>
       <div id="purchases-filters" class="dv-pop dv-filters" popover aria-label="Filters">
         <label>Store<select id="purchases-store"><option value="">All stores</option></select></label>
         <label>Found by<select id="purchases-source"><option value="">Any source</option><option value="gmail">Gmail</option><option value="shop">Shop</option><option value="screenshot">Chat screenshot</option><option value="multiple">More than one source</option></select></label>
         <div class="dv-pop-actions"><button id="purchases-clear" class="small" type="button">Clear</button><button class="small btn--butter" type="button" popovertarget="purchases-filters" popovertargetaction="hide">Done</button></div>
-      </div>
-      <div id="purchases-more" class="dv-pop dv-menu" popover aria-label="More purchase history actions">
-        <span class="mono-label">Refresh</span>
-        <button id="purchases-reload" type="button">Reload purchases</button>
-        <span class="mono-label">Run</span>
-        <button id="tags-run" type="button" hidden>Tag purchases</button>
-        <button type="button" data-tool="recheck">Re-check labelled emails</button>
-        <button type="button" data-tool="report">Style report</button>
-        <hr>
-        <button type="button" data-tool="missed">Report a missed purchase…</button>
       </div>
       <div class="dv-status"><span id="purchases-tokens" class="badges"></span><span id="purchases-loader" class="dv-loader" aria-hidden="true" hidden></span><span id="purchases-summary"></span><span id="tags-status"></span><span id="purchases-notice" role="status" aria-live="polite"></span>
         <span class="dv-keys" aria-hidden="true"><span class="kbd">/</span> search <span class="kbd">J</span><span class="kbd">K</span> move <span class="kbd">↵</span> open <span class="kbd">Esc</span> close</span></div>
