@@ -131,7 +131,7 @@ async function signInFromLink(token){
 const READ_AGAIN_MS=15000;
 function opened(result){
  clearInterval(stepTimer);report=result.report;
- $('intro-eyebrow').textContent=(person?'Admin preview · ':'')+(report.name?`For ${report.name}`:'Your style report');
+ $('intro-eyebrow').textContent=(person?'Admin preview · ':'')+[report.name?`For ${report.name}`:'For you',report.built_at&&day(report.built_at)].filter(Boolean).join(' · ');
  $('end-title').textContent=report.name?`That’s your report, ${report.name}.`:'That’s your report.';
  show('view-intro');
 }
