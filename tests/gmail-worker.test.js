@@ -66,3 +66,9 @@ test('the sweep endpoint requires the secret generated in Supabase Vault',async(
  resetSweepSecret();
 });
 test('a successful step clears sweep retries',async()=>{const store=fixture();store.row.data.job.sweep_retries=3;await runGmailStep('owner',store,{},{},{step:async row=>row,schedule:()=>{}});assert.equal(store.row.data.job.sweep_retries,undefined);});
+test('the reading-your-emails text is sent on the first import only',async()=>{
+ const run=async data=>{const store=fixture(),notes=[];store.row.data={...data,job:{status:'listing',started_at:'s'}};await runGmailStep('owner',store,{},{},{step:async row=>row,notify:async(s,o,e,stage)=>{notes.push(stage);return {status:'sent'};},schedule:()=>{}});return notes;};
+ assert.deepEqual(await run({}),['started:s']);
+ assert.deepEqual(await run({sources:[{id:'m1'}]}),[]);
+ assert.deepEqual(await run({scanned_ids:['x']}),[]);
+});
