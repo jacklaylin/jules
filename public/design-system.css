@@ -359,8 +359,7 @@ button.small{min-height:32px;padding:0 14px;font-size:13px}
 
 /* Collection pages (wishlist, wardrobe): large serif title with the item count opposite; on phones the count sits beneath. */
 .collection-heading{align-items:baseline;margin-bottom:48px}.collection-heading h1{font-size:clamp(72px,7.5vw,112px)}
-.heading-mobile{display:none}
-@media(max-width:800px){.collection-heading{display:block;margin-bottom:28px}.collection-heading h1{font-size:clamp(50px,16vw,68px);margin-bottom:12px;text-transform:none}.heading-mobile{display:inline}.heading-desktop{display:none}}
+@media(max-width:800px){.collection-heading{display:block;margin-bottom:28px}.collection-heading h1{font-size:clamp(50px,16vw,68px);margin-bottom:12px;text-transform:none}}
 
 /* Product cards: equal-height tiles with a portrait photo, bold name and one mono line. Shared by every collection grid. */
 .product-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(max(min(100%,280px),calc((100% - 90px)/4)),1fr));gap:42px 30px}
