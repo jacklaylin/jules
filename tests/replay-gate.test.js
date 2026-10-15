@@ -18,7 +18,7 @@ test('the gate fails when any category is below the threshold and lists flaky ca
 
 test('report cases cover the latest multi-turn flows and grade outcomes rather than wording', () => {
   const ids = new Set([...AGENT_EVAL_CASES, ...REPLAY_CASES].map(c => c.id));
-  for (const id of ['receipt-me-for-both', 'receipt-both-mine', 'cheaper-and-alert', 'cheaper-and-alert-subset', 'save-after-unverified', 'save-after-unverified-pair', 'named-first-try-peyter', 'save-right-after-unverified'])
+  for (const id of ['receipt-me-for-both', 'receipt-both-mine', 'cheaper-and-alert', 'cheaper-and-alert-reworded', 'save-after-unverified', 'save-after-unverified-pair', 'named-first-try-peyter', 'save-right-after-unverified'])
     assert.ok(ids.has(id), id);
   for (const c of AGENT_EVAL_CASES.filter(c => c.category === 'reports')) {
     assert.ok(c.messages.length >= 2, `${c.id} is multi-turn`);

@@ -160,3 +160,31 @@ test('descriptive-source corroboration supplies actual retailer images and allow
  });
  assert.equal(matches.length,1);assert.equal(matches[0].match,'similar');
 });
+
+test('a photo is searched by its model-written description alongside Lens, every candidate is compared to the photo, and resale ranks last',async()=>{
+ const {textImageCandidates}=await import('../lib/lens.js');
+ const track={...target,label:'track jacket',description:'oversized black track jacket',features:['white side stripes'],search_mode:'similar',visible_product_text:'',search_query:'oversized black nylon track jacket white side stripes'};
+ const lens=[{id:'1',title:'Black Track Jacket',url:'https://poshmark.com/listing/black-track-1',image:thumb}];
+ const described=[{id:'t1',title:'Nylon Track Jacket Black',url:'https://www.ssense.com/en-us/men/product/x/nylon-track-jacket/1',image:thumb}];
+ let queried,compared;
+ const result=await visualSearchProducts('Find a track jacket like this',[{}],{},null,{plan:async()=>({scope:'item',items:[track],omitted:[]}),crop:async()=>({}),
+  retrieve:async()=>lens,retrieveText:async q=>{queried=q;return described;},
+  compare:async(t,o,c,list)=>{compared=list.map(c=>c.id);return {candidates:list.map(c=>({...assessment(c.id),product_key:c.url,brand:'Example',name:c.title,suitable_for_request:true}))};},
+  searchText:async()=>({products:[]}),verifyListing:async url=>({status:'verified',url})});
+ assert.equal(queried,track.search_query);
+ assert.deepEqual(compared.sort(),['1','t1']);
+ assert.deepEqual(result.products.map(p=>new URL(p.url).hostname),['www.ssense.com','poshmark.com']);
+ assert.deepEqual(result.diagnostics[0].retrieval,{lens:1,text:1,query:track.search_query});
+ // Text retrieval reads image and shopping results, keeping only comparable thumbnails and store pages.
+ const seen=[];
+ const items=await textImageCandidates('black track jacket',{SERPAPI_API_KEY:'text-visual-fixture'},async url=>{const p=new URL(url).searchParams;seen.push(p.get('engine'));
+  return new Response(JSON.stringify(p.get('engine')==='google_images'?{images_results:[{link:'https://store.example/p/1',thumbnail:thumb,title:'Track jacket'},{link:'https://www.pinterest.com/pin/2',thumbnail:thumb,title:'Pin'},{link:'https://store.example/p/3',thumbnail:'https://evil.example/x.jpg',title:'Bad thumb'}]}:{shopping_results:[{link:'https://store.example/p/1',thumbnail:thumb,title:'Track jacket'}]}));});
+ assert.deepEqual(seen.sort(),['google_images','google_shopping']);
+ assert.deepEqual(items.map(i=>i.url),['https://store.example/p/1']);
+});
+test('text read from a screenshot runs the exact Google query before the model search',async()=>{
+ const named={...target,visible_product_text:'Jacques Marie Mage Romi',search_mode:'exact'};
+ let constraints;
+ await visualSearchProducts('Find this',[{}],{},null,{plan:async()=>({scope:'item',items:[named],omitted:[]}),searchText:async(q,i,e,f,c)=>{constraints??=c;return {products:[]};},crop:async()=>({}),retrieve:async()=>[],compare:async()=>({candidates:[]}),verifyListing:async url=>({status:'verified',url})}).catch(()=>{});
+ assert.equal(constraints.search_brief,'Jacques Marie Mage Romi');assert.equal(constraints.exact,true);
+});

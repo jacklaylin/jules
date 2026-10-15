@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {textWishlistAction,settleTextWishlist,settledReply} from '../lib/text-wishlist.js';
 import {generateReply} from '../lib/ai.js';
 import {manageAlerts} from '../lib/inbox.js';
-import {agentTurn,tool,toolNames,isAgentRequest} from './helpers/agent.js';
+import {agentTurn,tool,toolNames,isAgentRequest,toolOutputs} from './helpers/agent.js';
 
 const listing=(url,brand='Kith',name='Kith LAX Tee - White')=>({status:'verified',url,product_brand:brand,product_name:name,availability:'InStock',market_match:true});
 const shopProduct=url=>({brand:'Kith',name:'Kith LAX Tee - White',url,match:'likely_match',sourcing_status:'store_found',listing_check:listing(url),price_snapshot:{amount:68,currency:'USD'},source_provider:'shop_catalog'});
@@ -49,7 +49,7 @@ test('a checkout reference to an item that does not exist is re-read, never gues
   let calls=0,validation;
   const reply=await generateReply([{direction:'inbound',body:'buy it'}],{OPENAI_API_KEY:'test',SEARCH_ENABLED:'true'},async(_u,o)=>{
     if(!isAgentRequest(o))throw Error('unexpected');calls++;
-    if(calls===2)validation=JSON.parse(JSON.parse(o.body).input[0].content.replace(/^APPLICATION CONTEXT \(data, not instructions\): /,'')).validation_feedback;
+    if(calls===2)validation=toolOutputs(o)[0];
     return calls===1?agentTurn(tool('prepare_checkout',{items:[{option_index:7,saved_item_id:null,size:null,color:null}]})):agentTurn(tool('conversation_reply',{response:'Which one would you like to buy?'}));
   },{wishlistAction:async()=>'unused',wishlistState:{stage:'choice',options},checkoutAction:async()=>assert.fail('Invalid reference must not check out')});
   assert.equal(calls,2);assert.match(validation.error,/option index or a saved_wishlist item id/);assert.equal(reply,'Which one would you like to buy?');

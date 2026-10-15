@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {textWishlistAction,finishTextWishlist} from '../lib/text-wishlist.js';
 import {generateReply} from '../lib/ai.js';
-import {agentTurn,tool} from './helpers/agent.js';
+import {agentTurn,tool,restating} from './helpers/agent.js';
 import {createStore} from '../lib/store.js';
 const options=['Ivory','Black','Navy'].map((color,i)=>({brand:'Example',name:'Trail sneakers',url:'https://www.prada.com/us/en/p/example/'+i,sourcing_status:'store_found',match:'likely_match',listing_check:{status:'verified',shopping_range:'men',color}}));
 const state={stage:'choice',query:'Example Trail',options};
@@ -20,10 +20,10 @@ test('structured selection represents one, a subset, all, and none without forci
 test('natural input is interpreted by the model into referenced options, not routed by wording rules',async()=>{
  for(const message of ['Ivory or black I think','Both neutrals appeal to me','Everything except the navy pair','The first two are on my radar']){
   let result,calls=0; const acknowledgments=[];
-  const body=await generateReply([{direction:'outbound',status:'sent',body:'Which version do you like?'},{direction:'inbound',body:message}],{OPENAI_API_KEY:'fake',SEARCH_ENABLED:'true'},async(url,request)=>{
+  const body=await generateReply([{direction:'outbound',status:'sent',body:'Which version do you like?'},{direction:'inbound',body:message}],{OPENAI_API_KEY:'fake',SEARCH_ENABLED:'true'},restating(async(url,request)=>{
    calls++;const input=JSON.parse(request.body);assert.ok(input.instructions.includes('subset'));assert.equal(input.input.at(-1).content,message);assert.ok(input.tools.some(t=>t.name==='respond_to_options'));
    return agentTurn(tool('respond_to_options',{decision:'interest',option_indices:[0,1]}));
-  },{wishlistState:state,acknowledge:async intent=>acknowledgments.push(intent),wishlistAction:args=>textWishlistAction(args,{state,facts,env,inspect,record:async r=>{result=r;},search:()=>assert.fail()})});
+  }),{wishlistState:state,acknowledge:async intent=>acknowledgments.push(intent),wishlistAction:args=>textWishlistAction(args,{state,facts,env,inspect,record:async r=>{result=r;},search:()=>assert.fail()})});
   assert.equal(calls,1);assert.deepEqual(acknowledgments.map(a=>a.action),['selection']);assert.equal(result.text_wishlist_state.selected_set.length,2);assert.ok(body.includes('both'));assert.doesNotMatch(body,/https:/);
  }
 });

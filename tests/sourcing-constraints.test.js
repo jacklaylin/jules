@@ -75,9 +75,10 @@ const bonus=(id,brand,match='similar')=>({...p(id,brand,{match}),role:'bonus'});
 test('an unverifiable in-brand match is shown honestly instead of reported as nothing found, in every mode',async()=>{
   for(const mode of ['identify','discover']){
     const {reply,state,recorded}=await run(start({mode,required_brands:['Our Legacy']}),[u('a','Our Legacy'),u('b','CMMN SWDN'),bonus('c','The Row')]);
-    assert.match(reply,/haven’t verified/,mode);assert.match(reply,/store\.example\/p\/a/,mode);
+    assert.match(reply,/couldn’t be checked/,mode);assert.match(reply,/store\.example\/p\/a/,mode);
     assert.doesNotMatch(reply,/p\/b|products\/c|Bonus|I found this option|couldn’t find a verified/,mode);
-    assert.notEqual(state.stage,'choice');assert.deepEqual(recorded.text_wishlist_diagnostics.unverified_shown,[u('a').url]);
+    // The unread page is a real option: selectable, with price and sizes unknown.
+    assert.equal(state.stage,'choice',mode);assert.deepEqual(state.options.map(o=>o.url),[u('a').url],mode);assert.deepEqual(recorded.text_wishlist_diagnostics.unverified_shown,[u('a').url]);
   }
 });
 test('an out-of-scope verified extra is never presented as the found item',async()=>{
