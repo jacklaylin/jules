@@ -181,6 +181,8 @@ h1{font-size:clamp(38px,4.5vw,64px)}h2{font-size:36px}h3{font-size:30px}
 a{color:var(--ink);text-underline-offset:4px}a:hover{color:var(--grape)}
 button,input,select,textarea{font:inherit}button,a{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 :focus-visible{outline:3px solid var(--grape);outline-offset:3px}
+/* Dialogs take initial focus themselves; only their controls show a ring. */
+dialog:focus-visible{outline:none}
 form{display:grid;gap:12px}label{display:block;font-size:13px}
 input:not([type=checkbox]):not([type=radio]),select,textarea{display:block;width:100%;min-width:0;min-height:44px;border:1px solid var(--line-strong);background:var(--white);border-radius:var(--r-card);color:var(--ink);padding:12px 18px;margin-top:7px}
 input[type=file]{border-radius:var(--r-file)}input::file-selector-button{font:600 13px var(--font-sans);background:var(--white);border:1px solid var(--ink);border-radius:var(--r-pill);padding:8px 14px;margin-right:12px}
@@ -243,7 +245,6 @@ fieldset label input[type=radio]{accent-color:var(--grape)}
 .mobile-menu .nav-item{justify-content:flex-start;gap:18px;font-size:clamp(48px,15vw,72px);min-height:64px;color:var(--ink);white-space:normal}
 .mobile-menu .nav-mark{align-self:center;margin-top:0;order:-1;width:24px!important;height:24px}.mobile-menu .nav-mark::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--ink)}.mobile-menu .nav-mark .orb{--s:24px}
 .mobile-menu .nav-item[aria-current=page] .nav-mark::before,.mobile-menu .nav-item:hover .nav-mark::before,.mobile-menu .nav-item:focus-visible .nav-mark::before{display:none}
-.menu-count{margin:auto 0 0;font:500 11px/1.6 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--text-2)}
 @media(max-width:800px){.app-header>.header-actions{display:none}.menu-toggle{display:block}.app-header .wordmark{font-size:48px}.app-header.compact .wordmark{font-size:40px}.menu-header .wordmark{font-size:48px}}
 @media(prefers-reduced-motion:reduce){.mobile-menu[open]{animation:none}}
 
