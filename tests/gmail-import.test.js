@@ -400,3 +400,34 @@ test('merchant spellings of the same store link, deduplicate and group; differen
  for(const item of mixed.items)mixed=applyReceiptFeedback(mixed,{id:'self-'+item.id,owner_id:'owner',source:'chat_answer',at:'2026-10-12',item_ids:[item.id],action:'set_recipient',value:'self'});
  assert.deepEqual(purchaseSummary(mixed).top_merchants.map(m=>[m.name,m.count]),[['mfpen.com',2]]);
 });
+// Synthetic mailbox shaped like the founder's: a brand's own store sends store-platform order emails
+// ("Order #CB1001 confirmed"), while the generic searches return mostly mail earlier imports already
+// found irrelevant. The brand's older order is found through the known-store search, and the
+// already-read mail is neither fetched again nor counted toward the limit.
+test('repeat import passes over already-read mail and finds a brand store\'s older orders',async()=>{
+ const noise=Array.from({length:30},(_,i)=>'noise'+i),queries=[],fetched=[];
+ const mail={c1:'SUBJECT\nOrder #CB1001 confirmed\nFROM\nCycling Brand (cyclingbrand.example)\nOrder #CB1001\nThermal Jersey\nSize: M\nQuantity: 1',
+  c2:'SUBJECT\nOrder #CB0042 confirmed\nFROM\nCycling Brand (cyclingbrand.example)\nOrder #CB0042\nBib Shorts\nSize: M\nQuantity: 1'};
+ const fetcher=async url=>{
+  const u=new URL(url);if(!u.pathname.endsWith('/messages'))return jsonResponse({id:u.pathname.split('/').pop(),payload:{headers:[]}});
+  const q=u.searchParams.get('q');queries.push(q);
+  if(q.includes('from:cyclingbrand.example'))return jsonResponse({messages:[{id:'c1'},{id:'c2'}]});
+  if(q.includes('subject:(order confirmed)')&&!q.includes(`before:${newImportJob().recent_after}`))return jsonResponse({messages:[{id:'c1'},...noise.map(id=>({id}))]});
+  return jsonResponse({messages:noise.map(id=>({id}))});
+ };
+ const prepare=async message=>{fetched.push(message.id);return {id:message.id,text:mail[message.id]??'SUBJECT\nNewsletter',date:1000,fingerprint:message.id,sender_domain:mail[message.id]?'cyclingbrand.example':'news.example',warnings:[]};};
+ const line=(order,product)=>withBasis({kind:'purchased',existing_item_id:null,evidence:'Order '+order+' confirmed',merchant:fact('Cycling Brand'),order_reference:fact(order),product:fact(product),sku:fact(null),brand:fact('Cycling Brand'),color:fact(null),size_label:fact('M'),size_system:fact(null),quantity:fact('1'),units_per_pack:fact(null),unit_price:fact(null),currency:fact(null),recipient:{value:'unknown',quote:null}});
+ const interpret=async r=>r.schema===RECEIPT_SCHEMA?{events:r.context.source.id==='c1'?[line('#CB1001','Thermal Jersey')]:r.context.source.id==='c2'?[line('#CB0042','Bib Shorts')]:[]}:r.schema===TRIAGE_SCHEMA?{decisions:r.context.emails.map(e=>({id:e.id,action:e.id.startsWith('noise')?'skip':'extract'}))}:{questions:[]};
+ let row={conversation_id:'owner',token_ciphertext:sealToken(tokens,'owner',env),data:{feedback:emptyReceiptState('owner'),scan_version:SCAN_VERSION,scanned_ids:[...noise],job:newImportJob()}};
+ for(let i=0;i<80&&row.data.job.status!=='ready';i++)row=await step(row,{fetcher,prepare,interpret});
+ assert.equal(row.data.job.status,'ready');
+ assert.deepEqual(itemsOf(row).map(i=>i.product).sort(),['Bib Shorts','Thermal Jersey']);
+ assert.ok(queries.some(q=>q.includes('subject:(order confirmed)')));
+ assert.ok(!fetched.some(id=>id.startsWith('noise')),'already-read mail is not fetched again');
+ assert.ok(!row.data.job.ids.some(id=>id.startsWith('noise')),'already-read mail does not use the limit');
+ assert.ok(row.data.job.already_read>0);
+ // When the reading rules change, mail found irrelevant under the old rules is read again.
+ row.data.scan_version='older-rules';row.data.job=newImportJob();fetched.length=0;
+ for(let i=0;i<80&&row.data.job.status!=='ready';i++)row=await step(row,{fetcher,prepare,interpret});
+ assert.ok(row.data.job.ids.some(id=>id.startsWith('noise')));
+});
