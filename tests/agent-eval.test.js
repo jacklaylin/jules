@@ -13,8 +13,7 @@ test('every labeled case offers its expected tools in its own context, and runs 
     const expected=[...[].concat(c.expect.tool??[]).filter(Boolean),...Object.keys(c.expect.also??{}),...(c.expect.then??[])];
     assert.ok(expected.some(name=>offered.includes(name))||!expected.length,`${c.id}: none of ${expected} offered`);
     for(const name of expected.filter(n=>n!=='conversation_reply'))assert.ok(offered.includes(name),`${c.id}: ${name} not offered`);
-    // Quality signals ride on the closing reply (conversation_reply.earlier_turns).
-    if(c.expect.signal!==undefined)assert.ok(offered.includes('conversation_reply'),`${c.id}: conversation_reply not offered`);
+    if(c.expect.signal!==undefined)assert.ok(offered.includes('record_quality_signal'),`${c.id}: record_quality_signal not offered`);
     assert.equal(report.id,c.id);
   }
 });

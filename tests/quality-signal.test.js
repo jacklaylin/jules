@@ -37,9 +37,10 @@ test('a fine verdict, a failed check or save, or an invalid signal never records
   assert.equal(saved.length, 0);
 });
 
-test('the check runs only when a signal can be stored and Jules has spoken; the side tool is not offered', async () => {
+test('the check runs only when a signal can be stored and Jules has spoken; the side tool is offered only then too', async () => {
   let checks = 0;
-  const counting = async (_url, options) => { if (isQuality(options)) { checks++; return verdict(missed()); } assert.ok(!toolNames(options).includes('record_quality_signal')); return agentTurn(tool('conversation_reply', { response:'Hi.' })); };
+  const counting = async (_url, options) => { if (isQuality(options)) { checks++; return verdict(missed()); } return agentTurn(tool('conversation_reply', { response:'Hi.' })); };
+  await generateReply(turn('hi'), env, async (_url, options) => { assert.ok(!toolNames(options).includes('record_quality_signal')); return agentTurn(tool('conversation_reply', { response:'Hi.' })); }, {});
   await generateReply(after('hi'), env, counting, {});
   await generateReply(turn('hi'), env, counting, { qualitySignal:async () => {} });
   assert.equal(checks, 0);
@@ -79,4 +80,11 @@ test('quality reads and writes are private and cursor-ordered', async () => {
   await store.saveQualitySignal('provider', { kind:'other' }); await store.qualitySince('2026-10-12T00:00:00Z');
   assert.match(paths[0], /provider_id=eq.provider&direction=eq.inbound/);
   assert.match(paths[1], /quality_signal=not.is.null&created_at=gt.2026-10-12/); assert.match(paths[1], /order=created_at.asc/); assert.doesNotMatch(paths[1], /sender/);
+});
+
+test('the side tool and the independent check together record at most one signal', async () => {
+  const saved = [];
+  const fetcher = async (_url, options) => isQuality(options) ? verdict(missed()) : agentTurn(tool('record_quality_signal', { kind:'repeated', about:'previous_reply', summary:'Asked again for the size.' }), tool('conversation_reply', { response:'Got it.' }));
+  assert.equal(await generateReply(after('I already told you'), env, fetcher, { qualitySignal:async s => saved.push(s) }), 'Got it.');
+  assert.equal(saved.length, 1);
 });

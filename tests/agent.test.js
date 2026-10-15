@@ -146,7 +146,7 @@ test('the model decides continuation and option indices afresh: the previous pla
   await generateReply([{direction:'inbound',body:'other options?'}],env,async(_url,options)=>{context=agentContext(options);return agentTurn(tool('conversation_reply',{response:'ok'}));},
     {facts,wishlistState:{...choice,search_brief:'Our Legacy pleated khakis',search_plan:plan},wishlistAction:async()=>'ok'});
   assert.equal(context.pending_shopping.search_plan,undefined);
-  assert.deepEqual(context.pending_shopping.previous_search_plan,{mode:'discover',named_model:null,required_brands:['Our Legacy'],hard_constraints:['pleated'],guidance:[]});
+  assert.deepEqual(context.pending_shopping.current_search_plan,{mode:'discover',named_model:null,required_brands:['Our Legacy'],hard_constraints:['pleated'],guidance:[]});
   assert.equal(context.pending_shopping.search_brief,'Our Legacy pleated khakis');
 });
 test('a save written alongside the closing reply still runs (behind the consent check); the reply waits for its result',async()=>{
@@ -173,12 +173,24 @@ test('a call refused only for its timing can be made again; one that ran cannot'
       wishlistAction:async intent=>{if(intent.action==='start'){searched++;return 'Found one.';}alerts++;return 'Watching it.';}});
   assert.equal(searched,1);assert.equal(alerts,1);
 });
-test('an alert without sizing for each option is sent back to the model, which gives it and the alert runs',async()=>{
-  const intents=[];let request=0;
-  await generateReply([{direction:'inbound',body:'watch the ivory pair for a price drop'}],env,async(_url,options)=>{request++;
-    if(request===1)return agentTurn(tool('manage_price_alerts',{option_indices:[0],option_sizing:[]}));
-    if(request===2){assert.equal(toolOutputs(options)[0].status,'not_run');return agentTurn(tool('manage_price_alerts',{option_indices:[0],option_sizing:[{option_index:0,sizing:'footwear'}]}));}
-    return agentTurn(tool('conversation_reply',{response:'Watching it.'}));},
-    {facts,wishlistState:choice,wishlistAction:async intent=>{intents.push(intent);return 'Watching the ivory pair.';}});
-  assert.equal(intents.length,1);assert.deepEqual(intents[0].option_sizing,[{option_index:0,sizing:'footwear'}]);
+test('the search plan the app stores: forced choices become the plan fields the search uses',async()=>{
+  const {searchPlan}=await import('../lib/text-wishlist.js');
+  const base={mode:'discover',named_model:null,required_brands:[],hard_constraints:[],guidance:[],keep_option_indices:[],exclude_option_indices:[]};
+  assert.equal(searchPlan({...base,continuation:'same_request'}).continuation,true);
+  assert.equal(searchPlan({...base,continuation:'new_request'}).continuation,false);
+  assert.equal(searchPlan({...base,continuation:true}).continuation,true);
+  // A named model used only as a reference point is discovery, with the name as guidance.
+  const alt=searchPlan({...base,mode:'alternatives',named_model:'Peyter',continuation:'new_request'});
+  assert.equal(alt.mode,'discover');assert.equal(alt.named_model,null);assert.deepEqual(alt.guidance,['like the Peyter']);
+});
+test('alert status and cancel on a saved item named as a pending option act on that item, never on all',async()=>{
+  const {alertTargets}=await import('../lib/ai.js');
+  const options=[{name:'Coat',saved_item_id:'coat'},{name:'Boots',saved_item_id:'boots'},{name:'New find'}];
+  assert.deepEqual(alertTargets({saved_item_ids:['boots'],option_indices:[0]},options),['boots']);
+  assert.deepEqual(alertTargets({saved_item_ids:[],option_indices:[0]},options),['coat']);
+  assert.deepEqual(alertTargets({saved_item_ids:[],option_indices:[2]},options),[]);
+  let targets;
+  await generateReply([{direction:'inbound',body:'stop watching the coat'}],env,async()=>agentTurn(tool('manage_price_alerts',{operation:'cancel',option_indices:[0],saved_item_ids:[]})),
+    {facts,wishlistState:{stage:'reference',options},wishlistAction:async()=>'ok',alertsAction:async(_op,ids)=>{targets=ids;return 'Stopped watching the coat.';}});
+  assert.deepEqual(targets,['coat']);
 });
