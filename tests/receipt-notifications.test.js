@@ -56,3 +56,13 @@ test('the sweep sends profiles that are due even while a question stays unanswer
  const result=await sweepGmailImports(sweepStore,{},{profile:(s,o,e)=>sendProfile(s,o,e,store.send)});
  assert.equal(result.profiles,1);assert.match(store.sent[0],/what i’m learning/);
 });
+test('a re-import asks a still-unanswered question again once, so the completion text is never left hanging',async()=>{
+ const questions=[{id:'q1',status:'open',question:'Were the BODE shirts for you?',item_ids:['item-4']}];
+ const store=ledger(labelled,{questions,job:{status:'ready',started_at:'import-1'}});
+ await announceImport(store,owner,{},store.send);assert.deepEqual(store.sent.slice(1),['Were the BODE shirts for you?']);
+ const again=ledger(labelled,{questions,job:{status:'ready',started_at:'import-2'}});
+ for(const [k,v] of store.operations)again.operations.set(k,v);
+ await announceImport(again,owner,{},again.send);
+ assert.match(again.sent[0],/quick questions/);assert.equal(again.sent[1],'Were the BODE shirts for you?');
+ await nextReceiptQuestion(again,owner,{},again.send);assert.equal(again.sent.length,2,'asked once per import');
+});
