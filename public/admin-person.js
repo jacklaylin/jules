@@ -1,5 +1,5 @@
 import {mountAdminShell,adminJson,adminFetch,adminToken} from './admin-console.js';
-import {mountPurchases,loadPurchases} from './admin-purchases.js';
+import {mountPurchases,loadPurchases,syncPurchaseView} from './admin-purchases.js';
 // Admin › People › one person: Personal memory, Conversation, Purchase history and Wishlist tabs.
 // The selected tab lives in the URL (?tab=) so every view can be linked.
 mountAdminShell('people');
@@ -20,8 +20,10 @@ function showTab(tab, push = false) {
   // On phones the tab strip scrolls sideways; keep the selected tab in view.
   const active = document.querySelector('.tabs a[aria-current]'), strip = active.parentElement;
   strip.scrollLeft = Math.max(0, active.offsetLeft - strip.offsetLeft - 16);
-  const url = new URL(location.href); url.searchParams.set('tab', tab);
+  // ?item= names the purchase under review; choosing a tab (push) returns Purchase history to its list.
+  const url = new URL(location.href); url.searchParams.set('tab', tab); if (tab !== 'purchases' || push) url.searchParams.delete('item');
   if (push) history.pushState(null, '', url); else history.replaceState(null, '', url);
+  syncPurchaseView();
 }
 for (const link of document.querySelectorAll('.tabs a')) link.onclick = event => { event.preventDefault(); showTab(link.dataset.tab, true); };
 addEventListener('popstate', () => showTab(new URLSearchParams(location.search).get('tab')));
