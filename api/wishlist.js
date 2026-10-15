@@ -17,6 +17,7 @@ import { authorize } from '../lib/auth.js';
 import { json, readJson, uuid } from '../lib/http.js';
 import {createSignupHandler} from '../lib/public-signup.js';
 import {handleReport} from '../lib/style-report.js';
+import {handleWardrobe} from '../lib/wardrobe.js';
 
 export const config = { api: { bodyParser: false }, maxDuration: 120 };
 export function createWishlistHandler({ env = process.env, storeFactory = createStore, auth = wishlistUser, admin = authorize, fetcher = fetch, verify = verifyListing, inspect = inspectAlertLinks, photos = fetchListingPhotos } = {}) {
@@ -37,6 +38,8 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
       if(new URL(req.url,'https://jules.invalid').searchParams.get('public_signup')==='1')return signup(req,res);
       // The person's style report (private; /report).
       if(new URL(req.url,'https://jules.invalid').searchParams.get('report')==='1')return handleReport(req,res,{store:storeFactory(env),env,auth,fetcher});
+      // The person's wardrobe (/wardrobe): their purchase history as owned items, with corrections.
+      if(new URL(req.url,'https://jules.invalid').searchParams.get('wardrobe')==='1')return handleWardrobe(req,res,{store:storeFactory(env),env,auth,fetcher});
       if (env.WISHLIST_ENABLED !== 'true') return json(res, 503, { error: 'Wishlist is not available yet.' });
       const store = storeFactory(env);
       if (req.method === 'POST') {

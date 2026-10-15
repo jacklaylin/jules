@@ -1,0 +1,164 @@
+import {trackedFetch as fetch} from './activity.js';
+import {mountHeader,enableAdminLink} from './design-system.js';
+import {createSession} from './wishlist-session.js';
+mountHeader('wardrobe');
+
+// The wardrobe (PRD section 29): what Jules counts as yours, from your receipts. Every change goes
+// through /api/wishlist?wardrobe=1 as a structured correction; this page never edits facts itself.
+const $=id=>document.getElementById(id);
+const session=createSession({fetcher:fetch,storage:localStorage,lock:work=>navigator.locks?navigator.locks.request('jules-wishlist-refresh',work):work()});
+const fragment=new URLSearchParams(location.hash.slice(1));
+if(fragment.has('access_token'))session.save({access_token:fragment.get('access_token'),refresh_token:fragment.get('refresh_token'),expires_at:Number(fragment.get('expires_at'))||Date.now()/1000+(Number(fragment.get('expires_in'))||3600)});
+if(location.hash)history.replaceState(null,'','/wardrobe'+location.search);
+
+const el=(tag,props={},...children)=>{const node=Object.assign(document.createElement(tag),props);node.append(...children.filter(c=>c!=null&&c!==false));return node;};
+const CATEGORY_LABELS={tops:'Tops',bottoms:'Bottoms',dresses:'Dresses',outerwear:'Outerwear',suits:'Suits',shoes:'Shoes',bags:'Bags',accessories:'Accessories',other:'Other'};
+const REASON_LABELS={returned:'Returned',cancelled:'Order cancelled',gift:'Gift for someone',gone:'Don’t have it anymore',never_bought:'Never bought'};
+const ANSWER_LABELS={mine:'Mine',gift:'A gift',bought:'I bought it',not_bought:'I didn’t',kept:'Kept it',returned:'Returned',same:'Same item',not_sure:'Not sure'};
+// Outline drawings stand in for product photos until photo lookup is accurate enough to show.
+const OUTLINES={
+ tops:'M92 74 L130 58 Q150 80 170 58 L208 74 L258 124 L228 154 L210 138 L210 336 L90 336 L90 138 L72 154 L42 124 Z',
+ bottoms:'M98 50 L202 50 L216 356 L166 356 L150 146 L134 356 L84 356 Z',
+ dresses:'M122 50 L178 50 L174 124 L232 358 L68 358 L126 124 Z M128 50 L122 24 M172 50 L178 24',
+ outerwear:'M100 46 L130 36 L150 64 L170 36 L200 46 L240 90 L262 330 L232 334 L218 150 L226 372 L74 372 L82 150 L68 334 L38 330 L60 90 Z',
+ suits:'M96 62 L130 50 L150 150 L170 50 L204 62 L244 106 L258 316 L230 320 L216 160 L216 340 L84 340 L84 160 L70 320 L42 316 L56 106 Z M130 50 L116 112 L150 196 L184 112 L170 50',
+ shoes:'M42 262 L44 226 Q48 200 80 196 L132 176 Q156 160 178 176 L206 200 Q248 208 262 232 L262 262 Z M40 262 L264 262 L264 286 L40 286 Z',
+ bags:'M110 164 Q110 96 150 96 Q190 96 190 164 M78 160 L222 160 L234 332 Q234 342 224 342 L76 342 Q66 342 66 332 Z',
+ accessories:'M70 250 Q70 140 150 140 Q230 140 230 250 Z M40 250 L260 250',
+ other:'M150 150 L56 236 L244 236 Z M150 150 Q150 112 172 108'
+};
+function outline(category){
+ const frame=el('div',{className:'photo outline-photo'});
+ frame.innerHTML=`<svg viewBox="0 0 300 400" aria-hidden="true"><path d="${OUTLINES[category]??OUTLINES.other}" fill="none" stroke="currentColor" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+ return frame;
+}
+const name=item=>item.product||item.brand||'Item';
+const line=item=>[item.brand,item.size].filter(Boolean).join(' · ');
+const day=at=>new Date(at).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric',timeZone:'UTC'});
+
+let view=null,category='all',current=null,undo=null,toastTimer;
+const message=text=>{$('notice').textContent=text;};
+
+async function api(method='GET',body){
+ const token=await session.token().catch(()=>null);
+ if(!token)throw Object.assign(Error('Please sign in.'),{status:401});
+ const response=await fetch('/api/wishlist?wardrobe=1',{method,headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},...(body?{body:JSON.stringify(body)}:{}),cache:'no-store'});
+ const data=await response.json().catch(()=>({}));
+ if(!response.ok)throw Object.assign(Error(data.error||'Something went wrong. Try again.'),{status:response.status});
+ return data;
+}
+function login(){view=null;enableAdminLink(null);$('login').hidden=false;$('wardrobe').hidden=true;$('logout').hidden=true;}
+
+function toast(text,action=null){
+ clearTimeout(toastTimer);undo=action;
+ const box=$('toast');box.replaceChildren(text);
+ if(action){const button=el('button',{type:'button',className:'btn undo-remove',textContent:'Undo'});button.onclick=async()=>{box.hidden=true;await act(action);};box.append(button);}
+ box.hidden=false;toastTimer=setTimeout(()=>{box.hidden=true;undo=null;},action?6000:3000);
+}
+
+// One wardrobe action, then the fresh view from the server.
+async function act(input,{done}={}){
+ try{view=await api('POST',input);render();done?.();return true;}
+ catch(error){if(error.status===401)login();toast(error.message);return false;}
+}
+
+function card(item){
+ const tile=el('button',{type:'button',className:'tile'},outline(item.category),el('strong',{},name(item)),line(item)?el('span',{className:'card-price'},line(item)):null);
+ tile.onclick=()=>openDetail(item.id);
+ return el('div',{className:'product-card'},tile);
+}
+
+function renderQuestions(){
+ const items=new Map(view.items.map(i=>[i.id,i]));
+ const list=view.questions.map(q=>{
+  const first=items.get(q.item_ids[0]);
+  const answers=[...q.answers.map(answer=>{const b=el('button',{type:'button',className:'chip',textContent:ANSWER_LABELS[answer]});b.onclick=()=>act({action:'answer',question_id:q.id,answer},{done:()=>toast('Thanks. Jules has that now.')});return b;}),
+   q.topic==='details'&&first?Object.assign(el('button',{type:'button',className:'chip',textContent:'Fix details'}),{onclick:()=>openFix(first)}):null,
+   Object.assign(el('button',{type:'button',className:'chip',textContent:ANSWER_LABELS.not_sure}),{onclick:()=>act({action:'answer',question_id:q.id,answer:'not_sure'})})];
+  return el('article',{className:'question'},outline(first?.category),el('div',{className:'question-body'},el('strong',{},q.question),el('div',{className:'question-answers'},...answers)));
+ });
+ $('questions').hidden=!list.length;
+ $('questions-title').textContent=`Jules has ${list.length} ${list.length===1?'question':'questions'}`;
+ $('question-list').replaceChildren(...list);
+}
+
+function renderCategories(){
+ const present=Object.keys(CATEGORY_LABELS).filter(c=>view.items.some(i=>i.category===c));
+ if(category!=='all'&&!present.includes(category))category='all';
+ const chip=(key,label)=>{const b=el('button',{type:'button',className:'chip'+(key===category?' chip--on':''),textContent:label});b.setAttribute('aria-pressed',String(key===category));b.onclick=()=>{category=key;render();};return b;};
+ $('categories').replaceChildren(...(present.length>1?[chip('all','All'),...present.map(c=>chip(c,CATEGORY_LABELS[c]))]:[]));
+}
+
+function render(){
+ if(!view)return;
+ $('login').hidden=true;$('wardrobe').hidden=false;$('logout').hidden=false;
+ const count=view.items.length,reading=['listing','extracting','questions'].includes(view.status);
+ $('count').textContent=count?`${count} ${count===1?'ITEM':'ITEMS'}`:'';
+ $('reading').hidden=!reading;
+ for(const link of document.querySelectorAll('.text-jules')){link.hidden=!view.text_url;if(view.text_url)link.href=view.text_url;}
+ renderQuestions();renderCategories();
+ const shown=view.items.filter(i=>category==='all'||i.category===category);
+ $('grid').replaceChildren(...shown.map(card));
+ $('toolbar').hidden=!count;
+ $('empty').hidden=Boolean(count)||reading;
+ const removed=view.removed.length;
+ $('removed-open').hidden=!removed;$('removed-open').textContent=`Removed (${removed})`;
+ $('gmail-state').replaceChildren(view.connections?.gmail?'Connected':Object.assign(el('a',{href:'/account#gmail-card',textContent:'Connect'})));
+ $('shop-state').replaceChildren(view.connections?.shop?'Connected':Object.assign(el('a',{href:'/account#shop-card',textContent:'Connect'})));
+ if(current&&!view.items.some(i=>i.id===current)&&$('detail').open)$('detail').close();
+}
+
+function openDetail(id){
+ const item=view.items.find(i=>i.id===id);if(!item)return;current=id;
+ $('detail-photo').replaceWith(Object.assign(outline(item.category),{id:'detail-photo'}));
+ $('detail-brand').textContent=item.brand??'';$('detail-title').textContent=name(item);
+ const facts=[['Size',item.size??'Unknown'],['Color',item.color??'Unknown'],['Bought',[item.merchant,item.bought_at&&day(item.bought_at)].filter(Boolean).join(' · ')||'Unknown']];
+ $('detail-facts').replaceChildren(...facts.flatMap(([k,v])=>[el('dt',{},k),el('dd',{},v)]));
+ const ask=$('detail-ask');
+ if(view.text_url){ask.hidden=false;ask.href=`${view.text_url}&body=${encodeURIComponent(`what goes with my ${[item.brand,item.product].filter(Boolean).join(' ').toLowerCase()||'this'}?`)}`;}
+ $('detail').showModal();
+}
+
+function openFix(item){
+ current=item.id;
+ $('fix-product').value=item.product??'';$('fix-brand').value=item.brand??'';$('fix-size').value=item.size??'';$('fix-color').value=item.color??'';
+ $('fix-error').hidden=true;$('fix').showModal();
+}
+
+$('detail-close').onclick=()=>$('detail').close();
+$('detail-fix').onclick=()=>{const item=view.items.find(i=>i.id===current);if(item)openFix(item);};
+$('detail-remove').onclick=()=>$('remove').showModal();
+for(const button of $('remove').querySelectorAll('[data-reason]'))button.onclick=async()=>{
+ const item=view.items.find(i=>i.id===current);if(!item)return;
+ $('remove').close();
+ await act({action:'remove',item_id:item.id,reason:button.dataset.reason},{done:()=>{$('detail').close();toast(`Removed ${name(item)}.`,{action:'restore',item_id:item.id});}});
+};
+$('fix-form').onsubmit=async event=>{
+ event.preventDefault();
+ const values=Object.fromEntries(['product','brand','size_label','color'].map(f=>[f,$('fix-form').elements[f].value]));
+ try{view=await api('POST',{action:'fix',item_id:current,values});$('fix').close();render();if($('detail').open)openDetail(current);toast('Saved.');}
+ catch(error){if(error.status===401)return login();$('fix-error').textContent=error.message;$('fix-error').hidden=false;}
+};
+$('add').onclick=()=>$('add-sheet').showModal();
+$('removed-open').onclick=()=>{renderRemoved();$('removed').showModal();};
+function renderRemoved(){
+ $('removed-list').replaceChildren(...view.removed.map(item=>{
+  const restore=el('button',{type:'button',className:'chip',textContent:'Restore'});
+  restore.onclick=()=>act({action:'restore',item_id:item.id},{done:()=>{renderRemoved();toast(`${name(item)} is back in your wardrobe.`);if(!view.removed.length)$('removed').close();}});
+  return el('div',{className:'removed-row'},outline(item.category),el('div',{},el('strong',{},name(item)),el('p',{className:'fine'},REASON_LABELS[item.reason]??'')),restore);
+ }));
+}
+for(const dialog of document.querySelectorAll('dialog'))for(const close of dialog.querySelectorAll('[data-close]'))close.onclick=()=>dialog.close();
+
+$('logout').onclick=async()=>{
+ $('logout').disabled=true;
+ try{const token=await session.token().catch(()=>null);if(token)await fetch('/api/wishlist',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify({action:'logout'})});}catch{}
+ session.clear();login();message('Logged out.');$('logout').disabled=false;
+};
+
+async function load(){
+ if(!session.read()){login();return;}
+ try{view=await api();render();void enableAdminLink(await session.token());}
+ catch(error){if(error.status===401)return login();$('wardrobe').hidden=false;message(error.message);}
+}
+load();
