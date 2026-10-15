@@ -2,7 +2,7 @@ import { billingSnapshot } from '../lib/billing.js';
 import { authorize } from '../lib/auth.js';
 import { createStore } from '../lib/store.js';
 import { json, readJson } from '../lib/http.js';
-import { summarize, validDate, validateEntry } from '../lib/costs.js';
+import { summarize, validDate, validateEntry, meteredByFeature } from '../lib/costs.js';
 export const config = { api: {bodyParser:false} };
 export function createCostsHandler({auth=authorize, storeFactory=createStore, env=process.env, billing=billingSnapshot}={}) {
   return async (req,res) => {
@@ -13,7 +13,7 @@ export function createCostsHandler({auth=authorize, storeFactory=createStore, en
       if (req.method === 'GET') {
         const date = new URL(req.url,'https://local.invalid').searchParams.get('date');
         if (!validDate(date)) return json(res,400,{error:'Choose a valid date.'});
-        const [entries, providers] = await Promise.all([store.costEntries(date),billing(date,env)]);
+        const [entries, providers, usage] = await Promise.all([store.costEntries(date),billing(date,env),Promise.resolve().then(()=>store.meteredUsage(date)).catch(()=>null)]);
         const report=summarize(date,entries);
         for(const service of ['openai','github','vercel']) {
           const provider=providers[service];
@@ -28,7 +28,7 @@ export function createCostsHandler({auth=authorize, storeFactory=createStore, en
         }
         report.total=report.rows.every(r=>r.total===null)?null:report.rows.reduce((sum,r)=>sum+(r.total??0),0);
         report.missing=report.rows.filter(r=>!r.complete).length;
-        return json(res,200,{...report,providers});
+        return json(res,200,{...report,providers,metered:usage?meteredByFeature(usage):null});
       }
       if (req.method === 'POST') {
         await store.saveCostEntry(validateEntry(await readJson(req)));

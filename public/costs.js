@@ -7,7 +7,7 @@ const api=(options={})=>adminJson(`/api/costs?date=${encodeURIComponent($('date'
 let version=0;
 async function load() {
   const request=++version;
-  $('total').textContent='Loading…'; $('rows').replaceChildren();$('coverage').textContent='';$('budget-status').textContent='';$('openai-status').textContent='';$('serpapi-status').textContent='';$('github-status').textContent='';$('vercel-status').textContent='';
+  $('total').textContent='Loading…'; $('rows').replaceChildren();$('coverage').textContent='';$('budget-status').textContent='';$('openai-status').textContent='';$('serpapi-status').textContent='';$('github-status').textContent='';$('vercel-status').textContent='';$('metered-rows').replaceChildren();$('metered-status').textContent='';
   try {
     const data=await api(); if(request!==version)return;
     $('notice').textContent='';$('total').textContent=data.total===null?'Costs unknown':`${money(data.total)} ${data.missing?'known subtotal':'recorded'}`;
@@ -21,6 +21,9 @@ async function load() {
       const provider=data.providers[name];
       $(name+'-status').textContent=`${name==='github'?'GitHub':'Vercel'}: ${provider.message}${provider.status==='connected'?` Reported daily charges: ${money(provider.daily)}. ${name==='vercel'?`Excluded unallocated team charges: ${money(provider.unallocated)}. `:''}Checked ${new Date(provider.checkedAt).toLocaleString()}.`:''}`;
     }
+    const metered=data.metered;
+    $('metered-status').textContent=!metered?'Metered usage is unavailable.':!metered.features.length?'No metered calls on this day.':`${money(metered.total)} estimated · ${money(metered.evals)} from eval test runs`;
+    for(const f of metered?.features??[]){const tr=document.createElement('tr');for(const text of [f.label,String(f.calls),money(f.cost)]){const td=document.createElement('td');td.textContent=text;tr.append(td);}$('metered-rows').append(tr);}
     if(!$('service').options.length)for(const row of data.rows){const option=document.createElement('option');option.value=row.id;option.textContent=row.name;$('service').append(option);}
     for(const row of data.rows){
       const tr=document.createElement('tr');const name=document.createElement('td');const link=document.createElement('a');link.href=row.url;link.target='_blank';link.rel='noopener noreferrer';link.textContent=row.name;name.append(link);
