@@ -1,5 +1,11 @@
 {
   "outputDirectory": "public",
+  "git": {
+    "deploymentEnabled": {
+      "**": false,
+      "main": true
+    }
+  },
   "crons": [
     {
       "path": "/api/price-checks",
