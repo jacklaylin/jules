@@ -28,6 +28,12 @@ test('a successful HTTP response without product metadata recovers photos throug
   const images=await fetchListingPhotos(url,'Gray MothTech Waffle Long T-shirt',async target=>target===url?new Response('<html>Loading...</html>',{headers:{'content-type':'text/html'}}):new Response(bytes,{headers:{'content-type':'image/jpeg'}}),async target=>{rendered++;assert.equal(target,url);return {html,url};});
   assert.equal(rendered,1);assert.equal(images[0].asset_url,image);
 });
+test('transparent product photos get a white background, not black',async()=>{
+  const clear=await sharp({create:{width:8,height:8,channels:4,background:{r:0,g:0,b:0,alpha:0}}}).png().toBuffer();
+  const bytes=await fetchProductPhoto(photoURL,async()=>new Response(clear,{headers:{'content-type':'image/png'}}));
+  const {data}=await sharp(bytes).raw().toBuffer({resolveWithObject:true});
+  assert.ok(data.subarray(0,3).every(v=>v>=250));
+});
 test('product photos allow only compared Google thumbnails and reject unsafe, oversized, and invalid downloads', async () => {
   for (const url of ['http://encrypted-tbn0.gstatic.com/a', 'https://encrypted-tbn0.gstatic.com.evil.test/a', 'https://user@encrypted-tbn0.gstatic.com/a', 'https://127.0.0.1/a']) {
     assert.equal(productPhotoURL(url), null);

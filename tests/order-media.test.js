@@ -111,6 +111,13 @@ test('downloaded order photos are resized JPEGs; pixel-sized and banner-shaped i
  await assert.rejects(fetchOrderPhoto('http://cdn.kith.example/a.png',imageFetcher(await png(400,400))),/Unsupported/);
 });
 
+test('transparent order photos get a white background, not black',async()=>{
+ const clear=await sharp({create:{width:400,height:400,channels:4,background:{r:0,g:0,b:0,alpha:0}}}).png().toBuffer();
+ const photo=await fetchOrderPhoto('https://cdn.bombas.example/socks.png',imageFetcher(clear));
+ const {data}=await sharp(Buffer.from(photo.data,'base64')).raw().toBuffer({resolveWithObject:true});
+ assert.ok(data.subarray(0,3).every(v=>v>=250));
+});
+
 test('each item that gained an order photo is stored once, keyed to the item',async()=>{
  const applied=applyProposal(emptyReceiptState('owner'),source,{events:[purchase('Williams III Hoodie','Black','L',{photo_ref:0}),purchase('LAX Tee','White','M',{photo_ref:1})]});
  const fetcher=async url=>url.includes('tee')?new Response('nope',{status:404}):new Response(await png(400,500),{status:200,headers:{'Content-Type':'image/png'}});

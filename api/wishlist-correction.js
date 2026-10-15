@@ -36,7 +36,7 @@ export function createCorrectionHandler({env=process.env,auth=authorize,storeFac
    }
    if(!uuid(input.item)||!url||input.verified!==true||typeof input.name!=='string'||!input.name.trim()||input.name.length>180||typeof input.brand!=='string'||input.brand.length>100||!Number.isFinite(input.amount)||input.amount<0||!/^[A-Z]{3}$/.test(input.currency??'')||typeof input.image!=='string'||input.image.length>4194304||!/^[A-Za-z0-9+/]+={0,2}$/.test(input.image))return json(res,400,{error:'Provide verified listing details and a product image.'});
    const bytes=Buffer.from(input.image,'base64');if(bytes.length>MAX_IMAGE_BYTES)return json(res,413,{error:'Image must be under 3 MB.'});imageType(bytes);
-   const image=await sharp(bytes,{limitInputPixels:25000000}).rotate().resize(1400,1400,{fit:'inside',withoutEnlargement:true}).jpeg({quality:90}).toBuffer();
+   const image=await sharp(bytes,{limitInputPixels:25000000}).rotate().resize(1400,1400,{fit:'inside',withoutEnlargement:true}).flatten({background:'#ffffff'}).jpeg({quality:90}).toBuffer();
    const store=storeFactory(env),member=await store.wishlistMember(env.ADMIN_EMAIL.toLowerCase());
    if(!member||!await store.wishlistItem(member.conversation_id,input.item))return json(res,404,{error:'Item not found.'});
    const listing=await verify(url,input.name);if(listing.status!=='verified')return json(res,422,{error:'This URL could not be verified as a live matching product page.'});
