@@ -19,8 +19,10 @@ test('every labeled case offers its expected tools in its own context, and runs 
 });
 test('scoring checks tool, nested arguments, set-valued indices, forbidden tools and profile side calls',()=>{
   const c=AGENT_EVAL_CASES.find(x=>x.id==='someone-elses-size');
-  assert.equal(scoreAgentEval(c,[{name:'find_products',args:{for_someone_else:true}}]).passed,true);
-  assert.match(scoreAgentEval(c,[{name:'find_products',args:{for_someone_else:true}},{name:'update_profile',args:{changes:[{field:'size'}]}}]).failures[0],/unexpected update_profile/);
+  // Her size is remembered for her (person); saved as the user's own it fails.
+  assert.equal(scoreAgentEval(c,[{name:'find_products',args:{for_someone_else:true}},{name:'update_profile',args:{changes:[{field:'size',person:'wife'}]}}]).passed,true);
+  assert.match(scoreAgentEval(c,[{name:'find_products',args:{for_someone_else:true}}]).failures[0],/missing update_profile/);
+  assert.ok(scoreAgentEval(c,[{name:'find_products',args:{for_someone_else:true}},{name:'update_profile',args:{changes:[{field:'size',person:'wife'},{field:'size',person:null}]}}]).failures.some(f=>/unexpected update_profile/.test(f)));
   const subset=AGENT_EVAL_CASES.find(x=>x.id==='subset-interest');
   assert.equal(scoreAgentEval(subset,[{name:'respond_to_options',args:{decision:'interest',option_indices:[1,0]}}]).passed,true);
   assert.match(scoreAgentEval(subset,[{name:'save_to_wishlist',args:{option_indices:[0,1]}}]).failures[0],/tool/);

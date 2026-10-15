@@ -105,7 +105,7 @@ export function createStyleHandler({env=process.env,storeFactory=createStore,aut
         if(!await save(state.revision,pending))throw fail('Your inputs changed. Reload before analyzing.',409);
         reservation={revision:state.revision+1,data:state.data};
         const profile=env.MEMORY_ENABLED==='true'&&store.profile?await store.profile(owner):{facts:[]};
-        const facts=(profile.facts??[]).filter(f=>!f.deleted&&f.source!=='style_report'&&['style','brand','category','budget','size'].includes(f.field)).map(({field,key,value})=>({field,key,value}));
+        const facts=(profile.facts??[]).filter(f=>!f.deleted&&!f.person&&f.source!=='style_report'&&['style','brand','category','budget','size'].includes(f.field)).map(({field,key,value})=>({field,key,value}));
         const {report,evidence}=withObservationEvidence(await withUsage({store,env,conversation:owner,operation:'style:analyze:'+state.revision,feature:'style_reading',},()=>analyze(sources,state.data.notes,env,fetcher,facts)));
         const data={...state.data,report,busy_until:null};
         if(!await save(reservation.revision,data,{evidence}))throw fail('Your inputs changed during analysis. Reload to see the current version.',409);

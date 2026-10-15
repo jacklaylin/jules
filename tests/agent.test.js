@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {generateReply as agentReply} from '../lib/ai.js';
-import {withConsent,toolOutputs,isConsentCheck,consentResponse} from './helpers/agent.js';
+import {withConsent,toolOutputs,isConsentCheck,consentResponse,isReferenceCheck,referenceResponse} from './helpers/agent.js';
 // These tests cover tool routing; the consent check approves (its own tests are in agent.test.js).
 const generateReply=(messages,env,fetcher,memory)=>agentReply(messages,env,withConsent(fetcher),memory);
 import {textWishlistAction} from '../lib/text-wishlist.js';
@@ -52,7 +52,7 @@ test('an explicit request saves without an earlier offer; an unmatched acceptanc
   let calls=0;const c=conversation(choice);
   // The refused acceptance comes back as a tool result; a repeat is not run, and the model is made to
   // write the reply (tool_choice forces conversation_reply), so the user never gets the generic fallback.
-  const reply=await generateReply([{direction:'inbound',body:'sure'}],env,async(_u,options)=>{calls++;
+  const reply=await generateReply([{direction:'inbound',body:'sure'}],env,async(_u,options)=>{if(isReferenceCheck(options))return referenceResponse();calls++;
     return JSON.parse(options.body).tool_choice?.name==='conversation_reply'?agentTurn(tool('conversation_reply',{response:'which pair should i save?'})):agentTurn(tool('save_to_wishlist',{option_indices:[1],consent_context:'answer_to_offer'}));},
     {facts,wishlistState:choice,wishlistAction:()=>assert.fail('An acceptance with no offer cannot save')});
   assert.equal(calls,3);assert.equal(reply,'which pair should i save?');assert.equal(c.state,choice);
@@ -129,6 +129,7 @@ test('conflicting readings never persist: save alongside interest runs the inter
 test('an independent consent check gates every save: a block makes the agent re-read, and a second block asks instead',async()=>{
   const choice={stage:'choice',query:'x',options};let agentCalls=0,checks=0,saved=0;
   const fetcher=async(_url,options)=>{
+    if(isReferenceCheck(options))return referenceResponse();
     if(JSON.parse(options.body).text?.format?.name==='consent'){checks++;const input=JSON.parse(JSON.parse(options.body).input);assert.equal(input.newest_user_message,'yes');return {ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:'{"authorizes":false}'}]}]})};}
     // After the block comes back as a tool result, the model asks instead of saving.
     agentCalls++;const blocked=toolOutputs(options).find(o=>o.status==='blocked');
@@ -204,4 +205,22 @@ test('a size stated alongside a search is saved by the independent profile check
   },{facts,wishlistState:null,profileAction:async args=>{order.push('profile');return {facts:[...facts,{field:'size',key:args.changes[0].key,value:args.changes[0].value,basis:'stated'}],saved:1};},
     wishlistAction:async(_intent)=>{order.push('search');return 'Found boots.';}});
   assert.deepEqual(order,['check','profile','search']);
+});
+test('when the user means one option but the words fit several, Jules asks which instead of picking',async()=>{
+  let request=0,selected=null;
+  const reply=await agentReply([{direction:'outbound',status:'sent',body:'Which would you like?'},{direction:'inbound',body:'the light pair'}],env,async(_url,options)=>{
+    if(isReferenceCheck(options))return referenceResponse([0,1],'one');
+    request++;
+    if(request===1)return agentTurn(tool('respond_to_options',{decision:'interest',option_indices:[0]}));
+    const refused=toolOutputs(options).find(o=>o.status==='not_run');
+    if(request===2){assert.match(refused.error,/0, 1/);return agentTurn(tool('respond_to_options',{decision:'clarify',option_indices:[0,1],response:'The ivory or the black?'}));}
+    return agentTurn(tool('conversation_reply',{response:'The ivory or the black?'}));},
+    {facts,wishlistState:choice,wishlistAction:async intent=>{selected=intent;return 'The ivory or the black?';}});
+  assert.equal(selected.decision,'clarify');assert.match(reply,/ivory or the black/);
+  // Words that pick out one option go straight through.
+  let ran=null;
+  await agentReply([{direction:'inbound',body:'the ivory pair'}],env,async(_url,options)=>isReferenceCheck(options)?referenceResponse([0],'one')
+    :toolOutputs(options).length?agentTurn(tool('conversation_reply',{response:'Noted.'})):agentTurn(tool('respond_to_options',{decision:'interest',option_indices:[0]})),
+    {facts,wishlistState:choice,wishlistAction:async intent=>{ran=intent;return 'Noted.';}});
+  assert.equal(ran.decision,'interest');
 });
