@@ -218,3 +218,12 @@ The founder has many MAAP (cycling apparel) order emails, but no MAAP purchase a
 - **Known stores.** A new search runs after related orders (150 emails). It covers order, receipt, shipping, return and cancellation emails from every store that has already produced a purchase (the registrable domain, so `orders.store.com` covers `store.com`), across the whole five years. Finding one email from a store now leads to the rest of that store's orders. Personal mailbox domains (gmail.com, outlook.com…) are never searched this way, and the PDF search excludes them too, so a forwarded receipt can't open someone's personal mail.
 
 No database migration and no new consent are needed. The limits (1,000 emails per import, five years) are unchanged.
+
+### October 15 follow-up: any order word in the subject
+
+After the change above, a re-import found 46 new purchases but still no MAAP. A MAAP order email (September 2025) has the subject "MAAP Order Summary", which none of the receipt searches matched, and the body-word searches ran out of room before reaching it. Listing exact wordings can't keep up with how stores phrase subjects, so:
+
+- **Receipt searches match the word itself.** Any subject containing order, orders, ordered, purchase, purchased, receipt, invoice, facture, commande, bestellung, pedido or ordine is found, wherever the word sits. This replaces the earlier phrase and word-pair list, which it covers. Marketing that uses one of these words is left to triage, which skips it cheaply from the subject and sender.
+- **Order subjects come first.** A new `recent_receipts_backlog` search (250 emails) takes the rest of the last two years' order-subject emails before the body-word searches, which mostly return other mail.
+
+Limits are unchanged (1,000 emails per import, five years). No migration.
