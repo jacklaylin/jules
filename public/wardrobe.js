@@ -8,7 +8,9 @@ mountHeader('wardrobe');
 const $=id=>document.getElementById(id);
 const session=createSession({fetcher:fetch,storage:localStorage,lock:work=>navigator.locks?navigator.locks.request('jules-wishlist-refresh',work):work()});
 const fragment=new URLSearchParams(location.hash.slice(1));
-if(fragment.has('access_token'))session.save({access_token:fragment.get('access_token'),refresh_token:fragment.get('refresh_token'),expires_at:Number(fragment.get('expires_at'))||Date.now()/1000+(Number(fragment.get('expires_in'))||3600)});
+// Same sign-in rules as the wishlist: the shared rotating session, or an older per-tab token.
+let token=session.read()?.access_token||sessionStorage.getItem('jules_wishlist_token');
+if(fragment.has('access_token'))token=fragment.get('access_token'),sessionStorage.removeItem('jules_wishlist_token'),session.save({access_token:fragment.get('access_token'),refresh_token:fragment.get('refresh_token'),expires_at:Number(fragment.get('expires_at'))||Date.now()/1000+(Number(fragment.get('expires_in'))||3600)});
 if(location.hash)history.replaceState(null,'','/wardrobe'+location.search);
 
 const el=(tag,props={},...children)=>{const node=Object.assign(document.createElement(tag),props);node.append(...children.filter(c=>c!=null&&c!==false));return node;};
@@ -39,15 +41,22 @@ const day=at=>new Date(at).toLocaleDateString(undefined,{month:'short',day:'nume
 let view=null,category='all',current=null,undo=null,toastTimer;
 const message=text=>{$('notice').textContent=text;};
 
+// A rejected token is renewed once before the page asks you to sign in again, as on the wishlist.
 async function api(method='GET',body){
- const token=await session.token().catch(()=>null);
+ try{token=await session.token()||token;}catch(error){if(!session.read())token=null;else throw error;}
  if(!token)throw Object.assign(Error('Please sign in.'),{status:401});
- const response=await fetch('/api/wishlist?wardrobe=1',{method,headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},...(body?{body:JSON.stringify(body)}:{}),cache:'no-store'});
+ const send=()=>fetch('/api/wishlist?wardrobe=1',{method,headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},...(body?{body:JSON.stringify(body)}:{}),cache:'no-store'});
+ let response=await send();
+ if(response.status===401&&session.read()?.refresh_token){
+  try{token=await session.token(true);}catch(error){if(!session.read())token=null;else throw error;}
+  if(!token)throw Object.assign(Error('Please sign in.'),{status:401});
+  response=await send();
+ }
  const data=await response.json().catch(()=>({}));
  if(!response.ok)throw Object.assign(Error(data.error||'Something went wrong. Try again.'),{status:response.status});
  return data;
 }
-function login(){view=null;enableAdminLink(null);$('login').hidden=false;$('wardrobe').hidden=true;$('logout').hidden=true;}
+function login(){view=null;token=null;session.clear();sessionStorage.removeItem('jules_wishlist_token');enableAdminLink(null);$('login').hidden=false;$('wardrobe').hidden=true;$('logout').hidden=true;}
 
 function toast(text,action=null){
  clearTimeout(toastTimer);undo=action;
@@ -152,13 +161,13 @@ for(const dialog of document.querySelectorAll('dialog'))for(const close of dialo
 
 $('logout').onclick=async()=>{
  $('logout').disabled=true;
- try{const token=await session.token().catch(()=>null);if(token)await fetch('/api/wishlist',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify({action:'logout'})});}catch{}
+ try{if(token)await fetch('/api/wishlist',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify({action:'logout'})});}catch{}
  session.clear();login();message('Logged out.');$('logout').disabled=false;
 };
 
 async function load(){
- if(!session.read()){login();return;}
- try{view=await api();render();void enableAdminLink(await session.token());}
+ if(!token){login();return;}
+ try{view=await api();render();void enableAdminLink(token);}
  catch(error){if(error.status===401)return login();$('wardrobe').hidden=false;message(error.message);}
 }
 load();
