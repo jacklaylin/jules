@@ -168,7 +168,17 @@ test('admin review labels each item’s sources and reports what each connected 
   assert.deepEqual(review.items[0].events.map(e=>e.source),['gmail','shop']);
   assert.equal(review.connections[0].label,'Shop');assert.equal(review.connections[0].listing.stop,'no_more_pages');assert.equal(review.connections[0].reads[0].linked,1);
 });
-
+test('connecting Shop hands approval and reading to the background chain that already runs Gmail',async()=>{
+  let row={conversation_id:'owner',revision:1,token_ciphertext:'gmail-sealed',data:{job:{status:'extracting',worker:'gmail-chain'},worker:'gmail-chain'}};const scheduled=[];
+  const store={onboardingSession:async()=>({}),ensureGmailImport:async()=>{},claimGmailImport:async()=>{row.revision++;return structuredClone(row);},
+    finishGmailImport:async(_o,_r,data)=>{row={...row,data};return true;},evidence:async()=>[],profile:async()=>({facts:[]})};
+  const fetcher=async()=>({ok:true,json:async()=>({device_code:'secret-device',user_code:'WXYZ-1234',verification_uri_complete:'https://shop.app/activate?code=WXYZ',interval:5,expires_in:600})});
+  const handler=createGmailHandler({env,storeFactory:()=>store,auth:async()=>({status:200,conversation:'owner'}),fetcher,schedule:(owner,worker)=>scheduled.push(worker)});
+  const response=res();await handler(req({action:'connection-connect',source:'shop',consent:SHOP_CONSENT_VERSION}),response);
+  assert.equal(response.statusCode,200);assert.equal(row.data.connections.shop.status,'awaiting_approval');
+  assert.notEqual(row.data.worker,'gmail-chain','the older chain stops');assert.equal(row.data.job.worker,row.data.worker,'one chain carries Gmail and Shop');
+  assert.deepEqual(scheduled,[row.data.worker]);assert.ok(JSON.parse(response.value).background);
+});
 test('the account page gets result counts and the date range Shop shared, without record details',()=>{
   const view=publicConnection({credential:'sealed',status:'ready',found:23,processed:23,reads:[
     {id:'a',date:Date.parse('2026-09-15'),purchases:0,linked:0,summary:'{"private":"x"}'},{id:'b',date:Date.parse('2026-10-07'),purchases:2,linked:1},{id:'c',date:null,purchases:0}]});
