@@ -5,7 +5,7 @@ import {GMAIL_SCOPE,sealToken,openToken,authorizationURL,digest} from '../lib/gm
 import {receiptHTML,prepareReceiptEmail,receiptPDF,triageCandidate} from '../lib/receipt-email.js';
 import {receiptModel,RECEIPT_SCHEMA,TRIAGE_SCHEMA,merchantKey,reconcileReceipt,emptyReceiptState,projectReceiptState,relinkPending,receiptShoppingFacts} from '../lib/receipt-extraction.js';
 import {applyReceiptFeedback,receiptLearningView} from '../lib/receipt-feedback.js';
-import {newImportJob,importStep,createGmailHandler,publicImport,CONSENT_VERSION,SCAN_VERSION} from '../lib/gmail-import.js';
+import {newImportJob,importStep,createGmailHandler,publicImport,CONSENT_VERSION,SCAN_VERSION,PRICE_VERSION} from '../lib/gmail-import.js';
 import {loadReceipts} from '../lib/evidence.js';
 const env={GMAIL_IMPORT_ENABLED:'true',SITE_ORIGIN:'https://jules.example',GOOGLE_GMAIL_CLIENT_ID:'synthetic-client',GOOGLE_GMAIL_CLIENT_SECRET:'synthetic-secret',GMAIL_TOKEN_KEY:Buffer.alloc(32,7).toString('base64')};
 const tokens={access_token:'synthetic-access',refresh_token:'synthetic-refresh',expires_at:Date.now()+3600000};
@@ -250,7 +250,7 @@ test('sender domains fall back to other sender headers and backfill a stored sho
  const message=headers=>({id:'m',internalDate:'1000',payload:{mimeType:'text/plain',headers,body:{data:Buffer.from(text).toString('base64url')}}});
  assert.equal((await prepareReceiptEmail(message([{name:'From',value:'Shop Orders'},{name:'Reply-To',value:'Care <care@shop.example>'}]),tokens)).sender_domain,'shop.example');
  assert.equal((await prepareReceiptEmail(message([{name:'From',value:'"Shop" <orders@mail.shop.example>'}]),tokens)).sender_domain,'mail.shop.example');
- let row={conversation_id:'owner',token_ciphertext:sealToken(tokens,'owner',env),data:{feedback:emptyReceiptState('owner'),scan_version:SCAN_VERSION,sources:[{id:'m',date:1000,fingerprint:'same',sender_domain:null,shopping_evidence:true}],job:{...newImportJob(),status:'extracting',ids:['m']}}};
+ let row={conversation_id:'owner',token_ciphertext:sealToken(tokens,'owner',env),data:{feedback:emptyReceiptState('owner'),scan_version:SCAN_VERSION,sources:[{id:'m',date:1000,fingerprint:'same',sender_domain:null,shopping_evidence:true,price_version:PRICE_VERSION}],job:{...newImportJob(),status:'extracting',ids:['m']}}};
  row=await step(row,{fetcher:async()=>jsonResponse({id:'m',payload:{}}),prepare:async()=>({id:'m',text,date:1000,fingerprint:'same',sender_domain:'shop.example',warnings:[]}),interpret:()=>assert.fail()});
  assert.equal(row.data.sources[0].sender_domain,'shop.example');assert.equal(row.data.changed_sources,undefined);
 });
@@ -269,6 +269,19 @@ test('question selection drops invalid proposals and never blocks a finished imp
  assert.equal(next.data.job.status,'ready');assert.deepEqual(next.receipts.state.questions.filter(q=>q.status==='open').map(q=>q.question),['Were these jeans for you?']);
  next=await step({...next,data:{...next.data,job:{...next.data.job,status:'questions'}}},{interpret:async()=>{throw Error('model down');}});
  assert.equal(next.data.job.status,'ready');assert.equal(next.data.job.quality.questions_failed,true);assert.equal(next.receipts.state.questions.filter(q=>q.status==='open').length,1);
+});
+test('emails already in the history are re-read once for prices, unless their content changed',async()=>{
+ const priced={...source,text:text+' $120.00'};
+ const base=reconcileReceipt(emptyReceiptState('owner'),priced,{events:[receipt()]}).state;
+ const meta=extra=>({id:'m1',date:1000,fingerprint:'synthetic',shopping_evidence:true,...extra});
+ let calls=0;const interpret=async r=>{if(r.schema===TRIAGE_SCHEMA)return {decisions:[]};calls++;return {events:[receipt({unit_price:fact('$120.00'),currency:fact(null)})]};};
+ let row=await step({conversation_id:'owner',token_ciphertext:sealToken(tokens,'owner',env),data:{feedback:base,scan_version:SCAN_VERSION,sources:[meta()],job:{...newImportJob(),status:'extracting',ids:['m1']}}},{fetcher:async()=>jsonResponse({id:'m1',payload:{}}),prepare:async()=>priced,interpret});
+ assert.equal(calls,1);assert.equal(itemsOf(row).length,1);assert.equal(itemsOf(row)[0].price.amount,120);assert.equal(row.data.sources[0].price_version,PRICE_VERSION);assert.equal(row.data.job.quality.repriced,1);
+ row=await step({...row,data:{...row.data,job:{...newImportJob(),status:'extracting',ids:['m1']}}},{fetcher:async()=>jsonResponse({id:'m1',payload:{}}),prepare:async()=>priced,interpret});
+ assert.equal(calls,1,'re-read only once');
+ // A changed email is never re-read over its existing evidence.
+ const changed=await step({conversation_id:'owner',token_ciphertext:sealToken(tokens,'owner',env),data:{feedback:base,scan_version:SCAN_VERSION,sources:[meta()],job:{...newImportJob(),status:'extracting',ids:['m1']}}},{fetcher:async()=>jsonResponse({id:'m1',payload:{}}),prepare:async()=>({...priced,fingerprint:'changed'}),interpret:()=>assert.fail()});
+ assert.equal(itemsOf(changed)[0].price,undefined);assert.equal(changed.data.changed_sources.length,1);
 });
 test('a failed triage analyzes every email, and one failing email cannot stall the rest of the batch',async()=>{
  let row={conversation_id:'owner',token_ciphertext:sealToken(tokens,'owner',env),data:{feedback:emptyReceiptState('owner'),job:{...newImportJob(),status:'extracting',ids:['bad','m1']}}};
