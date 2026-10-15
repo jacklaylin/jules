@@ -11,9 +11,17 @@ const el=(tag,props={},...children)=>{const node=Object.assign(document.createEl
 let report=null,index=0;
 
 function show(view){for(const id of ['view-message','view-intro','view-card','view-end'])$(id).hidden=id!==view;}
-function message(title,body,eyebrow='Style report',action=null){
+// progress: null (none), 'waiting' (moving bar, length unknown) or a fraction 0–1.
+let stepTimer;
+function message(title,body,eyebrow='Style report',action=null,{progress=null,steps=[]}={}){
  $('message-title').textContent=title;$('message-body').textContent=body;$('message-eyebrow').textContent=eyebrow;
  $('message-action').hidden=!action;if(action){$('message-action').textContent=action.label;$('message-action').href=action.href;}
+ $('message-progress').hidden=progress==null;$('message-progress').classList.toggle('is-waiting',progress==='waiting');
+ if(typeof progress==='number'){const percent=Math.round(Math.min(1,Math.max(0,progress))*100);$('message-bar').style.width=percent+'%';$('message-progress').setAttribute('aria-valuenow',String(percent));}
+ else{$('message-bar').style.width='';$('message-progress').removeAttribute('aria-valuenow');}
+ // The build's own order of work, shown in turn while the page waits for it.
+ clearInterval(stepTimer);$('message-step').hidden=!steps.length;
+ if(steps.length){let n=0;$('message-step').textContent=steps[0];stepTimer=setInterval(()=>{if(n<steps.length-1)$('message-step').textContent=steps[++n];},2500);}
  show('view-message');
 }
 let toastTimer;
@@ -108,28 +116,40 @@ async function signInFromLink(token){
  if(!response.ok)throw Error(result.error||'Could not sign you in.');
  session.save(result);
 }
+const READ_AGAIN_MS=15000;
+function opened(result){
+ clearInterval(stepTimer);report=result.report;
+ $('intro-eyebrow').textContent=(person?'Admin preview · ':'')+(report.name?`For ${report.name}`:'Your style report');
+ $('end-title').textContent=report.name?`That’s your report, ${report.name}.`:'That’s your report.';
+ show('view-intro');
+}
+async function load(){
+ const result=await api('GET');
+ if(result.report)return opened(result);
+ if(result.status==='reading'){
+  // The import is still going: show how far it has got and check back. The report is built when it
+  // finishes, so leaving the page loses nothing.
+  const {read=0,total=0}=result.progress??{};
+  message('Still reading your orders.',total?`Jules has read ${read.toLocaleString()} of ${total.toLocaleString()} shopping emails. Your report is made as soon as it’s done.`:'Jules is finding your shopping emails. Your report is made as soon as it’s done.','Your style',null,{progress:total?read/total:'waiting'});
+  $('message-step').hidden=false;$('message-step').textContent='You can leave this page. It’ll be here under Your style.';
+  const again=()=>load().catch(()=>setTimeout(again,READ_AGAIN_MS));setTimeout(again,READ_AGAIN_MS);return;
+ }
+ const NOT_READY={
+  no_history:['Connect your orders first.','Your style report is made from your shopping history. Connect Gmail or Shop and Jules does the rest.',{label:'Connect your orders ↗',href:'/account'}],
+  not_enough:['Not enough to go on yet.','Jules needs a few more orders to say anything worth sharing. Connect another account or text Jules a receipt.',{label:'Add more orders ↗',href:'/account'}]};
+ const [title,body,action]=NOT_READY[result.status]??['Not ready yet.',person?'This tester has no report yet. Build it from their purchase history.':'Try again in a little while.',null];
+ message(title,body,'Your style',action);
+}
 async function start(){
- message('One moment…',person?'Opening this tester’s report.':'Putting your style report together. This can take a few seconds.');
+ if(person)$('message-leave').href='/admin';
+ message('One moment…',person?'Opening this tester’s report.':'Getting your style report.','Style report',null,{progress:'waiting',steps:person?[]:['Going through your orders…','Counting what you keep buying…','Writing your receipt…','Nearly there…']});
  if(signinToken){
   // Keep the token out of history and screenshots once it has been used.
   history.replaceState(null,'',location.pathname);
   try{await signInFromLink(signinToken);}catch{if(!session.read()){message('That link has expired.','Log in with your phone to see your report.','Style report',{label:'Log in ↗',href:'/login?next=report'});return;}}
  }
- try{
-  const result=await api('GET');
-  if(!result.report){
-   const NOT_READY={
-    no_history:['Connect your orders first.','Your style report is made from your shopping history. Connect Gmail or Shop and Jules does the rest.',{label:'Connect your orders ↗',href:'/account'}],
-    reading:['Still reading your orders.','Jules is going through your shopping history. Your report will be here when it’s done.',null],
-    not_enough:['Not enough to go on yet.','Jules needs a few more orders to say anything worth sharing. Connect another account or text Jules a receipt.',{label:'Add more orders ↗',href:'/account'}]};
-   const [title,body,action]=NOT_READY[result.status]??['Not ready yet.',person?'This tester has no report yet. Build it from their purchase history.':'Try again in a little while.',null];
-   message(title,body,'Your style',action);return;
-  }
-  report=result.report;
-  $('intro-eyebrow').textContent=(person?'Admin preview · ':'')+(report.name?`For ${report.name}`:'Your style report');
-  $('end-title').textContent=report.name?`That’s your report, ${report.name}.`:'That’s your report.';
-  show('view-intro');
- }catch(error){
+ try{await load();}
+ catch(error){
   if(error.status===401||error.status===403)message('Log in to see your report.','It’s private to you.','Style report',{label:'Log in ↗',href:'/login?next=report'});
   else message('Couldn’t open your report.',error.message);
  }
