@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {discoveryPlan,yearsAgo,relatedOrderQuery,knownStoreQuery,admitPage,advanceSearch,captureYield,discoveryQuery} from '../lib/gmail-discovery.js';
+import {discoveryPlan,yearsAgo,relatedOrderQuery,nextStoreQuery,admitStorePage,admitPage,advanceSearch,captureYield,discoveryQuery} from '../lib/gmail-discovery.js';
 import {newImportJob,CONSENT_VERSION,createGmailHandler} from '../lib/gmail-import.js';
 const now=Date.parse('2026-10-12T12:00:00Z');
 test('five-year plan starts with recent receipts and returns and reserves related-order discovery',()=>{
@@ -8,7 +8,7 @@ test('five-year plan starts with recent receipts and returns and reserves relate
  assert.deepEqual(job.search_plan.slice(0,5).map(p=>p.budget),[50,25,15,150,10]);
  assert.match(job.search_plan[1].query,/refund/);assert.match(job.search_plan[0].query,/subject:receipt/);
  assert.equal(job.search_plan[3].name,'known_stores');assert.equal(job.search_plan[3].query,null);
- assert.deepEqual(job.search_plan.slice(5,8).map(p=>p.name),['recent_receipts_backlog','recent_backlog','older_receipts']);
+ assert.deepEqual(job.search_plan.slice(5).map(p=>p.name),['recent_receipts_backlog','recent_backlog','new_stores','older_receipts','older_returns','later_stores','older_discovery']);
  assert.equal(job.search_plan[5].query,job.search_plan[0].query,'remaining order-subject mail comes before body-word searches');
  assert.ok(job.search_plan.every(p=>!p.query?.includes('-category:promotions')));
  assert.match(job.search_plan[4].query,/category:purchases/);assert.ok(!job.search_plan[0].query.includes('category:purchases'));
@@ -52,14 +52,43 @@ test('receipt searches find order and purchase words anywhere in the subject',()
    assert.ok(matches(q,subject),name+': '+subject);
   assert.ok(!matches(q,'New arrivals this week'),'unrelated subjects are not matched');}
 });
-test('known-store search covers every order email from stores already found, across the whole window',()=>{
- const job=newImportJob(now);assert.equal(knownStoreQuery({sources:[]},job),null);
- const data={sources:[{shopping_evidence:true,sender_domain:'orders.bigstore.example'},{shopping_evidence:true,sender_domain:'cyclingbrand.example'},{shopping_evidence:true,sender_domain:'bigstore.example'},
-  {shopping_evidence:true,sender_domain:'gmail.com'},{shopping_evidence:true,sender_domain:'evil.example) OR in:anywhere'},{shopping_evidence:true,sender_domain:null}]};
- const q=knownStoreQuery(data,job);
- assert.ok(q.startsWith(`after:${job.after} before:${job.before} -in:spam -in:trash `),'five years, not only the recent window');
- assert.match(q,/\{from:bigstore\.example from:cyclingbrand\.example\}/);assert.equal(q.match(/from:bigstore/g).length,1);
- assert.ok(!q.includes('gmail.com'));assert.ok(!q.includes('anywhere'));assert.match(q,/order/);
+const storeJob=()=>{const job=newImportJob(now);job.search_index=job.search_plan.findIndex(p=>p.name==='known_stores');return job;};
+const stage=job=>job.search_plan[job.search_index];
+test('store searches cover each store found so far, newest first, across the whole window, never personal mailboxes',()=>{
+ const job=storeJob();assert.equal(nextStoreQuery(stage(job),{sources:[]},job),null);
+ const data={sources:[{sender_domain:'orders.bigstore.example'},{sender_domain:'gmail.com'},{sender_domain:'evil.example) OR in:anywhere'},{sender_domain:'cyclingbrand.example'}]};
+ const q=nextStoreQuery(stage(job),data,job);
+ assert.equal(q,`after:${job.after} before:${job.before} -in:spam -in:trash from:cyclingbrand.example {order receipt invoice shipped shipment refund return cancelled canceled}`);
+ admitStorePage(job,{messages:[{id:'c1'}]});assert.deepEqual(job.stores_searched,['cyclingbrand.example']);
+ assert.match(nextStoreQuery(stage(job),data,job),/from:bigstore\.example /);admitStorePage(job,{messages:[]});
+ assert.equal(nextStoreQuery(stage(job),data,job),null,'gmail.com and malformed domains are never searched');
+});
+test('each store has its own allowance, so a store with many emails cannot crowd out the rest',()=>{
+ const job=storeJob(),data={sources:[{sender_domain:'small.example'},{sender_domain:'big.example'}]};
+ const page=(prefix,n,next)=>({messages:Array.from({length:n},(_,i)=>({id:prefix+i})),...(next?{nextPageToken:next}:{})});
+ nextStoreQuery(stage(job),data,job);admitStorePage(job,page('big',50,'more'));
+ assert.equal(job.ids.length,40);assert.deepEqual(job.stores_capped,['big.example']);assert.equal(stage(job).store,null);
+ assert.match(nextStoreQuery(stage(job),data,job),/from:small\.example/);admitStorePage(job,page('small',3));
+ assert.equal(job.ids.length,43);assert.deepEqual(job.stores_searched,['big.example','small.example']);
+});
+test('a store found during the import is searched by the next store stage; finished stores are not repeated',()=>{
+ const job=storeJob(),data={sources:[{sender_domain:'known.example'}]};
+ nextStoreQuery(stage(job),data,job);admitStorePage(job,{messages:[{id:'k1'}]});
+ assert.equal(nextStoreQuery(stage(job),data,job),null);stage(job).done=true;advanceSearch(job);
+ data.sources.push({sender_domain:'maap-like.example'});
+ job.search_index=job.search_plan.findIndex(p=>p.name==='new_stores');
+ assert.match(nextStoreQuery(stage(job),data,job),/from:maap-like\.example/);
+});
+test('a store cut short by the stage allowance is continued by the next store stage',()=>{
+ const job=storeJob(),data={sources:[{sender_domain:'a.example'}]};stage(job).budget=10;
+ nextStoreQuery(stage(job),data,job);admitStorePage(job,{messages:Array.from({length:20},(_,i)=>({id:'a'+i})),nextPageToken:'p2'});
+ assert.equal(stage(job).done,true);assert.ok(!(job.stores_searched??[]).includes('a.example'));
+ job.search_index=job.search_plan.findIndex(p=>p.name==='new_stores');assert.match(nextStoreQuery(stage(job),data,job),/from:a\.example/);
+});
+test('a store with nothing new moves straight on without an extraction step',()=>{
+ const job=storeJob(),data={sources:[{sender_domain:'a.example'},{sender_domain:'b.example'}]};
+ nextStoreQuery(stage(job),data,job);admitStorePage(job,{messages:[{id:'read1'}]},new Set(['read1']));
+ assert.equal(job.status,'listing');assert.equal(job.ids.length,0);assert.equal(job.already_read,1);
 });
 test('emails earlier imports found irrelevant do not use the limit, so a repeat import reaches further back',()=>{
  const job=newImportJob(now);job.search_index=job.search_plan.findIndex(p=>p.name==='older_discovery');job.ids=Array.from({length:990},(_,i)=>'new'+i);
