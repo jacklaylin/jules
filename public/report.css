@@ -21,8 +21,16 @@ body.report-page{background:var(--ink);color:var(--white);min-height:100vh;min-h
 @media (prefers-reduced-motion:reduce){.report-loading.is-waiting span{animation:none;width:100%;opacity:.5}}
 
 /* Intro */
-.report-intro{background:var(--butter);color:var(--ink);padding:64px 28px 40px;justify-content:space-between}
-.report-orb{width:120px;height:120px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#fff 0,#fff0 30%),radial-gradient(circle at 30% 30%,var(--butter),var(--bubblegum,#FF8FC7) 45%,var(--tangerine,#FF7A2F) 70%,var(--grape));box-shadow:0 20px 60px #6c3bff55;animation:report-spin 7s linear infinite}
+.report-intro{background:var(--butter);color:var(--ink);padding:64px 28px 40px;justify-content:space-between;isolation:isolate}
+/* Three colour blobs drift behind the intro so the screen is never still. */
+.report-intro::before,.report-intro::after,.report-glow{content:"";position:absolute;z-index:-1;border-radius:50%;filter:blur(48px);pointer-events:none}
+.report-intro::before{width:120%;height:60%;left:-50%;top:-18%;background:radial-gradient(circle,var(--bubblegum) 0,#ff8fc700 68%);animation:report-drift-a 9s ease-in-out infinite alternate}
+.report-intro::after{width:120%;height:70%;right:-55%;bottom:-22%;background:radial-gradient(circle,var(--tangerine) 0,#ff7a2f00 68%);animation:report-drift-b 11s ease-in-out infinite alternate}
+.report-glow{width:90%;height:50%;left:30%;top:28%;background:radial-gradient(circle,#ff4fa3b3 0,#ff4fa300 70%);animation:report-drift-c 13s ease-in-out infinite alternate}
+.report-orb{position:relative;width:150px;height:150px;border-radius:50%;background:radial-gradient(circle at 30% 30%,var(--butter),var(--bubblegum) 45%,var(--tangerine) 70%,var(--grape));box-shadow:0 24px 70px #6c3bff66,0 0 0 0 #ffffff66;animation:report-float 5s ease-in-out infinite,report-pulse 2.5s ease-out infinite}
+/* A turning sheen and a fixed highlight make the orb read as a lit sphere that moves. */
+.report-orb::before{content:"";position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,var(--bubblegum),var(--tangerine),var(--grape),var(--butter),var(--bubblegum));mix-blend-mode:soft-light;opacity:.9;animation:report-spin 4s linear infinite}
+.report-orb::after{content:"";position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 30% 28%,#fff 0,#fff0 28%)}
 .report-intro-copy{display:flex;flex-direction:column;gap:16px}
 .report-intro h1{margin:0;font-size:64px;line-height:.95}
 .report-intro p{margin:0;font-size:17px;line-height:1.45}
@@ -67,7 +75,6 @@ body.report-page{background:var(--ink);color:var(--white);min-height:100vh;min-h
 .receipt-line b{font-weight:500}
 .receipt-total{font-size:15px;font-weight:500;line-height:1.25;letter-spacing:.02em;animation:report-land .6s ease-out 1.3s both}
 .receipt-foot{text-align:center;font-size:10px;letter-spacing:.06em;color:var(--text-2)}
-.receipt-foot-strong{color:var(--ink);font-weight:500}
 .receipt-barcode{height:30px;background:repeating-linear-gradient(90deg,var(--ink) 0 2px,transparent 2px 4px,var(--ink) 4px 7px,transparent 7px 9px,var(--ink) 9px 10px,transparent 10px 13px)}
 .receipt-zig{height:10px;background:linear-gradient(-45deg,transparent 7px,var(--white) 0) 0 0/14px 10px repeat-x,linear-gradient(45deg,transparent 7px,var(--white) 0) 0 0/14px 10px repeat-x}
 
@@ -99,6 +106,11 @@ body.report-page{background:var(--ink);color:var(--white);min-height:100vh;min-h
 .report-toast{position:fixed;left:50%;bottom:112px;transform:translateX(-50%);width:min(400px,calc(100% - 28px));box-sizing:border-box;background:var(--white);color:var(--ink);border-radius:24px;padding:14px 16px;box-shadow:0 6px 30px #17120f40;font-size:14px;z-index:10}
 
 @keyframes report-spin{to{transform:rotate(360deg)}}
+@keyframes report-float{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-16px) scale(1.06)}}
+@keyframes report-pulse{0%{box-shadow:0 24px 70px #6c3bff66,0 0 0 0 #ffffff80}100%{box-shadow:0 24px 70px #6c3bff66,0 0 0 28px #fff0}}
+@keyframes report-drift-a{to{transform:translate(45%,30%) scale(1.3)}}
+@keyframes report-drift-b{to{transform:translate(-40%,-35%) scale(1.2)}}
+@keyframes report-drift-c{0%{transform:translate(0,0) scale(1)}50%{transform:translate(-45%,20%) scale(1.25)}100%{transform:translate(-10%,-30%) scale(.9)}}
 @keyframes report-print{from{clip-path:inset(0 0 100% 0)}to{clip-path:inset(0 0 0 0)}}
 @keyframes report-tick{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:none}}
 @keyframes report-land{0%{opacity:0;transform:scale(1.3)}60%{opacity:1;transform:scale(.97)}100%{transform:none}}

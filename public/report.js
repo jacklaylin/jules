@@ -54,7 +54,6 @@ function receiptCard(card){
   el('p',{className:'receipt-total',textContent:`TOTAL: ${card.total}`}),
   el('hr'),
   range&&el('p',{className:'receipt-foot',textContent:range}),
-  el('p',{className:'receipt-foot receipt-foot-strong',textContent:'WE KEPT A COPY, OBVIOUSLY'}),
   el('div',{className:'receipt-barcode','aria-hidden':'true'}));
  return el('article',{className:'story-card story-receipt','aria-label':'Your receipt'},
   el('h2',{className:'display story-title',textContent:'We have your receipts (literally)'}),
