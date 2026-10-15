@@ -31,3 +31,8 @@ test('calls outside an action are not metered, and a failed write never fails th
   assert.equal(priceFor({provider:'serpapi',units:2},{SERPAPI_COST_PER_SEARCH:'0.01'}),0.02);
   assert.equal(priceFor({provider:'openai',model:'gpt-4.1-2025-04-14',input_tokens:1e6,cached_tokens:0,output_tokens:0,web_search_calls:0}),2);
 });
+test('onUsage receives the priced rows even with no store, so a script can keep a running total',async()=>{
+  const seen=[];
+  await withUsage({env:{},conversation:null,operation:'eval:run',feature:'eval_agent',onUsage:rows=>seen.push(...rows)},async()=>{await (await fetch('https://api.openai.com/v1/responses',{method:'POST'})).json();});
+  assert.deepEqual(seen.map(r=>[r.feature,r.operation,r.conversation_id,r.cost_usd]),[['eval_agent','eval:run',null,0.0256]]);
+});

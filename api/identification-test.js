@@ -9,6 +9,7 @@ import { visualSearchProducts } from '../lib/visual-search.js';
 import { wishlistProducts } from '../lib/wishlist.js';
 import { imageType, MAX_IMAGE_BYTES } from '../lib/images.js';
 import { json, readJson, uuid } from '../lib/http.js';
+import { withUsage } from '../lib/usage.js';
 
 export const config = { api: { bodyParser: false }, maxDuration: 120 };
 export function createIdentificationTestHandler({env=process.env,auth=authorize,storeFactory=createStore,search=visualSearchProducts,textSearch=searchProducts,prepare=wishlistProducts,replay=runReplay,evalAgent=runAgentEval}={}) {
@@ -20,6 +21,9 @@ export function createIdentificationTestHandler({env=process.env,auth=authorize,
       if(req.method!=='POST')return json(res,405,{error:'Use POST.'});
       if(env.WISHLIST_ENABLED!=='true'||!env.OPENAI_API_KEY||!env.SERPAPI_API_KEY)return json(res,503,{error:'Identification and wishlist must be configured.'});
       const input=await readJson(req,4300000);
+      // Owner eval runs are metered like user actions, so the admin Costs page shows what they spend.
+      const usageStore=()=>{try{const store=storeFactory(env);return store?.recordUsage?{recordUsage:store.recordUsage}:null;}catch{return null;}};
+      const metered=(feature,work)=>withUsage({store:usageStore(),env,conversation:null,operation:'admin-eval:'+new Date().toISOString().slice(0,10),feature},work);
       if(input.action==='replay_manifest')return json(res,200,{cases:REPLAY_CASES.map(({id,name,message})=>({id,name,message}))});
       if(input.action==='agent_eval_manifest')return json(res,200,{cases:AGENT_EVAL_CASES.map(({id,category})=>({id,category}))});
       if(input.action==='agent_eval'){
@@ -28,7 +32,7 @@ export function createIdentificationTestHandler({env=process.env,auth=authorize,
         // Owner-only model comparison: the eval can run the agent on a different model for this request only.
         const model=input.model==null?null:typeof input.model==='string'&&/^gpt-[a-z0-9.-]{1,40}$/.test(input.model)?input.model:false;
         if(model===false)return json(res,400,{error:'Unsupported eval model.'});
-        return json(res,200,{report:await evalAgent(test,env,{model})});
+        return json(res,200,{report:await metered('eval_agent',()=>evalAgent(test,env,{model}))});
       }
       if(input.action==='replay'){
         let test=REPLAY_CASES.find(c=>c.id===input.case_id);
@@ -53,7 +57,7 @@ export function createIdentificationTestHandler({env=process.env,auth=authorize,
         }
         if(!test)return json(res,400,{error:'Unknown replay case.'});
         stage='reply_replay';
-        return json(res,200,{report:{...await replay(test,env),snapshot:test}});
+        return json(res,200,{report:{...await metered('eval_replay',()=>replay(test,env)),snapshot:test}});
       }
       if(input.action==='text_search_diagnostic'){
         if(!['mini_auto','standard_auto','wishlist_mini','wishlist_standard','wishlist_current','latest_checks'].includes(input.mode))return json(res,400,{error:'Choose a diagnostic mode.'});
