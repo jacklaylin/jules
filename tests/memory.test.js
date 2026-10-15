@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { validateChanges, mergeFacts, saveChanges, extractChanges, MEMORY_PROMPT, updateProfile, prevails } from '../lib/memory.js';
-import { agentTurn, tool, agentContext, toolNames } from './helpers/agent.js';
+import { agentTurn, tool, agentContext, toolNames, toolOutputs } from './helpers/agent.js';
 import { generateReply } from '../lib/ai.js';
 import { receiveInInbox } from '../lib/inbox.js';
 import { createProfileHandler } from '../api/profile.js';
@@ -58,7 +58,8 @@ test('a failed profile save is visible and never acknowledged; the replying tool
   {store,generate:(m,e,_f,memory)=>generateReply(m,e,fetcher,memory),send:async(_d,body)=>{sent.push(body);}});
  assert.equal(status,'failed');assert.deepEqual(sent,['What are you shopping for?']);
  // Alone, a failed update falls back to an honest reply instead of its acknowledgment.
- const alone=await generateReply([message],env,async()=>agentTurn(tool('update_profile',{changes:[],acknowledgment:'Noted.'})),{profileAction:async()=>{throw new Error('down');}});
+ // The model sees the failure as the tool result and writes the reply from it.
+ const alone=await generateReply([message],env,async(_u,options)=>toolOutputs(options).some(o=>o.status==='failed')?agentTurn(tool('conversation_reply',{response:'I couldn’t save that just now.'})):agentTurn(tool('update_profile',{changes:[],acknowledgment:'Noted.'})),{profileAction:async()=>{throw new Error('down');}});
  assert.doesNotMatch(alone,/Noted/);
 });
 test('the profile skill records each valid change with its quote and skips malformed ones',async()=>{

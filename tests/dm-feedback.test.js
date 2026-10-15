@@ -5,7 +5,7 @@ import {generateReply as agentReply} from '../lib/ai.js';
 import {withConsent} from './helpers/agent.js';
 // These tests cover tool routing; the consent check approves (its own tests are in agent.test.js).
 const generateReply=(messages,env,fetcher,memory)=>agentReply(messages,env,withConsent(fetcher),memory);
-import {agentTurn,tool,agentContext} from './helpers/agent.js';
+import {agentTurn,tool,agentContext,toolOutputs} from './helpers/agent.js';
 import {textWishlistAction} from '../lib/text-wishlist.js';
 import {createWishlistHandler} from '../api/wishlist.js';
 const url='https://satisfyrunning.com/products/therocker-sterling-blue';
@@ -33,7 +33,7 @@ test('an alert request selecting an item repairs invalid offer classification us
  const text='Yes those are the ones. Can you set an alert?',state={stage:'choice',options:[{url,name:'TheROCKER'}]};let calls=0,executed;
  const reply=await generateReply([{direction:'inbound',body:text}],{OPENAI_API_KEY:'test',SEARCH_ENABLED:'true'},async(_url,options)=>{
   calls++;const context=agentContext(options);
-  if(calls===2)assert.equal(context.validation_feedback.proposed_arguments.consent_context,'answer_to_offer');
+  if(calls===2){const [refused]=toolOutputs(options);assert.equal(refused.status,'not_run');assert.match(refused.error,/No matching save\/monitor offer/);}
   return agentTurn(tool('manage_price_alerts',{operation:'create',option_indices:[0],consent_context:calls===1?'answer_to_offer':'explicit_request'}));
  },{wishlistState:state,wishlistAction:async intent=>{executed=intent;return 'saved';}});
  assert.equal(calls,2);assert.equal(reply,'saved');assert.equal(executed.consent_context,'explicit_request');assert.equal(executed.consent,'wishlist_alerts');
@@ -42,7 +42,7 @@ test('invalid consent interpretation remains bounded and cannot authorize a save
  let calls=0;
  await assert.rejects(generateReply([{direction:'inbound',body:'those look interesting'}],{OPENAI_API_KEY:'test',SEARCH_ENABLED:'true'},async()=>{calls++;
   return agentTurn(tool('save_to_wishlist',{option_indices:[0],consent_context:'answer_to_offer'}));},{wishlistState:{stage:'choice',options:[{url}]},wishlistAction:()=>assert.fail('No save without consent')}));
- assert.equal(calls,2);
+ assert.equal(calls,3);
 });
 test('variant research preserves exact product identity and does not restart consent',async()=>{
  const primary={brand:'LEMAIRE',name:'Piped Crepe Slipper Loafers',url:'https://www.ssense.com/en-us/men/product/lemaire/black-piped-crepe-slipper-loafers/19440991',match:'likely_match',sourcing_status:'store_found',listing_check:{status:'verified',product_name:'Piped Crepe Slipper Loafers',color:'Black'}};

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {Readable} from 'node:stream';
 import {welcomeTester,onboardingAction,createOnboardingHandler} from '../lib/onboarding.js';
 import {generateReply} from '../lib/ai.js';
-import {agentTurn,tool,agentContext,toolNames} from './helpers/agent.js';
+import {agentTurn,tool,agentContext,toolNames,toolOutputs} from './helpers/agent.js';
 const env={ONBOARDING_ENABLED:'true',SITE_ORIGIN:'https://jules.example'};
 const conversation={id:'tester-id',sender_id:'synthetic-tester',line:'synthetic-line'};
 function fixture(state='invited'){
@@ -44,7 +44,7 @@ test('the agent sees the onboarding state, chooses the tool, and re-reads a non-
  const f=fixture('ready');let calls=0;
  const reply=await generateReply([{direction:'outbound',status:'sent',body:'save both?'},{direction:'inbound',body:'sounds good'}],{OPENAI_API_KEY:'test'},async(_url,options)=>{
   calls++;assert.equal(agentContext(options).onboarding.state,'ready');assert.ok(toolNames(options).includes('onboarding'));
-  if(calls===2)assert.equal(agentContext(options).validation_feedback.proposed_tool,'onboarding');
+  if(calls===2)assert.match(toolOutputs(options)[0].error,/does not apply to the current onboarding state/);
   return agentTurn(calls===1?tool('onboarding',{action:'accept'}):tool('conversation_reply',{response:'Which ones?'}));
  },{onboarding:{state:'ready'},onboardingAction:action=>act(f,action,'ready')});
  assert.equal(calls,2);assert.equal(reply,'Which ones?');assert.equal(f.state(),'ready');
