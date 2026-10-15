@@ -8,7 +8,7 @@ if(fragment.has('access_token'))session.save({access_token:fragment.get('access_
 if(location.hash)history.replaceState(null,'',location.pathname+location.search);
 $('connect-logo').replaceChildren(createLogo());
 const logo=createLogo();$('thinking-logo').append(logo);
-let busy=false;
+let busy=false,textURL=false;
 async function api(action){
  const token=await session.token();
  if(!token){$('login').hidden=false;throw Error('Log in with the number you text Jules from to continue.');}
@@ -26,6 +26,7 @@ function completed(data){
 async function load(){
  $('retry').hidden=true;
  try{const data=await api();$('status').textContent='';
+  if(data.text_url){$('open-messages').href=data.text_url;textURL=true;}
   if(data.gmail_available){await loadGmail();return;}
   if(data.state==='ready'){
     thinking();$('thinking-message').textContent='Taking you to your wishlist…';
@@ -57,26 +58,24 @@ function renderGmail(data){
  $('connect').hidden=$('thinking').hidden=true;
  gmailConnection=data.connected;expandedConsent=Boolean(data.consent_required);
  $('gmail-connect').hidden=data.connected&&(!expandedConsent||working);
- $('gmail-connect-button').textContent=data.connected?'Approve expanded import':'Connect Gmail ↗';$('gmail-history').hidden=!data.connected&&!data.items.length;
- $('gmail-history-title').textContent=working?'Purchases found so far.':'Your purchase history.';
- $('gmail-account').textContent=data.account?'Connected account: '+data.account:'';
+ $('gmail-connect-button').textContent=data.connected?'Approve expanded import':'Connect Gmail ↗';$('gmail-history').hidden=!data.connected&&!data.items.length;$('demo-wishlist').hidden=true;
  const running=['listing','extracting','questions'].includes(data.status);
- $('gmail-progress').textContent=data.status==='ready'?`Import complete: ${data.items.length} purchase ${data.items.length===1?'item':'items'} found in ${data.processed} matching emails.`:data.status==='listing'?'Finding matching shopping emails…':data.status==='questions'?'Selecting the most useful questions…':data.status==='extracting'?`Reviewed ${data.processed} matching emails; ${data.total} found so far.`:data.status==='paused'?'Import paused. Reconnect Gmail to continue.':data.connected?'Gmail connected. Ready to import.':'';
- $('gmail-loader').hidden=true;
+ $('gmail-history-title').textContent=data.status==='ready'?'All done.':running?'Still reading.':'Your Gmail connection.';
+ $('gmail-progress').textContent=data.status==='ready'?'':data.status==='listing'?'Finding your shopping emails…':data.status==='questions'?'Almost done…':data.status==='extracting'?`Checked ${data.processed.toLocaleString()} ${data.processed===1?'email':'emails'} so far.`:data.status==='paused'?'Import paused. Reconnect Gmail to continue.':data.connected?'Gmail connected. Ready to import.':'';
  if(running&&!data.failed){
-  $('gmail-history').hidden=!data.first_100;$('thinking').hidden=false;$('demo-disclosure').hidden=true;$('thinking-loader').hidden=false;
+  $('gmail-history').hidden=true;$('thinking').hidden=false;$('demo-disclosure').hidden=true;$('thinking-loader').hidden=false;
   logo.classList.add('logo--thinking');$('thinking-title').textContent='Reading your receipts.';
   $('playful').textContent=$('gmail-progress').textContent;
   $('thinking-message').textContent=data.background?'You can close this screen. We’ll text you when it’s done.':'Keep this screen open while Jules reads.';
  }else{logo.classList.remove('logo--thinking');$('thinking').hidden=true;}
 
- $('gmail-notice').textContent=[running?data.background?'You can close this screen. We’ll text you when it’s done.':'Keep this page open to finish the import.':'',data.limited?`The ${data.limit.toLocaleString()}-email limit was reached; this history is partial.`:'',data.warnings?`${data.warnings} ${data.warnings===1?'email has':'emails have'} unreadable, unsupported or truncated content; their readable evidence was retained.`:'',data.changed_sources?`${data.changed_sources} changed emails were held separately; prior corrections remain. Text Jules to correct an item.`:'',data.pending_events?`${data.pending_events} shopping events could not be safely linked to purchases and remain unresolved.`:'',data.failed?'The import paused. Resume to continue without losing completed work.':''].filter(Boolean).join(' ');
- $('gmail-start').hidden=running||!data.connected||expandedConsent;$('gmail-start').textContent=data.status==='ready'?'Import again':'Import five years';$('gmail-resume').hidden=!running;
- $('gmail-disconnect').hidden=!data.connected;
- const early=data.first_100,latest=data.yield;
- $('gmail-yield').textContent=early&&latest?`The first 100 emails found ${early.purchases} new purchase items. Later emails added ${Math.max(0,latest.purchases-early.purchases)} more.`:'';
+ // Purchase details and import diagnostics are internal (Admin › People); testers hear results by text.
+ $('gmail-notice').textContent=data.failed&&running?'The import paused. Jules will keep trying automatically, or you can resume now.':'';
+ $('text-followup').hidden=data.status!=='ready';
+ $('open-messages').hidden=data.status!=='ready'||!textURL;
+ // Onboarding only links, shows progress and finishes; re-imports and removal live on /account.
+ $('gmail-start').hidden=data.status!=='not_started'||!data.connected||expandedConsent;$('gmail-resume').hidden=!(running&&data.failed);
  renderSources(data);
- $('gmail-items').replaceChildren();for(const item of data.items){const li=document.createElement('li');li.textContent=[item.brand,item.product,item.merchant&&'from '+item.merchant,item.size_label&&'size '+item.size_label,item.color,item.quantity&&'quantity '+item.quantity,item.recipient.value==='self'?(item.recipient.basis==='receipt_evidence'?'likely for you':'for you'):item.recipient.value==='other'?(item.recipient.basis==='receipt_evidence'?'likely a gift':'for '+(item.recipient.label||'someone else')):'recipient unknown',item.outcome.value!=='unknown'?item.outcome.value:null].filter(Boolean).join(' · ');$('gmail-items').append(li);}
 }
 let poll;
 async function runImport(resume=false){
@@ -99,7 +98,7 @@ function renderSources(data){
   el('orders').hidden=!(data.connections_available??[]).includes(name);el('title').textContent=c.connected?`Your ${source.label} ${source.noun}`:`Add your ${source.label} ${source.noun}`;
   el('consent-label').hidden=el('connect').hidden=c.connected||approving;
   el('approve').hidden=!approving;el('code').textContent=c.user_code??'';if(c.verification_url)el('approve-link').href=c.verification_url;
-  el('import').hidden=el('reread').hidden=el('disconnect').hidden=!c.connected||c.status==='extracting';
+  el('import').hidden=el('reread').hidden=el('disconnect').hidden=true;
   el('progress').textContent=[approving?`Waiting for you to approve Jules in ${source.label}…`:c.status==='extracting'?`Reading your ${source.label} ${source.noun}: ${c.processed} of ${c.processed+c.queued}.`:c.status==='ready'?`${source.label} ${source.noun} imported: ${c.found} checked.`:c.connected?`${source.label} connected.`:'',c.error??''].filter(Boolean).join(' ');
  }
 }
@@ -133,6 +132,4 @@ async function loadGmail(){
 $('gmail-connect-button').onclick=async()=>{if(!$('gmail-consent').checked){$('status').textContent='Review and confirm receipt analysis consent first.';return;}$('gmail-connect-button').disabled=true;try{if(gmailConnection){await gmailAPI('start',{consent:gmailConsentVersion});await runImport();}else{const data=await gmailAPI('connect',{consent:gmailConsentVersion});location.assign(data.url);}}catch(error){$('status').textContent=error.message;$('gmail-connect-button').disabled=false;}};
 $('gmail-start').onclick=async()=>{try{await gmailAPI('start');await runImport();}catch(error){$('status').textContent=error.message;}};
 $('gmail-resume').onclick=()=>runImport(true);
-$('gmail-disconnect').onclick=async()=>{try{renderGmail(await gmailAPI('disconnect'));$('status').textContent='Gmail disconnected. Imported history remains saved.';}catch(error){$('status').textContent=error.message;}};
-$('gmail-delete').onclick=async()=>{if(!confirm('Delete imported history and its receipt-derived learning? This also disconnects Gmail and Shop. Independent shopping preferences remain.'))return;try{renderGmail(await gmailAPI('delete-history',{confirm:true}));$('status').textContent='Imported history deleted. Gmail and Shop are disconnected.';}catch(error){$('status').textContent=error.message;}};
 await load();

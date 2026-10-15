@@ -25,7 +25,8 @@ mountHeader('wishlist');
 const nav=()=>document.querySelector('.header-actions');
 
 test('shared navigation exposes both companion pages, marks the current page, and keeps restricted actions hidden',()=>{
- const controls=nav().children;assert.deepEqual(controls.filter(c=>c.href).map(c=>c.href),['/wishlist','/style','/admin']);
+ const controls=nav().children;assert.deepEqual(controls.filter(c=>c.href).map(c=>c.href),['/wishlist','/style','/admin','/account']);
+ const account=controls.find(c=>c.href==='/account');assert.ok(account.className.includes('nav-account'),'account is shown as an avatar');
  assert.equal(controls[0].getAttribute('aria-current'),'page');assert.equal(controls[1].getAttribute('aria-current'),undefined);
  assert.equal(document.querySelector('#admin-link').hidden,true);assert.equal(document.querySelector('#logout').hidden,true);
 });

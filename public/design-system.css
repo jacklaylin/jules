@@ -219,6 +219,11 @@ fieldset label input[type=radio]{accent-color:var(--grape)}
 .nav-mark{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;flex:none;align-self:flex-start;margin-top:3px}.nav-mark .orb{--s:14px;display:none}
 .nav-item[aria-current=page] .nav-mark .orb,.nav-item:hover .nav-mark .orb,.nav-item:focus-visible .nav-mark .orb{display:inline-block}
 .nav-item:not([aria-current=page]):not(:hover):not(:focus-visible) .nav-mark{width:0}
+/* Account avatar: an icon in the desktop bar, a labelled row in the phone menu. */
+.nav-account .avatar{display:inline-grid;place-items:center;width:38px;height:38px;border-radius:50%;background:var(--fog);border:1px solid var(--line);color:var(--ink);flex:none;transition:border-color .15s}
+.header-actions .nav-account .nav-text{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.header-actions .nav-account:hover .avatar,.header-actions .nav-account:focus-visible .avatar,.header-actions .nav-account[aria-current=page] .avatar{border-color:var(--grape)}
+.mobile-menu .nav-account .nav-text{position:static;width:auto;height:auto;clip:auto}.mobile-menu .nav-account .avatar{width:48px;height:48px;order:-1}
 .menu-toggle{display:none}.menu-open{overflow:hidden}
 .mobile-menu{width:100%;height:100dvh;max-width:none;max-height:none;margin:0;border:0;border-radius:0;padding:0 var(--page-gutter) max(24px,env(safe-area-inset-bottom));background:var(--white);box-shadow:none;overflow:auto}
 .mobile-menu[open]{display:flex;flex-direction:column;animation:enter .2s ease both}
@@ -232,6 +237,10 @@ fieldset label input[type=radio]{accent-color:var(--grape)}
 @media(prefers-reduced-motion:reduce){.mobile-menu[open]{animation:none}}
 
 /* Owner admin console: the standard header above, and a tool menu that stays in view below the compact header. */
+/* Pages keep the same width whether or not they scroll, so switching tools never shifts content sideways. */
+html{scrollbar-gutter:stable}
+/* Before the shell script runs, main already sits where the layout will put it (left menu, or the phone strip). */
+body.admin-console>main{padding:var(--page-top) var(--page-gutter) 80px calc(var(--page-gutter) + 270px)}
 body.admin-console{--admin-sticky:64px}
 .admin-layout{display:grid;grid-template-columns:230px minmax(0,1fr);padding:var(--page-top) var(--page-gutter) 0}
 .admin-nav{position:sticky;top:var(--admin-sticky);align-self:start;max-height:calc(100dvh - var(--admin-sticky));overflow:auto;padding:4px 24px 28px 0;border-right:1px solid var(--line);display:grid;gap:24px}
@@ -245,4 +254,37 @@ body.admin-console{--admin-sticky:64px}
  .admin-layout{grid-template-columns:minmax(0,1fr)}
  .admin-nav{z-index:9;background:var(--white);max-height:none;display:flex;gap:6px;overflow-x:auto;padding:8px 0;margin-top:calc(var(--page-top)*-1);border-right:0;border-bottom:1px solid var(--line);scrollbar-width:none}
  .admin-nav-group{display:contents}.admin-nav h2,.admin-nav a small{display:none}.admin-nav a{flex:none;white-space:nowrap;display:flex;align-items:center;font-size:14px}
- .admin-layout>main,.admin-gate{padding:24px 0 60px}}
+ .admin-layout>main,.admin-gate{padding:24px 0 60px}
+ body.admin-console>main{padding:85px var(--page-gutter) 60px}}
+
+/* Admin data components (from the admin design handoff). Status is never colour alone: each badge has a glyph and a word. */
+:root{--ok-bg:#E3F2EA;--ok-text:#14573A;--warn-bg:#FFF0C2;--warn-text:#6B4A00;--fail-bg:#FBE3E0;--fail-text:#9B1C14;--info-text:#4A433E;--grape-tint:#F7F3FF}
+.badge{display:inline-flex;align-items:center;gap:6px;font:600 12px/1 var(--font-sans);padding:6px 10px 6px 7px;border-radius:999px;white-space:nowrap;background:var(--fog);color:var(--info-text)}
+.badge::before{content:"i";display:inline-grid;place-items:center;width:15px;height:15px;border-radius:50%;border:1.5px solid currentColor;font:700 9px/1 var(--font-mono)}
+.badge.ok{background:var(--ok-bg);color:var(--ok-text)}.badge.ok::before{content:"✓"}
+.badge.warn{background:var(--warn-bg);color:var(--warn-text)}.badge.warn::before{content:"!"}
+.badge.fail{background:var(--fail-bg);color:var(--fail-text)}.badge.fail::before{content:"×"}
+.badge.plain::before{display:none}.badges{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+.tabs a{display:flex;align-items:center;gap:8px;min-height:44px;padding:0 16px;text-decoration:none;font-weight:600;color:var(--text-2);border-bottom:3px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.tabs a:hover{color:var(--ink)}.tabs a[aria-current=page]{color:var(--ink);border-bottom-color:var(--ink)}.tabs .count{font:500 11px var(--font-mono);color:var(--text-2)}
+.filter-chips{display:flex;gap:6px;flex-wrap:wrap}
+.filter-chips button{min-height:36px;padding:0 14px;border:1px solid var(--line);box-shadow:none;font-size:14px;transform:none}.filter-chips button::after{display:none}
+.filter-chips button[aria-pressed=true]{background:var(--ink);color:var(--white);border-color:var(--ink)}
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:20px 0}.toolbar .spacer{flex:1}
+.toolbar input,.toolbar select{margin-top:0;width:auto;min-width:0}
+button.small{min-height:32px;padding:0 14px;font-size:13px}
+.data-table{width:100%;border-collapse:collapse}.table-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:16px}
+.data-table th{background:var(--fog);text-align:left;padding:9px 12px;font:500 11px/1.2 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--info-text);border-bottom:1px solid var(--line);white-space:nowrap}
+.data-table td{padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:middle}.data-table tr:last-child td{border-bottom:0}
+.data-table .num{font:400 13px var(--font-mono);text-align:right}.data-table input{margin-top:0;min-height:36px;border-radius:10px;padding:0 10px}
+.data-table tr.dirty td{background:var(--grape-tint)}.data-table tr.dirty input{border-color:var(--grape);box-shadow:0 0 0 2px #6C3BFF33}
+.mono-label{font:500 11px/1.4 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--text-2)}
+.stats{display:flex;flex-wrap:wrap;gap:28px;margin:14px 0 20px}.stats div{display:grid;gap:4px}.stats strong{font:500 15px var(--font-mono)}
+.breadcrumb{font-size:14px;color:var(--text-2);margin-bottom:8px}.breadcrumb a{color:var(--text-2)}
+.fold{border:1px solid var(--line);border-radius:16px;padding:0 16px;margin:16px 0}.fold>summary{min-height:44px;display:flex;align-items:center;gap:10px;cursor:pointer;list-style:none;font-weight:600}
+.fold>summary::-webkit-details-marker{display:none}.fold>summary::after{content:"+";margin-left:auto;font:500 16px var(--font-mono)}.fold[open]>summary::after{content:"–"}.fold>:not(summary){margin-bottom:16px}
+.notice-bar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:12px 16px;border-radius:16px;background:var(--warn-bg);color:var(--warn-text);margin:12px 0}
+.notice-bar.fail{background:var(--fail-bg);color:var(--fail-text)}
+.empty-state{padding:28px;text-align:center;color:var(--text-2);border:1px dashed var(--line);border-radius:16px}
+.sr-only,.visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
