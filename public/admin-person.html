@@ -8,7 +8,7 @@
 <body class="admin-console">
   <main>
     <p class="breadcrumb"><a href="/admin">People</a> / <span id="crumb">…</span></p>
-    <div class="person-title"><h1 id="person-name">Loading…</h1><div id="person-badges" class="badges"></div></div>
+    <div class="person-title"><h1 id="person-name">Loading…</h1><div id="person-badges" class="badges"></div><button id="reset-onboarding" class="small" type="button" aria-haspopup="dialog">Reset onboarding</button></div>
     <div class="stats"><div><span class="mono-label">Last active</span><strong id="stat-active">—</strong></div><div><span class="mono-label">Messages</span><strong id="stat-messages">—</strong></div><div><span class="mono-label">Memory facts</span><strong id="stat-facts">—</strong></div></div>
     <nav class="tabs" aria-label="Person sections">
       <a href="?tab=memory" data-tab="memory">Personal memory <span class="count" id="count-memory"></span></a>
@@ -48,5 +48,17 @@
       <div id="wishlist-list" class="wishlist-list"></div>
     </section>
   </main>
+  <dialog id="reset-dialog" class="confirm-dialog" aria-labelledby="reset-title">
+    <h2 id="reset-title">Reset onboarding?</h2>
+    <p>Use this to re-test signup and onboarding with <strong id="reset-person">this number</strong>. It removes, for this person only:</p>
+    <ul>
+      <li>The welcome text and other onboarding texts Jules sent, from the Conversation tab and the send record, so they can be sent again. Texts already on their phone stay there.</li>
+      <li>Imported history: Gmail and Shop are disconnected and every purchase found in them is deleted, exactly as <em>Delete imported history</em> on their account page does. Preferences learned only from that history go with it.</li>
+      <li>Onboarding progress: it goes back to invited, so signing up again with this number sends the welcome text.</li>
+    </ul>
+    <p>Kept: their other saved preferences, wishlist, price alerts, signup details and the rest of the conversation. Nobody else is affected. This can’t be undone.</p>
+    <p id="reset-error" class="error" role="alert" hidden></p>
+    <div class="dialog-actions"><button id="reset-confirm" class="btn--butter" type="button">Reset onboarding</button><button id="reset-cancel" type="button">Cancel</button></div>
+  </dialog>
 </body>
 </html>
