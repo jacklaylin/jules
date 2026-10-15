@@ -81,7 +81,7 @@ test('scheduler authentication prevents all database access',async()=>{
 test('accepted notification followed by failed persistence recovers without resending or changed-body conflicts',async()=>{
  const store=cronStore();let sends=0,amount=80;
  store.recordPriceCheck=async()=>{throw new Error('offline');};
- const handler=createPriceChecksHandler({env:{CRON_SECRET:'test-cron-secret',PRICE_ALERTS_ENABLED:'true'},storeFactory:()=>store,inspect:async()=>({checks:[{offers:[offer(amount)]}]}),send:async(_delivery,body)=>{sends++;assert.match(body,/Your size is available now/);assert.ok(body.includes(url));}});
+ const handler=createPriceChecksHandler({env:{CRON_SECRET:'test-cron-secret',PRICE_ALERTS_ENABLED:'true'},storeFactory:()=>store,inspect:async()=>({checks:[{offers:[offer(amount)]}]}),send:async(_delivery,body)=>{sends++;assert.match(body,/your size is available now/);assert.ok(body.includes(url));}});
  await handler(cronReq,response());amount=75;await handler(cronReq,response());assert.equal(sends,1);
 });
 test('uncertain sends are not resent; cancelled alerts do not send',async()=>{
