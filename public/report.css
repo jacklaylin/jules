@@ -125,3 +125,34 @@ body.report-page{background:var(--ink);color:var(--white);min-height:100vh;min-h
 .report-link{padding:0;border:0;border-radius:0}
 @media (hover:hover) and (pointer:fine){.report-tap:hover,.report-icon-button:hover,.report-pill-button:hover,.report-toggle:hover,.report-link:hover{transform:none}}
 .is-still *{animation:none!important}
+
+/* Desktop "Stage" (design canvas, Desktop · A). Only the card stays phone-shaped: it sits in the
+   middle of the window as large as the height allows; the wordmark, progress, close, arrows and the
+   feedback controls move out to the window. Phones keep the full-screen story above. */
+.report-home,.report-arrow,.report-keys,.report-controls-label,.report-progress-label{display:none}
+.report-progress-wrap{flex:1;display:flex;flex-direction:column}
+@media (min-width:900px) and (min-height:600px){
+ .report-player{--card-h:min(736px,100dvh - 170px);--card-w:calc(var(--card-h)*9/16);max-width:none;max-height:none;height:100dvh;margin:0;border-radius:0;isolation:isolate}
+ .report-player::before{content:"";position:absolute;z-index:-1;left:50%;top:50%;width:calc(var(--card-w) * 1.3);height:calc(var(--card-h) * .9);transform:translate(-50%,-46%);border-radius:50%;background:radial-gradient(circle,var(--tangerine) 0,#ff7a2f00 70%);filter:blur(50px);opacity:.45;pointer-events:none}
+ .report-top{height:88px;padding:0 40px;align-items:center;gap:32px}
+ .report-home{display:flex;color:var(--white);text-decoration:none}.report-home .report-wordmark{font-size:34px}
+ .report-progress-wrap{flex:none;width:var(--card-w);position:absolute;left:50%;top:22px;transform:translateX(-50%);gap:8px}
+ .report-progress{padding-top:0}
+ .report-progress-label{display:block;margin:0;text-align:center;color:#ffffffb3}
+ .report-close{margin:0 0 0 auto;width:48px;height:48px;border:1.5px solid #ffffff59}
+ .report-card{position:absolute;left:50%;top:max(96px,50% - var(--card-h)/2 + 20px);transform:translateX(-50%);width:var(--card-w);height:var(--card-h);padding:20px 0 16px;box-sizing:border-box;border-radius:22px;background:var(--ink);border:1px solid #ffffff1f;box-shadow:0 30px 80px #00000080;overflow:hidden}
+ .report-tap{display:none}
+ .report-arrow{display:flex;position:absolute;top:50%;transform:translateY(-50%);width:56px;height:56px;border-radius:50%;border:1.5px solid #ffffff59;background:#ffffff0d;color:var(--white);align-items:center;justify-content:center;padding:0;cursor:pointer;box-shadow:none;z-index:2}
+ .report-arrow::after{display:none}
+ .report-arrow-prev{left:calc(50% - var(--card-w)/2 - 88px)}
+ .report-arrow-next{left:calc(50% + var(--card-w)/2 + 32px);background:var(--white);color:var(--ink);border-color:var(--white)}
+ .report-arrow:disabled{opacity:.3;cursor:default}
+ .report-arrow:hover:not(:disabled){transform:translateY(-50%) scale(1.06)}
+ .report-arrow:focus-visible{outline:3px solid var(--grape);outline-offset:3px}
+ .report-keys{display:block;position:absolute;left:40px;bottom:52px;margin:0;color:#ffffff80}
+ .report-controls{inset:auto 40px 52px auto;width:300px;padding:0;background:none;flex-wrap:wrap;gap:10px}
+ .report-controls-label{display:block;width:100%;margin:0 0 2px;color:#ffffffb3}
+ /* Sheets open as centred dialogs instead of rising from the bottom. */
+ .report-sheet{margin:auto;border-radius:24px}
+ .report-toast{bottom:40px}
+}
