@@ -114,7 +114,7 @@ test('a second failed message sends the plain factual draft, never the wrong wor
   const body = await generateReply(say('find the peyter pants'), env, fetcher, { ...shop.memory, onReply:name => { final = name; } });
   assert.ok(body.includes(url)); assert.match(body, /\$795\.00/); assert.doesNotMatch(body, /\$500|\$450/);
   // The plain draft is final: the inbox does not rewrite it again.
-  assert.equal(final, 'agent_reply');
+  assert.equal(final, 'agent_plain');
 });
 
 test('a conversation-only message may repeat prices and links already in the conversation, not new ones', async () => {
@@ -214,4 +214,6 @@ test('inbox: a save approved in the loop is committed before the message, which 
   assert.deepEqual(events, ['persist', 'prepare', 'send', 'sent']);
   assert.equal(sends.length, 1); assert.match(sends[0], /added the Peyter pants/);
   assert.equal(stored.user_confirmed, true); assert.equal(payload[0].links[0].price_snapshot, null);
+  // Chat metrics read who wrote the sent text from the stored outcome.
+  assert.equal(stored.composed_by, 'model');
 });
