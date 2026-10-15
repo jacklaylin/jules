@@ -429,6 +429,10 @@ Brands that showed up in tester histories but weren't on the list. Labels that c
 | Cherry Los Angeles | 60 | M | T | M | Americana menswear, very insider |
 | Tekla | 65 | P | C | A | Danish bedding and sleepwear, design-crowd famous |
 | CDLP | 70 | P | C | M | Swedish underwear, a menswear-nerd staple |
+| Ondo | 20 | M | N | A | Sock brand, low on the niche scale (founder) |
+| SquidHaus | 30 | V | T | A | Instagram brand, low-medium (founder) |
+| Sown Again | 45 | V | T | A | Instagram T-shirt brand (founder) |
+| KVRT STVFF | 75 | M | T | M | Queer cult label, niche and kinda cool (founder) |
 
 ## Stores, multi-brand and resale (store row used only when the item's brand is unknown)
 

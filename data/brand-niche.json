@@ -2491,6 +2491,34 @@
    "for": "M"
   },
   {
+   "name": "Ondo",
+   "niche": 20,
+   "tier": "M",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "SquidHaus",
+   "niche": 30,
+   "tier": "V",
+   "lean": "T",
+   "for": "A"
+  },
+  {
+   "name": "Sown Again",
+   "niche": 45,
+   "tier": "V",
+   "lean": "T",
+   "for": "A"
+  },
+  {
+   "name": "KVRT STVFF",
+   "niche": 75,
+   "tier": "M",
+   "lean": "T",
+   "for": "M"
+  },
+  {
    "name": "Goodhood",
    "niche": 60,
    "tier": "P",
