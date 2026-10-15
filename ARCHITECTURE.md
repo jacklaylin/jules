@@ -62,6 +62,17 @@ Every message goes to one agent (`generateReply` in `lib/ai.js`): one model call
 
 Structured arguments replace wording rules: the agent passes `department` (men/women/unisex/unspecified) and `for_someone_else` with each search, so code never parses "for my wife" or "women's" out of text. Consent for saves and alerts is checked in code against the actual offer and options (`invalidOfferConsent`, `selectionOutcome`). Previously there were four separate model calls or routers per message (onboarding, purchase-history check, memory extraction, then one of two interpreters); now there is one.
 
+## How replies are written
+
+Jules has no fixed reply text. When a tool's result is drafted by code (search results, saves, alerts, size questions, notifications), `lib/compose.js` gives the model that draft as a factual outcome, along with the recent turns and `VOICE.md`. The model writes the message. Code then checks the message before sending:
+- every link in the draft is present unchanged, and no other links are added;
+- no price appears that the draft didn't state;
+- the model's structured `claims` (`saved_now`, `alerts_turned_on`, `alerts_turned_off`) match what this turn actually did.
+
+A message that fails the checks gets one retry, listing the problems. Replies the agent already wrote itself (`conversation_reply`, `profile_status`, `wishlist_status`, a profile acknowledgment) are sent as written. The draft goes out unchanged in two cases: the model is unreachable, or both attempts fail the checks. The only other fixed text is the reply when the agent itself fails, and the `#dev` acknowledgment. Notifications sent through `deliverReply` (price alerts, onboarding, purchase questions, save confirmations) are composed the same way; the stored message is the text actually sent.
+
+Alert sizing is structured too. The agent tags each alerted option as `footwear`, `apparel` or `one_size` (`option_sizing`). A saved shoe size applies only to footwear. A one-size item is watched under the `One size` key, priced from the listing offer bound to its exact URL, and only when the page lists no other sizes.
+
 ## Product search: which source runs when
 
 Cheapest reliable source first; the model-driven web search (`gpt-4.1` + web search, the most expensive and slowest step) is the fallback.

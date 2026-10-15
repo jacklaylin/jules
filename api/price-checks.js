@@ -1,3 +1,5 @@
+import { composeReply } from '../lib/compose.js';
+const TEST_LABEL='[Test alert — not a real price]\n';
 import { timingSafeEqual, randomUUID } from 'node:crypto';
 import { createStore } from '../lib/store.js';
 import { inspectAlertLinks, sizeKey } from '../lib/price-alerts.js';
@@ -37,7 +39,7 @@ export async function checkAlert(alert,{store,env,inspect,discover,send,discover
     const conversation=await store.conversation(alert.conversation_id);
     const operation=`price-alert:${alert.id}:${alert.revision}:${decision.event.fingerprint}`;
     const existing=await store.operation(operation);
-    const result=existing?{status:existing.status,duplicate:true}:await deliverReply({store,send,conversation,operation,body:decision.event.body,source:'operator',env});
+    const result=existing?{status:existing.status,duplicate:true}:await deliverReply({store,send,conversation,operation,body:decision.event.body,source:'operator',env,purpose:'price_alert'});
     delivery=result.status;duplicate=Boolean(result.duplicate);
     if(result.status==='sent'&&decision.after_send)baselines=decision.after_send;
   }
@@ -81,7 +83,9 @@ async function simulate(req,res,{env,store,send}){
   if(input.deliver===true&&decision.event){
     if(!env.PRICE_ALERT_TEST_CONVERSATION_ID||alert.conversation_id!==env.PRICE_ALERT_TEST_CONVERSATION_ID)return json(res,403,{error:'Test delivery is limited to the designated test conversation.'});
     const conversation=await store.conversation(alert.conversation_id);
-    delivery=(await deliverReply({store,send,conversation,operation:`price-alert-test:${alert.id}:${randomUUID()}`,body:'[Test alert — not a real price]\n'+decision.event.body,source:'operator',env})).status;
+    delivery=(await deliverReply({store,send,conversation,operation:`price-alert-test:${alert.id}:${randomUUID()}`,body:TEST_LABEL+decision.event.body,source:'operator',env,purpose:'price_alert',
+      // The label is re-added after composing, so the test shows the exact message a user would get.
+      compose:async args=>{const c=await composeReply({...args,draft:decision.event.body});return c.composed?{...c,body:TEST_LABEL+c.body}:{...c,body:args.draft};}})).status;
   }
   return json(res,200,{status:decision.status,event:decision.event?.kind??null,message:decision.event?.body??null,next_baselines:decision.after_send??decision.establish??null,record:decision.record,delivery});
 }
