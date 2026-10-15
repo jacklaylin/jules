@@ -25,13 +25,29 @@ function history(){
  return {rows,state,tags};
 }
 
+test('counts leave out returns, and one product ordered in several sizes counts once',()=>{
+ seq=0;
+ const rows=[
+  // One order, two jackets each in a range of sizes: ordering a range to keep one is two products, not five.
+  ...['M','L'].flatMap(size=>buy({product:'Brilliant',merchant:'Salomon',brand:'Salomon',order_reference:'SL1',size_label:size})),
+  ...['M','L','XL'].flatMap(size=>buy({product:'Venom',merchant:'Salomon',brand:'Salomon',order_reference:'SL1',size_label:size})),
+  ...buy({product:'XT-6',merchant:'Salomon',brand:'Salomon',order_reference:'SL2'}),
+  ...buy({product:'XT-6 Aegean',merchant:'Salomon',brand:'Salomon',order_reference:'SL3'},{returned:true}),
+  ...Array.from({length:3},(_,k)=>buy({product:'Tee '+k,merchant:'COS',brand:'COS',order_reference:'C'+k})).flat(),
+ ];
+ const state=projectReceiptEvidence(owner,rows).state,r=receiptLines(state,{});
+ const salomon=r.lines.find(l=>l.key==='brand:salomon'||l.key==='store:salomon');
+ assert.equal(salomon.n,3,'Brilliant, Venom and the kept XT-6');
+ assert.equal(r.lines.find(l=>l.key==='returns').n,1,'the return is still its own private line');
+});
+
 test('the receipt counts real purchases: repeated item types, stores, brands and a dominant colour',()=>{
  const {state,tags}=history(),r=receiptLines(state,tags);
  assert.equal(r.eligible,true);
  const byKey=Object.fromEntries(r.lines.map(l=>[l.key,l]));
  assert.equal(byKey['type:muscle half crop top'].label,'MUSCLE HALF CROP TOPS');assert.equal(byKey['type:muscle half crop top'].n,6);
  assert.equal(byKey['store:john elliott'].label,'JOHN ELLIOTT ORDERS');assert.equal(byKey['store:john elliott'].n,6);
- assert.equal(byKey['colour:black'].label,'BLACK ANYTHING');assert.equal(byKey['colour:black'].n,8);
+ assert.equal(byKey['colour:black'].label,'BLACK ANYTHING');assert.equal(byKey['colour:black'].n,7,'the returned black overshirt is not counted');
  // A group line is dropped when an item-type line from the same group says it better.
  assert.ok(!r.lines.some(l=>l.key==='group:tops'));
  // Returns are a private line.
