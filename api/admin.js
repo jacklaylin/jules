@@ -2,6 +2,8 @@ import { authorize } from '../lib/auth.js';
 import { createStore } from '../lib/store.js';
 import { json, readJson, uuid } from '../lib/http.js';
 import { purchaseReview, reviewPurchase, reportMissedPurchase } from '../lib/purchase-review.js';
+import { groupWishlist } from '../lib/wishlist.js';
+import { marketEnvironment } from '../lib/shopping-market.js';
 
 export const config = { api: { bodyParser: false }, maxDuration: 30 };
 // Owner view. Conversations are read-only (Jules replies automatically); the owner can review and
@@ -32,6 +34,7 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
       const conversation = await store.conversation(id);
       if (!conversation) return json(res, 404, { error: 'Conversation not found.' });
       if (query.get('view') === 'purchases') return json(res, 200, await purchaseReview(store, id));
+      if (query.get('view') === 'wishlist') return json(res, 200, await personWishlist(store, id, env));
       let before;
       if (query.has('before')) {
         try { before = JSON.parse(query.get('before')); } catch { return json(res, 400, { error: 'Invalid history cursor.' }); }
@@ -45,5 +48,19 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
       return json(res, [400, 409, 413, 415].includes(error.status) ? error.status : 503, { error: 'Could not load this view. Refresh and try again.' });
     }
   };
+}
+// A person's saved items with each item's price alert, for the owner's Wishlist tab. Test texts
+// stay limited to the designated test conversation; for everyone else the tab only previews.
+async function personWishlist(store, id, env) {
+  const alertsOn = env.PRICE_ALERTS_ENABLED === 'true';
+  const [rows, alerts, profile] = await Promise.all([store.wishlistEntries(id), alertsOn ? store.priceAlerts(id) : [], store.profile(id)]);
+  const market = marketEnvironment(profile?.facts ?? [], env);
+  const items = groupWishlist(rows, { currency: market.SHOPPING_CURRENCY, country: market.SHOPPING_COUNTRY }).map(({ entries, ...item }) => {
+    const alert = alerts.find(a => a.group_id === item.id);
+    return { ...item, price_alert: alert ? { id: alert.id, active: alert.active, size: alert.size, last_checked_at: alert.last_checked_at, notified: alert.notified,
+      links: (alert.links ?? []).map(l => l.url), baselines: (alert.baselines ?? []).map(({ amount, currency, url, available }) => ({ amount, currency, url, available })),
+      stock: alert.last_result?.stock ?? null } : null };
+  });
+  return { items, alerts_enabled: alertsOn, test_delivery: Boolean(env.PRICE_ALERT_TEST_CONVERSATION_ID) && env.PRICE_ALERT_TEST_CONVERSATION_ID === id };
 }
 export default createAdminHandler();
