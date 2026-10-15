@@ -28,6 +28,12 @@ function showTab(tab, push = false) {
 }
 for (const link of document.querySelectorAll('.tabs a')) link.onclick = event => { event.preventDefault(); showTab(link.dataset.tab, true); };
 addEventListener('popstate', () => showTab(new URLSearchParams(location.search).get('tab')));
+// The More menu is the same on every tab; an action that belongs to another tab (re-check, tag purchases) opens that
+// tab first, so its progress and result show. Capture runs before the action's own click handler.
+$('person-more').addEventListener('click', event => {
+  const tab = event.target.closest('[data-opens-tab]')?.dataset.opensTab;
+  if (tab && tab !== new URLSearchParams(location.search).get('tab')) showTab(tab, true);
+}, true);
 
 // ---------- Conversation ----------
 let messages = [], cursor = null, imageURLs = [];
