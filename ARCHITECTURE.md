@@ -42,7 +42,7 @@ Receipts come only from Gmail (receipts texted to Jules are a planned `chat`-ori
 
 ## The agent and its skills
 
-Every message goes to one agent (`generateReply` in `lib/ai.js`): one model call, one tool list, `tool_choice: required`. The agent sees the conversation, any photos, and an application-context block (data, not instructions): pending options, saved wishlist with alert status, saved profile beliefs, message references, onboarding state, and whether purchase history exists. It calls exactly one replying tool, plus `update_profile` alongside it when the message also states a durable fact. If code rejects the call (for example, accepting an offer that was never made), the agent gets one retry with the validation feedback; it never guesses consent.
+Every message goes to one agent (`generateReply` in `lib/ai.js`): one model call, one tool list, `tool_choice: required`. The agent sees the conversation, any photos, and an application-context block (data, not instructions): pending options, saved wishlist with alert status, saved profile beliefs, message references, onboarding state, and whether purchase history exists. It calls exactly one replying tool, plus `update_profile` alongside it when the message also states a durable fact, and `record_quality_signal` when the message shows an earlier turn missed what the user wanted. Developer feedback never reaches the agent: a `#dev` message or a 👎 tapback is saved by `lib/developer-feedback.js` in the inbox before the agent runs (founder exception in `AGENTS.md`). If code rejects the call (for example, accepting an offer that was never made), the agent gets one retry with the validation feedback; it never guesses consent.
 
 | Skill (tool) | Offered when | Executor | Writes to |
 |---|---|---|---|
@@ -57,7 +57,7 @@ Every message goes to one agent (`generateReply` in `lib/ai.js`): one model call
 | `update_profile` (remember / correct / forget) | memory enabled | `updateProfile` in `lib/memory.js` | `chat_statement` evidence + beliefs |
 | `profile_status` | memory enabled | grounded reply | none |
 | `onboarding` (accept / decline / status / style) | invited to onboarding, or `/style` enabled | `onboardingAction` in `lib/onboarding.js` | `onboarding_sessions` |
-| `send_developer_feedback` | always | `store.saveFeedback` | `messages.developer_feedback` |
+| `record_quality_signal` (non-replying) | the store can save it | `store.saveQualitySignal` (best effort; logged as `quality_signal`) | `messages.quality_signal` |
 | `conversation_reply` | always | grounded reply | none |
 
 Structured arguments replace wording rules: the agent passes `department` (men/women/unisex/unspecified) and `for_someone_else` with each search, so code never parses "for my wife" or "women's" out of text. Consent for saves and alerts is checked in code against the actual offer and options (`invalidOfferConsent`, `selectionOutcome`). Previously there were four separate model calls or routers per message (onboarding, purchase-history check, memory extraction, then one of two interpreters); now there is one.
@@ -108,7 +108,7 @@ How beliefs follow evidence: `prune_unsupported_facts` runs whenever evidence is
 
 | Store | Holds | Notes |
 |---|---|---|
-| `messages` | Every inbound/outbound iMessage, status, reply references, search results, developer feedback | Also carries workflow columns (`search_result`, `wishlist_payload`, `memory_status`). |
+| `messages` | Every inbound/outbound iMessage, status, reply references, search results, developer feedback, quality signals | Also carries workflow columns (`search_result`, `wishlist_payload`, `memory_status`). |
 | `message_images` | Images sent in iMessage | Private; used for search. |
 | `gmail_imports.data.sources` | Prepared (redacted) receipt email text, fingerprints, warnings | Kept so extraction can be audited and changed emails detected. |
 | `style_sources` | Normalized `/style` photos | Deleting a photo clears style evidence and the beliefs that relied only on it. |

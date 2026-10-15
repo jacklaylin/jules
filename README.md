@@ -314,15 +314,22 @@ Vercel: create a token scoped to the Jules team, save it as `VERCEL_BILLING_TOKE
 
 ## Developer feedback in iMessage
 
-Run `db/007_feedback.sql` in the existing Supabase SQL editor before deploying this change. It adds a feedback field to private messages; no new account or credential is needed.
+Run `db/007_feedback.sql` (feedback field) and `db/022_quality_signals.sql` (quality signals) in the Supabase SQL editor. The code can deploy before `022` runs: quality signals are then only logged.
 
-Testers give feedback about Jules itself in ordinary words, for example `feedback for the developer: the replies are too long` or `DM the replies are too long`. No prefix or keyword is matched: like every message, it goes to the agent, which calls its `send_developer_feedback` tool when it interprets the message as feedback about Jules (bugs, reply quality, suggestions) rather than about products. Jules saves the agent's faithful copy of the feedback and replies `Feedback saved for the developer. Thank you.` Only that confirmation means a report was saved; if saving fails, Jules does not claim success. If the agent misreads a report as a shopping request, rephrase it more explicitly. Each message is a separate report, and the next ordinary message resumes shopping. Saved feedback is excluded from subsequent AI context and memory imports.
+Testers send feedback about Jules itself in one of two ways. Nothing else is saved as developer feedback, so thinking out loud or asking Jules to change results never creates a report.
 
-In `/admin`, expand **Developer feedback** for the latest 100 reports across testers. Each shows its sender and time; click it to open the conversation and follow up. You can also ask Codex here to inspect developer feedback using the configured private database. Reports stay in the conversation history. Repeated webhook deliveries do not create additional reports or send another acknowledgment.
+- **`#dev` at the start of a message**, for example `#dev the openers are repetitive`. Sending it as a threaded reply to a Jules message ties the report to that message. A screenshot attached to the message is kept with it.
+- **A 👎 tapback** on any Jules message flags that message.
 
-Acceptance: send a feedback message, confirm the acknowledgment and admin entry, then send an ordinary shopping message and confirm normal behavior. Live acceptance requires the migration and deployment.
+Code reads the marker or tapback before the agent runs (a founder exception to the no-keyword rule, recorded in `AGENTS.md`), saves the report, and replies `Sent to the developer. Thanks.` Other tapbacks are logged by kind only (`reaction_received`). If saving fails, Jules sends nothing and the delivery fails so it is retried; it never claims a save that did not happen. Reports and their acknowledgments are excluded from AI context and memory imports.
 
-Triage: `node --env-file=.env.local scripts/feedback-triage.js --latest 1` (or `--since <cursor>`) prints private packets: each report with nearby turns and persisted diagnostics, contact formats masked, no sender identity. It needs `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in `.env.local`; the service-role key is a Vercel Sensitive variable, so paste it from Supabase rather than relying on `vercel env pull`. The `feedback-triage` Claude Code agent (`.claude/agents/feedback-triage.md`) reads these packets and recommends systemic fixes. Never commit packet output.
+Separately, the agent records **quality signals**: when a message shows an earlier reply missed what the user wanted (wrong results, an ignored constraint, a misread request, a repeated question, an item the user found themselves, a reply that missed the point), it calls `record_quality_signal` alongside its normal reply. The signal stores a kind and a neutral one-sentence summary on the user's message; it never changes the reply. Jules never promises to change its own behavior; for an unmarked note about Jules it may mention `#dev`.
+
+In `/admin`, expand **Developer feedback** for the latest 100 reports across testers. Each shows its sender and time; click it to open the conversation and follow up. Repeated webhook deliveries do not create additional reports or send another acknowledgment.
+
+Acceptance: send `#dev test`, confirm the acknowledgment and admin entry; tap 👎 on a Jules reply and confirm the acknowledgment (if none arrives, check the logs for `webhook_ignored` with `content_type`, which shows whether Photon delivers tapbacks); then send an ordinary shopping message and confirm normal behavior.
+
+Triage: `node --env-file=.env.local scripts/feedback-triage.js --latest 1` (or `--since <cursor>`) prints private packets: each developer report or quality signal (`kind`) with nearby turns and persisted diagnostics, the reported reply marked `is_reported_message`, contact formats masked, no sender identity. It needs `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in `.env.local`; the service-role key is a Vercel Sensitive variable, so paste it from Supabase rather than relying on `vercel env pull`. The `feedback-triage` Claude Code agent (`.claude/agents/feedback-triage.md`) reads these packets and recommends systemic fixes. Never commit packet output.
 
 
 ### Companion wishlist MVP — implemented, live acceptance pending
