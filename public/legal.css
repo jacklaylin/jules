@@ -1,0 +1,2 @@
+.legal h1{margin-bottom:12px}.legal h2{font-size:32px;margin:40px 0 12px}.legal p,.legal li{font-size:16px;line-height:1.6}.legal ul{padding-left:20px;display:grid;gap:10px}.legal a{color:var(--ink)}
+@media(max-width:700px){.legal h2{font-size:26px}}

@@ -57,7 +57,7 @@ async function act(action){
 }
 $('connect-button').onclick=()=>act('connect-demo');$('skip-button').onclick=()=>act('skip');$('retry').onclick=load;
 let importBusy=false, gmailConnection=false, expandedConsent=false;
-const gmailConsentVersion="gmail-receipts-5y-1000-v2";
+const gmailConsentVersion="gmail-receipts-5y-1000-v3";
 async function gmailAPI(action,extra={}){
  const token=await session.token();if(!token){$('login').hidden=false;throw Error('Log in with the number you text Jules from to continue.');}
  const response=await fetch('/api/wishlist?gmail=1',{method:action?'POST':'GET',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},...(action?{body:JSON.stringify({action,...extra})}:{}),cache:'no-store'});
@@ -103,7 +103,7 @@ async function runImport(resume=false){
 // <name>-orders, -title, -consent, -consent-label, -progress, -approve, -code, -approve-link, -connect,
 // -import, -reread, -disconnect. Approval happens in the source's app with a short code; the page then reads
 // records in steps.
-const SOURCES={shop:{label:'Shop',noun:'orders',consent:'shop-orders-5y-100-v1'}},wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+const SOURCES={shop:{label:'Shop',noun:'orders',consent:'shop-orders-5y-100-v2'}},wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const sourceBusy=new Set();
 function renderSources(data){
  for(const [name,source] of Object.entries(SOURCES)){
