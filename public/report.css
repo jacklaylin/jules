@@ -6,11 +6,19 @@ body.report-page{background:var(--ink);color:var(--white);min-height:100vh;min-h
 @media (min-width:600px){.report-frame{height:min(100dvh - 48px,900px);border-radius:28px;margin:24px 0}}
 
 /* Message (signing in, not ready, logged out) */
-.report-message{max-width:420px;padding:48px 24px;display:flex;flex-direction:column;gap:14px}
+.report-message{width:100%;box-sizing:border-box;max-width:420px;padding:48px 24px;display:flex;flex-direction:column;gap:14px}
 .report-message h1{margin:0;font-size:48px;line-height:1}
 .report-message p{margin:0;font-size:17px;line-height:1.45;color:#ffffffcc}
 .report-message .label{color:#ffffffb3}
 .report-message .btn{align-self:flex-start;margin-top:8px}
+.report-leave{align-self:flex-start;margin-bottom:24px;color:#ffffffcc;font-size:15px;text-decoration:none}
+.report-leave:hover{color:#fff;text-decoration:underline}
+.report-loading{height:6px;border-radius:3px;background:#ffffff26;overflow:hidden;margin-top:6px}
+.report-loading span{display:block;height:100%;width:0;border-radius:3px;background:var(--butter);transition:width .6s ease}
+.report-loading.is-waiting span{width:35%;animation:report-slide 1.4s ease-in-out infinite}
+@keyframes report-slide{from{transform:translateX(-100%)}to{transform:translateX(300%)}}
+.report-step{font-size:15px!important;color:#ffffffb3!important}
+@media (prefers-reduced-motion:reduce){.report-loading.is-waiting span{animation:none;width:100%;opacity:.5}}
 
 /* Intro */
 .report-intro{background:var(--butter);color:var(--ink);padding:64px 28px 40px;justify-content:space-between}
