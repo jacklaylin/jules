@@ -113,6 +113,10 @@
       "destination": "/wishlist.html"
     },
     {
+      "source": "/wardrobe",
+      "destination": "/wardrobe.html"
+    },
+    {
       "source": "/account",
       "destination": "/account.html"
     },

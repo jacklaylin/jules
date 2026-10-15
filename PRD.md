@@ -785,3 +785,17 @@ When Jules starts sending messages the user didn't ask for, consider a nudge aft
 Related, also not yet assigned: a periodic check for new shopping emails after the first import. The founder prefers **weekly** over daily. Constraint: while the Google app is in testing mode, a tester's Gmail access expires about 7 days after they connect, so a weekly check would mostly find expired access. A useful recurring check needs either Google verification of the `gmail.readonly` scope, or a reconnect prompt (account page, plus one text) whenever access has expired.
 
 Also part of this nudge work, not yet assigned: a nudge for people who skip connecting accounts. If someone taps "Not now" on the connect page and never connects Gmail or Shop, Jules could later offer once to connect them. Decide this with the other nudges (frequency, opt-out, which events justify a text). Until then, Jules sends nothing after a skip and keeps working from photos and links.
+
+## 29. Wardrobe tab — founder decision, October 15, 2026
+
+The founder assigned a companion **Wardrobe** page (`/wardrobe`, header link between Wishlist and Your style). This supersedes the Section 25 exclusion of owned-wardrobe tracking and the Gmail section's "no full closet UI is assigned" for this scope only. Design: `design/wardrobe-brief.md` and the "Jules Wardrobe" design canvas.
+
+Purpose: show what Jules counts as the person's own, so they can trust it and correct it. It is built from the existing purchase history (Gmail receipts, Shop orders) and uses the same structured feedback path as text answers (`closet_edit` source); it adds no new store of facts.
+
+- **In the wardrobe:** purchases that are not disputed, not duplicates, not for someone else, not returned or cancelled, and not marked as no longer owned. Recipient "unknown" stays in, with its open question.
+- **Cards:** the shared product card, with name and brand · size bought. Size bought is never presented as fit or as the person's general size. No price.
+- **Photos:** launch with a category outline only. Looked-up product photos wait for the photo-lookup accuracy test.
+- **Questions:** Jules' open receipt questions (at most five) appear as one-tap answers. "Not sure" defers without guessing.
+- **Item detail:** size, colour, store and date; **What goes with this?** opens iMessage to Jules with the question written; **Fix details** (brand, name, size, colour); **Remove**, which asks why: returned it, a gift for someone else, no longer have it, never bought it. Each reason maps to its own correction, so a gift never teaches taste and a return is not a dislike. Every removal is undoable and restorable from **Removed**.
+- **Adding items:** through Gmail and Shop on the account page. Texting Jules a photo to add an item is not supported yet, so the page does not offer it.
+- **Out of scope:** outfits, wear tracking, photo upload, prices, background-removed cutouts.

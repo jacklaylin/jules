@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Wardrobe · Jules</title><meta name="robots" content="noindex"><link rel="stylesheet" href="/design-system.css"><link rel="stylesheet" href="/wardrobe.css"><link rel="modulepreload" href="/activity.js"><link rel="modulepreload" href="/design-system.js"><link rel="modulepreload" href="/brand-ui.js"><link rel="modulepreload" href="/wishlist-session.js"><script type="module" src="/wardrobe.js"></script><link rel="icon" href="/brand/icon.svg" type="image/svg+xml"></head>
+<body class="wardrobe-page"><header class="app-header"></header><main>
+<section id="login"><p class="eyebrow">YOUR PERSONAL SHOPPER</p><h1>Everything<br>you own.</h1><a class="btn btn--butter" href="/login?next=wardrobe">Log in with your phone ↗</a></section>
+<section id="wardrobe" hidden>
+<div class="app-heading collection-heading"><h1>Wardrobe</h1><span id="count" class="label"></span></div>
+<div id="reading" class="wardrobe-reading" role="status" hidden><span class="orb" aria-hidden="true"></span><p id="reading-text">Reading your receipts</p><div class="aqua" aria-hidden="true"></div></div>
+<section id="questions" class="wardrobe-questions" aria-labelledby="questions-title" hidden><h2 id="questions-title" class="wardrobe-h3"></h2><div id="question-list" class="question-list"></div></section>
+<div id="toolbar" class="wardrobe-toolbar" hidden><div id="categories" class="wardrobe-chips" role="group" aria-label="Category"></div><button id="add" type="button" class="btn btn--butter">Add item</button></div>
+<div id="grid" class="product-grid" aria-live="polite"></div>
+<div id="empty" class="wardrobe-empty" hidden><p>Connect your receipts or text Jules an order screenshot.</p><div class="wardrobe-empty-actions"><a class="btn btn--butter" href="/account#gmail-card">Connect Gmail</a><a class="btn" href="/account#shop-card">Connect Shop</a><a class="btn text-jules" hidden>Text Jules a screenshot</a></div></div>
+<p class="wardrobe-removed-link"><button id="removed-open" type="button" hidden></button></p>
+</section>
+<p id="notice" role="status" aria-live="polite"></p></main>
+
+<dialog id="detail" class="wardrobe-detail" aria-labelledby="detail-title">
+<button id="detail-close" type="button" class="detail-close" aria-label="Close item details">Close ×</button>
+<div class="detail-body"><div id="detail-photo" class="photo outline-photo"></div>
+<div class="detail-info"><span id="detail-brand" class="label"></span><h2 id="detail-title"></h2>
+<dl id="detail-facts" class="detail-facts"></dl>
+<div class="detail-actions"><a id="detail-ask" class="btn btn--butter text-jules" hidden>What goes with this?</a><div class="detail-fixes"><button id="detail-fix" type="button" class="btn">Fix details</button><button id="detail-remove" type="button" class="btn">Remove</button></div></div>
+</div></div>
+</dialog>
+
+<dialog id="remove" class="wardrobe-sheet" aria-labelledby="remove-title">
+<h2 id="remove-title">Why remove it?</h2>
+<div class="sheet-options">
+<button type="button" class="btn" data-reason="returned">I returned it</button>
+<button type="button" class="btn" data-reason="gift">It was a gift for someone</button>
+<button type="button" class="btn" data-reason="gone">I don’t have it anymore</button>
+<button type="button" class="btn" data-reason="never_bought">I never bought it</button>
+</div>
+<button type="button" class="btn sheet-cancel" data-close>Cancel</button>
+</dialog>
+
+<dialog id="fix" class="wardrobe-sheet" aria-labelledby="fix-title">
+<h2 id="fix-title">Fix details</h2>
+<form id="fix-form" novalidate>
+<label for="fix-product">Name<input id="fix-product" name="product" maxlength="300" autocomplete="off"></label>
+<label for="fix-brand">Brand<input id="fix-brand" name="brand" maxlength="300" autocomplete="off"></label>
+<label for="fix-size">Size<input id="fix-size" name="size_label" maxlength="300" autocomplete="off"></label>
+<label for="fix-color">Color<input id="fix-color" name="color" maxlength="300" autocomplete="off"></label>
+<p id="fix-error" class="error" role="alert" hidden></p>
+<div class="dialog-actions"><button type="submit" class="btn btn--butter">Save</button><button type="button" class="btn" data-close>Cancel</button></div>
+</form>
+</dialog>
+
+<dialog id="add-sheet" class="wardrobe-sheet" aria-labelledby="add-title">
+<h2 id="add-title">Add item</h2>
+<a class="btn btn--butter text-jules sheet-wide" hidden>Text Jules an order screenshot</a>
+<div class="source-rows"><div class="source-row"><strong>Gmail</strong><span id="gmail-state" class="label"></span></div><div class="source-row"><strong>Shop</strong><span id="shop-state" class="label"></span></div></div>
+<button type="button" class="btn sheet-cancel" data-close>Close</button>
+</dialog>
+
+<dialog id="removed" class="wardrobe-sheet wardrobe-removed" aria-labelledby="removed-title">
+<div class="removed-head"><h2 id="removed-title">Removed</h2><button type="button" class="btn" data-close>Close ×</button></div>
+<div id="removed-list"></div>
+</dialog>
+
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div></body></html>
