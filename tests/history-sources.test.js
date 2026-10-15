@@ -168,3 +168,11 @@ test('admin review labels each item’s sources and reports what each connected 
   assert.deepEqual(review.items[0].events.map(e=>e.source),['gmail','shop']);
   assert.equal(review.connections[0].label,'Shop');assert.equal(review.connections[0].listing.stop,'no_more_pages');assert.equal(review.connections[0].reads[0].linked,1);
 });
+
+test('the account page gets result counts and the date range Shop shared, without record details',()=>{
+  const view=publicConnection({credential:'sealed',status:'ready',found:23,processed:23,reads:[
+    {id:'a',date:Date.parse('2026-09-15'),purchases:0,linked:0,summary:'{"private":"x"}'},{id:'b',date:Date.parse('2026-10-07'),purchases:2,linked:1},{id:'c',date:null,purchases:0}]});
+  assert.equal(view.purchases,2);assert.equal(view.linked,1);
+  assert.equal(view.oldest.slice(0,10),'2026-09-15');assert.equal(view.newest.slice(0,10),'2026-10-07');
+  assert.ok(!JSON.stringify(view).includes('private'),'summaries stay internal');
+});
