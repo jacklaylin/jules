@@ -62,3 +62,18 @@ Founder-requested after the onboarding consent review. **The privacy wording is 
 1. In Supabase **SQL Editor**, run `db/025_sms_opt_out.sql`. Deploy only after this succeeds: the new code reads `sms_opted_out_at`, and sign-in breaks without it. No credential is produced.
 2. Fill in the `[bracketed]` items in `public/privacy.html` and `public/terms.html`.
 3. Deploy. Check from a tester phone: text STOP (one confirmation, then nothing), HELP (description), START (confirmation, texts resume).
+
+## October 15 update: outfit photos during the Gmail import
+
+Founder decision: receipts show what someone buys; outfit photos show what they actually wear. While the first Gmail import runs, Jules asks for 5–10 outfit photos, and the "who you are" summary includes what the photos show.
+
+- **The ask.** On a person's first import, the "reading your shopping emails" text is followed by its own text asking for 5–10 photos of outfits they actually wear (`OUTFIT_ASK` in `lib/outfit-photos.js`). It is sent once through the message ledger (`gmail:<owner>:outfits:<started_at>`). Without `STYLE_ENABLED=true` the old single text is sent and nothing below changes.
+- **Keeping photos.** The chat agent has a new tool, `add_outfit_photos`. The model decides the photos are the person's own outfits (for example, a reply to the ask). It doesn't decide this from keywords. A photo of something to find still goes to search; when it's unclear, Jules asks. Kept photos go into the same private store as `/style` uploads (`style_sources`, kind `outfit`), normalized to JPEG with location data removed, so they also appear on `/style` and its reading can use them. Each photo is kept once per message, even if the message is delivered twice. Adding a photo clears an earlier `/style` report, as an upload there does.
+- **The summary.** When this import asked for photos, the summary waits until 5 outfit photos have arrived. The chat sends it right after the reply that brings the count to 5, unless a purchase question is still open. If fewer arrive, the existing 24-hour fallback sends it with whatever came. Before sending, one model call reads the 10 most recent outfit photos into up to 3 short observations (palette, recurring pieces, fit and silhouette), each citing the photos it came from. They appear as a "what you wear:" line. With fewer than 2 purchases, the summary can be photos only. The reading is stored in `style_sessions.data.outfit_reading`. If the reading fails, the summary is sent from purchases alone. The reading never names a brand unless a label is readable, never describes bodies, and never mentions prices or sizes.
+- **Cost.** One call to the chat model per summary with up to 10 images (resized to 1024 px). Recorded under the `style_reading` feature as `outfit-reading:<import>`.
+
+**Setup:** none. No migration and no new credentials. It uses the existing `style_sources`/`style_sessions` tables and `STYLE_ENABLED=true`, which is already on in production.
+
+**Check in production:** connect Gmail as a tester with a fresh import. Confirm the two texts arrive. Send 2–3 outfit photos at a time and confirm Jules acknowledges them without searching. After the 5th photo (and any receipt questions are answered), confirm the summary includes a "what you wear" line that matches the photos. Then open `/style` and confirm the photos are listed there. Also send a product photo with "find this" and confirm it still searches.
+
+**Not done yet:** photo observations reach the summary text only. They are not yet used for search ranking or chat context. Using them there is a follow-up.
