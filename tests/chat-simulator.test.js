@@ -16,7 +16,7 @@ const input={text:'Please save this https://www.mrporter.com/en-us/mens/product/
 test('simulator runs real inbox save, consent, confirmation and later decline with isolated state',async()=>{
   const first=await simulateTurn(input,env,deps(interpretation));
   assert.equal(first.snapshot.items.length,1);assert.equal(first.snapshot.alerts.length,0);
-  assert.ok(first.replies[0].startsWith('Saved'));
+  assert.ok(first.replies[0].startsWith('saved'));
   assert.equal(first.events.find(e=>e.type==='shopping_outcome').result.intent_action,'selection');
   const before=JSON.stringify(first.snapshot);
   const second=await simulateTurn({text:'No alerts please',snapshot:first.snapshot},env,deps({...interpretation,decision:'decline',consent:'none',option_indices:[]}));
@@ -110,7 +110,7 @@ test('connected simulator saves to the server-resolved wishlist before confirmin
   const result=await simulateTurn(input,env,{...deps({...interpretation,offer_alerts:false}),wishlistStore:live,wishlistConversation:'owner'});
   assert.deepEqual(calls,['reserve','payload','persist','receipt']);
   assert.equal(result.snapshot.items.length,2);assert.equal(result.snapshot.wishlist_live.length,2);
-  assert.ok(result.replies[0].startsWith('Saved'));assert.equal(result.events.find(e=>e.type==='wishlist_saved').mode,'live');
+  assert.ok(result.replies[0].startsWith('saved'));assert.equal(result.events.find(e=>e.type==='wishlist_saved').mode,'live');
   assert.ok(result.live.includes('wishlist'));assert.ok(result.simulated.includes('alert scheduling'));
 });
 

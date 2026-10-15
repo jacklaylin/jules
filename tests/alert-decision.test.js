@@ -184,11 +184,11 @@ test('owner simulation runs the real decision without changing the alert or send
 test('chat status reports the persisted monitoring state without overstating it',async()=>{
  const {alertState}=await import('../lib/inbox.js');
  const links=[{url:home},{url:other}];
- assert.match(alertState({links,baselines:[]}),/Waiting for a verified price.*Not checked yet/);
+ assert.match(alertState({links,baselines:[]}),/waiting for a verified price.*not checked yet/);
  assert.match(alertState({links,baselines:[offer(100)],last_result:{status:'check_failed',failures:3},last_checked_at:'2026-10-12T13:00:00Z'}),/couldn’t read any of the 2 stores on the last 3 checks/);
  const watching=alertState({links,baselines:[offer(100)],last_result:{status:'no_drop',stock:'sold_out',unconfirmed_savings:[{url:other,amount:60,currency:'USD'}]},last_checked_at:'2026-10-12T13:00:00Z'});
- assert.match(watching,/Watching 2 stores; reference price \$100\.00 at barbour\.com\. Your size was sold out\./);
- assert.match(watching,/nordstrom\.com listed it for \$60\.00, but I couldn’t confirm its shipping/);
+ assert.match(watching,/watching 2 stores; reference price \$100\.00 at barbour\.com\. your size was sold out\./);
+ assert.match(watching,/nordstrom\.com listed it for \$60\.00, but i couldn’t confirm its shipping/);
 });
 
 test('a store search that cannot run records why and waits a day before retrying',async()=>{

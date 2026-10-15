@@ -92,7 +92,7 @@ test('no-store replies separate identification sources, failed checks and useful
  const {formatSearch}=await import('../lib/search.js');
  for(const status of ['unsupported','check_failed','not_product']){
   const body=formatSearch({products:[{brand:'Example',name:'Jacket',match:'likely_match',sourcing_status:'store_not_found',identity_sources:[{url}],listing_checks:[{status}]}]});
-  assert.ok(body.includes(url));assert.match(body,/Identification source.*unverified/);assert.match(body,/another color or a similar item/);assert.doesNotMatch(body,/store I can recommend/);
+  assert.ok(body.includes(url));assert.match(body,/identification source.*unverified/);assert.match(body,/another color or a similar item/);assert.doesNotMatch(body,/store I can recommend/);
  }
 });
 test('verified shopping options lead the reply; failed source checks stay out of it',async()=>{

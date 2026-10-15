@@ -99,7 +99,7 @@ test('checkout links put the exact size in the cart, ask for the store’s label
   const failed=await checkoutLink({name:'LAX Tee',url:'https://kith.com/products/tee',size:'Medium (M)'},{env,providers:[{name:'shop',resolve:async()=>{throw Error('down');}}]});
   assert.equal(failed.status,'product_page');
   const reply=checkoutReply([cart,page,{name:'LAX Tee',status:'needs_size',store:'Kith',size:'US M',sizes:['Small (S)','Medium (M)']}]);
-  assert.match(reply,/\$68\.00 before tax and shipping/);assert.match(reply,/Nothing is ordered until you pay/);assert.match(reply,/couldn’t match “US M” exactly to Kith’s sizes/);
+  assert.match(reply,/\$68\.00 before tax and shipping/);assert.match(reply,/nothing is ordered until you pay/);assert.match(reply,/couldn’t match “US M” exactly to Kith’s sizes/);
   assert.doesNotMatch(reply,/ordered it|purchased|bought/i);
   assert.equal(minorMoney({amount:6800,currency:'USD'}),'$68.00');assert.equal(minorMoney({amount:6800,currency:'JPY'}),'¥6,800');
 });
