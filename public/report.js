@@ -5,6 +5,8 @@ import {createSession} from './wishlist-session.js';
 const $=id=>document.getElementById(id);
 const session=createSession({storage:localStorage,lock:work=>navigator.locks?navigator.locks.request('jules-wishlist-refresh',work):work()});
 const fragment=new URLSearchParams(location.hash.slice(1)),signinToken=fragment.get('signin');
+// Admin preview of a tester's report (/report?person=<id>): read-only, through the owner's admin access.
+const person=new URLSearchParams(location.search).get('person');
 const el=(tag,props={},...children)=>{const node=Object.assign(document.createElement(tag),props);node.append(...children.filter(c=>c!=null&&c!==false));return node;};
 let report=null,index=0;
 
@@ -20,7 +22,8 @@ function toast(text){$('toast').textContent=text;$('toast').hidden=false;clearTi
 async function api(method,body){
  const token=await session.token();
  if(!token)throw Object.assign(Error('Log in to continue.'),{status:401});
- const response=await fetch('/api/wishlist?report=1',{method,headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{}),cache:'no-store'});
+ const url=person?`/api/admin?view=report&conversation=${encodeURIComponent(person)}`:'/api/wishlist?report=1';
+ const response=await fetch(url,{method,headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{}),cache:'no-store'});
  const result=await response.json().catch(()=>({}));
  if(!response.ok)throw Object.assign(Error(result.error||'Something went wrong. Try again.'),{status:response.status});
  return result;
@@ -60,7 +63,9 @@ function renderCard(animate=true){
  $('card').classList.toggle('is-still',!animate);
  const vote=report.votes?.[card.type];
  $('vote-up').setAttribute('aria-pressed',String(vote==='up'));$('vote-down').setAttribute('aria-pressed',String(vote==='down'));
- $('edit-lines').hidden=card.type!=='receipt';
+ $('edit-lines').hidden=card.type!=='receipt'||Boolean(person);
+ // An admin preview records nothing: no thumbs, no line edits.
+ $('vote-up').hidden=$('vote-down').hidden=Boolean(person);
  show('view-card');
 }
 function go(i){if(i<0)return;if(i>=report.cards.length){show('view-end');return;}index=i;renderCard();}
@@ -104,7 +109,7 @@ async function signInFromLink(token){
  session.save(result);
 }
 async function start(){
- message('One moment…','Opening your style report.');
+ message('One moment…',person?'Opening this tester’s report.':'Putting your style report together. This can take a few seconds.');
  if(signinToken){
   // Keep the token out of history and screenshots once it has been used.
   history.replaceState(null,'',location.pathname);
@@ -112,9 +117,16 @@ async function start(){
  }
  try{
   const result=await api('GET');
-  if(!result.report){message('Not ready yet.','Jules will text you when your style report is ready.');return;}
+  if(!result.report){
+   const NOT_READY={
+    no_history:['Connect your orders first.','Your style report is made from your shopping history. Connect Gmail or Shop and Jules does the rest.',{label:'Connect your orders ↗',href:'/account'}],
+    reading:['Still reading your orders.','Jules is going through your shopping history. Your report will be here when it’s done.',null],
+    not_enough:['Not enough to go on yet.','Jules needs a few more orders to say anything worth sharing. Connect another account or text Jules a receipt.',{label:'Add more orders ↗',href:'/account'}]};
+   const [title,body,action]=NOT_READY[result.status]??['Not ready yet.',person?'This tester has no report yet. Build it from their purchase history.':'Try again in a little while.',null];
+   message(title,body,'Your style',action);return;
+  }
   report=result.report;
-  $('intro-eyebrow').textContent=report.name?`For ${report.name}`:'Your style report';
+  $('intro-eyebrow').textContent=(person?'Admin preview · ':'')+(report.name?`For ${report.name}`:'Your style report');
   $('end-title').textContent=report.name?`That’s your report, ${report.name}.`:'That’s your report.';
   show('view-intro');
  }catch(error){
