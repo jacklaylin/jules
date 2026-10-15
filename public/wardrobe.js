@@ -186,9 +186,18 @@ $('logout').onclick=async()=>{
  session.clear();login();message('Logged out.');$('logout').disabled=false;
 };
 
+// While signed in, the page shows the collection with placeholder cards straight away, as the wishlist does.
+function loading(){
+ $('login').hidden=true;$('wardrobe').hidden=false;$('logout').hidden=false;$('count').textContent='';
+ for(const id of ['reading','questions','toolbar','empty','removed-open'])$(id).hidden=true;
+ $('grid').setAttribute('aria-busy','true');
+ $('grid').replaceChildren(...Array.from({length:4},()=>{const tile=el('div',{className:'tile'},el('div',{className:'skeleton photo'}),el('div',{className:'skeleton skeleton-card-title'}),el('div',{className:'skeleton skeleton-price'}));tile.setAttribute('aria-hidden','true');return tile;}));
+}
 async function load(){
  if(!token){login();return;}
+ loading();
  try{view=await api();render();void enableAdminLink(token);}
- catch(error){if(error.status===401)return login();$('wardrobe').hidden=false;message(error.message);}
+ catch(error){$('grid').replaceChildren();if(error.status===401)return login();message(error.message);}
+ finally{$('grid').setAttribute('aria-busy','false');}
 }
 load();
