@@ -412,7 +412,7 @@ test('repeat import passes over already-read mail and finds a brand store\'s old
   const u=new URL(url);if(!u.pathname.endsWith('/messages'))return jsonResponse({id:u.pathname.split('/').pop(),payload:{headers:[]}});
   const q=u.searchParams.get('q');queries.push(q);
   if(q.includes('from:cyclingbrand.example'))return jsonResponse({messages:[{id:'c1'},{id:'c2'}]});
-  if(q.includes('subject:(order confirmed)')&&!q.includes(`before:${newImportJob().recent_after}`))return jsonResponse({messages:[{id:'c1'},...noise.map(id=>({id}))]});
+  if(q.includes('subject:order ')&&!q.includes(`before:${newImportJob().recent_after}`))return jsonResponse({messages:[{id:'c1'},...noise.map(id=>({id}))]});
   return jsonResponse({messages:noise.map(id=>({id}))});
  };
  const prepare=async message=>{fetched.push(message.id);return {id:message.id,text:mail[message.id]??'SUBJECT\nNewsletter',date:1000,fingerprint:message.id,sender_domain:mail[message.id]?'cyclingbrand.example':'news.example',warnings:[]};};
@@ -422,7 +422,7 @@ test('repeat import passes over already-read mail and finds a brand store\'s old
  for(let i=0;i<80&&row.data.job.status!=='ready';i++)row=await step(row,{fetcher,prepare,interpret});
  assert.equal(row.data.job.status,'ready');
  assert.deepEqual(itemsOf(row).map(i=>i.product).sort(),['Bib Shorts','Thermal Jersey']);
- assert.ok(queries.some(q=>q.includes('subject:(order confirmed)')));
+ assert.ok(queries.some(q=>q.includes('subject:order ')));
  assert.ok(!fetched.some(id=>id.startsWith('noise')),'already-read mail is not fetched again');
  assert.ok(!row.data.job.ids.some(id=>id.startsWith('noise')),'already-read mail does not use the limit');
  assert.ok(row.data.job.already_read>0);

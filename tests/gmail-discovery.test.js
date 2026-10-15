@@ -8,7 +8,8 @@ test('five-year plan starts with recent receipts and returns and reserves relate
  assert.deepEqual(job.search_plan.slice(0,5).map(p=>p.budget),[50,25,15,150,10]);
  assert.match(job.search_plan[1].query,/refund/);assert.match(job.search_plan[0].query,/subject:receipt/);
  assert.equal(job.search_plan[3].name,'known_stores');assert.equal(job.search_plan[3].query,null);
- assert.equal(job.search_plan[5].name,'recent_backlog');assert.equal(job.search_plan[6].name,'older_receipts');
+ assert.deepEqual(job.search_plan.slice(5,8).map(p=>p.name),['recent_receipts_backlog','recent_backlog','older_receipts']);
+ assert.equal(job.search_plan[5].query,job.search_plan[0].query,'remaining order-subject mail comes before body-word searches');
  assert.ok(job.search_plan.every(p=>!p.query?.includes('-category:promotions')));
  assert.match(job.search_plan[4].query,/category:purchases/);assert.ok(!job.search_plan[0].query.includes('category:purchases'));
 });
@@ -41,11 +42,15 @@ test('first-100 yield excludes prior purchases, retains its checkpoint and measu
  job.processed.push('m100');feedback.items.push({id:'b'});captureYield(job,feedback);
  assert.equal(job.first_100.purchases,1);assert.equal(job.current_yield.purchases,2);
 });
-// Store platforms send templated subjects with the order number between the words ("Order #CB1001
-// confirmed", "A shipment from order #CB1001 is on the way"); an exact phrase never matches them.
-test('receipt searches match order words anywhere in the subject, not only as an exact phrase',()=>{
- for(const name of ['recent_receipts','older_receipts']){const q=discoveryPlan(now).find(p=>p.name===name).query;
-  for(const words of ['order confirmed','thank order','thank purchase','order shipped','order shipment'])assert.ok(q.includes(`subject:(${words})`),name+' '+words);}
+// Gmail's subject:word matches that word anywhere in the subject. This mirrors it on synthetic
+// subjects shaped like real store templates, including a brand's "<Brand> Order Summary".
+const subjectWords=query=>[...query.matchAll(/subject:([a-z]+)\b(?!\))/g)].map(m=>m[1]);
+const matches=(query,subject)=>subjectWords(query).some(w=>subject.toLowerCase().split(/[^a-z0-9]+/).includes(w));
+test('receipt searches find order and purchase words anywhere in the subject',()=>{
+ for(const name of ['recent_receipts','recent_receipts_backlog','older_receipts']){const q=discoveryPlan(now).find(p=>p.name===name).query;
+  for(const subject of ['Cycling Brand Order Summary','Order #CB1001 confirmed','A shipment from order #CB1001 is on the way','Your purchase from Cycling Brand','Thanks for your order!','Your Example Store receipt','Invoice INV-77','Votre commande est confirmée','Ihre Bestellung','You ordered: Bib Shorts'])
+   assert.ok(matches(q,subject),name+': '+subject);
+  assert.ok(!matches(q,'New arrivals this week'),'unrelated subjects are not matched');}
 });
 test('known-store search covers every order email from stores already found, across the whole window',()=>{
  const job=newImportJob(now);assert.equal(knownStoreQuery({sources:[]},job),null);
