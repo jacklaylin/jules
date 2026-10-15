@@ -1,0 +1,134 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {receiptLines,validTotal,writeTotal,buildReport,updateReport,reportView,handleReport,FALLBACK_TOTAL} from '../lib/style-report.js';
+import {tagFingerprint} from '../lib/item-tags.js';
+import {purchaseEvidence,projectReceiptEvidence} from '../lib/receipt-extraction.js';
+import {signInLinks} from '../lib/onboarding.js';
+
+const owner='00000000-0000-4000-8000-000000000001';
+let seq=0;
+// One purchase. Defaults: a recipient-confirmed personal purchase, so it counts for the person.
+const buy=(values,{at=Date.UTC(2024,2,1),returned=false}={})=>{const n=++seq,rows=[purchaseEvidence({event_id:`m${n}:0`,kind:'purchased',source_id:`m${n}`,at,evidence:'line',category:'clothing',
+ values:{merchant:'Shop',order_reference:'O'+n,sku:null,brand:null,color:null,size_label:'M',size_system:null,quantity:1,units_per_pack:null,...values},item_id:'item-'+n,recipient:{value:'self',quote:'Ship to Jack'}})];
+ if(returned)rows.push(purchaseEvidence({event_id:`r${n}:0`,kind:'returned',source_id:`r${n}`,at:at+86400000,evidence:'returned',values:{merchant:'Shop',order_reference:'O'+n,sku:null,brand:null,color:null,size_label:'M',size_system:null,quantity:null,units_per_pack:null,product:values.product},item_id:'item-'+n}));
+ return rows;};
+const tagsFor=(state,fn)=>Object.fromEntries(state.items.map(i=>[i.id,{fp:tagFingerprint(i),...fn(i)}]));
+function history(){
+ seq=0;
+ const rows=[
+  ...Array.from({length:6},(_,k)=>buy({product:'Muscle Crop Top '+k,merchant:'John Elliott',order_reference:'JE'+k},{at:Date.UTC(2025,k,1)})).flat(),
+  ...Array.from({length:4},(_,k)=>buy({product:'Overshirt '+k,merchant:'SSENSE',brand:'Our Legacy',order_reference:'SS'+k},{at:Date.UTC(2023,k,1),returned:k===0})).flat(),
+  ...buy({product:'Gift Scarf',merchant:'SSENSE',order_reference:'SS9'}),
+ ];
+ const state=projectReceiptEvidence(owner,rows).state;
+ const tags=tagsFor(state,i=>/Crop/.test(i.product)?{item_type:'muscle half crop top',group:'tops',color_family:'black',resale:false}:{item_type:'overshirt',group:'shirts',color_family:/0|1/.test(i.product)?'black':'navy',resale:false});
+ return {rows,state,tags};
+}
+
+test('the receipt counts real purchases: repeated item types, stores, brands and a dominant colour',()=>{
+ const {state,tags}=history(),r=receiptLines(state,tags);
+ assert.equal(r.eligible,true);
+ const byKey=Object.fromEntries(r.lines.map(l=>[l.key,l]));
+ assert.equal(byKey['type:muscle half crop top'].label,'MUSCLE HALF CROP TOPS');assert.equal(byKey['type:muscle half crop top'].n,6);
+ assert.equal(byKey['store:john elliott'].label,'JOHN ELLIOTT ORDERS');assert.equal(byKey['store:john elliott'].n,6);
+ assert.equal(byKey['colour:black'].label,'BLACK ANYTHING');assert.equal(byKey['colour:black'].n,8);
+ // A group line is dropped when an item-type line from the same group says it better.
+ assert.ok(!r.lines.some(l=>l.key==='group:tops'));
+ // Returns are a private line.
+ assert.deepEqual(r.lines.find(l=>l.key==='returns'),{key:'returns',label:'RETURNED',n:1,private:true});
+ assert.deepEqual(r.range,{from:2023,to:2025});
+ assert.ok(r.lines.every(l=>!/\$|€|£/.test(l.label)));
+});
+
+test('too little data makes no receipt instead of padding it',()=>{
+ seq=0;const state=projectReceiptEvidence(owner,[...buy({product:'Tee'}),...buy({product:'Jeans'})]).state;
+ assert.equal(receiptLines(state,{}).eligible,false);
+});
+
+test('the joke line is checked: no numbers or names the receipt does not show, no money or loyalty claims',()=>{
+ const receipt={lines:[{key:'a',label:'JOHN ELLIOTT ORDERS',n:6},{key:'b',label:'BLACK ANYTHING',n:22}],all_names:['John Elliott','Our Legacy','SSENSE']};
+ assert.equal(validTotal('one colour and a john elliott problem',receipt),'ONE COLOUR AND A JOHN ELLIOTT PROBLEM');
+ assert.equal(validTotal('TOTAL: 22 SHADES OF BLACK.',receipt),'22 SHADES OF BLACK');
+ assert.equal(validTotal('23 shades of black',receipt),null);
+ assert.equal(validTotal('our legacy forever',receipt),null);
+ assert.equal(validTotal('your favourite store',receipt),null);
+ assert.equal(validTotal('$4k in black tees',receipt),null);
+ assert.equal(validTotal('x'.repeat(41),receipt),null);
+});
+
+test('a rejected joke is retried once, then the receipt uses a safe line',async()=>{
+ const receipt={lines:[{key:'a',label:'BLACK ANYTHING',n:22}],all_names:[],range:null,items:30};
+ let calls=0;
+ assert.deepEqual(await writeTotal(receipt,async()=>{calls++;return {total:calls===1?'99 black tees':'still no beige'};}),{total:'STILL NO BEIGE',written:true});
+ assert.equal(calls,2);
+ assert.deepEqual(await writeTotal(receipt,async()=>({total:'your favourite colour'})),{total:FALLBACK_TOTAL,written:false});
+ assert.deepEqual(await writeTotal(receipt,async()=>{throw Error('down');}),{total:FALLBACK_TOTAL,written:false});
+});
+
+function fixture(){
+ const {rows,tags}=history();
+ let row={conversation_id:owner,revision:1,token_ciphertext:'sealed',data:{job:{status:'ready'},sources:[],questions:[],item_tags:tags}},busy=false;
+ return {get row(){return row;},set busy(v){busy=v;},
+  gmailImport:async()=>structuredClone(row),evidence:async()=>structuredClone(rows),signupFirstName:async()=>'Jack',
+  claimGmailImport:async()=>{if(busy)return null;busy=true;row.revision++;return structuredClone(row);},
+  finishGmailImport:async(o,revision,data,token)=>{if(revision!==row.revision)return false;busy=false;row={...row,data:structuredClone(data),token_ciphertext:token};return true;}};
+}
+const writer=async()=>({total:'one colour and a crop top habit'});
+
+test('building saves the receipt on the history row, and a rebuild keeps feedback and hidden lines',async()=>{
+ const store=fixture(),built=await buildReport(store,owner,{},{interpret:writer});
+ assert.equal(built.status,'built');
+ const saved=store.row.data.style_report;
+ assert.equal(saved.cards[0].type,'receipt');assert.equal(saved.cards[0].total,'ONE COLOUR AND A CROP TOP HABIT');assert.equal(saved.show_returns,false);
+ await updateReport(store,owner,{action:'report-feedback',card:'receipt',vote:'down',reason:'not_funny'});
+ await updateReport(store,owner,{action:'report-lines',card:'receipt',hidden:['colour:black'],show_returns:false});
+ const again=await buildReport(store,owner,{},{interpret:writer});
+ assert.notEqual(again.report.id,saved.id);
+ assert.deepEqual(store.row.data.style_report.hidden,{receipt:['colour:black']});
+ assert.equal(store.row.data.style_report.feedback.length,1);
+ store.busy=true;assert.equal((await buildReport(store,owner,{},{interpret:writer})).status,'busy');
+});
+
+test('feedback and line edits are validated and change nothing when invalid',async()=>{
+ const store=fixture();await buildReport(store,owner,{},{interpret:writer});
+ const before=structuredClone(store.row.data.style_report);
+ for(const input of [{action:'report-feedback',card:'receipt',vote:'meh'},{action:'report-feedback',card:'receipt',vote:'up',reason:'wrong'},{action:'report-feedback',card:'gatekeeper',vote:'up'},
+  {action:'report-lines',card:'receipt',hidden:['returns'],show_returns:false},{action:'report-lines',card:'receipt',hidden:['nope'],show_returns:false},{action:'report-lines',card:'receipt',hidden:[]},{action:'delete',card:'receipt'}])
+  await assert.rejects(updateReport(store,owner,input),e=>e.status===400,JSON.stringify(input));
+ assert.deepEqual(store.row.data.style_report,before);
+ // The lease is released after each refusal.
+ assert.ok(await store.claimGmailImport(owner));
+});
+
+test('the page view hides hidden lines and shows returns only when turned on',async()=>{
+ const store=fixture();await buildReport(store,owner,{},{interpret:writer});
+ let view=reportView(store.row.data.style_report,'Jack');
+ assert.equal(view.name,'Jack');assert.equal(view.cards[0].lines.find(l=>l.key==='returns').hidden,true);
+ await updateReport(store,owner,{action:'report-lines',card:'receipt',hidden:['colour:black'],show_returns:true});
+ view=reportView(store.row.data.style_report);
+ assert.equal(view.cards[0].lines.find(l=>l.key==='returns').hidden,false);assert.equal(view.cards[0].lines.find(l=>l.key==='colour:black').hidden,true);
+ await updateReport(store,owner,{action:'report-feedback',card:'receipt',vote:'up'});
+ assert.deepEqual(reportView(store.row.data.style_report).votes,{receipt:'up'});
+});
+
+const response=()=>({headers:{},setHeader(k,v){this.headers[k]=v;},end(body){this.body=JSON.parse(body);}});
+test('the report page API needs the person signed in and only shows their own report',async()=>{
+ const store=fixture();await buildReport(store,owner,{},{interpret:writer});
+ let res=response();
+ await handleReport({method:'GET',headers:{}},res,{store,env:{},auth:async()=>({status:401}),fetcher:fetch});
+ assert.equal(res.statusCode,401);assert.equal(res.body.report,undefined);
+ res=response();
+ await handleReport({method:'GET',headers:{authorization:'Bearer t'}},res,{store,env:{},auth:async()=>({status:200,conversation:owner}),fetcher:fetch});
+ assert.equal(res.statusCode,200);assert.equal(res.body.report.name,'Jack');assert.equal(res.body.report.cards[0].type,'receipt');
+ res=response();
+ const post={method:'POST',headers:{authorization:'Bearer t','content-type':'application/json'},async *[Symbol.asyncIterator](){yield Buffer.from(JSON.stringify({action:'report-feedback',card:'receipt',vote:'sideways'}));}};
+ await handleReport(post,res,{store,env:{},auth:async()=>({status:200,conversation:owner}),fetcher:fetch});
+ assert.equal(res.statusCode,400);
+});
+
+test('report links in texts are signed like onboarding links',async()=>{
+ const env={SITE_ORIGIN:'https://jules.example'},store={createSignInLink:async()=>'tok'};
+ assert.equal(await signInLinks('ready: https://jules.example/report',{store,conversationId:owner,env}),'ready: https://jules.example/report#signin=tok');
+ assert.equal(await signInLinks('go to https://jules.example/onboarding now',{store,conversationId:owner,env}),'go to https://jules.example/onboarding#signin=tok now');
+ assert.equal(await signInLinks('https://jules.example/reports',{store,conversationId:owner,env}),'https://jules.example/reports');
+});
