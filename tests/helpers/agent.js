@@ -32,7 +32,7 @@ export const isConsentCheck=options=>JSON.parse(options?.body??'{}').text?.forma
 export const consentResponse=authorizes=>({ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({authorizes})}]}]})});
 // The reference check (which shown options the words fit) answers "no ambiguity" unless a test says otherwise.
 export const isReferenceCheck=options=>JSON.parse(options?.body??'{}').text?.format?.name==='reference';
-export const referenceResponse=(could_refer_to=[],means='several')=>({ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({could_refer_to,means})}]}]})});
+export const referenceResponse=(could_refer_to=[],means='several')=>({ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({options:could_refer_to.map(option_index=>({option_index,fits:'plausibly'})),means})}]}]})});
 export const withConsent=(fetcher,authorizes=true)=>restating(async(url,options)=>isConsentCheck(options)?consentResponse(typeof authorizes==='function'?authorizes(options):authorizes):isReferenceCheck(options)?referenceResponse():fetcher(url,options));
 // The tool outputs the agent loop has sent back to the model this turn.
 export const toolOutputs=options=>{const input=JSON.parse(options?.body??'{}').input??[];return input.filter(i=>i.type==='function_call_output').map(i=>JSON.parse(i.output));};

@@ -224,3 +224,15 @@ test('when the user means one option but the words fit several, Jules asks which
     {facts,wishlistState:choice,wishlistAction:async intent=>{ran=intent;return 'Noted.';}});
   assert.equal(ran.decision,'interest');
 });
+test('after asking which option the user means, no other shopping action runs that turn',async()=>{
+  let request=0;const intents=[];
+  const reply=await agentReply([{direction:'inbound',body:'the light pair'}],env,async(_url,options)=>{
+    if(isReferenceCheck(options))return referenceResponse([0,1],'one');
+    request++;
+    if(request===1)return agentTurn(tool('respond_to_options',{decision:'clarify',option_indices:[0,1],response:'The ivory or the black?'}));
+    if(request===2)return agentTurn(tool('respond_to_options',{decision:'interest',option_indices:[0]}));
+    assert.match(toolOutputs(options).at(-1).error,/wait for their answer/);
+    return agentTurn(tool('conversation_reply',{response:'The ivory or the black?'}));},
+    {facts,wishlistState:choice,wishlistAction:async intent=>{intents.push(intent.decision);return 'The ivory or the black?';}});
+  assert.deepEqual(intents,['clarify']);assert.equal(reply,'The ivory or the black?');
+});
