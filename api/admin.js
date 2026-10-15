@@ -57,6 +57,11 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
       const conversation = await store.conversation(id);
       if (!conversation) return json(res, 404, { error: 'Conversation not found.' });
       if (query.get('view') === 'purchases') return json(res, 200, await purchaseReview(store, id));
+      // Read-only view of a tester's style report for /report?person=<id>.
+      if (query.get('view') === 'report') {
+        const [row, name] = await Promise.all([store.gmailImport(id), Promise.resolve(store.signupFirstName?.(id)).catch(() => null)]);
+        return json(res, 200, { report: reportView(row?.data?.style_report, name ?? null), status: row?.data?.style_report ? 'built' : 'not_built' });
+      }
       if (query.get('view') === 'wishlist') return json(res, 200, await personWishlist(store, id, env));
       let before;
       if (query.has('before')) {
