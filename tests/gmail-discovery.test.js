@@ -98,3 +98,9 @@ test('emails earlier imports found irrelevant do not use the limit, so a repeat 
  assert.equal(job.already_read,40);assert.equal(job.search_plan[job.search_index].already_read,40);assert.equal(job.search_plan[job.search_index].page,'p2');
  admitPage(job,{messages:Array.from({length:20},(_,i)=>({id:'deeper'+i}))},already);assert.equal(job.ids.length,1000);assert.equal(job.limited,true);
 });
+test('a search page of only already-read mail moves on without an empty reading step',()=>{
+ const job=newImportJob(now),already=new Set(['r1','r2']);
+ admitPage(job,{messages:[{id:'r1'},{id:'r2'}],nextPageToken:'p2'},already);
+ assert.equal(job.status,'listing');assert.equal(job.search_index,0);assert.equal(job.search_plan[0].page,'p2');assert.equal(job.already_read,2);
+ admitPage(job,{messages:[{id:'r1'},{id:'new1'}]},already);assert.equal(job.status,'extracting');assert.deepEqual(job.ids,['new1']);
+});
