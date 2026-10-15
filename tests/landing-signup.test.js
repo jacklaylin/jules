@@ -59,3 +59,21 @@ test('shuffle never repeats the current conversation and random load covers ever
  assert.deepEqual(new Set([0,.999].map(r=>pickDemo(null,()=>r))).size,2);
  assert.ok(DEMO_IDS.includes(pickDemo('unknown',()=>1)));
 });
+test('the signup gender answer seeds the shopping profile as a stated fact; prefer-not-to-say records nothing',async()=>{
+ const profile={first_name:'Test',last_name:'User',birthday:'1990-01-01'};
+ const run=async gender=>{let facts=[],evidence=0;const store={signup:async()=>'saved',conversationForPhone:async phone=>{assert.equal(phone,'+14155550123');return 'convo';},
+  profile:async()=>({facts,version:0}),saveProfile:async(id,v,next)=>{assert.equal(id,'convo');facts=next;return true;},recordEvidence:async()=>{evidence++;}};
+  const res=response();await createSignupHandler({env,storeFactory:()=>store,log:()=>{},welcome:async()=>({message_sent:false})})(request({...body,profile:{...profile,gender}}),res);
+  assert.equal(res.statusCode,200);assert.equal(evidence,0,'no chat evidence is invented');return facts;};
+ const facts=await run('non_binary');
+ assert.equal(facts.length,1);assert.deepEqual({field:facts[0].field,key:facts[0].key,value:facts[0].value,basis:facts[0].basis,source:facts[0].source},{field:'gender',key:'identity',value:'non-binary',basis:'stated',source:'signup'});
+ assert.deepEqual(await run('undisclosed'),[]);
+});
+test('a later chat statement replaces the signup gender, and a missing conversation never blocks signup',async()=>{
+ const {signupGenderFact,mergeFacts}=await import('../lib/memory.js');
+ const seeded=signupGenderFact('woman','req','2026-10-15T05:00:00Z');
+ const chat={field:'gender',key:'identity',value:'man',basis:'stated',source:'message',source_id:'m',updated_at:'2026-10-16T05:00:00Z'};
+ assert.equal(mergeFacts({facts:[seeded]},[chat])[0].value,'man');
+ const res=response();await createSignupHandler({env,storeFactory:()=>({signup:async()=>'saved',conversationForPhone:async()=>null,saveProfile:()=>assert.fail()}),log:()=>{},welcome:async()=>({message_sent:false})})(request({...body,profile:{first_name:'A',last_name:'B',birthday:'1990-01-01',gender:'woman'}}),res);
+ assert.equal(res.statusCode,200);
+});
