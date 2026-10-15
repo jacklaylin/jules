@@ -189,3 +189,22 @@ Jules confirms briefly ("got those, added 3 purchases from zara") and still answ
 2. Open Admin → People → you → Purchases and set "Found by" to "Chat screenshot". The new items are there; an order Gmail already had shows "Gmail + Chat screenshot" instead of a second card.
 3. Send the same screenshot again: Jules should say they were already in your history, and no new card appears.
 4. In Vercel logs, search `order_screenshot_imported` (counts of added, linked and withheld items) and `order_screenshot_read_failed` / `order_screenshot_write_failed` for failures. `order_screenshot_busy` means it was queued behind a running import.
+
+### October 15 follow-up: order lists, long orders and the confirmation line
+
+The first live test (SSENSE) showed three gaps: an order list has no items, an order with several items needs more than one screenshot, and the app often doesn't print the store name. Jules's reply also left out what happened to the screenshot.
+
+- **Order lists count.** Each order or return row (number, date, status, total as shown) is kept as an `order_summary` evidence row under `chat_screenshot`. They are not items. The purchase summary the agent sees now has `store_orders` per store: orders (an order seen in email and in a list counts once), returns, first and last order, and order totals by currency (median, max; never converted). This shows how often and how much someone buys at a store.
+- **Several screenshots, one order.** Screenshots sent together in one message are read as one. When the rest of an order arrives in a later message, the agent passes both messages' IDs. A read that includes screenshots read earlier replaces those earlier reads (their evidence is deleted by source ID), so nothing is counted twice and no half-read item is left behind.
+- **Store not written.** The reader never guesses a store from layout. When items or order rows have no store, Jules asks which store it is. The answer re-reads the same screenshots with `store_named_by_user`, and that read replaces the earlier one.
+- **Personal details.** The reader marks lines with names, addresses, contact or card details as personal, and code drops them before anything is kept or queued.
+- **Confirmation line.** The tool's result line ("got those. added 5 orders and 5 returns from ssense to your history.") is sent ahead of the model's message by code, so the agent can't leave it out when it also answers something else.
+
+**Before deploying**, run `db/030_order_summaries.sql` (adds the `order_summary` evidence kind). The schema check can't see check constraints, so it won't report this one. Without it, a screenshot with order rows fails to save and Jules says so.
+
+Checking it in production:
+
+1. Send the order list screenshot again (a new message). Jules should say it can see the orders but not the store, and ask which store. Answer "ssense". It should say it added 5 orders and 5 returns from SSENSE.
+2. Open one order, screenshot the top, scroll, screenshot the rest, and send both. Jules should add each item once, with the order number from the first screenshot.
+3. Ask Jules "how often do I shop at ssense?" It should answer from the order counts.
+4. Logs: `order_screenshot_imported` now includes `orders`, `returns`, `needs_store`, `store_named` and `replaced`.
