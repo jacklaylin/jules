@@ -363,6 +363,8 @@ function renderReport() {
   if (card) $('report-preview').textContent = [...card.lines.map(l => `${l.hidden ? '(hidden) ' : ''}${l.label} ×${l.n}`), `TOTAL: ${card.total}`].join('\n');
   $('report-build').textContent = report ? 'Rebuild report' : 'Build report';
   $('report-send').hidden = !report;
+  $('report-open').hidden = !report;
+  $('report-open').href = `/report?person=${encodeURIComponent(conversation)}`;
 }
 
 // or items corrected since). Each click tags as many as fit in one request.

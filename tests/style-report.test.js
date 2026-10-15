@@ -132,3 +132,29 @@ test('report links in texts are signed like onboarding links',async()=>{
  assert.equal(await signInLinks('go to https://jules.example/onboarding now',{store,conversationId:owner,env}),'go to https://jules.example/onboarding#signin=tok now');
  assert.equal(await signInLinks('https://jules.example/reports',{store,conversationId:owner,env}),'https://jules.example/reports');
 });
+
+test('opening Your style builds the report on the first visit, but not while an import is still reading',async()=>{
+ const auth=async()=>({status:200,conversation:owner}),get={method:'GET',headers:{authorization:'Bearer t'}};
+ let store=fixture(),res=response(),built=0;
+ const build=(s,o,e)=>{built++;return buildReport(s,o,e,{interpret:writer});};
+ await handleReport(get,res,{store,env:{OPENAI_API_KEY:'k'},auth,fetcher:fetch,build});
+ assert.equal(built,1);assert.equal(res.body.report.cards[0].type,'receipt');assert.ok(store.row.data.style_report);
+ // Later visits read the saved report.
+ res=response();await handleReport(get,res,{store,env:{OPENAI_API_KEY:'k'},auth,fetcher:fetch,build});assert.equal(built,1);
+ store=fixture();store.row.data.job.status='extracting';res=response();
+ await handleReport(get,res,{store,env:{OPENAI_API_KEY:'k'},auth,fetcher:fetch,build});
+ assert.equal(res.body.report,null);assert.equal(res.body.status,'reading');assert.equal(built,1);
+});
+
+test('the owner can open any tester’s report read-only from admin',async()=>{
+ const {createAdminHandler}=await import('../api/admin.js');
+ const store=fixture();store.conversation=async id=>id===owner?{id}:null;await buildReport(store,owner,{},{interpret:writer});
+ const before=structuredClone(store.row.data);
+ const res=response();
+ await createAdminHandler({auth:async()=>200,storeFactory:()=>store})({method:'GET',url:`/api/admin?view=report&conversation=${owner}`,headers:{}},res);
+ assert.equal(res.statusCode,200);assert.equal(res.body.report.name,'Jack');assert.equal(res.body.report.cards[0].type,'receipt');
+ assert.deepEqual(store.row.data,before);
+ const denied=response();
+ await createAdminHandler({auth:async()=>401,storeFactory:()=>store})({method:'GET',url:`/api/admin?view=report&conversation=${owner}`,headers:{}},denied);
+ assert.equal(denied.statusCode,401);assert.equal(denied.body.report,undefined);
+});
