@@ -74,3 +74,5 @@
  #reading,#done,#expired,#signed-out,#unavailable{max-width:560px}
  .ob-actions--end{margin-top:12px}
 }
+/* /onboarding-preview (the older demo walkthrough) shares this stylesheet. */
+#actions{display:flex;gap:12px;flex-wrap:wrap;margin:24px 0}#thread{padding-left:20px}#thread li{margin:12px 0}
