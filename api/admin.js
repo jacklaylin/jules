@@ -6,6 +6,7 @@ import { groupWishlist } from '../lib/wishlist.js';
 import { marketEnvironment } from '../lib/shopping-market.js';
 import { metricsTrend } from '../lib/chat-metrics.js';
 import { deleteImportedHistory } from '../lib/gmail-import.js';
+import { tagPurchaseHistory } from '../lib/item-tags.js';
 
 export const config = { api: { bodyParser: false }, maxDuration: 30 };
 // Owner view. Conversations are read-only (Jules replies automatically); the owner can review and
@@ -17,13 +18,19 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
       if (access !== 200) return json(res, access, { error: access === 503 ? 'Admin is not configured yet.' : 'Please sign in with the owner account.' });
       if (!['GET','POST'].includes(req.method)) { res.setHeader('Allow', 'GET, POST'); return json(res, 405, { error: 'Method not allowed.' }); }
       if (req.method === 'POST') {
-        // The only writes are purchase-history reviews and the onboarding reset; manual replies stay retired.
+        // The only writes are purchase-history reviews, tagging and the onboarding reset; manual replies stay retired.
         const input = await readJson(req);
-        if (!['review', 'missed', 'reset-onboarding'].includes(input.action)) return json(res, 400, { error: 'Unknown purchase action.' });
+        if (!['review', 'missed', 'tag', 'reset-onboarding'].includes(input.action)) return json(res, 400, { error: 'Unknown purchase action.' });
         if (input.action === 'reset-onboarding' && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Reset onboarding from the Jules admin page.' });
         const store = storeFactory(env);
         if (!uuid(input.conversation) || !await store.conversation(input.conversation)) return json(res, 404, { error: 'Conversation not found.' });
         if (input.action === 'reset-onboarding') return json(res, 200, await resetOnboarding(store, input, env, fetcher));
+        if (input.action === 'tag') {
+          // One click tags as many items as fit in this request; the page offers to continue.
+          const run = await tagPurchaseHistory(store, input.conversation, env, { budgetMs: 20000 });
+          if (run.busy && !run.tagged) throw Object.assign(new Error('Purchase history is busy (an import or another edit is running). Try again in a moment.'), { status: 409 });
+          return json(res, 200, { ...await purchaseReview(store, input.conversation), tag_run: run });
+        }
         if (input.action === 'review') await reviewPurchase(store, input.conversation, input);
         else await reportMissedPurchase(store, input.conversation, input);
         return json(res, 200, await purchaseReview(store, input.conversation));
