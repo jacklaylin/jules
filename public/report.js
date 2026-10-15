@@ -54,7 +54,6 @@ function receiptCard(card){
   el('p',{className:'receipt-total',textContent:`TOTAL: ${card.total}`}),
   el('hr'),
   range&&el('p',{className:'receipt-foot',textContent:range}),
-  el('p',{className:'receipt-foot receipt-foot-strong',textContent:'WE KEPT A COPY, OBVIOUSLY'}),
   el('div',{className:'receipt-barcode','aria-hidden':'true'}));
  return el('article',{className:'story-card story-receipt','aria-label':'Your receipt'},
   el('h2',{className:'display story-title',textContent:'We have your receipts (literally)'}),
@@ -62,10 +61,13 @@ function receiptCard(card){
   el('footer',{className:'story-foot'},wordmark()));
 }
 const RENDER={receipt:receiptCard};
+const CARD_NAMES={receipt:'Receipt'};
 
 function renderCard(animate=true){
  const card=report.cards[index];
  $('progress').replaceChildren(...report.cards.map((_,i)=>el('span',{className:i<index?'done':i===index?'current':''})));
+ $('progress-label').textContent=`Card ${index+1} of ${report.cards.length} · ${CARD_NAMES[card.type]??''}`;
+ $('arrow-prev').disabled=index===0;
  $('card').replaceChildren(RENDER[card.type](card));
  // Saving a vote or hidden lines redraws the card in place without replaying its entrance.
  $('card').classList.toggle('is-still',!animate);
@@ -86,6 +88,16 @@ $('intro-start').onclick=()=>go(0);
 $('tap-next').onclick=()=>go(index+1);
 $('tap-prev').onclick=()=>go(index-1);
 $('close').onclick=()=>show('view-end');
+$('arrow-next').onclick=()=>go(index+1);
+$('arrow-prev').onclick=()=>go(index-1);
+$('home').append(wordmark());
+// Desktop keyboard: arrows move between cards, Escape closes, while a card shows and no sheet is open.
+document.addEventListener('keydown',event=>{
+ if($('view-card').hidden||document.querySelector('dialog[open]')||event.altKey||event.ctrlKey||event.metaKey)return;
+ if(event.key==='ArrowRight'){event.preventDefault();go(index+1);}
+ else if(event.key==='ArrowLeft'){event.preventDefault();go(index-1);}
+ else if(event.key==='Escape')show('view-end');
+});
 $('restart').onclick=()=>go(0);
 $('vote-up').onclick=()=>save({action:'report-feedback',vote:'up'},'Noted. More like this.');
 $('vote-down').onclick=()=>$('sheet-down').showModal();

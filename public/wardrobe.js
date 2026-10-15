@@ -1,6 +1,7 @@
 import {trackedFetch as fetch} from './activity.js';
 import {mountHeader,enableAdminLink} from './design-system.js';
 import {createSession} from './wishlist-session.js';
+import {matchPhotoBackground} from './photo-background.js';
 mountHeader('wardrobe');
 
 // The wardrobe (PRD section 29): what Jules counts as yours, from your receipts. Every change goes
@@ -17,7 +18,7 @@ const el=(tag,props={},...children)=>{const node=Object.assign(document.createEl
 const CATEGORY_LABELS={tops:'Tops',bottoms:'Bottoms',dresses:'Dresses',outerwear:'Outerwear',suits:'Suits',shoes:'Shoes',bags:'Bags',accessories:'Accessories',other:'Other'};
 const REASON_LABELS={returned:'Returned',cancelled:'Order cancelled',gift:'Gift for someone',gone:'Don’t have it anymore',never_bought:'Never bought'};
 const ANSWER_LABELS={mine:'Mine',gift:'A gift',bought:'I bought it',not_bought:'I didn’t',kept:'Kept it',returned:'Returned',same:'Same item',not_sure:'Not sure'};
-// Outline drawings stand in for product photos until photo lookup is accurate enough to show.
+// Outline drawings stand in when the purchase itself had no product photo (no lookalikes are shown).
 const OUTLINES={
  tops:'M92 74 L130 58 Q150 80 170 58 L208 74 L258 124 L228 154 L210 138 L210 336 L90 336 L90 138 L72 154 L42 124 Z',
  bottoms:'M98 50 L202 50 L216 356 L166 356 L150 146 L134 356 L84 356 Z',
@@ -32,6 +33,26 @@ const OUTLINES={
 function outline(category){
  const frame=el('div',{className:'photo outline-photo'});
  frame.innerHTML=`<svg viewBox="0 0 300 400" aria-hidden="true"><path d="${OUTLINES[category]??OUTLINES.other}" fill="none" stroke="currentColor" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+ return frame;
+}
+// The photo from the order email or Shop order, in the shared .photo frame; the outline if it can't load.
+const photoURLs=new Map();
+function photoURL(id){
+ if(!photoURLs.has(id))photoURLs.set(id,(async()=>{
+  // Plain fetch: photo loads don't show the page activity indicator.
+  const send=()=>globalThis.fetch(`/api/wishlist?wardrobe=1&photo=${encodeURIComponent(id)}`,{headers:{Authorization:`Bearer ${token}`},cache:'no-store'});
+  let response=await send();
+  if(response.status===401&&session.read()?.refresh_token){token=await session.token(true);response=await send();}
+  if(!response.ok)throw Error('Photo unavailable');
+  return URL.createObjectURL(await response.blob());
+ })().catch(error=>{photoURLs.delete(id);throw error;}));
+ return photoURLs.get(id);
+}
+function photo(item){
+ if(!item?.photo)return outline(item?.category);
+ const frame=el('div',{className:'photo skeleton'});
+ photoURL(item.id).then(async url=>{const img=el('img',{alt:name(item)});img.src=url;await img.decode();matchPhotoBackground(frame,img);frame.classList.remove('skeleton');frame.replaceChildren(img);})
+  .catch(()=>{if(frame.parentNode)frame.replaceWith(Object.assign(outline(item.category),{id:frame.id}));});
  return frame;
 }
 const name=item=>item.product||item.brand||'Item';
@@ -72,7 +93,7 @@ async function act(input,{done}={}){
 }
 
 function card(item){
- const tile=el('button',{type:'button',className:'tile'},outline(item.category),el('strong',{},name(item)),line(item)?el('span',{className:'card-price'},line(item)):null);
+ const tile=el('button',{type:'button',className:'tile'},photo(item),el('strong',{},name(item)),line(item)?el('span',{className:'card-price'},line(item)):null);
  tile.onclick=()=>openDetail(item.id);
  return el('div',{className:'product-card'},tile);
 }
@@ -84,7 +105,7 @@ function renderQuestions(){
   const answers=[...q.answers.map(answer=>{const b=el('button',{type:'button',className:'chip',textContent:ANSWER_LABELS[answer]});b.onclick=()=>act({action:'answer',question_id:q.id,answer},{done:()=>toast('Thanks. Jules has that now.')});return b;}),
    q.topic==='details'&&first?Object.assign(el('button',{type:'button',className:'chip',textContent:'Fix details'}),{onclick:()=>openFix(first)}):null,
    Object.assign(el('button',{type:'button',className:'chip',textContent:ANSWER_LABELS.not_sure}),{onclick:()=>act({action:'answer',question_id:q.id,answer:'not_sure'})})];
-  return el('article',{className:'question'},outline(first?.category),el('div',{className:'question-body'},el('strong',{},q.question),el('div',{className:'question-answers'},...answers)));
+  return el('article',{className:'question'},photo(first),el('div',{className:'question-body'},el('strong',{},q.question),el('div',{className:'question-answers'},...answers)));
  });
  $('questions').hidden=!list.length;
  $('questions-title').textContent=`Jules has ${list.length} ${list.length===1?'question':'questions'}`;
@@ -119,7 +140,7 @@ function render(){
 
 function openDetail(id){
  const item=view.items.find(i=>i.id===id);if(!item)return;current=id;
- $('detail-photo').replaceWith(Object.assign(outline(item.category),{id:'detail-photo'}));
+ $('detail-photo').replaceWith(Object.assign(photo(item),{id:'detail-photo'}));
  $('detail-brand').textContent=item.brand??'';$('detail-title').textContent=name(item);
  const facts=[['Size',item.size??'Unknown'],['Color',item.color??'Unknown'],['Bought',[item.merchant,item.bought_at&&day(item.bought_at)].filter(Boolean).join(' · ')||'Unknown']];
  $('detail-facts').replaceChildren(...facts.flatMap(([k,v])=>[el('dt',{},k),el('dd',{},v)]));
@@ -154,7 +175,7 @@ function renderRemoved(){
  $('removed-list').replaceChildren(...view.removed.map(item=>{
   const restore=el('button',{type:'button',className:'chip',textContent:'Restore'});
   restore.onclick=()=>act({action:'restore',item_id:item.id},{done:()=>{renderRemoved();toast(`${name(item)} is back in your wardrobe.`);if(!view.removed.length)$('removed').close();}});
-  return el('div',{className:'removed-row'},outline(item.category),el('div',{},el('strong',{},name(item)),el('p',{className:'fine'},REASON_LABELS[item.reason]??'')),restore);
+  return el('div',{className:'removed-row'},photo(item),el('div',{},el('strong',{},name(item)),el('p',{className:'fine'},REASON_LABELS[item.reason]??'')),restore);
  }));
 }
 for(const dialog of document.querySelectorAll('dialog'))for(const close of dialog.querySelectorAll('[data-close]'))close.onclick=()=>dialog.close();

@@ -245,3 +245,13 @@ On the next re-import, progress sat at 226 emails checked for several minutes. T
 - Searches ask Gmail for 500 ids per page when there are already-read emails to skip (50 otherwise).
 - A page with nothing new goes straight to the next page or search, with no empty reading step.
 - The account and onboarding pages show the skipped count: "Checked 226 so far, skipped 2,582 already checked."
+
+## October 15 update: order photos and product links
+
+The wardrobe (PRD section 29) can show the picture the receipt itself contained.
+
+- **Collecting candidates.** While preparing an email, each https `<img>` is kept with its alt text and the link around it (or the one link in its table row), with tracking parameters removed. Pixel, icon, hidden, `http:` and inline images are dropped. Text links are kept too. The email text marks each picture in place as `[image N: alt]`. Shop records offer image fields next to a line item's title the same way (`shopCandidates`).
+- **Choosing.** The model gets refs, alt text and link paths only (`media_candidates`), never a URL. Each event may set `photo_ref` and `link_ref`. Code (`orderMedia`) keeps a ref only if it names a candidate of the right kind in that same source and its URL is https; anything else is withheld. One picture pointed at by two different line items goes to neither (`exclusiveMedia`).
+- **Storing.** Items record `order_photo: {url, source: order_email | shop_order, source_id}` and `product_link`, set once and never replaced. Each item that gains a photo has it downloaded once through the safe public fetch, checked (at least 40px a side, not banner-shaped), resized to a JPEG and stored as one `photo_observation` evidence row with id `order_photo:<item id>`. Re-imports insert the same id, which is a no-op. No migration: the `evidence` table already allows that kind. Purchase-history loads skip these rows; the wardrobe asks only which items have one. Deleting history or re-reading Shop removes them with the rest of that source's evidence.
+- **Existing emails.** Shopping emails read before this change are re-read once for photos and links only (`PHOTO_VERSION`, stored as `photo_version`), as prices were. Click **Import again** to add photos to an existing history. A photo that fails to download is not retried in this step; the item keeps its outline.
+- **Logs.** `gmail_order_photos` / `shop_order_photos` per step (due, stored, failed); `gmail_order_media` / `shop_order_media` when an import finishes (items, with an order photo, with a product link, with neither).
