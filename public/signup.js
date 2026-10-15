@@ -3,7 +3,9 @@ import {mountPublicHeader as initPublicBrand} from './design-system.js';
 import {SIGNUP_CONSENT,SIGNUP_VERSION} from './signup-consent.js';
 initPublicBrand();document.getElementById('signup-logo').replaceChildren(createLogo());
 const $=id=>document.getElementById(id),form=$('signup-form'),button=$('signup-button'),status=$('signup-status');
-$('consent-text').textContent=SIGNUP_CONSENT;
+// The stored disclosure is plain text; its policy names become links on the page.
+const policyLink=name=>Object.assign(document.createElement('a'),{href:name==='Terms'?'/terms':'/privacy',target:'_blank',textContent:name});
+$('consent-text').replaceChildren(...SIGNUP_CONSENT.split(/(Privacy Policy|Terms)/).map(part=>['Privacy Policy','Terms'].includes(part)?policyLink(part):part));
 let available=false,requestId=crypto.randomUUID();
 form.addEventListener('input',()=>{requestId=crypto.randomUUID();button.disabled=!available||!$('consent').checked;});
 try{const response=await fetch('/api/wishlist?public_signup=1');const config=await response.json();available=response.ok&&config.enabled;button.disabled=!available||!$('consent').checked;status.textContent=available?'':'Signups are not open yet. Please check back soon.';}catch{status.textContent='Could not check signup availability. Please reload to try again.';}
