@@ -227,3 +227,13 @@ After the change above, a re-import found 46 new purchases but still no MAAP. A 
 - **Order subjects come first.** A new `recent_receipts_backlog` search (250 emails) takes the rest of the last two years' order-subject emails before the body-word searches, which mostly return other mail.
 
 Limits are unchanged (1,000 emails per import, five years). No migration.
+
+### October 15 follow-up: one search per store, including stores found mid-import
+
+With the order-subject change, a re-import found one MAAP order (June 2026) but not the others. The known-store search ran only at the start of the import, before MAAP had been found. It also shared one 150-email allowance across all 41 stores, newest emails first, so it would have reached MAAP's older orders only on a later import, if at all.
+
+- **One store at a time.** Store searches now run per store (`from:<store> <order words>` over the whole five years). Each store has its own 40-email allowance, so a store with many emails can't crowd out the others. The most recently found stores go first. `job.stores_searched` lists stores finished in this import; `job.stores_capped` lists stores that had more emails than their allowance.
+- **Stores found during the import.** Two more store stages run: `new_stores` after the recent searches, and `later_stores` before the last broad search. A store first found partway through an import has its other orders found in the same run. Each store is searched once per import. A store cut short by a stage's allowance is continued by the next store stage.
+- **Purchase emails already read don't use the limit either.** Shopping emails already read and priced under the current rules are skipped during search, like irrelevant ones. Re-imports spend the 1,000-email limit only on new emails. The trade-off: a store email whose content changed after it was read is no longer re-checked for changes.
+
+Limits are unchanged. No migration.
