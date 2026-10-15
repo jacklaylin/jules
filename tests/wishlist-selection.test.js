@@ -9,7 +9,7 @@ const state={stage:'choice',query:'Example Trail',options};
 const facts=[{field:'gender',key:'identity',value:'man'},{field:'size',key:'shoes/eu',value:'45'}];
 const env={PRICE_ALERTS_ENABLED:'true'};
 const inspect=async links=>({sizes:['EU 45'],checks:[{offers:[{size:'EU 45',key:'EU 45',amount:400,currency:'USD',available:true,url:links[0].url}]}]});
-async function act(args,current=state,extra={}){let result;const body=await textWishlistAction({action:'selection',decision:'interest',consent:'none',size_choices:[],...args},{state:current,facts,env,inspect,record:async r=>{result=r;},search:()=>assert.fail('selection must not source again'),...extra});return {body,result,next:result.text_wishlist_state};}
+async function act(args,current=state,extra={}){let result;const body=await textWishlistAction({action:'selection',decision:'interest',consent:'none',size_choices:[],option_sizing:options.map((_,option_index)=>({option_index,sizing:'footwear'})),...args},{state:current,facts,env,inspect,record:async r=>{result=r;},search:()=>assert.fail('selection must not source again'),...extra});return {body,result,next:result.text_wishlist_state};}
 test('structured selection represents one, a subset, all, and none without forcing one choice or repeating links',async()=>{
  for(const indices of [[1],[0,1],[0,1,2]]){
   const r=await act({option_indices:indices});assert.deepEqual(r.next.selected_set.map(p=>p.url),indices.map(i=>options[i].url));assert.equal(r.next.stage,'offer_set');assert.equal(r.result.user_confirmed,undefined);assert.doesNotMatch(r.body,/https:|Which color/);assert.ok(r.body.includes('wishlist'));

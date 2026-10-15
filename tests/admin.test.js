@@ -32,13 +32,15 @@ test('auth requires verified owner identity checked with Supabase, not token cla
   assert.equal(await authorize({ authorization: 'Bearer fake-token' }, env, identity({ email: 'other@example.invalid', email_confirmed_at: 'date' })), 403);
   assert.equal(await authorize({ authorization: 'Bearer fake-token' }, env, identity({ email: env.ADMIN_EMAIL.toUpperCase(), email_confirmed_at: 'date' })), 200);
 });
-test('concurrent or retried replies send once and mismatched operation IDs fail', async () => {
+test('concurrent or retried replies send once and an operation ID reused for another conversation fails', async () => {
   const store = memoryStore(); let count = 0;
   const args = { store, conversation, operation, body: 'A manual reply', source: 'operator', send: async () => { count++; } };
   await Promise.all([deliverReply(args), deliverReply(args)]);
   assert.equal(count, 1);
   assert.equal((await deliverReply(args)).status, 'sent');
-  await assert.rejects(deliverReply({ ...args, body: 'Changed reply' }), error => error.status === 409);
+  // A retry's stored text may be the composed version of its draft, so only the conversation must match.
+  assert.equal((await deliverReply({ ...args, body: 'Composed wording of the same reply' })).duplicate, true); assert.equal(count, 1);
+  await assert.rejects(deliverReply({ ...args, conversation: { ...conversation, id: 'another-conversation' } }), error => error.status === 409);
 });
 test('ambiguous send failure stays visible and never automatically retries', async () => {
   const store = memoryStore(); let count = 0;
