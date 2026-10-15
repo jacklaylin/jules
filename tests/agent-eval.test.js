@@ -49,6 +49,8 @@ test('eval scoring follows the loop: refused calls and the closing message do no
   const report=await runAgentEval(unverified,{OPENAI_API_KEY:'test'},{fetcher:async(_url,options)=>{
     const body=JSON.parse(options.body);
     if(body.text?.format?.name==='consent')return {ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:'{"authorizes":true}'}]}]})};
+    if(body.text?.format?.name==='profile_check')return {ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:'{"changes":[]}'}]}]})};
+    if(body.text?.format?.name==='quality')return {ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:'{"verdict":"fine","kind":null,"about":null,"summary":null}'}]}]})};
     requests++;assert.equal(agentContext(options).pending_shopping.options[0].reference_provenance,'search_unverified');
     return requests===1?agentTurn(tool('save_to_wishlist',{option_indices:[0]})):agentTurn(tool('conversation_reply',{response:'saved.',claims:{saved_now:false,alerts_turned_on:false,alerts_turned_off:false}}));}});
   assert.equal(report.passed,true,report.failures.join());assert.equal(report.rounds,2);assert.equal(report.reply,'saved.');

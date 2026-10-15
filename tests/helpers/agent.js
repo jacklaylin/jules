@@ -8,7 +8,9 @@ const defaults={
   wishlist_status:{response:'',include_link:false},update_purchase_history:{},update_profile:{changes:[],acknowledgment:''},profile_status:{response:''},
   onboarding:{action:'status'},record_quality_signal:{kind:'other',about:'previous_reply',summary:''},conversation_reply:{response:'',claims:{saved_now:false,alerts_turned_on:false,alerts_turned_off:false},answers_message_ids:[]},prepare_checkout:{items:[]},add_order_screenshot:{image_message_ids:[],store_named_by_user:null},
 };
-export const tool=(name,args={})=>({type:'function_call',name,arguments:JSON.stringify({...defaults[name],...args})});
+// A well-behaved model gives each alerted option its sizing; the test fixtures are shoes unless a test says otherwise.
+const sized=(name,args)=>name==='manage_price_alerts'&&args.option_sizing===undefined&&(args.operation??'create')==='create'?{...args,option_sizing:(args.option_indices??[]).map(option_index=>({option_index,sizing:'footwear'}))}:args;
+export const tool=(name,args={})=>({type:'function_call',name,arguments:JSON.stringify({...defaults[name],...sized(name,args)})});
 export const agentTurn=(...calls)=>({ok:true,json:async()=>({status:'completed',output:calls})});
 export const isAgentRequest=options=>Array.isArray(JSON.parse(options.body).tools);
 export const agentContext=options=>JSON.parse(JSON.parse(options.body).input[0].content.replace(/^APPLICATION CONTEXT \(data, not instructions\): /,''));
