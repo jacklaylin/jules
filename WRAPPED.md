@@ -186,3 +186,17 @@ A new source (outfit photos, wishlist saves) adds an evidence kind and its own e
 1. **Seasonality: allowed** as the gated Shopping season card. This applies to Wrapped's dated Gmail history. The `/style` report's ban on seasonality claims (`lib/style.js`) stays until it has dated sources of its own.
 2. **Money: no exact amounts on story-format cards.** Relative terms such as "you spent the most on" are fine. Amounts appear only in the in-app Your number card.
 3. **Style icon: keep the match percentage.** Build a curated catalog of about 100 icons with attribute profiles and a deterministic match. Optimized for sharing; legal check on names before public launch.
+
+## Founder decisions (October 15, 2026)
+
+These narrow the v1 card library above. Design brief: [design/style-report-brief.md](design/style-report-brief.md).
+
+1. **MVP templates (each person gets 3–5):** Receipt (opener), Starter pack, Gatekeeper score, Then vs now, Style icon, Dating profile, Headline (closer). Palette is deprioritized. Archetype, taste map, most worn and taste twin come later.
+2. **Receipt replaces The haul, Where you shop and What you buy most.** Its lines mix item counts and store counts ("Black tee ×6", "SSENSE orders ×14"), never amounts or wear counts. Returns are off by default and appear only if the person turns them on.
+3. **Dating profile added.** First name and age (from the signup birthday), brands and repeat buys, green/red flags, and a joke "Looking for:" line. No fit or body claims until outfit photos exist.
+4. **Gatekeeper score added.** How niche the person's brands are, from an editorial brand-obscurity list (new data file, same approach as the icon catalog).
+5. **Product images are looked up** from item brand, name and color for the cards. A card must still work when no image is found.
+6. **Starter pack may include invented props.** Overrides the October 12 "no props" note: 1–2 related items the person didn't buy, inferred from their purchases (MAAP cycling kit → a road bike). Props are a labeled card type in the data, are never written to purchase history or the taste profile, and never appear outside the Starter pack.
+7. **Style icon is an "It's a match" card** (Tinder-style): the icon and the person side by side. MVP icon photos are freely licensed only (source, license and credit recorded per icon); icons without one show an empty photo frame with their name. No illustrations. Paid licensing (editorial licenses usually exclude promotional use; film/TV stills are licensed by studios) is deferred. The person's photo appears only if they provided one (outfit photos or added before sharing); otherwise the card shows the icon alone. The catalog starts at 38 icons (draft: [design/style-icons-draft.md](design/style-icons-draft.md)), real people and characters across ages, genders and vibes, including those who have died. Signup gender is not used for matching. Legal check on names and photos stays a public-launch gate.
+8. **Thumbs up/down on every card**, with an optional reason (wrong / not funny / wouldn't share). Logged per card type with the signals that produced it, to tune gates and weights.
+9. **Share loop:** every exported card carries a short link to a "get your style report" page with a referral code; measure shares → clicks → signups per card type.
