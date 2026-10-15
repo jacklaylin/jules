@@ -141,7 +141,7 @@ function render() {
   renderTokens();
   const current = filter(), shown = items.filter(i => matches(i, current));
   $('purchases-start').hidden = !shown.length || !!open || !!view;
-  const head = el('div', { className: 'dv-head', ariaHidden: 'true' }, ...['Item', 'Store', 'Size', 'Colour', 'Price', 'Date', 'For', 'Status'].map((text, n) => el('span', { className: n === 7 ? 'end' : '', textContent: text })));
+  const head = el('div', { className: 'dv-head', ariaHidden: 'true' }, ...['Item', 'Store', 'Size', 'Colour', 'Price', 'Date', 'Note'].map((text, n) => el('span', { className: n === 6 ? 'end' : '', textContent: text })));
   $('purchases-list').replaceChildren(...(shown.length ? [head, ...shown.map(itemRow)] : [el('p', { className: 'empty-state', textContent: items.length ? 'No purchases match these filters.' : 'No purchases found yet.' })]));
   if (open) $('purchases-list').querySelector('[aria-current="true"]')?.scrollIntoView({ block: 'nearest' });
   $('purchases-pending').hidden = !data.pending.length;
@@ -156,15 +156,18 @@ function render() {
 }
 
 const facts = item => [item.merchant, item.size_label && `size ${item.size_label}${item.size_system ? ` (${item.size_system})` : ''}`, item.color, item.quantity > 1 && `×${item.quantity}`, item.price && item.price.text,
-  day(item.events.find(e => e.kind === 'purchased')?.at), RECIPIENTS[item.recipient.value] + (item.recipient.basis === 'receipt_evidence' ? ' (receipt)' : ''), OUTCOMES[item.outcome]].filter(Boolean);
-const statusText = (item, withReviewed) => [item.sources.map(sourceName).join(' + '), item.removed && !item.duplicate_of && 'Removed', item.duplicate_of && 'Duplicate', item.confirmed && 'Confirmed', item.confirmed_fields.length && 'Edited', withReviewed && reviewed(item) && 'Reviewed'].filter(Boolean).join(' · ');
+  day(item.events.find(e => e.kind === 'purchased')?.at), recipientNote(item), OUTCOMES[item.outcome]].filter(Boolean);
+// Defaults stay blank (calm admin: show exceptions, not defaults): "For them" and a single source say nothing.
+const recipientNote = item => item.recipient.value === 'self' ? null : RECIPIENTS[item.recipient.value] + (item.recipient.basis === 'receipt_evidence' ? ' (receipt)' : '');
+const noteText = item => [OUTCOMES[item.outcome], recipientNote(item), item.sources.length > 1 && `Found by ${item.sources.map(sourceName).join(' + ')}`,
+  item.removed && !item.duplicate_of && 'Removed', item.duplicate_of && 'Duplicate', item.confirmed_fields.length && 'Edited', reviewed(item) && 'Reviewed'].filter(Boolean).join(' · ');
 
 // One dense row. Cells clip with the full text on hover; with an item open (or on a phone) the row
 // shrinks to the item and one facts line.
 function itemRow(item) {
-  // Quiet status text on the right; "To review" rows show nothing because the filter says it.
+  // The Note column holds only exceptions; a row that is fine leaves it blank.
   // "Reviewed" appears here only; the item review shows the correction history instead.
-  const status = statusText(item, true), outcome = OUTCOMES[item.outcome];
+  const note = noteText(item);
   const cell = text => el('span', { className: 'dv-col muted', textContent: text ?? '', title: text ?? '' });
   const name = el('span', {}, item.brand ? el('strong', { textContent: item.brand }) : null, item.brand && item.product ? ' · ' : '',
     item.product ?? (item.brand ? '' : 'Unnamed item'), item.quantity > 1 ? ` ×${item.quantity}` : '');
@@ -172,8 +175,7 @@ function itemRow(item) {
     el('span', { className: 'dv-item' }, name, el('span', { className: 'dv-facts', textContent: facts(item).join(' · ') })),
     cell(item.merchant), cell(item.size_label && `${item.size_label}${item.size_system ? ` (${item.size_system})` : ''}`), cell(item.color),
     cell(item.price?.text), cell(day(item.events.find(e => e.kind === 'purchased')?.at)),
-    cell(RECIPIENTS[item.recipient.value] + (item.recipient.basis === 'receipt_evidence' ? ' (receipt)' : '')),
-    el('span', { className: 'end muted', title: [outcome, status].filter(Boolean).join(' · ') }, outcome ? el('strong', { textContent: outcome }) : null, outcome && status ? ' · ' : '', status));
+    el('span', { className: 'end muted', title: note, textContent: note }));
   row.dataset.id = item.id;
   if (item.id === itemParam()) row.setAttribute('aria-current', 'true');
   row.onclick = event => { if (event.metaKey || event.ctrlKey || event.shiftKey || event.button) return; event.preventDefault(); openItem(item.id, true); };
@@ -205,19 +207,19 @@ function renderReview(id) {
   if (shownReview && shownReview.id === id && shownReview.data === data) return;
   shownReview = { id, data };
   const box = $('purchase-review');
-  const back = el('a', { href: itemHref(null).search, className: 'review-back' }, 'Close ', el('span', { className: 'kbd', textContent: 'Esc' }));
+  const back = el('a', { href: itemHref(null).search, className: 'review-back', textContent: 'Close', title: 'Close (Esc)' });
   back.onclick = event => { event.preventDefault(); closeItem(); };
   if (!data) { box.replaceChildren(el('div', { className: 'review-bar' }, back), el('p', { className: 'muted', role: 'status', textContent: 'Loading purchase…' })); return; }
   const item = data.items.find(i => i.id === id);
   if (!item) { box.replaceChildren(el('div', { className: 'review-bar' }, back), el('p', { className: 'empty-state', textContent: 'This item is no longer in their purchase history. Go back to all purchases.' })); return; }
   const current = filter(), { index, total } = position(data.items, id, current);
-  const kbd = text => el('span', { className: 'kbd', textContent: text });
-  const step = (label, dir, key) => { const button = el('button', { type: 'button', className: 'small' }, ...(dir < 0 ? [kbd(key), ` ${label}`] : [`${label} `, kbd(key)])); button.onclick = () => move(dir); return button; };
+  const step = (label, dir, key) => { const button = el('button', { type: 'button', className: 'small quiet', textContent: label, title: `${label.replace(/[‹›]/g, '').trim()} (${key})` }); button.onclick = () => move(dir); return button; };
   const bar = el('div', { className: 'review-bar' },
-    el('strong', { className: 'review-where mono-label', textContent: `Reviewing: ${filterLabel(current)} · ${index ? `${index} of ${total}` : `not in this filter (${total} ${total === 1 ? 'item' : 'items'})`}` }),
-    el('span', { className: 'review-steps' }, step('Previous', -1, 'K'), step('Next', 1, 'J'), back),
+    el('span', { className: 'review-where', textContent: `${filterLabel(current)} · ${index ? `${index} of ${total}` : `not in this filter (${total} ${total === 1 ? 'item' : 'items'})`}` }),
+    el('span', { className: 'review-steps' }, step('‹ Previous', -1, 'K'), step('Next ›', 1, 'J'), back),
     el('span', { id: 'review-state', role: 'status', ariaLive: 'polite' }));
-  const status = statusText(item, false);
+  // The facts line already carries outcome and recipient; the corner shows only the item's review state.
+  const status = [item.sources.length > 1 && `Found by ${item.sources.map(sourceName).join(' + ')}`, item.removed && !item.duplicate_of && 'Removed', item.duplicate_of && 'Duplicate', item.confirmed_fields.length && 'Edited'].filter(Boolean).join(' · ');
   const head = el('div', { className: 'review-head' },
     el('div', {}, el('h2', { id: 'review-title', tabIndex: -1, textContent: title(item) }), el('p', { className: 'muted', textContent: facts(item).join(' · ') }),
       item.tags ? el('p', { className: 'meta', textContent: tagText(item.tags) }) : null),
@@ -275,7 +277,7 @@ function pickLabel(form, reason) {
 
 function evidence(item) {
   const emails = new Map(item.emails.map(e => [e.id, e]));
-  return el('div', { className: 'review-block' }, el('h3', { className: 'mono-label', textContent: 'Evidence from email · read-only' }),
+  return el('div', { className: 'review-block' }, el('h3', { className: 'review-label', textContent: 'Evidence from email (read-only)' }),
     ...item.events.map(event => {
       const email = emails.get(event.source_id), gmail = event.source === 'gmail';
       // Only Gmail records can be opened; a connected service's record is summarised under Connected sources.
@@ -285,13 +287,13 @@ function evidence(item) {
         event.evidence ? el('blockquote', { textContent: event.evidence }) : null);
     }),
     item.order_reference || item.sku ? el('p', { className: 'meta', textContent: [item.order_reference && `Order ${item.order_reference}`, item.sku && `SKU ${item.sku}`].filter(Boolean).join(' · ') }) : null,
-    item.confirmed_fields.length ? el('div', { className: 'original' }, el('span', { className: 'mono-label', textContent: 'Originally read as' }),
+    item.confirmed_fields.length ? el('div', { className: 'original' }, el('span', { className: 'review-label', textContent: 'Originally read as' }),
       el('p', { textContent: item.confirmed_fields.filter(f => f in item.original).map(f => `${f.replace('_label', '')} ${item.original[f] ?? 'blank'}`).join(', ') })) : null);
 }
 
 function corrections(item) {
   if (!item.reviews.length) return null;
-  return el('div', { className: 'review-block' }, el('h3', { className: 'mono-label', textContent: 'Correction history' }), ...item.reviews.map(r => el('p', { className: 'meta',
+  return el('div', { className: 'review-block' }, el('h3', { className: 'review-label', textContent: 'Correction history' }), ...item.reviews.map(r => el('p', { className: 'meta',
     textContent: `${day(r.at)} · ${r.source === 'operator_review' ? `Admin: ${REASON_LABEL[r.reason] ?? r.action}` : `From chat: ${r.action.replace(/_/g, ' ')}`}${r.note ? ` — ${r.note}` : ''}` })));
 }
 
@@ -303,17 +305,17 @@ function reviewForm(item) {
     return el('p', { className: 'review-duplicate' }, `Duplicate of ${target ? title(target) : 'another item'}. `, link ?? 'Correct that item instead.');
   }
   const name = `reason-${item.id}`, form = el('form', { className: 'review-form' });
-  const chips = el('fieldset', {}, el('legend', {}, 'What’s wrong? ', el('span', { className: 'muted', textContent: '(required)' })), ...REASONS.map(([value, label], n) =>
-    el('label', { className: 'chip' }, el('input', { type: 'radio', name, value, required: true }), el('span', { className: 'kbd', textContent: String(n + 1) }), label)));
+  const chips = el('fieldset', {}, el('legend', {}, 'What’s wrong?'), ...REASONS.map(([value, label], n) =>
+    el('label', { className: 'chip' }, el('input', { type: 'radio', name, value, required: true }), el('span', { className: 'digit', textContent: String(n + 1) }), label)));
   const extra = el('div', { className: 'review-extra' });
   const note = el('textarea', { maxLength: 500, rows: 2, placeholder: 'Optional: what should Jules have read instead?' });
   // Save and open next is the fast path, so it is the primary (butter) button. Save correction stays first so
   // Enter in a field still saves without moving on.
-  const saveNext = el('button', { type: 'submit', className: 'btn--butter', textContent: 'Save and open next ' }, el('span', { className: 'kbd', textContent: '⌘ ↵' }));
+  const saveNext = el('button', { type: 'submit', className: 'btn--butter', textContent: 'Save and open next' });
   saveNext.dataset.next = '';
   form.append(chips, extra, el('label', {}, 'Note', note), el('div', { className: 'review-actions' },
-    el('button', { type: 'submit', textContent: 'Save correction' }), saveNext,
-    el('span', { className: 'muted', textContent: 'Saved edits sit on top; the email is never changed.' })));
+    el('button', { type: 'submit', className: 'quiet', textContent: 'Save only' }), saveNext,
+    el('span', { className: 'muted review-hint', textContent: '⌘↵ saves and opens next · the email is never changed' })));
   chips.addEventListener('change', () => { extra.replaceChildren(...extraFields(item, form[name].value)); });
   form.onsubmit = async event => {
     event.preventDefault();

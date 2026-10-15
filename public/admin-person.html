@@ -7,9 +7,9 @@
 <link rel="icon" href="/brand/icon.svg" type="image/svg+xml"></head>
 <body class="admin-console">
   <main>
-    <div class="person-title"><a class="breadcrumb" href="/admin">← People</a><h1 id="person-name">Loading…</h1><div id="person-badges" class="badges"></div><span class="spacer"></span>
-      <p class="person-stats mono-label">Last active <strong id="stat-active">—</strong> · <strong id="stat-messages">—</strong> messages · <strong id="stat-facts">—</strong> facts</p>
-      <button class="small" type="button" popovertarget="person-more">More ⋯</button></div>
+    <div class="person-title"><a class="breadcrumb" href="/admin">People /</a><h1 id="person-name">Loading…</h1><div id="person-badges" class="badges"></div><span class="spacer"></span>
+      <p class="person-stats">Active <strong id="stat-active">—</strong> · <strong id="stat-messages">—</strong> messages · <strong id="stat-facts">—</strong> facts</p>
+      <button class="small quiet" type="button" popovertarget="person-more">More ⋯</button></div>
     <!-- One menu of actions for this person, the same on every tab. Purchase actions open Purchase history first. -->
     <div id="person-more" class="dv-pop dv-menu" popover aria-label="More actions">
       <span class="mono-label">Purchase history</span>
@@ -55,7 +55,7 @@
         <span class="dv-divider" data-list-only></span>
         <div id="purchases-chips" class="seg" role="group" aria-label="Filter by status" data-list-only></div>
         <label class="dv-search" data-list-only><span class="sr-only">Search purchases</span><input id="purchases-search" type="search" maxlength="100" placeholder="Brand, product, store, size"><span class="kbd" aria-hidden="true">/</span></label>
-        <button class="small" type="button" popovertarget="purchases-filters" data-list-only>Filters <span id="purchases-filter-count" class="dv-count" hidden></span></button>
+        <button class="small quiet" type="button" popovertarget="purchases-filters" data-list-only>Filters <span id="purchases-filter-count" class="dv-count" hidden></span></button>
         <span class="spacer"></span>
         <button id="purchases-start" class="btn--butter small" type="button" hidden>Start reviewing →</button>
       </div>
@@ -64,8 +64,7 @@
         <label>Found by<select id="purchases-source"><option value="">Any source</option><option value="gmail">Gmail</option><option value="shop">Shop</option><option value="screenshot">Chat screenshot</option><option value="multiple">More than one source</option></select></label>
         <div class="dv-pop-actions"><button id="purchases-clear" class="small" type="button">Clear</button><button class="small btn--butter" type="button" popovertarget="purchases-filters" popovertargetaction="hide">Done</button></div>
       </div>
-      <div class="dv-status"><span id="purchases-tokens" class="badges"></span><span id="purchases-loader" class="dv-loader" aria-hidden="true" hidden></span><span id="purchases-summary"></span><span id="tags-status"></span><span id="purchases-notice" role="status" aria-live="polite"></span>
-        <span class="dv-keys" aria-hidden="true"><span class="kbd">/</span> search <span class="kbd">J</span><span class="kbd">K</span> move <span class="kbd">↵</span> open <span class="kbd">Esc</span> close</span></div>
+      <div class="dv-status"><span id="purchases-tokens" class="badges"></span><span id="purchases-loader" class="dv-loader" aria-hidden="true" hidden></span><span id="purchases-summary"></span><span id="tags-status"></span><span id="purchases-notice" role="status" aria-live="polite"></span></div>
 
       <section id="tool-recheck" class="dv-tool" aria-labelledby="tool-recheck-title" hidden><div class="dv-tool-head"><h2 id="tool-recheck-title">Re-check labelled emails</h2><button class="small" type="button" data-close-tool>Close ×</button></div><p class="muted">Re-reads the emails behind every item you labelled, using the current reading rules, and reports how many labels it now agrees with. Nothing is saved. Takes a few seconds per item.</p><button id="recheck-run" class="small" type="button">Run re-check</button><p id="recheck-status" role="status" aria-live="polite" class="muted"></p><div id="recheck-results"></div></section>
       <section id="tool-report" class="dv-tool" aria-labelledby="tool-report-title" hidden><div class="dv-tool-head"><h2 id="tool-report-title">Style report</h2><button class="small" type="button" data-close-tool>Close ×</button></div><p class="muted">Builds the person’s private style report from their purchases and tags (Receipt card for now). Texting sends them a signed link to /report; each built report is texted once.</p><p id="report-status" class="muted"></p><pre id="report-preview" class="report-preview" hidden></pre><button id="report-build" class="small" type="button">Build report</button> <button id="report-send" class="small" type="button" hidden>Text them the link</button> <a id="report-open" class="small" target="_blank" rel="noopener" hidden>Open report ↗</a></section>
