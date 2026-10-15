@@ -6,17 +6,16 @@
 @font-face{font-family:"JetBrains Mono";src:url("/fonts/jetbrains-500.ttf") format("truetype");font-style:normal;font-weight:500;font-display:swap}
 /* ==========================================================================
    JULES — design tokens, components, keyframes
-   Source of truth for CSS. See DESIGN_SYSTEM.md for rules, layouts, timelines.
+   Source of truth for CSS. See DESIGN-SYSTEM.md for rules, layouts, timelines.
    ========================================================================== */
-
-@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap');
 
 :root {
   /* color */
   --ink: #17120F;          /* text, outlines, dark surfaces */
   --white: #FFFFFF;        /* THE ground. Never tint it. */
   --fog: #F3F1EE;          /* image placeholders, quiet surfaces */
-  --line: #E8E4E0;         /* hairlines on white */
+  --line: #E8E4E0;         /* hairlines on white; too faint for form-control borders */
+  --line-strong: #8A817A;  /* input, select, textarea and .field borders (3.8:1 on white) */
   --text-2: #6B625B;       /* secondary text (5.9:1 on white) */
   --butter: #FFC93C;       /* primary action, tags */
   --tangerine: #FF7A2F;
@@ -24,6 +23,25 @@
   --grape: #6C3BFF;        /* secondary action (white text, 5.7:1) */
   --aqua: #0A6BF0;         /* iMessage + loader ONLY (white text, 4.8:1) */
   --imsg-gray: #E9E9EB;
+  --danger: #B42318;       /* error text and invalid-field borders, always with words (6.6:1) */
+  --backdrop: #17120F40;   /* dialog scrim (ink at 25%) */
+  --photo-overlay: #FFFFFFF2; /* round icon buttons on product photos */
+  --gloss-top: #FFFFFFB0;  /* gel-pill gloss */
+  --gloss-bottom: #FFFFFF25;
+  --orb-core-glow: #FFFFFFAA;
+  --aqua-stripe: #3C8CEB;  /* Aqua loader parts */
+  --aqua-stripe-light: #8FC6FB;
+  --aqua-edge: #2D6EC0;
+  --aqua-shade: #0A3E9040;
+  --aqua-track-edge: #9A9A9A;
+  --aqua-track-top: #D4D4D4;
+  --aqua-track-bottom: #F6F6F6;
+  --aqua-inset: #00000066;
+  --aqua-shine-top: #FFFFFFDD;
+  --aqua-shine-bottom: #FFFFFF55;
+  --imsg-ink: #000000;     /* iMessage simulation details */
+  --imsg-typing: #8E8E93;
+  --imsg-receipt: #6E6E73;
 
   /* type */
   --font-sans: "Bricolage Grotesque", system-ui, sans-serif;
@@ -32,10 +50,14 @@
   --font-ios: -apple-system, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
 
   /* shape + motion */
+  --r-file: 16px;
+  --r-bubble: 18px;
   --r-card: 24px;
   --r-pill: 999px;
   --ease-out-expo: cubic-bezier(.2, .9, .1, 1);
   --shadow-gel: 0 3px 6px #17120F40, inset 0 1px 0 #fffc, inset 0 -2px 3px #0002;
+  --shadow-dialog: 0 12px 80px #17120F26;
+  --shadow-panel: 0 6px 30px #17120F26;  /* activity panel and toasts */
 }
 
 body { margin: 0; font-family: var(--font-sans); color: var(--ink); background: var(--white); }
@@ -49,54 +71,56 @@ body { margin: 0; font-family: var(--font-sans); color: var(--ink); background: 
 .orb::before, .orb::after {
   content: ""; position: absolute; border-radius: 50%;
   background:
-    radial-gradient(circle at 30% 30%, #FFC93C 0, #FFC93C00 55%),
-    radial-gradient(circle at 72% 38%, #FF8FC7 0, #FF8FC700 55%),
-    radial-gradient(circle at 50% 85%, #6C3BFF 0, #6C3BFF00 60%),
-    #FF7A2F;
+    radial-gradient(circle at 30% 30%, var(--butter) 0, transparent 55%),
+    radial-gradient(circle at 72% 38%, var(--bubblegum) 0, transparent 55%),
+    radial-gradient(circle at 50% 85%, var(--grape) 0, transparent 60%),
+    var(--tangerine);
   animation: spin 7s linear infinite;               /* glow + core share one spin => no seam */
 }
 .orb::before { inset: -16%; filter: blur(calc(var(--s) * .2)); opacity: .65; }   /* glow */
-.orb::after  { inset: 4%; box-shadow: inset 0 0 calc(var(--s) * .3) #fffa;       /* core */
+.orb::after  { inset: 4%; box-shadow: inset 0 0 calc(var(--s) * .3) var(--orb-core-glow);       /* core */
                animation: spin 7s linear infinite, wobble 4s ease-in-out infinite; }
 .orb--still, .orb--still::before, .orb--still::after { animation: none !important; }  /* app icon, favicon, share cards */
 
-/* ---------- LOGO: serif wordmark, the j's dot is the orb ---------- */
-/* <span class="logo" style="font-size:40px" aria-label="jules"><span class="logo__anchor" aria-hidden="true"><span class="logo__hx"><span class="logo__hy"><span class="orb logo__dot"></span></span></span></span>ȷules</span> */
-.logo { font-family: var(--font-serif); letter-spacing: -.04em; line-height: 1; white-space: nowrap; display: inline-block; }
-.logo__anchor { display: inline-block; width: 0; height: 0; position: relative; }            /* sits on the baseline */
+/* ---------- LOGO: outlined wordmark image (brand-ui.js), the j's dot is the orb ---------- */
+.logo { position: relative; display: inline-block; width: 1.452em; height: 1.05em; line-height: 1; vertical-align: middle; white-space: nowrap; }
+.logo__art { display: block; width: 100%; height: 100%; }
+.logo__anchor { position: absolute; left: 0; top: 0; width: 0; height: 0; }
 .logo__hx, .logo__hy { position: absolute; left: 0; bottom: 0; width: 0; height: 0; }
-.logo__dot { --s: .21em; position: absolute; left: -.02em; bottom: .55em; }                  /* rests above the j stem */
-.logo--thinking .logo__hx  { animation: hop-x 8s linear infinite; }
+.logo__dot { --s: .21em; position: absolute; left: .005em; top: .085em; }                    /* rests above the j stem */
+.logo--thinking .logo__hx  { animation: wordmark-hop-x 8s linear infinite; }                 /* calibrated to the outlined letters */
 .logo--thinking .logo__hy  { animation: hop-y 8s linear infinite; }
 .logo--thinking .logo__dot { animation: dot-pop 8s ease-in-out infinite; }
+.app-header .logo--thinking .logo__hy { animation-name: header-hop-y; }                      /* compact headers keep the return arc in view */
+.logo--done .logo__dot { animation: found-pop .5s var(--ease-out-expo); }
 
-/* ---------- BUTTONS + CHIPS: one gel-pill style ---------- */
-.btn, .chip {
+/* ---------- BUTTONS + CHIPS: one gel-pill style, colour by class only (never by page ID) ---------- */
+.btn, .chip, :where(button:not(.tile)) {
   position: relative; overflow: hidden; cursor: pointer;
   border: 1.5px solid var(--ink); border-radius: var(--r-pill);
-  font: 600 15px var(--font-sans); min-height: 44px; padding: 0 24px;
+  font: 600 15px var(--font-sans); min-height: 44px; padding: 10px 20px;
   color: var(--ink); background: var(--white); box-shadow: var(--shadow-gel);
   transition: transform .2s;
 }
+.btn { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; gap: 8px; }
 .chip { padding: 0 18px; }
-.btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;gap:8px}
-a.btn:hover{color:var(--ink)}a.btn--ink:hover,a.btn--grape:hover{color:var(--white)}
-.btn:hover, .chip:hover { transform: translateY(-2px) scale(1.03); }
-.btn::after, .chip::after {                                    /* gloss */
+.btn::after, .chip::after, :where(button:not(.tile))::after {   /* gloss */
   content: ""; position: absolute; left: 8px; right: 8px; top: 2px; height: 44%;
-  border-radius: var(--r-pill); background: linear-gradient(#ffffffb0, #ffffff25); pointer-events: none;
+  border-radius: inherit; background: linear-gradient(var(--gloss-top), var(--gloss-bottom)); pointer-events: none;
 }
-.btn--ink,  .chip--on { background: var(--ink); color: #fff; }
-.btn--butter { background: var(--butter); }
-.btn--grape  { background: var(--grape); color: #fff; }
-.btn:focus-visible, .chip:focus-visible { outline: 3px solid var(--grape); outline-offset: 3px; }
+@media (hover: hover) and (pointer: fine) { .btn:hover, .chip:hover, :where(button:not(.tile)):not(:disabled):hover { transform: translateY(-2px) scale(1.03); } }
+button:disabled { opacity: .45; cursor: default; } button:active { transform: translateY(1px); }
+.btn--ink, .chip--on { background: var(--ink); color: var(--white); }
+.btn--butter { background: var(--butter); color: var(--ink); }   /* primary action */
+.btn--grape  { background: var(--grape); color: var(--white); }  /* sharing */
+a.btn:hover { color: var(--ink); } a.btn--ink:hover, a.btn--grape:hover { color: var(--white); }
 
 /* ---------- SMALL PIECES ---------- */
 .tag { font: 500 11px var(--font-mono); letter-spacing: .08em; text-transform: uppercase;
-       background: var(--butter); border-radius: var(--r-pill); padding: 6px 10px; display: inline-block; }
-.card { background: #fff; border: 1px solid var(--line); border-radius: var(--r-card); padding: 10px; display: flex; flex-direction: column; gap: 10px; }
+       background: var(--butter); color: var(--ink); border-radius: var(--r-pill); padding: 6px 10px; display: inline-block; }
+.card { background: var(--white); border: 1px solid var(--line); border-radius: var(--r-card); padding: 10px; display: flex; flex-direction: column; gap: 10px; }
 .placeholder { background: var(--fog); color: var(--text-2); display: flex; align-items: flex-end; padding: 10px; box-sizing: border-box; font: 500 11px var(--font-mono); }
-.field { display: flex; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: var(--r-pill); padding: 6px 6px 6px 20px; }
+.field { display: flex; align-items: center; gap: 10px; border: 1px solid var(--line-strong); border-radius: var(--r-pill); padding: 6px 6px 6px 20px; }
 .menu-item { display: flex; align-items: center; gap: .3em; padding: 4px 0; font: 400 40px/1 var(--font-serif); letter-spacing: -.04em; }  /* ● bullet; active item swaps ● for an .orb */
 
 /* marquee strip (page-bottom brand rail) */
@@ -105,28 +129,28 @@ a.btn:hover{color:var(--ink)}a.btn--ink:hover,a.btn--grape:hover{color:var(--whi
 .marquee > div { display: inline-block; padding-left: 20px; animation: marquee 24s linear infinite; }  /* content repeated 2x; separator " ✦ " */
 
 /* ---------- LOADER: Mac OS X Aqua barber pole ---------- */
-.aqua { position: relative; height: 18px; border-radius: var(--r-pill); overflow: hidden; border: 1px solid #9a9a9a;
-        background: linear-gradient(#d4d4d4, #f6f6f6); box-shadow: inset 0 1px 3px #0006; }
-.aqua::before { content: ""; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 1px #2D6EC0;
-  background: repeating-linear-gradient(135deg, #3C8CEB 0 8px, #8FC6FB 8px 16px); background-size: 22.63px 22.63px;
+.aqua { position: relative; height: 18px; border-radius: var(--r-pill); overflow: hidden; border: 1px solid var(--aqua-track-edge);
+        background: linear-gradient(var(--aqua-track-top), var(--aqua-track-bottom)); box-shadow: inset 0 1px 3px var(--aqua-inset); }
+.aqua::before { content: ""; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 1px var(--aqua-edge);
+  background: repeating-linear-gradient(135deg, var(--aqua-stripe) 0 8px, var(--aqua-stripe-light) 8px 16px); background-size: 22.63px 22.63px;
   animation: barber .7s linear infinite, pulse 1.6s ease-in-out infinite; }
 .aqua::after { content: ""; position: absolute; inset: 0; border-radius: inherit;
-  background: linear-gradient(#ffffffdd, #ffffff55) top/100% 50% no-repeat, linear-gradient(#0000, #0A3E9040) bottom/100% 40% no-repeat; }
+  background: linear-gradient(var(--aqua-shine-top), var(--aqua-shine-bottom)) top/100% 50% no-repeat, linear-gradient(transparent, var(--aqua-shade)) bottom/100% 40% no-repeat; }
 
 /* ---------- iMESSAGE BUBBLES (must look native) ---------- */
-.bubble { position: relative; border-radius: 18px; padding: 7px 13px; font: 400 17px/22px var(--font-ios); }
-.bubble--me   { background: var(--aqua); color: #fff; }
-.bubble--them { background: var(--imsg-gray); color: #000; }
-/* tails: add .tail-r on the LAST sent bubble of a group, .tail-l on the last received. Tail mask color = screen bg (#fff). */
+.bubble { position: relative; border-radius: var(--r-bubble); padding: 7px 13px; font: 400 17px/22px var(--font-ios); }
+.bubble--me   { background: var(--aqua); color: var(--white); }
+.bubble--them { background: var(--imsg-gray); color: var(--imsg-ink); }
+/* tails: add .tail-r on the LAST sent bubble of a group, .tail-l on the last received. Tail mask color = screen bg (white). */
 .tail-r::before, .tail-r::after, .tail-l::before, .tail-l::after { content: ""; position: absolute; bottom: 0; height: 18px; }
 .tail-r::before { right: -7px; width: 20px; background: var(--aqua); border-bottom-left-radius: 16px 14px; }
-.tail-r::after  { right: -26px; width: 26px; background: #fff; border-bottom-left-radius: 10px; }
+.tail-r::after  { right: -26px; width: 26px; background: var(--white); border-bottom-left-radius: 10px; }
 .tail-l::before { left: -7px; width: 20px; background: var(--imsg-gray); border-bottom-right-radius: 16px 14px; }
-.tail-l::after  { left: -26px; width: 26px; background: #fff; border-bottom-right-radius: 10px; }
+.tail-l::after  { left: -26px; width: 26px; background: var(--white); border-bottom-right-radius: 10px; }
 .typing { display: inline-flex; gap: 5px; padding: 13px 15px; }
-.typing i { width: 8px; height: 8px; border-radius: 50%; background: #8E8E93; animation: typing-dot 1s infinite; }
+.typing i { width: 8px; height: 8px; border-radius: 50%; background: var(--imsg-typing); animation: typing-dot 1s infinite; }
 .typing i:nth-child(2) { animation-delay: .15s; } .typing i:nth-child(3) { animation-delay: .3s; }
-.receipt { font: 600 11px var(--font-ios); color: #6E6E73; }   /* "Delivered" */
+.receipt { font: 600 11px var(--font-ios); color: var(--imsg-receipt); }   /* "Delivered" */
 
 /* ---------- KEYFRAMES ---------- */
 @keyframes spin   { to { transform: rotate(360deg); } }
@@ -141,14 +165,11 @@ a.btn:hover{color:var(--ink)}a.btn--ink:hover,a.btn--grape:hover{color:var(--whi
 @keyframes status-cycle { 0% { opacity: 0; transform: translateY(10px); } 5%,22% { opacity: 1; transform: none; } 27%,100% { opacity: 0; } }  /* 4 lines, 8s, delays 0/2/4/6s */
 
 /* THINKING: the j's dot hops across the word (8s loop). em units => scales with font-size. */
-@keyframes hop-x { 0%,8% { transform: translateX(0); } 16% { transform: translateX(.37em); } 24% { transform: translateX(.75em); } 32% { transform: translateX(1.09em); } 40%,46% { transform: translateX(1.49em); } 62%,100% { transform: translateX(0); } }
+@keyframes wordmark-hop-x{0%,8%{transform:translateX(0)}16%{transform:translateX(.33em)}24%{transform:translateX(.628em)}32%{transform:translateX(.876em)}40%,46%{transform:translateX(1.168em)}62%,100%{transform:translateX(0)}}
 @keyframes hop-y { 0%,8%,16%,24%,32%,40%,46%,62%,100% { transform: none; } 12%,20%,28%,36% { transform: translateY(-.3em); } 54% { transform: translateY(-.7em); } }
+@keyframes header-hop-y{0%,8%,16%,24%,32%,40%,46%,62%,100%{transform:none}12%,20%,28%,36%{transform:translateY(-.16em)}54%{transform:translateY(-.35em)}}
 @keyframes dot-pop { 0%,8% { transform: scale(1); } 16%,58% { transform: scale(1.35); } 62% { transform: scale(1); } 66% { transform: scale(1.6); } 72%,100% { transform: scale(1); } }
-
-@media (prefers-reduced-motion: reduce) {
-  .orb, .orb::before, .orb::after, .logo--thinking .logo__hx, .logo--thinking .logo__hy, .logo--thinking .logo__dot,
-  .marquee > div, .aqua::before { animation: none !important; }
-}
+@keyframes found-pop{50%{transform:scale(1.6)}}
 
 /* Shared application layout and accessible controls; page files own composition. */
 *{box-sizing:border-box}[hidden]{display:none!important}
@@ -159,37 +180,30 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:400;letter-spacing:-.04em;lin
 h1{font-size:clamp(38px,4.5vw,64px)}h2{font-size:36px}h3{font-size:30px}
 a{color:var(--ink);text-underline-offset:4px}a:hover{color:var(--grape)}
 button,input,select,textarea{font:inherit}button,a{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
-:where(button:not(.tile)){position:relative;overflow:hidden;cursor:pointer;border:1.5px solid var(--ink);border-radius:var(--r-pill);font:600 15px var(--font-sans);min-height:44px;padding:10px 20px;color:var(--ink);background:var(--white);box-shadow:var(--shadow-gel);transition:transform .2s}
-:where(button:not(.tile))::after{content:"";position:absolute;left:8px;right:8px;top:2px;height:44%;border-radius:inherit;background:linear-gradient(#ffffffb0,#ffffff25);pointer-events:none}
-@media(hover:hover) and (pointer:fine){:where(button:not(.tile)):not(:disabled):hover{transform:translateY(-2px) scale(1.03)}}
-button:disabled{opacity:.45;cursor:default}button:active{transform:translateY(1px)}
-button.primary,#login-form button,#alert-save{color:var(--ink);background:var(--butter)}
-button#share{background:var(--grape);color:white}
 :focus-visible{outline:3px solid var(--grape);outline-offset:3px}
 form{display:grid;gap:12px}label{display:block;font-size:13px}
-input:not([type=checkbox]):not([type=radio]),select,textarea{display:block;width:100%;min-width:0;min-height:44px;border:1px solid var(--line);background:var(--white);border-radius:24px;color:var(--ink);padding:12px 18px;margin-top:7px}
-input[type=file]{border-radius:16px}input::file-selector-button{font:600 13px var(--font-sans);background:var(--white);border:1px solid var(--ink);border-radius:999px;padding:8px 14px;margin-right:12px}
+input:not([type=checkbox]):not([type=radio]),select,textarea{display:block;width:100%;min-width:0;min-height:44px;border:1px solid var(--line-strong);background:var(--white);border-radius:var(--r-card);color:var(--ink);padding:12px 18px;margin-top:7px}
+input[type=file]{border-radius:var(--r-file)}input::file-selector-button{font:600 13px var(--font-sans);background:var(--white);border:1px solid var(--ink);border-radius:var(--r-pill);padding:8px 14px;margin-right:12px}
 textarea{resize:vertical;line-height:1.5}input[type=checkbox],input[type=radio]{accent-color:var(--grape);width:18px;height:18px;flex:none;padding:0}
 .eyebrow,#count,.card-number,.label{font:500 11px/1.6 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--text-2)}
 .fine,.quiet,.muted{font-size:12px;color:var(--text-2)}.intro{font-size:17px;max-width:420px;color:var(--text-2)}
 .check{display:flex;align-items:start;gap:10px;font-size:13px}.check input{margin-top:3px}
+/* Errors: say what failed and the next step in words; never colour alone. */
+.error{font:600 13px/1.5 var(--font-sans);color:var(--danger);margin:0}
+[aria-invalid=true]{border-color:var(--danger)!important;border-width:2px!important}
+.notice--error{border:1px solid var(--danger);border-radius:var(--r-card);padding:12px 20px;color:var(--ink);background:var(--white);font-size:13px}
+.notice--error strong{color:var(--danger)}
 #login{max-width:440px;margin:9vh auto}#login h1{font-size:56px;margin:20px 0 32px}#login form button{justify-self:start}
 #notice{font-size:14px;color:var(--text-2);line-height:1.6}
 .app-heading{display:flex;align-items:center;justify-content:space-between;gap:28px;margin-bottom:42px}
 .app-header{height:var(--header-height);position:fixed;top:0;left:var(--page-gutter);right:var(--page-gutter);z-index:10;display:flex;align-items:center;justify-content:space-between;gap:20px;background:var(--white);border-bottom:1px solid var(--line);transition:height .22s}
 .app-header.compact{height:64px}
 .wordmark{display:block;flex:none;font-size:52px;text-decoration:none;line-height:1}
-.logo{position:relative;width:1.452em;height:1.05em;vertical-align:middle}
-.logo__art{display:block;width:100%;height:100%}
-.logo__anchor{position:absolute;left:0;top:0;width:0;height:0}
-.logo__dot{left:.005em;bottom:auto;top:.085em}
 .wordmark .logo{transition:font-size .22s}.app-header.compact .wordmark{font-size:40px}
-.logo--done .logo__dot{animation:found-pop .5s var(--ease-out-expo)}
-@keyframes found-pop{50%{transform:scale(1.6)}}
 
 
-dialog{height:fit-content;border:1px solid var(--line);border-radius:var(--r-card);padding:28px;width:min(960px,95vw);max-height:90dvh;box-shadow:0 12px 80px #17120f26;color:var(--ink);background:var(--white)}
-dialog::backdrop{background:#17120f40}dialog[open]{animation:detail-enter .28s var(--ease-out-expo) both}dialog[open]::backdrop{animation:enter .22s ease both}
+dialog{height:fit-content;border:1px solid var(--line);border-radius:var(--r-card);padding:28px;width:min(960px,95vw);max-height:90dvh;box-shadow:var(--shadow-dialog);color:var(--ink);background:var(--white)}
+dialog::backdrop{background:var(--backdrop)}dialog[open]{animation:detail-enter .28s var(--ease-out-expo) both}dialog[open]::backdrop{animation:enter .22s ease both}
 @keyframes enter{from{opacity:0}to{opacity:1}}@keyframes detail-enter{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
 .dialog-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 @media(max-width:700px){:root{--header-height:84px;--page-top:30px}.app-header{gap:10px}.app-header.compact{height:64px}.wordmark{font-size:42px}.app-header.compact .wordmark{font-size:36px}h1{font-size:38px}.app-heading{margin-bottom:28px;gap:16px}#login h1{font-size:48px}:where(button:not(.tile)){padding:10px 16px}}
@@ -201,14 +215,9 @@ dialog::backdrop{background:#17120f40}dialog[open]{animation:detail-enter .28s v
 fieldset label:has(input[type=radio]){position:relative;display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:10px 16px;border:1.5px solid var(--ink);border-radius:var(--r-pill);background:var(--white);box-shadow:var(--shadow-gel);cursor:pointer;font:600 13px var(--font-sans)}
 fieldset label:has(input[type=radio]:checked){color:var(--white);background:var(--ink)}
 fieldset label:has(input[type=radio]:focus-visible){outline:3px solid var(--grape);outline-offset:3px}
-fieldset label:has(input[type=radio])::after{content:"";position:absolute;left:8px;right:8px;top:2px;height:44%;border-radius:inherit;background:linear-gradient(#ffffffb0,#ffffff25);pointer-events:none}
+fieldset label:has(input[type=radio])::after{content:"";position:absolute;left:8px;right:8px;top:2px;height:44%;border-radius:inherit;background:linear-gradient(var(--gloss-top),var(--gloss-bottom));pointer-events:none}
 fieldset label input[type=radio]{accent-color:var(--grape)}
 
-/* Calibrated to the outlined letters; compact headers keep the return arc in view. */
-.logo--thinking .logo__hx{animation-name:wordmark-hop-x}
-.app-header .logo--thinking .logo__hy{animation-name:header-hop-y}
-@keyframes wordmark-hop-x{0%,8%{transform:translateX(0)}16%{transform:translateX(.33em)}24%{transform:translateX(.628em)}32%{transform:translateX(.876em)}40%,46%{transform:translateX(1.168em)}62%,100%{transform:translateX(0)}}
-@keyframes header-hop-y{0%,8%,16%,24%,32%,40%,46%,62%,100%{transform:none}12%,20%,28%,36%{transform:translateY(-.16em)}54%{transform:translateY(-.35em)}}
 @media(forced-colors:active){.logo__art{visibility:hidden}.logo::before{content:'';position:absolute;inset:0;background:CanvasText;mask:url('/brand/wordmark.svg') center/contain no-repeat}fieldset label:has(input[type=radio]){box-shadow:none;border-color:ButtonText}fieldset label:has(input[type=radio]:checked){background:Highlight;color:HighlightText}fieldset label:has(input[type=radio])::after{display:none}}
 
 /* Main navigation: serif links on desktop, one accessible modal menu on phones. */

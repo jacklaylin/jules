@@ -1,7 +1,7 @@
 /* Internal inbox composition. All brand/type/control primitives are shared. */
 header{min-height:96px;padding:20px var(--page-gutter);display:flex;align-items:center;justify-content:space-between;gap:20px;border-bottom:1px solid var(--line)}
 .brand{font-size:44px;text-decoration:none}.header-right{display:flex;align-items:center;gap:16px;flex-wrap:wrap}.private{font:500 11px var(--font-mono);color:var(--text-2)}
-p{line-height:1.65}.login-card{max-width:490px;margin:7vh auto}.login-card>p{color:var(--text-2)}.login-card .primary{margin-top:16px;width:100%}
+p{line-height:1.65}.login-card{max-width:490px;margin:7vh auto}.login-card>p{color:var(--text-2)}.login-card .btn--butter{margin-top:16px;width:100%}
 .inbox{display:grid;grid-template-columns:310px minmax(0,1fr);border:1px solid var(--line);border-radius:var(--r-card);overflow:hidden;min-height:650px;background:var(--white)}
 .inbox aside{border-right:1px solid var(--line);background:var(--fog)}.list-heading{padding:28px 22px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid var(--line)}.list-heading h1{font-size:30px}.list-heading button{font-size:12px;padding:8px 12px}
 button.person-button{border:0;border-bottom:1px solid var(--line);border-radius:0;padding:24px 22px;display:block;text-align:left;width:100%;background:var(--white);box-shadow:none}button.person-button::after{display:none}.person-button.selected{box-shadow:inset 3px 0 var(--grape);background:var(--fog)}.person-button strong{font-size:14px;font-weight:600;display:block}.person-button span{display:block;font-size:11px;color:var(--text-2);margin-top:8px}
