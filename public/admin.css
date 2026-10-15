@@ -5,6 +5,7 @@ p{line-height:1.65}.login-card{max-width:490px;margin:7vh auto}.login-card>p{col
 .tool-card{max-width:620px;margin:28px 0}main>button[data-mode]{margin:0 8px 10px 0}
 
 /* People list */
+.chat-metrics{margin:24px 0 8px}.chat-metrics .stats div{min-width:120px}.chat-metrics .badge{justify-self:start}
 .people-table tbody tr{cursor:pointer}.people-table tbody tr:hover td{background:#FAF9F7}.people-table td{height:44px}
 
 /* Person page */

@@ -9,6 +9,10 @@
   <main>
     <h1>People</h1>
     <p class="muted">Testers who have texted Jules. Open one to see their memory, conversation, purchases and wishlist.</p>
+    <section id="chat-metrics" class="chat-metrics" aria-labelledby="chat-metrics-title" hidden>
+      <h2 id="chat-metrics-title" class="mono-label">Chat quality · last 7 days vs the 7 before</h2>
+      <div class="stats" id="chat-metrics-stats"></div>
+    </section>
     <div class="toolbar"><label class="sr-only" for="people-search">Search identifier</label><input id="people-search" type="search" maxlength="40" placeholder="Search identifier"><span class="spacer"></span><button id="refresh" class="small" type="button">Refresh</button></div>
     <div class="table-scroll"><table class="data-table people-table"><thead><tr><th>Identifier</th><th>Last activity</th><th><span class="sr-only">Open</span></th></tr></thead><tbody id="people"></tbody></table></div>
     <p id="notice" role="status" aria-live="polite" class="muted"></p>
