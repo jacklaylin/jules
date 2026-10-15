@@ -1,18 +1,20 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync } from 'node:fs';
-import { COLUMNS, RPCS, checkSchema, schemaReport, formatSchemaReport } from '../lib/schema-check.js';
+import { COLUMNS, RPCS, ROWS, checkSchema, schemaReport, formatSchemaReport } from '../lib/schema-check.js';
 
 const env = { SUPABASE_URL: 'https://fake.supabase.invalid/', SUPABASE_SERVICE_ROLE_KEY: 'fake-service-key' };
 const respond = (status, value) => ({ ok: status < 400, status, json: async () => value });
 // A fake PostgREST: tables answer unless a column is in `missingColumns`; the root lists functions.
-function database({ missingColumns = [], missingRpcs = [], listing = true, status = null } = {}) {
+function database({ missingColumns = [], missingRpcs = [], missingRows = [], listing = true, status = null } = {}) {
   const requests = [];
   const fetcher = async (url, init) => {
     requests.push({ url, headers: init.headers });
     const path = url.replace('https://fake.supabase.invalid/rest/v1/', '');
     if (status) return respond(status, { code: 'PGRST301' });
     if (path === '') return listing ? respond(200, { paths: Object.fromEntries(RPCS.filter(r => !missingRpcs.includes(r.name)).map(r => [`/rpc/${r.name}`, {}])) }) : respond(404, {});
+    const row = ROWS.find(r => path.startsWith(`${r.table}?select=${r.key}&${r.key}=eq.${r.value}&`));
+    if (row) return respond(200, missingRows.includes(row.value) ? [] : [{ [row.key]: row.value }]);
     const [table, query] = path.split('?select=');
     const columns = query.split('&')[0].split(',');
     return columns.some(c => missingColumns.includes(`${table}.${c}`)) ? respond(400, { code: '42703', message: 'column does not exist' }) : respond(200, []);
@@ -22,14 +24,14 @@ function database({ missingColumns = [], missingRpcs = [], listing = true, statu
 
 test('every listed migration exists in db/', () => {
   const files = new Set(readdirSync(new URL('../db/', import.meta.url)));
-  for (const need of [...COLUMNS, ...RPCS]) assert.ok(files.has(need.migration), `${need.migration} is in db/`);
+  for (const need of [...COLUMNS, ...RPCS, ...ROWS]) assert.ok(files.has(need.migration), `${need.migration} is in db/`);
 });
 
-test('a complete schema passes without reading any rows', async () => {
+test('a complete schema passes without reading any data rows', async () => {
   const { fetcher, requests } = database();
   const report = schemaReport(await checkSchema(env, fetcher));
-  assert.equal(report.ok, true); assert.equal(report.checked, COLUMNS.length + RPCS.length);
-  assert.ok(requests.filter(r => r.url.includes('?select=')).every(r => r.url.endsWith('&limit=0')));
+  assert.equal(report.ok, true); assert.equal(report.checked, COLUMNS.length + RPCS.length + ROWS.length);
+  assert.ok(requests.filter(r => r.url.includes('?select=')).every(r => r.url.endsWith('&limit=0') || ROWS.some(row => r.url.includes(`/${row.table}?`))));
   assert.equal(requests[0].headers.apikey, 'fake-service-key');
   assert.match(formatSchemaReport(report), /Schema OK/);
 });
@@ -63,4 +65,10 @@ test('without a function listing, columns are still checked and functions are re
   const report = schemaReport(await checkSchema(env, database({ listing: false }).fetcher));
   assert.equal(report.ok, true); assert.equal(report.unchecked, RPCS.length);
   assert.match(formatSchemaReport(report), /functions not checked/);
+});
+
+test('a missing configuration row names its migration', async () => {
+  const report = schemaReport(await checkSchema(env, database({ missingRows: ['chat_screenshot'] }).fetcher));
+  assert.equal(report.ok, false);
+  assert.deepEqual(report.missing, [{ migration: '029_chat_screenshots.sql', needs: ['evidence_origins row chat_screenshot'] }]);
 });
