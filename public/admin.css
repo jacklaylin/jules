@@ -1,7 +1,7 @@
 /* Admin page composition. Shared primitives (badges, tabs, chips, tables, folds) live in design-system.css. */
 /* Owner test tools */
 .private{font:500 11px var(--font-mono);color:var(--text-2)}
-p{line-height:1.65}.login-card{max-width:490px;margin:7vh auto}.login-card>p{color:var(--text-2)}.login-card .primary{margin-top:16px;width:100%}
+p{line-height:1.65}.login-card{max-width:490px;margin:7vh auto}.login-card>p{color:var(--text-2)}.login-card .btn--butter{margin-top:16px;width:100%}
 .tool-card{max-width:620px;margin:28px 0}main>button[data-mode]{margin:0 8px 10px 0}
 
 /* People list */

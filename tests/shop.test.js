@@ -99,7 +99,7 @@ test('checkout links put the exact size in the cart, ask for the store’s label
   const failed=await checkoutLink({name:'LAX Tee',url:'https://kith.com/products/tee',size:'Medium (M)'},{env,providers:[{name:'shop',resolve:async()=>{throw Error('down');}}]});
   assert.equal(failed.status,'product_page');
   const reply=checkoutReply([cart,page,{name:'LAX Tee',status:'needs_size',store:'Kith',size:'US M',sizes:['Small (S)','Medium (M)']}]);
-  assert.match(reply,/\$68\.00 before tax and shipping/);assert.match(reply,/Nothing is ordered until you pay/);assert.match(reply,/couldn’t match “US M” exactly to Kith’s sizes/);
+  assert.match(reply,/\$68\.00 before tax and shipping/);assert.match(reply,/nothing is ordered until you pay/);assert.match(reply,/couldn’t match “US M” exactly to Kith’s sizes/);
   assert.doesNotMatch(reply,/ordered it|purchased|bought/i);
   assert.equal(minorMoney({amount:6800,currency:'USD'}),'$68.00');assert.equal(minorMoney({amount:6800,currency:'JPY'}),'¥6,800');
 });
@@ -126,4 +126,23 @@ test('order listing reads every record list on a page, follows any cursor name a
   // A page that says more exist but gives no cursor is reported, not silently treated as the end.
   const stuck=await listShopOrders('token',{fetcher:async()=>rpc({orders:[{id:'x'}],pagination:{has_next_page:true,page_token:'?'}})});
   assert.equal(stuck.listing.stop,'next_page_without_cursor');assert.deepEqual(stuck.listing.pages[0].pagination_keys,['has_next_page','page_token']);
+});
+
+test('history is listed in passes: recent, earlier windows while they find more, then stores Shop already returned',async()=>{
+  const order=(id,date,seller='Amazon')=>({id,placed_at:date+'T10:00:00Z',seller:{name:seller}});
+  const sent=[];
+  const fetcher=async(_u,o)=>{
+    const a=JSON.parse(o.body).params.arguments;sent.push({date_to:a.date_to??null,query:a.query??null});
+    if(a.query==='Farfetch')return {ok:false,status:429};
+    if(a.query)return rpc({orders:[order('o1','2026-09-20')],pagination:{has_next_page:false}});
+    if(!a.date_to)return rpc({orders:[order('o1','2026-09-20'),order('o2','2026-09-15','Farfetch')],pagination:{has_next_page:false}});
+    if(a.date_to==='2026-09-14')return rpc({orders:[order('o3','2026-06-01'),order('o2','2026-09-15','Farfetch')],pagination:{has_next_page:false}});
+    return rpc({orders:[],pagination:{has_next_page:false}});
+  };
+  const result=await listShopOrders('token',{from:'2021-10-14',fetcher});
+  assert.deepEqual(result.records.map(r=>r.record.id),['o1','o2','o3'],'duplicates across passes appear once');
+  assert.deepEqual(result.listing.passes.map(p=>[p.name,p.new]),[['recent',2],['earlier',1],['earlier',0],['store',0],['store',0]]);
+  assert.deepEqual(sent.map(s=>s.date_to).filter(Boolean),['2026-09-14','2026-05-31']);
+  assert.deepEqual(sent.map(s=>s.query).filter(Boolean),['Amazon','Farfetch'],'only sellers Shop returned are searched');
+  assert.equal(result.listing.stop,'throttled','a throttled search ends listing and keeps what was found');
 });

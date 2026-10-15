@@ -15,6 +15,12 @@ The current visual system adapts the founder-supplied [brief](docs/design-system
 
 White page ground; neutral product-image surfaces. Ink `#17120F`, fog `#F3F1EE`, line `#E8E4E0`, secondary text `#6B625B`. Butter is the primary-action color; grape is for sharing and focus. Tangerine, bubblegum and grape form the orb. Aqua is reserved for iMessage bubbles and the indeterminate loader.
 
+Hairlines and card borders use `line`; text inputs, selects, textareas and `.field` use `line-strong` `#8A817A` (3.8:1, meets the 3:1 control-boundary rule). Every colour shared CSS paints is a `:root` token, including the orb glow, gel gloss, Aqua loader parts (`aqua-*`), iMessage details (`imsg-*`), `photo-overlay`, `backdrop` and the `shadow-dialog`/`shadow-panel` shadows. Page CSS reuses tokens rather than writing hex values.
+
+Errors use `danger` `#B42318` (6.6:1) and always say in words what failed and the next step. An invalid field gets `aria-invalid="true"` (2px danger border) with a `p.error` message beneath it; a failed page or section uses a `.notice--error` box. Partial results stay visible.
+
+Buttons are coloured by class only: `btn--butter` for the primary action, `btn--grape` for sharing, `btn--ink` for dark actions. Bare `<button>` elements get the white gel pill through a zero-specificity `:where()` rule. Shared CSS never targets page IDs or a page-level `.primary` class for button colour.
+
 Wishlist photos use contain sizing to keep the full saved image visible in cards, retailer previews and the detail carousel. Loaded frames match a consistent image-edge background color; varied or unreadable edges fall back to white. Loading and unavailable-photo surfaces retain fog. Photos are never tinted, stretched or generated to fill the frame.
 
 Instrument Serif roman supplies headlines; Bricolage Grotesque supplies body text and bold starter-pack titles; JetBrains Mono supplies small labels/data. All fonts and redistribution licenses are bundled in `public/fonts/`; no external font request or CSP expansion is required. The old Mongule/neon wordmark, random hover gradients and rotating display-font pool are no longer used by these pages.

@@ -60,7 +60,7 @@ test('an unclear save failure repeats only the failed keyed write and reports wh
   let saves=0;
   const base={wishlistReplyId:async()=> 'reply',recordEvidence:async()=>{throw Error('timeout');},enablePriceAlert:async()=>({active:true})};
   const landed=await settleTextWishlist({store:{...base,wishlistEntries:async()=>entries,priceAlerts:async()=>[]},operation:'op',conversationId:'owner',result:{identification_policy:'text_wishlist',user_confirmed:true},env:{},save:async()=>{saves++;}});
-  assert.equal(saves,1);assert.deepEqual([landed.saved,landed.alerts],[true,null]);assert.equal(settledReply(landed,{}),'Saved to your wishlist.');
+  assert.equal(saves,1);assert.deepEqual([landed.saved,landed.alerts],[true,null]);assert.equal(settledReply(landed,{}),'saved to your wishlist.');
   const missing=await settleTextWishlist({store:{...base,wishlistEntries:async()=>[]},operation:'op',conversationId:'owner',result:{identification_policy:'text_wishlist',user_confirmed:true},env:{},save:null});
   assert.equal(missing.saved,false);assert.match(settledReply(missing,{}),/couldn’t save/);
   const watch={size:'M',baselines:[],links:[]};
@@ -75,5 +75,5 @@ test('a failed alert cancellation reports the alerts that are actually still on'
   const store={disablePriceAlert:async(_c,id)=>{if(id==='b')throw Error('timeout');alerts.find(a=>a.group_id===id).active=false;},priceAlerts:async()=>alerts};
   assert.match(await manageAlerts('cancel',[],{store,conversationId:'owner',items,alerts:structuredClone(alerts)}),/couldn’t turn off the price alerts for Coat/);
   const landed={disablePriceAlert:async()=>{throw Error('timeout');},priceAlerts:async()=>[]};
-  assert.match(await manageAlerts('cancel',[],{store:landed,conversationId:'owner',items,alerts}),/Price alerts are off/);
+  assert.match(await manageAlerts('cancel',[],{store:landed,conversationId:'owner',items,alerts}),/price alerts are off/);
 });

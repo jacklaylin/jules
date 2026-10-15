@@ -81,7 +81,7 @@ async function simulate(req,res,{env,store,send}){
   if(input.deliver===true&&decision.event){
     if(!env.PRICE_ALERT_TEST_CONVERSATION_ID||alert.conversation_id!==env.PRICE_ALERT_TEST_CONVERSATION_ID)return json(res,403,{error:'Test delivery is limited to the designated test conversation.'});
     const conversation=await store.conversation(alert.conversation_id);
-    delivery=(await deliverReply({store,send,conversation,operation:`price-alert-test:${alert.id}:${randomUUID()}`,body:'[Test alert — not a real price]\n'+decision.event.body,source:'operator',env})).status;
+    delivery=(await deliverReply({store,send,conversation,operation:`price-alert-test:${alert.id}:${randomUUID()}`,body:'[test alert — not a real price]\n'+decision.event.body,source:'operator',env})).status;
   }
   return json(res,200,{status:decision.status,event:decision.event?.kind??null,message:decision.event?.body??null,next_baselines:decision.after_send??decision.establish??null,record:decision.record,delivery});
 }

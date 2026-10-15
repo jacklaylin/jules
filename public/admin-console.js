@@ -63,7 +63,7 @@ export function mountAdminShell(page){
   nav.append(list);
  }
  const email=element('input',{type:'email',id:'admin-email',autocomplete:'email',required:true,placeholder:'you@example.com'});
- const submit=element('button',{className:'primary',textContent:'Email me a sign-in link'});
+ const submit=element('button',{className:'btn--butter',textContent:'Email me a sign-in link'});
  const form=element('form',{},element('label',{htmlFor:'admin-email',textContent:'Owner email'}),email,submit);
  gate=element('div',{className:'admin-gate',hidden:true},element('p',{className:'eyebrow',textContent:'Owner only'}),element('h1',{textContent:'Sign in to admin'}),
   element('p',{className:'muted',textContent:'One sign-in covers every admin tool in this browser. The link opens People.'}),form,element('p',{className:'admin-gate-notice',role:'status'}));
