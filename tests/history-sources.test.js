@@ -179,3 +179,10 @@ test('connecting Shop hands approval and reading to the background chain that al
   assert.notEqual(row.data.worker,'gmail-chain','the older chain stops');assert.equal(row.data.job.worker,row.data.worker,'one chain carries Gmail and Shop');
   assert.deepEqual(scheduled,[row.data.worker]);assert.ok(JSON.parse(response.value).background);
 });
+test('the account page gets result counts and the date range Shop shared, without record details',()=>{
+  const view=publicConnection({credential:'sealed',status:'ready',found:23,processed:23,reads:[
+    {id:'a',date:Date.parse('2026-09-15'),purchases:0,linked:0,summary:'{"private":"x"}'},{id:'b',date:Date.parse('2026-10-07'),purchases:2,linked:1},{id:'c',date:null,purchases:0}]});
+  assert.equal(view.purchases,2);assert.equal(view.linked,1);
+  assert.equal(view.oldest.slice(0,10),'2026-09-15');assert.equal(view.newest.slice(0,10),'2026-10-07');
+  assert.ok(!JSON.stringify(view).includes('private'),'summaries stay internal');
+});
