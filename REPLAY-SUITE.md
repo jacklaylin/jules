@@ -14,6 +14,8 @@ node --env-file=.env.local scripts/replay-gate.js
 
 It runs every routing eval (`lib/agent-eval-cases.js`) and every replay case (`lib/replay.js`) three times against the real model, prints a pass rate per category (for example `agent:save`, `replay:alerts`), lists each case that failed at least once with its reasons, and exits with an error if any category is under 80%. **Don't deploy while it says `Gate FAILED`.** A full run takes about 20–30 minutes and uses OpenAI and SerpApi credits. It never texts anyone, saves items or turns on alerts.
 
+When `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are in `.env.local`, the gate first checks that every migration the code needs has been run (`scripts/schema-check.js`) and stops with the missing `db/` filenames if not. Run them in the Supabase SQL editor, then rerun the gate.
+
 If it stops at once with `OpenAI rejected the request (invalid_api_key)`, the `OPENAI_API_KEY` in `.env.local` is out of date. Copy the current value from Vercel (Project → Settings → Environment Variables) into `.env.local`; never into a file Git tracks. The same cases also appear on `/admin/replays`, which runs them with the deployed key.
 
 Useful options:
