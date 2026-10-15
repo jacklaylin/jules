@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { validateChanges, mergeFacts, saveChanges, extractChanges, MEMORY_PROMPT, updateProfile, prevails } from '../lib/memory.js';
+import { validateChanges, mergeFacts, saveChanges, extractChanges, MEMORY_PROMPT, updateProfile, prevails, profileFirstName, firstName } from '../lib/memory.js';
 import { agentTurn, tool, agentContext, toolNames, toolOutputs } from './helpers/agent.js';
 import { generateReply } from '../lib/ai.js';
 import { receiveInInbox } from '../lib/inbox.js';
@@ -97,4 +97,21 @@ test('validation checks formats only: fixed-value fields need allowed values; du
  assert.equal(validateChanges([{...change,field:'gender',key:'identity',value:'man',evidence:'I’m a man.'}],[source]).length,1);
  assert.equal(validateChanges([{...change,field:'shopping_range',key:'clothing',value:'men',evidence:'I wear menswear.'}],[source]).length,1);
  assert.equal(validateChanges([{...change,field:'budget',key:'shoes/usd',value:'300',evidence:'My usual shoe budget is USD 300.'}],[source]).length,1);
+});
+
+test('a first name the person states is remembered, checked as a name, and used when signup has none',async()=>{
+ const said={...message,body:'btw you can call me Jack'};
+ const store=db();
+ const saved=await updateProfile(store,id,said,{changes:[{action:'remember',field:'name',key:'first',value:'Jack',quote:'call me Jack'}],acknowledgment:''});
+ assert.equal(saved.saved,1);assert.equal(profileFirstName(saved.facts),'Jack');
+ // Format checks only: a first name under key first, not an email address, a sentence or another key.
+ for(const bad of [{value:'jack@example.com'},{value:'Jack and I love Prada because it is great forever'},{key:'last'},{value:'4ever'}])
+  assert.throws(()=>validateChanges([{field:'name',key:'first',value:'Jack',action:'set',source_id:id,evidence:'call me Jack',...bad}],[said]));
+ assert.equal(validateChanges([{field:'name',key:'first',value:'Zoë-Ann',action:'set',source_id:id,evidence:'call me Jack'}],[said])[0].value,'Zoë-Ann');
+ // Greetings prefer the signup form's name, then the chat profile's.
+ assert.equal(await firstName({...store,signupFirstName:async()=>null},id),'Jack');
+ assert.equal(await firstName({...store,signupFirstName:async()=>'Jacob'},id),'Jacob');
+ // Forgetting the name removes it from greetings.
+ const forgot=await updateProfile(store,id,{...said,id:'00000000-0000-4000-8000-000000000002',created_at:'2026-10-06T10:00:00Z',body:'forget my name'},{changes:[{action:'forget',field:'name',key:'first',value:'',quote:'forget my name'}],acknowledgment:''});
+ assert.equal(profileFirstName(forgot.facts),null);
 });
