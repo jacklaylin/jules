@@ -409,6 +409,27 @@ Bands, as a guide for edits:
 | Evan Kinori | 88 | P | C | M | One-man San Francisco studio |
 | Taiga Takahashi | 88 | L | C | M | Archival denim, tiny runs |
 
+## Added from tester receipts (October 15, drafts pending founder approval)
+
+Brands that showed up in tester histories but weren't on the list. Labels that couldn't be scored confidently (and non-clothing stores) are left out until someone knows them.
+
+| Brand | Niche | Tier | Lean | For | Reason |
+|---|---|---|---|---|---|
+| Oakley | 6 | M | N | A | Sport sunglasses everyone recognises |
+| Asics | 6 | M | N | A | Running shoe staple |
+| Bombas | 10 | M | N | A | The sock brand on every podcast ad |
+| Umbro | 10 | V | C | A | Football kit name everyone knows |
+| Calpak | 18 | M | T | W | The pastel carry-on of the internet |
+| Madhappy | 30 | M | T | A | Optimism hoodies, heavily seen |
+| Kotn | 35 | M | C | A | Egyptian-cotton basics, known online |
+| John Elliott | 52 | P | N | M | LA luxury basics, known to people who follow menswear |
+| Nili Lotan | 55 | P | C | W | Quiet New York luxury, insider favourite |
+| Pamela Love | 55 | P | N | W | Downtown jewellery with a following |
+| Entire Studios | 60 | M | T | A | Puffers and sweats with a cult following |
+| Cherry Los Angeles | 60 | M | T | M | Americana menswear, very insider |
+| Tekla | 65 | P | C | A | Danish bedding and sleepwear, design-crowd famous |
+| CDLP | 70 | P | C | M | Swedish underwear, a menswear-nerd staple |
+
 ## Stores, multi-brand and resale (store row used only when the item's brand is unknown)
 
 | Store | Niche | Tier | Lean | For | Reason |
