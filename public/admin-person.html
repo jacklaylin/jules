@@ -10,18 +10,18 @@
     <div class="person-title"><a class="breadcrumb" href="/admin">← People</a><h1 id="person-name">Loading…</h1><div id="person-badges" class="badges"></div><span class="spacer"></span>
       <p class="person-stats mono-label">Last active <strong id="stat-active">—</strong> · <strong id="stat-messages">—</strong> messages · <strong id="stat-facts">—</strong> facts</p>
       <button class="small" type="button" popovertarget="person-more">More ⋯</button></div>
-    <!-- One menu for the page: the open tab's occasional actions, then actions on the person. -->
+    <!-- One menu of actions for this person, the same on every tab. Memory and purchase actions open their tab first. -->
     <div id="person-more" class="dv-pop dv-menu" popover aria-label="More actions">
-      <span class="mono-label" data-menu-tab="memory">Personal memory</span>
-      <button id="profile-import" type="button" data-menu-tab="memory">Learn from existing messages <span class="hint">last 100 texts</span></button>
-      <hr data-menu-tab="memory">
-      <span class="mono-label" data-menu-tab="purchases">Purchase history</span>
-      <button id="purchases-reload" type="button" data-menu-tab="purchases">Reload purchases</button>
-      <button id="tags-run" type="button" data-menu-tab="purchases" hidden>Tag purchases</button>
-      <button type="button" data-menu-tab="purchases" data-tool="recheck">Re-check labelled emails</button>
-      <button type="button" data-menu-tab="purchases" data-tool="report">Style report</button>
-      <button type="button" data-menu-tab="purchases" data-tool="missed">Report a missed purchase…</button>
-      <hr data-menu-tab="purchases">
+      <span class="mono-label">Personal memory</span>
+      <button id="profile-import" type="button" data-opens-tab="memory">Learn from existing messages <span class="hint">last 100 texts</span></button>
+      <hr>
+      <span class="mono-label">Purchase history</span>
+      <button id="purchases-reload" type="button" data-opens-tab="purchases">Reload purchases</button>
+      <button id="tags-run" type="button" data-opens-tab="purchases" hidden>Tag purchases</button>
+      <button type="button" data-opens-tab="purchases" data-tool="recheck">Re-check labelled emails</button>
+      <button type="button" data-opens-tab="purchases" data-tool="report">Style report</button>
+      <button type="button" data-opens-tab="purchases" data-tool="missed">Report a missed purchase…</button>
+      <hr>
       <span class="mono-label">Person</span>
       <button id="reset-onboarding" type="button" aria-haspopup="dialog">Reset onboarding…</button>
     </div>
