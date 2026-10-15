@@ -138,7 +138,7 @@ function reviewForm(item) {
     el('label', { className: 'chip' }, el('input', { type: 'radio', name, value, required: true }), label)));
   const extra = el('div', { className: 'review-extra' });
   const note = el('textarea', { maxLength: 500, rows: 2, placeholder: 'Optional: what should Jules have read instead?' });
-  form.append(chips, extra, el('label', {}, 'Note', note), el('button', { type: 'submit', className: 'primary', textContent: 'Save correction' }));
+  form.append(chips, extra, el('label', {}, 'Note', note), el('button', { type: 'submit', className: 'btn--butter', textContent: 'Save correction' }));
   chips.addEventListener('change', () => { extra.replaceChildren(...extraFields(item, form[name].value)); });
   form.onsubmit = event => {
     event.preventDefault();
