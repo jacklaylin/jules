@@ -1,6 +1,6 @@
 // Mocks the single agent's model turn: a list of tool calls with complete strict arguments.
 const defaults={
-  find_products:{query:'',search_plan:null,use_image:false,image_message_id:null,department:'unspecified',for_someone_else:false,show_variants:false},
+  find_products:{query:'',search_plan:null,use_image:false,image_message_id:null,department:'unspecified',for_someone_else:false,show_variants:false,acknowledgment:''},
   ask_shopping_question:{query:'',search_plan:null,response:'',department:'unspecified',for_someone_else:false},
   respond_to_options:{decision:'interest',option_indices:[],color_choices:[],size_choices:[],option_sizing:[],response:''},
   save_to_wishlist:{option_indices:[],consent_context:'explicit_request',color_choices:[],size_choices:[],option_sizing:[],offer_alerts:true},

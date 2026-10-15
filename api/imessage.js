@@ -1,8 +1,11 @@
 import { createProcessor, MAX_BYTES } from '../lib/imessage.js';
+import { waitUntil } from '@vercel/functions';
 import { receiveInInbox } from '../lib/inbox.js';
 
 export const config = { api: { bodyParser: false }, maxDuration: 120 };
-const process = createProcessor({ handle: receiveInInbox });
+// A search turn responds to the webhook once it is acknowledged; the search finishes in waitUntil,
+// still within this function's maxDuration.
+const process = createProcessor({ handle: (delivery, env) => receiveInInbox(delivery, env, { defer: waitUntil }) });
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
