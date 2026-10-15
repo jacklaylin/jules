@@ -50,10 +50,12 @@ test('an explicit request saves without an earlier offer; an unmatched acceptanc
   const explicit=await conversation(choice).say('save the black pair',tool('save_to_wishlist',{option_indices:[1],consent_context:'explicit_request'}));
   assert.equal(explicit.result.user_confirmed,true);assert.equal(explicit.result.products[0].listing_check.color,'Black');
   let calls=0;const c=conversation(choice);
-  await assert.rejects(generateReply([{direction:'inbound',body:'sure'}],env,async()=>{calls++;return agentTurn(tool('save_to_wishlist',{option_indices:[1],consent_context:'answer_to_offer'}));},
-    {facts,wishlistState:choice,wishlistAction:()=>assert.fail('An acceptance with no offer cannot save')}));
-  // Round 1 is refused, the repeat is asked to write instead, and a third repeat ends the turn.
-  assert.equal(calls,3);assert.equal(c.state,choice);
+  // The refused acceptance comes back as a tool result; a repeat is not run, and the model is made to
+  // write the reply (tool_choice forces conversation_reply), so the user never gets the generic fallback.
+  const reply=await generateReply([{direction:'inbound',body:'sure'}],env,async(_u,options)=>{calls++;
+    return JSON.parse(options.body).tool_choice?.name==='conversation_reply'?agentTurn(tool('conversation_reply',{response:'which pair should i save?'})):agentTurn(tool('save_to_wishlist',{option_indices:[1],consent_context:'answer_to_offer'}));},
+    {facts,wishlistState:choice,wishlistAction:()=>assert.fail('An acceptance with no offer cannot save')});
+  assert.equal(calls,3);assert.equal(reply,'which pair should i save?');assert.equal(c.state,choice);
 });
 
 test('alerts with a stated size: the save is implied, the size label is kept exactly, and baselines are attached',async()=>{

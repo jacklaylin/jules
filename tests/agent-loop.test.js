@@ -217,3 +217,17 @@ test('inbox: a save approved in the loop is committed before the message, which 
   // Chat metrics read who wrote the sent text from the stored outcome.
   assert.equal(stored.composed_by, 'model');
 });
+
+test('a search and an alert asked together with nothing pending: the search runs, then the alert on its result', async () => {
+  const shop = shopping({ results:[[cheaper]] });
+  let first;
+  const { fetcher } = model([
+    [tool('manage_price_alerts', { operation:'create', option_indices:[0], consent_context:'explicit_request', size_choices:[{ option_index:0, size:'IT 50' }] }), tool('find_products', { query:'Dries Van Noten Peyter pants, cheaper' })],
+    (options) => { first = toolOutputs(options); return [tool('manage_price_alerts', { operation:'create', option_indices:[0], consent_context:'explicit_request', size_choices:[{ option_index:0, size:'IT 50' }], option_sizing:[{ option_index:0, sizing:'apparel' }] })]; },
+    [reply(`found them for $610.00.\n${cheaper.url}\nsaved, with a price alert on IT 50.`, { saved_now:true, alerts_turned_on:true })],
+  ]);
+  const body = await generateReply(say('find the peyter pants for cheaper and set a price alert'), env, fetcher, shop.memory);
+  // The search ran first; the alert on nothing was refused with a reason, then ran on the result.
+  assert.equal(shop.searches, 1); assert.equal(first.find(o => o.status === 'not_run').error.includes('Search first'), true);
+  assert.equal(shop.commits, 1); assert.equal(shop.recorded.alert_requests[0].url, cheaper.url); assert.match(body, /price alert/);
+});
