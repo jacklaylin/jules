@@ -167,6 +167,17 @@ How beliefs follow evidence: `prune_unsupported_facts` runs whenever evidence is
 
 Pre-evidence data: the migration backfills existing beliefs and `/style` observations. Pre-evidence Gmail imports convert on their next write (`legacyReceiptEvidence`); until then they are read through the same conversion.
 
+## Chat quality metrics
+
+`lib/chat-metrics.js` turns existing message rows into a few numbers. The script (`node --env-file=.env.local scripts/chat-metrics.js`), the People page in admin, and every feedback-triage packet all use it:
+
+- **Time to first message and to final result** for each inbound message. Every reply for a message has an operation id ending in `:<inbound provider_id>` (`ai:`, `ack:`, `followup:`, `wishlist-confirm:`), so new kinds of reply are counted automatically. Search turns use the recorded `timing_diagnostics`. Other turns use `messages.sent_at`, which `db/027` stamps when a row becomes `sent`. Older rows fall back to estimates (`timing_source`), and the placeholder `created_at` is never used as a send time.
+- **Failed replies**: `source = 'ai_fallback'`, plus replies that stayed `generating`/`sending` for more than 10 minutes or ended `uncertain`. Once `db/028` adds `messages.reply_diagnostics`, its recorded `outcome` is used directly, and a watchdog-recovered reply (`source = 'ai_recovery'`, outcome `stalled`) counts as a stall, not a normal reply. Its `composed_by` takes precedence over the inferred one.
+- **Model-written vs fixed template**: `search_result.composed_by` when recorded. Otherwise it is inferred from the chosen tool in `usage_events.action`: model-written tools are listed in `MODEL_WRITTEN_TOOLS`, and saves and fallbacks count as template text.
+- **First-try find rate**: a named-product search (`search_plan.named_model` or `mode: identify`, not a continuation) counts as found on the first try when the item the user then selected or saved was in the first result set. The alternatives are after a retry, or supplied by the user.
+
+`scripts/replay-gate.js` is the pre-deploy check on the same behavior: see `REPLAY-SUITE.md`.
+
 ## Known gaps and existing debt (honest list)
 
 - **iMessage photos are not evidence yet.** They are used for the current search only; nothing learns taste from them. If something does, they must become evidence rows first.
@@ -183,4 +194,5 @@ Pre-evidence data: the migration backfills existing beliefs and `/style` observa
 
 - `db/019_evidence.sql`: applied October 12, 2026. `db/020_drop_evidence_transition.sql` removes the transitional functions and backups once the release is verified.
 - `db/022_history_sources.sql`: replaces the fixed origin list with the `evidence_origins` table (adds `shop`), clears every purchase-history origin with imported history, and lets a connected source create the history row. Run before `SHOP_ORDERS_ENABLED=true`.
+- `db/027_reply_sent_at.sql`: adds `messages.sent_at` and the trigger that stamps it. Run before relying on reply speed for turns that don't search. Nothing reads it until then: the metrics fall back to estimates and label them as such.
 - `db/021_usage_events.sql`: run before relying on cost data. Until then usage writes fail quietly (logged as `usage_record_failed`) and nothing else is affected.
