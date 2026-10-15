@@ -18,7 +18,7 @@
 .wardrobe-chips{display:flex;flex-wrap:wrap;gap:8px}
 @media(max-width:800px){.wardrobe-chips{flex-wrap:nowrap;overflow-x:auto;margin:0 calc(var(--page-gutter) * -1);padding:4px var(--page-gutter) 10px;scrollbar-width:none;width:calc(100% + var(--page-gutter) * 2)}.wardrobe-chips .chip{flex:none}}
 
-/* No product photos yet: a category outline on fog. */
+/* No photo in the order itself: a category outline on fog. */
 .outline-photo svg{width:58%;height:58%;color:var(--line-strong)}
 
 .wardrobe-empty{max-width:420px}.wardrobe-empty p{font-size:17px;line-height:1.5;margin:0 0 20px}
