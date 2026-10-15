@@ -42,14 +42,23 @@ Receipts come only from Gmail (receipts texted to Jules are a planned `chat`-ori
 
 ## The agent and its skills
 
-Every message goes to one agent (`generateReply` in `lib/ai.js`): one model call, one tool list, `tool_choice: required`. The agent sees the conversation, any photos, and an application-context block (data, not instructions): pending options, saved wishlist with alert status, saved profile beliefs, message references, onboarding state, and whether purchase history exists. It calls exactly one replying tool, plus `update_profile` alongside it when the message also states a durable fact, and `record_quality_signal` when the message shows an earlier turn missed what the user wanted. Developer feedback never reaches the agent: a `#dev` message or a 👎 tapback is saved by `lib/developer-feedback.js` in the inbox before the agent runs (founder exception in `AGENTS.md`). If code rejects the call (for example, accepting an offer that was never made), the agent gets one retry with the validation feedback; it never guesses consent.
+Every message goes to one agent (`generateReply` in `lib/ai.js`) with one tool list. The agent sees the conversation, any photos, and an application-context block (data, not instructions): pending options, saved wishlist with alert status, saved profile beliefs, message references, onboarding state, and whether purchase history exists. Developer feedback never reaches the agent: a `#dev` message or a 👎 tapback is saved by `lib/developer-feedback.js` in the inbox before the agent runs (founder exception in `AGENTS.md`).
+
+**The turn is a bounded loop.** Each round the model calls tools (`tool_choice: required`); code validates and runs them and sends each result back as a tool output; the model then calls more tools or finishes with `conversation_reply` (or `wishlist_status` / `profile_status` when that is the whole answer). So one message can do several things ("find these cheaper and set a price alert" = `find_products`, then `manage_price_alerts` on an option the search returned, then the reply), and the model talks about what was actually found.
+
+- **Tool outputs** carry the code-drafted factual result, what happened (`outcome`: `saved_now`, `alerts_turned_on`, `alerts_turned_off`), and, after a shopping action, the pending options with what is known and unknown about each (`optionFacts`: store, price and its basis, availability, sizes seen, whether the page was checked). A refused call comes back as a tool output too (`not_run`, `blocked`, `failed`) with the reason, so the model can recover instead of the turn failing.
+- **Limits.** At most 4 tool rounds, then a round that forces `conversation_reply`. One deadline for the whole turn (`AGENT_DEADLINE_MS`, default 100 s, inside the 120 s function limit): a search is not started with under 45 s left, and the loop stops with under 5 s left. An identical call is never run twice in a turn; a repeat makes the model write instead.
+- **Order within a round.** `update_profile` runs first (a stated size informs the search), `record_quality_signal` runs in parallel (observability only), saves and alerts run before a search in the same round (their option indices refer to the options shown before it). A save or alert next to `respond_to_options` or a reply in the same round leaves consent unclear and is not run; an alert request includes the save.
+- **Consent stays in code.** Saves and alert creation still pass `invalidOfferConsent`, `selectionOutcome` and the independent `consentCheck` model call before anything is persisted. Only one save or alert change runs per turn. An approved save is committed inside the loop (`commitWishlist` in `lib/inbox.js`), before the reply, so the reply can say it happened.
+- **An unreachable model** is retried once with reduced context (last 6 turns, no retailer color images). Only if that fails with nothing done yet does the inbox send "i couldn’t prepare a reply".
+- **Model.** `OPENAI_CHAT_MODEL` (falls back to `OPENAI_MODEL`, then `gpt-4.1-mini`) is used for the loop and the composer; background calls (consent check, search, memory, receipts) stay on `OPENAI_MODEL`. Reasoning models (o-series, GPT-5) run with low reasoning effort and their reasoning items are passed back between rounds.
 
 | Skill (tool) | Offered when | Executor | Writes to |
 |---|---|---|---|
 | `find_products` | search enabled | `lib/text-wishlist.js` (text) or `lib/search.js` (photos) | `messages.search_result` (workflow) |
 | `ask_shopping_question` | wishlist enabled | `lib/text-wishlist.js` | pending brief (workflow) |
 | `respond_to_options` | there are pending options | `lib/wishlist-selection.js` | pending selection (workflow) |
-| `save_to_wishlist` | wishlist enabled | `lib/wishlist-selection.js`, then save after delivery | `wishlist_items`, `wishlist_event` evidence |
+| `save_to_wishlist` | wishlist enabled | `lib/wishlist-selection.js`, then committed inside the loop before the reply | `wishlist_items`, `wishlist_event` evidence |
 | `manage_price_alerts` (create / status / cancel) | wishlist enabled | create: `lib/wishlist-selection.js`; status/cancel: `manageAlerts` in `lib/inbox.js` | `price_alerts` |
 | `wishlist_status` | wishlist enabled | grounded reply; link added by code | none |
 | `prepare_checkout` | `CHECKOUT_LINKS_ENABLED`, with pending options or saved items | `lib/checkout.js`: a cart link with the exact size for stores in Shop's catalog, otherwise the product page; never pays | `messages.search_result` (`purchase_intent`) |
@@ -58,18 +67,22 @@ Every message goes to one agent (`generateReply` in `lib/ai.js`): one model call
 | `profile_status` | memory enabled | grounded reply | none |
 | `onboarding` (accept / decline / status / style) | invited to onboarding, or `/style` enabled | `onboardingAction` in `lib/onboarding.js` | `onboarding_sessions` |
 | `record_quality_signal` (non-replying) | the store can save it | `store.saveQualitySignal` (best effort; logged as `quality_signal`) | `messages.quality_signal` |
-| `conversation_reply` | always | grounded reply | none |
+| `conversation_reply` | always | ends the turn with the model's message, checked by code (below) | none |
 
 Structured arguments replace wording rules: the agent passes `department` (men/women/unisex/unspecified) and `for_someone_else` with each search, so code never parses "for my wife" or "women's" out of text. Consent for saves and alerts is checked in code against the actual offer and options (`invalidOfferConsent`, `selectionOutcome`). Previously there were four separate model calls or routers per message (onboarding, purchase-history check, memory extraction, then one of two interpreters); now there is one.
 
 ## How replies are written
 
-Jules has no fixed reply text. When a tool's result is drafted by code (search results, saves, alerts, size questions, notifications), `lib/compose.js` gives the model that draft as a factual outcome, along with the recent turns and `VOICE.md`. The model writes the message. Code then checks the message before sending:
-- every link in the draft is present unchanged, and no other links are added;
-- no price appears that the draft didn't state;
+Jules has no fixed reply text. In chat, the agent loop's model writes the final message itself from the tool results it saw (above), following `VOICE.md`. Tools still draft their result in plain factual text; that draft is what the model restates, and what the checks compare against. Code checks the message before sending (`checkComposed` in `lib/compose.js`, shared by the loop and the composer):
+- every link in this turn's drafts is present unchanged, and no other links are added (links already in the conversation, pending options or saved items may be repeated);
+- no price appears that a draft, the conversation or a pending option didn't state;
 - the model's structured `claims` (`saved_now`, `alerts_turned_on`, `alerts_turned_off`) match what this turn actually did.
 
-A message that fails the checks gets one retry, listing the problems. Replies the agent already wrote itself (`conversation_reply`, `profile_status`, `wishlist_status`, a profile acknowledgment) are sent as written. The draft goes out unchanged in two cases: the model is unreachable, or both attempts fail the checks. The only other fixed text is the reply when the agent itself fails, and the `#dev` acknowledgment. Notifications sent through `deliverReply` (price alerts, onboarding, purchase questions, save confirmations) are composed the same way; the stored message is the text actually sent.
+A message that fails the checks gets one retry, with the problems listed in the tool output and `conversation_reply` forced. If it fails again, the plain factual drafts are sent (a conversation-only reply keeps only its sentences that pass). If the loop ends without a message (round cap or repeated calls), the drafts go to the composer below.
+
+Outside the chat loop, `lib/compose.js` writes messages from code drafts: notifications sent through `deliverReply` (price alerts, onboarding, purchase questions, save confirmations), and the loop's drafts when it ended without a message. The composer gets the draft as a factual outcome, with the recent turns and `VOICE.md`, applies the same checks and one retry, and sends the draft unchanged if the model is unreachable or both attempts fail. The only other fixed text is the reply when the agent itself fails, and the `#dev` acknowledgment. Notifications sent through `deliverReply` (price alerts, onboarding, purchase questions, save confirmations) are composed the same way; the stored message is the text actually sent.
+
+Results the search retrieved but couldn't read (the store's page blocked or timed out) are real options, not failures: they are shown with their link, store and any search-index price, marked as unverified (`reference_provenance: 'search_unverified'`), and can be selected and saved; the wishlist stores them with price and stock unknown. A missing page, a page that isn't this product, or an unsupported source is still left out.
 
 Alert sizing is structured too. The agent tags each alerted option as `footwear`, `apparel` or `one_size` (`option_sizing`). A saved shoe size applies only to footwear. A one-size item is watched under the `One size` key, priced from the listing offer bound to its exact URL, and only when the page lists no other sizes.
 
