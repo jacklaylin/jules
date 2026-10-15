@@ -5,7 +5,7 @@ import {GMAIL_SCOPE,sealToken,openToken,authorizationURL,digest} from '../lib/gm
 import {receiptHTML,prepareReceiptEmail,receiptPDF,triageCandidate} from '../lib/receipt-email.js';
 import {receiptModel,RECEIPT_SCHEMA,TRIAGE_SCHEMA,merchantKey,reconcileReceipt,emptyReceiptState,projectReceiptState,relinkPending,receiptShoppingFacts} from '../lib/receipt-extraction.js';
 import {applyReceiptFeedback,receiptLearningView} from '../lib/receipt-feedback.js';
-import {newImportJob,importStep,createGmailHandler,publicImport,CONSENT_VERSION,SCAN_VERSION,PRICE_VERSION} from '../lib/gmail-import.js';
+import {newImportJob,importStep,createGmailHandler,publicImport,CONSENT_VERSION,SCAN_VERSION,PRICE_VERSION,PHOTO_VERSION} from '../lib/gmail-import.js';
 import {loadReceipts} from '../lib/evidence.js';
 const env={GMAIL_IMPORT_ENABLED:'true',SITE_ORIGIN:'https://jules.example',GOOGLE_GMAIL_CLIENT_ID:'synthetic-client',GOOGLE_GMAIL_CLIENT_SECRET:'synthetic-secret',GMAIL_TOKEN_KEY:Buffer.alloc(32,7).toString('base64')};
 const tokens={access_token:'synthetic-access',refresh_token:'synthetic-refresh',expires_at:Date.now()+3600000};
@@ -262,7 +262,7 @@ test('sender domains fall back to other sender headers and backfill a stored sho
  const message=headers=>({id:'m',internalDate:'1000',payload:{mimeType:'text/plain',headers,body:{data:Buffer.from(text).toString('base64url')}}});
  assert.equal((await prepareReceiptEmail(message([{name:'From',value:'Shop Orders'},{name:'Reply-To',value:'Care <care@shop.example>'}]),tokens)).sender_domain,'shop.example');
  assert.equal((await prepareReceiptEmail(message([{name:'From',value:'"Shop" <orders@mail.shop.example>'}]),tokens)).sender_domain,'mail.shop.example');
- let row={conversation_id:'owner',token_ciphertext:sealToken(tokens,'owner',env),data:{feedback:emptyReceiptState('owner'),scan_version:SCAN_VERSION,sources:[{id:'m',date:1000,fingerprint:'same',sender_domain:null,shopping_evidence:true,price_version:PRICE_VERSION}],job:{...newImportJob(),status:'extracting',ids:['m']}}};
+ let row={conversation_id:'owner',token_ciphertext:sealToken(tokens,'owner',env),data:{feedback:emptyReceiptState('owner'),scan_version:SCAN_VERSION,sources:[{id:'m',date:1000,fingerprint:'same',sender_domain:null,shopping_evidence:true,price_version:PRICE_VERSION,photo_version:PHOTO_VERSION}],job:{...newImportJob(),status:'extracting',ids:['m']}}};
  row=await step(row,{fetcher:async()=>jsonResponse({id:'m',payload:{}}),prepare:async()=>({id:'m',text,date:1000,fingerprint:'same',sender_domain:'shop.example',warnings:[]}),interpret:()=>assert.fail()});
  assert.equal(row.data.sources[0].sender_domain,'shop.example');assert.equal(row.data.changed_sources,undefined);
 });
@@ -473,4 +473,27 @@ test('searches ask Gmail for large pages when earlier imports read many emails, 
  assert.equal(publicImport(row,row.receipts).already_read,1);
  const fresh={conversation_id:'owner',token_ciphertext:sealToken(tokens,'owner',env),data:{feedback:emptyReceiptState('owner'),job:newImportJob()}};
  sizes.length=0;await step(fresh,{fetcher});assert.equal(sizes[0],'50');
+});
+test('an import stores the order photo the email contained, once, and re-reads older emails once for photos',async()=>{
+ const {default:sharp}=await import('sharp');
+ const photo=await sharp({create:{width:400,height:500,channels:3,background:'#eee'}}).png().toBuffer();
+ const media={source:'order_email',candidates:[{ref:0,image:'https://cdn.shop.example/jeans.jpg',alt:'Jeans',link:'https://shop.example/products/jeans'}]};
+ let images=0,seen=null;
+ const fetcher=async url=>{if(String(url).startsWith('https://cdn.shop.example/')){images++;return new Response(photo,{status:200,headers:{'Content-Type':'image/png'}});}return jsonResponse({id:'m1',payload:{}});};
+ const interpret=async r=>{if(r.schema===TRIAGE_SCHEMA)return {decisions:[]};seen=r.context.source;return {events:[receipt({photo_ref:0,link_ref:0})]};};
+ const fresh={conversation_id:'owner',token_ciphertext:sealToken(tokens,'owner',env),data:{feedback:emptyReceiptState('owner'),job:{...newImportJob(),status:'extracting',ids:['m1']}}};
+ const row=await step(fresh,{fetcher,prepare:async()=>({...source,media,warnings:[]}),interpret});
+ assert.deepEqual(seen.media_candidates,[{ref:0,kind:'image',text:'Jeans',link:'shop.example/products/jeans'}]);assert.equal(seen.media,undefined);
+ assert.equal(itemsOf(row)[0].order_photo.url,media.candidates[0].image);assert.equal(itemsOf(row)[0].product_link,media.candidates[0].link);
+ const stored=row.rows.filter(r=>r.kind==='photo_observation');
+ assert.deepEqual(stored.map(r=>[r.id,r.data.item_id,r.data.photo_source,r.data.mime_type]),[['order_photo:'+itemsOf(row)[0].id,itemsOf(row)[0].id,'order_email','image/jpeg']]);
+ assert.equal(images,1);assert.equal(row.data.sources[0].media,undefined);assert.equal(row.data.sources[0].photo_version,PHOTO_VERSION);
+ // An email read before photos existed (prices already read) is re-read once, for photos only.
+ const older={conversation_id:'owner',token_ciphertext:sealToken(tokens,'owner',env),data:{feedback:reconcileReceipt(emptyReceiptState('owner'),source,{events:[receipt()]}).state,scan_version:SCAN_VERSION,
+  sources:[{id:'m1',date:1000,fingerprint:'synthetic',shopping_evidence:true,price_version:PRICE_VERSION}],job:{...newImportJob(),status:'extracting',ids:['m1']}}};
+ const reread=await step(older,{fetcher,prepare:async()=>({...source,media,warnings:[]}),interpret});
+ assert.equal(itemsOf(reread).length,1);assert.equal(itemsOf(reread)[0].order_photo.url,media.candidates[0].image);assert.equal(images,2);
+ assert.equal(reread.data.sources[0].photo_version,PHOTO_VERSION);assert.equal(reread.data.job.quality.media_reread,1);
+ const again=await step({...reread,data:{...reread.data,job:{...newImportJob(),status:'extracting',ids:['m1']}}},{fetcher,prepare:async()=>({...source,media,warnings:[]}),interpret:()=>assert.fail()});
+ assert.equal(images,2);assert.equal(again.rows.filter(r=>r.kind==='photo_observation').length,1);
 });
