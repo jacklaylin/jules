@@ -103,8 +103,9 @@ test('search before asking: real candidates shape the question and become select
 test('identified pages of a required brand that block verification are shown as unverified, not hidden',async()=>{
  let result;const page={brand:'ASICS',name:'GEL-KAYANO 14',url:'https://www.asics.com/us/en-us/gel-kayano-14/p/ANA_1202A105-700.html',match:'likely_match',sourcing_status:'store_not_found',listing_checks:[{status:'check_failed'}],merchant_options:[]};
  const body=await textWishlistAction({action:'start',query:'ASICS Gel-Kayano 14',search_plan:{...plan,required_brands:['ASICS']}},{env:{},record:async r=>{result=r;},search:async()=>({status:'identified_no_store',products:[page],refinement_attempted:true})});
- // Named honestly, without a link that could not be opened (unverified links are never sent).
- assert.match(body,/GEL-KAYANO 14/);assert.doesNotMatch(body,/couldn’t find a verified/);assert.ok(!body.includes(page.url));assert.equal(result.user_confirmed,undefined);
+ // Named honestly with its link, as a selectable option whose price and sizes are unknown.
+ assert.match(body,/GEL-KAYANO 14/);assert.doesNotMatch(body,/couldn’t find a verified/);assert.ok(body.includes(page.url));assert.match(body,/sizes and stock not checked/);
+ assert.equal(result.user_confirmed,undefined);assert.equal(result.text_wishlist_state.stage,'choice');assert.equal(result.text_wishlist_state.options[0].reference_provenance,'search_unverified');
 });
 
 test('when every verified match is sold out, one more search looks for in-stock listings elsewhere',async()=>{

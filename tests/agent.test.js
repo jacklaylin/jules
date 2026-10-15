@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {generateReply as agentReply} from '../lib/ai.js';
-import {withConsent} from './helpers/agent.js';
+import {withConsent,toolOutputs} from './helpers/agent.js';
 // These tests cover tool routing; the consent check approves (its own tests are in agent.test.js).
 const generateReply=(messages,env,fetcher,memory)=>agentReply(messages,env,withConsent(fetcher),memory);
 import {textWishlistAction} from '../lib/text-wishlist.js';
@@ -52,7 +52,8 @@ test('an explicit request saves without an earlier offer; an unmatched acceptanc
   let calls=0;const c=conversation(choice);
   await assert.rejects(generateReply([{direction:'inbound',body:'sure'}],env,async()=>{calls++;return agentTurn(tool('save_to_wishlist',{option_indices:[1],consent_context:'answer_to_offer'}));},
     {facts,wishlistState:choice,wishlistAction:()=>assert.fail('An acceptance with no offer cannot save')}));
-  assert.equal(calls,2);assert.equal(c.state,choice);
+  // Round 1 is refused, the repeat is asked to write instead, and a third repeat ends the turn.
+  assert.equal(calls,3);assert.equal(c.state,choice);
 });
 
 test('alerts with a stated size: the save is implied, the size label is kept exactly, and baselines are attached',async()=>{
@@ -126,9 +127,11 @@ test('an independent consent check gates every save: a block makes the agent re-
   const choice={stage:'choice',query:'x',options};let agentCalls=0,checks=0,saved=0;
   const fetcher=async(_url,options)=>{
     if(JSON.parse(options.body).text?.format?.name==='consent'){checks++;const input=JSON.parse(JSON.parse(options.body).input);assert.equal(input.newest_user_message,'yes');return {ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:'{"authorizes":false}'}]}]})};}
-    agentCalls++;return agentTurn(tool('save_to_wishlist',{option_indices:[0],consent_context:'explicit_request'}));};
+    // After the block comes back as a tool result, the model asks instead of saving.
+    agentCalls++;const blocked=toolOutputs(options).find(o=>o.status==='blocked');
+    return agentTurn(blocked?tool('conversation_reply',{response:'Should I save the ivory pair to your wishlist?'}):tool('save_to_wishlist',{option_indices:[0],consent_context:'explicit_request'}));};
   const reply=await agentReply([{direction:'outbound',status:'sent',body:'Do you wear cropped hems?'},{direction:'inbound',body:'yes'}],env,fetcher,{facts,wishlistState:choice,wishlistAction:async()=>{saved++;return 'Saved';}});
-  assert.equal(saved,0);assert.equal(agentCalls,2);assert.equal(checks,2);assert.match(reply,/Should I save/);
+  assert.equal(saved,0);assert.equal(agentCalls,2);assert.equal(checks,1);assert.match(reply,/Should I save/);
   // With the user's actual request, the check approves and the save runs.
   saved=0;assert.equal(await agentReply([{direction:'inbound',body:'save the ivory pair'}],env,withConsent(async()=>agentTurn(tool('save_to_wishlist',{option_indices:[0]}))),{facts,wishlistState:choice,wishlistAction:async()=>{saved++;return 'Saved';}}),'Saved');
   assert.equal(saved,1);

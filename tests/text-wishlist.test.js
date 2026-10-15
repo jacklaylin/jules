@@ -74,5 +74,6 @@ test('failed category or unreadable candidates trigger one targeted product-page
 test('repeated unreadable candidates stop after one refinement without inventing product details',async()=>{
  const h=harness();let calls=0;
  const reply=await textWishlistAction({action:'start',query:'Example Trail sneaker'},{env,record:h.record,search:async()=>{calls++;return {products:[{...product,sourcing_status:'store_not_found',listing_check:{status:'check_failed'}}]};}});
- assert.equal(calls,2);assert.equal(h.result.text_wishlist_state,null);assert.equal(h.result.user_confirmed,undefined);assert.doesNotMatch(reply,/400|Brown|https:/);
+ // The page that couldn't be read is offered as it is: its link, with no price or color from the unread page.
+ assert.equal(calls,2);assert.equal(h.result.text_wishlist_state.options.length,1);assert.equal(h.result.user_confirmed,undefined);assert.doesNotMatch(reply,/400|Brown/);assert.match(reply,/price not shown/);
 });

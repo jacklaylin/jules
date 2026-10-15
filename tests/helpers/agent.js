@@ -6,7 +6,7 @@ const defaults={
   save_to_wishlist:{option_indices:[],consent_context:'explicit_request',color_choices:[],size_choices:[],option_sizing:[],offer_alerts:true},
   manage_price_alerts:{operation:'create',option_indices:[],consent_context:'explicit_request',color_choices:[],size_choices:[],option_sizing:[],saved_item_ids:[]},
   wishlist_status:{response:'',include_link:false},update_purchase_history:{},update_profile:{changes:[],acknowledgment:''},profile_status:{response:''},
-  onboarding:{action:'status'},record_quality_signal:{kind:'other',about:'previous_reply',summary:''},conversation_reply:{response:''},prepare_checkout:{items:[]},
+  onboarding:{action:'status'},record_quality_signal:{kind:'other',about:'previous_reply',summary:''},conversation_reply:{response:'',claims:{saved_now:false,alerts_turned_on:false,alerts_turned_off:false}},prepare_checkout:{items:[]},
 };
 export const tool=(name,args={})=>({type:'function_call',name,arguments:JSON.stringify({...defaults[name],...args})});
 export const agentTurn=(...calls)=>({ok:true,json:async()=>({status:'completed',output:calls})});
@@ -28,4 +28,15 @@ export function fromIntent(intent){
 // Answers the independent consent check (a separate small model call before any save or alert).
 export const isConsentCheck=options=>JSON.parse(options?.body??'{}').text?.format?.name==='consent';
 export const consentResponse=authorizes=>({ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({authorizes})}]}]})});
-export const withConsent=(fetcher,authorizes=true)=>async(url,options)=>isConsentCheck(options)?consentResponse(typeof authorizes==='function'?authorizes(options):authorizes):fetcher(url,options);
+export const withConsent=(fetcher,authorizes=true)=>restating(async(url,options)=>isConsentCheck(options)?consentResponse(typeof authorizes==='function'?authorizes(options):authorizes):fetcher(url,options));
+// The tool outputs the agent loop has sent back to the model this turn.
+export const toolOutputs=options=>{const input=JSON.parse(options?.body??'{}').input??[];return input.filter(i=>i.type==='function_call_output').map(i=>JSON.parse(i.output));};
+// A model that, once its tools have run, restates their results as its message (conversation_reply),
+// claiming exactly what the results report. Turns whose tools produced no result go to fetcher.
+export const restating=fetcher=>async(url,options)=>{
+  if(!isAgentRequest(options))return fetcher(url,options);
+  const outputs=toolOutputs(options),done=outputs.filter(o=>o.status==='done'&&typeof o.result==='string'&&o.result.trim());
+  if(!done.length)return fetcher(url,options);
+  const outcome=done.at(-1).outcome??{};
+  return agentTurn(tool('conversation_reply',{response:done.map(o=>o.result).join('\n\n'),claims:{saved_now:outcome.saved_now===true,alerts_turned_on:outcome.alerts_turned_on===true,alerts_turned_off:outcome.alerts_turned_off===true}}));
+};

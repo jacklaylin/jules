@@ -76,5 +76,5 @@ test('the save confirmation states the verified price for a one-size watch, or t
   const priced = await finishTextWishlist({ store, result:result([{ amount:1295, currency:'USD', url, available:true }]), env:{}, conversationId:'c' });
   assert.match(priced, /\$1,295\.00 at visionaryoptics\.com, in stock/); assert.match(priced, /one size/); assert.doesNotMatch(priced, /size One size/);
   const unpriced = await finishTextWishlist({ store, result:result([]), env:{}, conversationId:'c' });
-  assert.match(unpriced, /No verified price/); assert.doesNotMatch(unpriced, /\$/);
+  assert.match(unpriced, /no verified price/); assert.doesNotMatch(unpriced, /\$/);
 });

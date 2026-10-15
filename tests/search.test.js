@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {validateSearch,formatSearch,searchProducts,publicURL} from '../lib/search.js';
 import {generateReply} from '../lib/ai.js';
-import {tool} from './helpers/agent.js';
+import {tool,restating} from './helpers/agent.js';
 const url='https://retailer.example/products/waxed-jacket';
 const result={intro:'I can’t confirm the exact jacket; here is a similar option.',products:[{brand:'Example',name:'Waxed jacket',url,match:'similar',reason:'Dark waxed cotton with a corduroy collar.'}],needs_review:false};
 const response=(output)=>({ok:true,json:async()=>({status:'completed',output})});
@@ -37,11 +37,11 @@ test('product sourcing sends the referenced image, validates live web search, an
 });
 test('explicit follow-up can source the recent image without attaching it to ordinary conversation turns',async()=>{
   let calls=0,loaded=0,recorded;
-  const text=await generateReply([{direction:'inbound',body:'Find that jacket and send links'}],{OPENAI_API_KEY:'fake',SEARCH_ENABLED:'true'},async(endpoint,options)=>{
+  const text=await generateReply([{direction:'inbound',body:'Find that jacket and send links'}],{OPENAI_API_KEY:'fake',SEARCH_ENABLED:'true'},restating(async(endpoint,options)=>{
     const request=JSON.parse(options.body);
     if(++calls===1){assert.ok(request.tools.some(t=>t.name==='find_products'));return response([tool('find_products',{query:'Dark waxed jacket with corduroy collar',use_image:true})]);}
     assert.equal(request.input[0].content[1].type,'input_image');return response(output);
-  },{loadImages:async()=>{loaded++;return [{mime_type:'image/jpeg',data:'fake'}];},recordSearch:async r=>recorded=r});
+  }),{loadImages:async()=>{loaded++;return [{mime_type:'image/jpeg',data:'fake'}];},recordSearch:async r=>recorded=r});
   assert.equal(calls,2);assert.equal(loaded,1);assert.equal(recorded.products.length,0);assert.match(text,/similar options/);
 });
 test('search errors are recorded for review and never generate invented links',async()=>{
