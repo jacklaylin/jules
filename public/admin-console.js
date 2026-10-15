@@ -86,3 +86,15 @@ export function mountAdminShell(page){
  content.before(layout);layout.append(content,gate);
  if(error||!session.read())showGate(error??'');else hideGate();
 }
+
+// Data-view menus (.dv-pop popovers) open under the button that names them: from its left edge, or from its right
+// edge when the button sits in the right half of the window. They follow the button while the page scrolls.
+export function anchorMenus(root=document){
+ const place=pop=>{
+  const button=document.querySelector(`[popovertarget="${pop.id}"]:not([popovertargetaction="hide"])`);if(!button)return;
+  const box=button.getBoundingClientRect(),right=box.left+box.width/2>innerWidth/2;
+  Object.assign(pop.style,{position:'fixed',top:`${box.bottom+6}px`,left:right?'auto':`${Math.max(16,box.left)}px`,right:right?`${Math.max(16,innerWidth-box.right)}px`:'auto'});
+ };
+ for(const pop of root.querySelectorAll('.dv-pop[popover]'))pop.addEventListener('beforetoggle',event=>{if(event.newState==='open')place(pop);});
+ addEventListener('scroll',()=>{for(const pop of root.querySelectorAll('.dv-pop:popover-open'))place(pop);},{passive:true});
+}

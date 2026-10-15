@@ -298,6 +298,60 @@ button.small{min-height:32px;padding:0 14px;font-size:13px}
 .notice-bar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:12px 16px;border-radius:16px;background:var(--warn-bg);color:var(--warn-text);margin:12px 0}
 .notice-bar.fail{background:var(--fail-bg);color:var(--fail-text)}
 .empty-state{padding:28px;text-align:center;color:var(--text-2);border:1px dashed var(--line);border-radius:16px}
+
+/* Data view (admin table pattern, Oct 15 design): views, one toolbar row, one status line, dense rows, and a detail
+   panel beside the list. Occasional actions live in a More menu; secondary filters in a Filters menu. */
+.dv-toolbar{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center;margin:14px 0 8px}.dv-toolbar .spacer{flex:1}
+.dv-toolbar button.small{min-height:34px}
+.dv-divider{width:1px;height:22px;background:var(--line)}
+.dv-views{display:flex;flex-wrap:wrap;gap:2px}
+.seg{display:inline-flex;gap:2px;padding:3px;border:1px solid var(--line);border-radius:var(--r-pill);overflow-x:auto;scrollbar-width:none;max-width:100%}
+.dv-views button,.seg button{flex:none;min-height:28px;padding:0 11px;border:0;border-radius:var(--r-pill);background:transparent;box-shadow:none;color:var(--text-2);font-size:13px;white-space:nowrap}
+.dv-views button::after,.seg button::after,.dv-menu button::after,.dv-token button::after{display:none}
+.dv-views button:hover,.seg button:hover,.dv-menu button:hover,.dv-token button:hover{transform:none;color:var(--ink)}
+.dv-views button[aria-pressed=true]{background:var(--fog);color:var(--ink)}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--white)}.seg button[aria-pressed=true]:hover{color:var(--white)}
+.dv-views .count,.seg .count{font:500 11px var(--font-mono);margin-left:6px}
+.dv-search{display:flex;align-items:center;gap:6px;width:min(280px,100%);min-height:34px;box-sizing:border-box;padding:0 6px 0 14px;border:1px solid var(--line-strong);border-radius:var(--r-pill);background:var(--white)}
+.dv-search:focus-within{outline:3px solid var(--grape);outline-offset:3px}
+.dv-search input[type=search]{flex:1;min-width:0;min-height:32px;margin:0;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;font-size:13px;outline:none}
+.dv-count{font:500 10px/1 var(--font-mono);background:var(--ink);color:var(--white);border-radius:var(--r-pill);padding:3px 6px}
+.dv-pop{margin:0;inset:auto;padding:6px;border:1px solid var(--line);border-radius:16px;background:var(--white);color:var(--ink);box-shadow:var(--shadow-panel);min-width:240px;max-width:calc(100vw - 32px)}
+.dv-menu{display:none;flex-direction:column}.dv-menu:popover-open{display:flex}
+.dv-menu button{justify-content:flex-start;gap:10px;width:100%;min-height:36px;padding:0 10px;border:0;border-radius:10px;background:transparent;box-shadow:none;font-size:13px;text-align:left}
+.dv-menu button:hover,.dv-menu button:focus-visible{background:var(--fog)}.dv-menu .hint{margin-left:auto;font-weight:400;font-size:12px;color:var(--text-2)}
+.dv-menu .mono-label{padding:8px 10px 2px}.dv-menu hr{border:0;border-top:1px solid var(--line);margin:4px 6px}
+.dv-filters{padding:14px}.dv-filters:popover-open{display:grid;gap:12px}.dv-filters label{display:grid;gap:6px;font-size:13px}.dv-filters select{margin:0}
+.dv-pop-actions{display:flex;justify-content:space-between;gap:8px}
+.dv-status{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;min-height:26px;margin:0 0 10px;font-size:12px;line-height:1.5;color:var(--text-2)}
+.dv-status .error{color:var(--danger);font-weight:600}.dv-keys{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-left:auto}
+.dv-token{display:inline-flex;align-items:center;gap:2px;min-height:26px;padding:0 2px 0 10px;border-radius:var(--r-pill);background:var(--fog);color:var(--ink);font-size:12px;font-weight:600}
+.dv-token button{min-height:22px;width:24px;padding:0;border:0;background:transparent;box-shadow:none;color:var(--text-2);font-size:15px}
+.dv-loader{display:inline-block;width:40px;height:8px;border-radius:var(--r-pill);border:1px solid var(--aqua-edge);background:repeating-linear-gradient(-45deg,var(--aqua-stripe) 0 5px,var(--aqua-stripe-light) 5px 10px);background-size:28px 8px;animation:dv-stripes 1s linear infinite}
+@keyframes dv-stripes{to{background-position:28px 0}}
+@media(prefers-reduced-motion:reduce){.dv-loader{animation:none}}
+/* Dense rows: a grid per row so a list of links reads as a table. Pages set --dv-cols. */
+.dv-list{border-top:1px solid var(--line);min-width:0}
+.dv-head,.dv-row{display:grid;grid-template-columns:var(--dv-cols);gap:0 12px;align-items:center;padding:0 10px}
+.dv-head{min-height:32px;border-bottom:1px solid var(--line);font:500 10px/1.2 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--text-2)}
+.dv-row{min-height:40px;border-bottom:1px solid var(--line);color:var(--ink);text-decoration:none;font-size:13px}
+.dv-row>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dv-row .muted{color:var(--text-2)}
+.dv-row:hover{background:#FAF9F7}.dv-row[aria-current=true]{background:var(--fog)}.dv-row:focus-visible{outline:3px solid var(--grape);outline-offset:-3px}
+.dv-row strong{font-weight:600}.dv-row .end{text-align:right}.dv-facts{display:none}
+.dv-compact .dv-head{display:none}.dv-compact .dv-row{grid-template-columns:minmax(0,1fr) auto;min-height:48px;padding:6px 12px}
+.dv-compact .dv-row .dv-col{display:none}.dv-compact .dv-row .dv-item{white-space:normal;display:grid;gap:2px}
+.dv-compact .dv-facts{display:block;font-size:12px;color:var(--text-2)}
+/* Detail beside the list: the list narrows to a column; the open item takes the rest. */
+.dv-split{scroll-margin-top:calc(var(--admin-sticky,64px) + 12px)}
+.dv-split.open{display:grid;grid-template-columns:minmax(280px,360px) minmax(0,1fr);align-items:start;border:1px solid var(--line);border-radius:var(--r-card);overflow:hidden}
+.dv-split.open>.dv-list{border-top:0;border-right:1px solid var(--line);position:sticky;top:var(--admin-sticky,64px);max-height:calc(100dvh - var(--admin-sticky,64px));overflow:auto}
+.dv-split.open>.dv-detail{padding:14px 20px 24px;min-width:0}
+.dv-tool{border:1px solid var(--line);border-radius:16px;padding:14px 16px;margin:0 0 12px}
+.dv-tool-head{display:flex;align-items:center;gap:10px;margin-bottom:6px}.dv-tool-head h2{margin:0;font-size:22px}.dv-tool-head button{margin-left:auto}
+@media(max-width:800px){
+ .dv-toolbar button.small,.dv-search,.dv-views button,.seg button{min-height:44px}.dv-search{width:100%}.dv-keys,.dv-divider{display:none}
+ .dv-split.open{display:block;border:0;border-radius:0;overflow:visible}.dv-split.open>.dv-list{display:none}.dv-split.open>.dv-detail{padding:0}
+}
 /* Owner confirmation for an action that removes data: say exactly what goes and what stays. */
 .confirm-dialog{max-width:600px;width:calc(100% - 32px);overflow:auto}.confirm-dialog h2{font-size:24px;margin:0 0 12px}.confirm-dialog p,.confirm-dialog ul{margin:12px 0}.confirm-dialog li{margin:6px 0;line-height:1.5}.confirm-dialog .dialog-actions{margin-top:20px}
 .sr-only,.visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}

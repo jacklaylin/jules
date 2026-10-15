@@ -42,6 +42,19 @@ export function filterLabel(filter) {
 const typing = target => !!target && (target.isContentEditable || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' ||
   (target.tagName === 'INPUT' && !['radio', 'checkbox', 'button', 'submit', 'reset'].includes(target.type)));
 
+// Keys that work on the whole list as well as the item review: / searches, Esc closes the open item, and with
+// no item open J/K move between rows (Enter on a row then opens it, as a link). Menus and dialogs keep their keys.
+export function browseKey(event, { open, dialog = false, menu = false } = {}) {
+  if (dialog || menu || event.isComposing || event.repeat || event.metaKey || event.ctrlKey || event.altKey || typing(event.target)) return null;
+  if (event.key === '/') return { type: 'search' };
+  if (event.key === 'Escape') return open ? { type: 'close' } : null;
+  if (open) return null;
+  const key = event.key.toLowerCase();
+  if (key === 'j') return { type: 'row', step: 1 };
+  if (key === 'k') return { type: 'row', step: -1 };
+  return null;
+}
+
 // Maps a keydown on the item review to an action, or null to leave the key alone.
 // ⌘/Ctrl+Enter also works from inside the form's fields: it can't be typed, and a reviewer who has
 // just corrected a detail should not have to leave the field to save.

@@ -7,9 +7,10 @@
 <link rel="icon" href="/brand/icon.svg" type="image/svg+xml"></head>
 <body class="admin-console">
   <main>
-    <p class="breadcrumb"><a href="/admin">People</a> / <span id="crumb">…</span></p>
-    <div class="person-title"><h1 id="person-name">Loading…</h1><div id="person-badges" class="badges"></div><button id="reset-onboarding" class="small" type="button" aria-haspopup="dialog">Reset onboarding</button></div>
-    <div class="stats"><div><span class="mono-label">Last active</span><strong id="stat-active">—</strong></div><div><span class="mono-label">Messages</span><strong id="stat-messages">—</strong></div><div><span class="mono-label">Memory facts</span><strong id="stat-facts">—</strong></div></div>
+    <div class="person-title"><a class="breadcrumb" href="/admin">← People</a><h1 id="person-name">Loading…</h1><div id="person-badges" class="badges"></div><span class="spacer"></span>
+      <p class="person-stats mono-label">Last active <strong id="stat-active">—</strong> · <strong id="stat-messages">—</strong> messages · <strong id="stat-facts">—</strong> facts</p>
+      <button class="small" type="button" popovertarget="person-actions" aria-label="Person actions">⋯</button></div>
+    <div id="person-actions" class="dv-pop dv-menu" popover aria-label="Person actions"><button id="reset-onboarding" type="button" aria-haspopup="dialog">Reset onboarding…</button></div>
     <nav class="tabs" aria-label="Person sections">
       <a href="?tab=memory" data-tab="memory">Personal memory <span class="count" id="count-memory"></span></a>
       <a href="?tab=conversation" data-tab="conversation">Conversation <span class="count" id="count-conversation"></span></a>
@@ -33,17 +34,50 @@
     </section>
 
     <section id="tab-purchases" data-panel="purchases" hidden>
-      <div data-browse><div class="toolbar"><label class="sr-only" for="purchases-search">Search purchases</label><input id="purchases-search" type="search" maxlength="100" placeholder="Brand, product, store, size"><div id="purchases-chips" class="filter-chips" role="group" aria-label="Filter by status"></div><label class="sr-only" for="purchases-store">Store</label><select id="purchases-store"><option value="">All stores</option></select><label class="sr-only" for="purchases-source">Found by</label><select id="purchases-source"><option value="">Any source</option><option value="gmail">Gmail</option><option value="shop">Shop</option><option value="screenshot">Chat screenshot</option><option value="multiple">More than one source</option></select><button id="purchases-reload" class="small" type="button">Reload</button></div>
-      <div class="purchases-intro"><p id="purchases-summary" class="muted"></p><button id="purchases-start" class="btn--butter" type="button" hidden>Start reviewing →</button></div>
-      <p class="muted purchases-tags"><span id="tags-status"></span> <button id="tags-run" class="small" type="button" hidden>Tag purchases</button></p>
-      <details class="fold" id="report-panel"><summary>Style report</summary><p class="muted">Builds the person’s private style report from their purchases and tags (Receipt card for now). Texting sends them a signed link to /report; each built report is texted once.</p><p id="report-status" class="muted"></p><pre id="report-preview" class="report-preview" hidden></pre><button id="report-build" class="small" type="button">Build report</button> <button id="report-send" class="small" type="button" hidden>Text them the link</button> <a id="report-open" class="small" target="_blank" rel="noopener" hidden>Open report ↗</a></details></div>
-      <p id="purchases-notice" role="status" aria-live="polite" class="muted"></p>
-      <div id="purchase-review" class="purchase-review" hidden></div>
-      <div data-browse><div id="purchases-list" class="purchase-list"></div>
-      <details class="fold" id="skipped-panel"><summary>Skipped emails</summary><p class="muted">A sample of emails the import judged irrelevant: every skipped email from a store they've bought from, plus a random sample of the rest. Mark any that were real orders. Subjects come from Gmail when you load the sample and aren't stored. Only available for your own mailbox.</p><button id="skipped-load" class="small" type="button">Load sample</button><p id="skipped-status" role="status" aria-live="polite" class="muted"></p><div id="skipped-list"></div></details>
-      <details class="fold" id="purchases-sources" hidden><summary>Connected sources <span class="count" id="purchases-sources-count"></span></summary><p class="muted">What each connected service returned, page by page, and what Jules found in each record. Record text isn't kept; summaries leave out addresses and contact details.</p><div id="purchases-sources-list"></div></details><details class="fold" id="purchases-pending" hidden><summary>Unlinked events <span class="count" id="purchases-pending-count"></span></summary><p class="muted">Shipping, return or refund emails Jules could not safely link to a purchase.</p><div class="table-scroll"><table class="data-table"><thead><tr><th>Kind</th><th>Store</th><th>Order</th><th>Date</th><th>Quote</th></tr></thead><tbody id="purchases-pending-list"></tbody></table></div></details>
-      <details class="fold" id="recheck-panel"><summary>Re-check labelled emails</summary><p class="muted">Re-reads the emails behind every item you labelled, using the current reading rules, and reports how many labels it now agrees with. Nothing is saved. Takes a few seconds per item.</p><button id="recheck-run" class="small" type="button">Run re-check</button><p id="recheck-status" role="status" aria-live="polite" class="muted"></p><div id="recheck-results"></div></details>
-      <details class="fold"><summary>Report a missed purchase</summary><p class="muted">Something they bought that Jules did not find. This measures what Gmail reading misses.</p><form id="missed-form" class="add-fact-fields"><label>Store<input id="missed-store" maxlength="120" required placeholder="e.g. SSENSE"></label><label>Roughly when<input id="missed-when" maxlength="60" placeholder="e.g. March 2025"></label><label>What was bought<input id="missed-what" maxlength="500" required placeholder="e.g. Our Legacy Third Cut jeans, size 32"></label><button type="submit" class="btn--butter">Add report</button></form><div id="missed-list"></div></details></div>
+      <div class="dv-toolbar">
+        <div id="purchases-views" class="dv-views" role="group" aria-label="Purchase history views">
+          <button type="button" data-view="">Purchases</button>
+          <button id="purchases-pending" type="button" data-view="unlinked" hidden>Unlinked events<span class="count" id="purchases-pending-count"></span></button>
+          <button type="button" data-view="skipped">Skipped emails</button>
+          <button id="purchases-sources" type="button" data-view="sources" hidden>Sources<span class="count" id="purchases-sources-count"></span></button>
+        </div>
+        <span class="dv-divider" data-list-only></span>
+        <div id="purchases-chips" class="seg" role="group" aria-label="Filter by status" data-list-only></div>
+        <label class="dv-search" data-list-only><span class="sr-only">Search purchases</span><input id="purchases-search" type="search" maxlength="100" placeholder="Brand, product, store, size"><span class="kbd" aria-hidden="true">/</span></label>
+        <button class="small" type="button" popovertarget="purchases-filters" data-list-only>Filters <span id="purchases-filter-count" class="dv-count" hidden></span></button>
+        <span class="spacer"></span>
+        <button class="small" type="button" popovertarget="purchases-more">More ⋯</button>
+        <button id="purchases-start" class="btn--butter small" type="button" hidden>Start reviewing →</button>
+      </div>
+      <div id="purchases-filters" class="dv-pop dv-filters" popover aria-label="Filters">
+        <label>Store<select id="purchases-store"><option value="">All stores</option></select></label>
+        <label>Found by<select id="purchases-source"><option value="">Any source</option><option value="gmail">Gmail</option><option value="shop">Shop</option><option value="screenshot">Chat screenshot</option><option value="multiple">More than one source</option></select></label>
+        <div class="dv-pop-actions"><button id="purchases-clear" class="small" type="button">Clear</button><button class="small btn--butter" type="button" popovertarget="purchases-filters" popovertargetaction="hide">Done</button></div>
+      </div>
+      <div id="purchases-more" class="dv-pop dv-menu" popover aria-label="More purchase history actions">
+        <span class="mono-label">Refresh</span>
+        <button id="purchases-reload" type="button">Reload purchases</button>
+        <span class="mono-label">Run</span>
+        <button id="tags-run" type="button" hidden>Tag purchases</button>
+        <button type="button" data-tool="recheck">Re-check labelled emails</button>
+        <button type="button" data-tool="report">Style report</button>
+        <hr>
+        <button type="button" data-tool="missed">Report a missed purchase…</button>
+      </div>
+      <div class="dv-status"><span id="purchases-tokens" class="badges"></span><span id="purchases-loader" class="dv-loader" aria-hidden="true" hidden></span><span id="purchases-summary"></span><span id="tags-status"></span><span id="purchases-notice" role="status" aria-live="polite"></span>
+        <span class="dv-keys" aria-hidden="true"><span class="kbd">/</span> search <span class="kbd">J</span><span class="kbd">K</span> move <span class="kbd">↵</span> open <span class="kbd">Esc</span> close</span></div>
+
+      <section id="tool-recheck" class="dv-tool" aria-labelledby="tool-recheck-title" hidden><div class="dv-tool-head"><h2 id="tool-recheck-title">Re-check labelled emails</h2><button class="small" type="button" data-close-tool>Close ×</button></div><p class="muted">Re-reads the emails behind every item you labelled, using the current reading rules, and reports how many labels it now agrees with. Nothing is saved. Takes a few seconds per item.</p><button id="recheck-run" class="small" type="button">Run re-check</button><p id="recheck-status" role="status" aria-live="polite" class="muted"></p><div id="recheck-results"></div></section>
+      <section id="tool-report" class="dv-tool" aria-labelledby="tool-report-title" hidden><div class="dv-tool-head"><h2 id="tool-report-title">Style report</h2><button class="small" type="button" data-close-tool>Close ×</button></div><p class="muted">Builds the person’s private style report from their purchases and tags (Receipt card for now). Texting sends them a signed link to /report; each built report is texted once.</p><p id="report-status" class="muted"></p><pre id="report-preview" class="report-preview" hidden></pre><button id="report-build" class="small" type="button">Build report</button> <button id="report-send" class="small" type="button" hidden>Text them the link</button> <a id="report-open" class="small" target="_blank" rel="noopener" hidden>Open report ↗</a></section>
+      <section id="tool-missed" class="dv-tool" aria-labelledby="tool-missed-title" hidden><div class="dv-tool-head"><h2 id="tool-missed-title">Report a missed purchase</h2><button class="small" type="button" data-close-tool>Close ×</button></div><p class="muted">Something they bought that Jules did not find. This measures what Gmail reading misses.</p><form id="missed-form" class="add-fact-fields"><label>Store<input id="missed-store" maxlength="120" required placeholder="e.g. SSENSE"></label><label>Roughly when<input id="missed-when" maxlength="60" placeholder="e.g. March 2025"></label><label>What was bought<input id="missed-what" maxlength="500" required placeholder="e.g. Our Legacy Third Cut jeans, size 32"></label><button type="submit" class="btn--butter">Add report</button></form><div id="missed-list"></div></section>
+
+      <div data-view-panel="" id="purchases-browse" class="dv-split">
+        <div id="purchases-list" class="dv-list purchase-table" aria-label="Purchases"></div>
+        <div id="purchase-review" class="purchase-review dv-detail" hidden></div>
+      </div>
+      <div data-view-panel="unlinked" hidden><p class="muted">Shipping, return or refund emails Jules could not safely link to a purchase.</p><div class="table-scroll"><table class="data-table"><thead><tr><th>Kind</th><th>Store</th><th>Order</th><th>Date</th><th>Quote</th></tr></thead><tbody id="purchases-pending-list"></tbody></table></div></div>
+      <div data-view-panel="skipped" id="skipped-panel" hidden><p class="muted">A sample of emails the import judged irrelevant: every skipped email from a store they've bought from, plus a random sample of the rest. Mark any that were real orders. Subjects come from Gmail when you load the sample and aren't stored. Only available for your own mailbox.</p><button id="skipped-load" class="small" type="button">Load sample</button><p id="skipped-status" role="status" aria-live="polite" class="muted"></p><div id="skipped-list"></div></div>
+      <div data-view-panel="sources" hidden><p class="muted">What each connected service returned, page by page, and what Jules found in each record. Record text isn't kept; summaries leave out addresses and contact details.</p><div id="purchases-sources-list"></div></div>
     </section>
 
     <section id="tab-wishlist" data-panel="wishlist" hidden>
