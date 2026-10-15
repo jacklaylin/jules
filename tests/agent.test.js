@@ -173,3 +173,12 @@ test('a call refused only for its timing can be made again; one that ran cannot'
       wishlistAction:async intent=>{if(intent.action==='start'){searched++;return 'Found one.';}alerts++;return 'Watching it.';}});
   assert.equal(searched,1);assert.equal(alerts,1);
 });
+test('an alert without sizing for each option is sent back to the model, which gives it and the alert runs',async()=>{
+  const intents=[];let request=0;
+  await generateReply([{direction:'inbound',body:'watch the ivory pair for a price drop'}],env,async(_url,options)=>{request++;
+    if(request===1)return agentTurn(tool('manage_price_alerts',{option_indices:[0],option_sizing:[]}));
+    if(request===2){assert.equal(toolOutputs(options)[0].status,'not_run');return agentTurn(tool('manage_price_alerts',{option_indices:[0],option_sizing:[{option_index:0,sizing:'footwear'}]}));}
+    return agentTurn(tool('conversation_reply',{response:'Watching it.'}));},
+    {facts,wishlistState:choice,wishlistAction:async intent=>{intents.push(intent);return 'Watching the ivory pair.';}});
+  assert.equal(intents.length,1);assert.deepEqual(intents[0].option_sizing,[{option_index:0,sizing:'footwear'}]);
+});

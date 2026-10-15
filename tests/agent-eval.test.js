@@ -13,7 +13,8 @@ test('every labeled case offers its expected tools in its own context, and runs 
     const expected=[...[].concat(c.expect.tool??[]).filter(Boolean),...Object.keys(c.expect.also??{}),...(c.expect.then??[])];
     assert.ok(expected.some(name=>offered.includes(name))||!expected.length,`${c.id}: none of ${expected} offered`);
     for(const name of expected.filter(n=>n!=='conversation_reply'))assert.ok(offered.includes(name),`${c.id}: ${name} not offered`);
-    if(c.expect.signal!==undefined)assert.ok(offered.includes('record_quality_signal'),`${c.id}: record_quality_signal not offered`);
+    // Quality signals ride on the closing reply (conversation_reply.earlier_turns).
+    if(c.expect.signal!==undefined)assert.ok(offered.includes('conversation_reply'),`${c.id}: conversation_reply not offered`);
     assert.equal(report.id,c.id);
   }
 });
@@ -49,6 +50,7 @@ test('eval scoring follows the loop: refused calls and the closing message do no
   const report=await runAgentEval(unverified,{OPENAI_API_KEY:'test'},{fetcher:async(_url,options)=>{
     const body=JSON.parse(options.body);
     if(body.text?.format?.name==='consent')return {ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:'{"authorizes":true}'}]}]})};
+    if(body.text?.format?.name==='quality')return {ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:'{"verdict":"fine","kind":null,"about":null,"summary":null}'}]}]})};
     requests++;assert.equal(agentContext(options).pending_shopping.options[0].reference_provenance,'search_unverified');
     return requests===1?agentTurn(tool('save_to_wishlist',{option_indices:[0]})):agentTurn(tool('conversation_reply',{response:'saved.',claims:{saved_now:false,alerts_turned_on:false,alerts_turned_off:false}}));}});
   assert.equal(report.passed,true,report.failures.join());assert.equal(report.rounds,2);assert.equal(report.reply,'saved.');

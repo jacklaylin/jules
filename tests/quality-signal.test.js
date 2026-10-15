@@ -7,40 +7,52 @@ import { createStore } from '../lib/store.js';
 import { agentTurn, tool, toolNames } from './helpers/agent.js';
 
 // A quality signal is the agent's structured reading that an earlier turn missed what the user
-// wanted. It is saved alongside the reply for triage and never changes what Jules does or says.
+// wanted. It is saved for triage and never changes what Jules does or says.
 const env = { OPENAI_API_KEY:'test' };
 const turn = body => [{ id:'00000000-0000-4000-8000-000000000001', direction:'inbound', body, status:'received' }];
-const signal = (args = {}) => tool('record_quality_signal', { kind:'wrong_results', about:'previous_reply', summary:'Asked for loafers; Jules showed sneakers.', ...args });
+// The signal comes from an independent quality check (its own structured model call) run beside the turn.
+const missed = (args = {}) => ({ verdict:'missed', kind:'wrong_results', about:'previous_reply', summary:'Asked for loafers; Jules showed sneakers.', ...args });
+const fine = { verdict:'fine', kind:null, about:null, summary:null };
+const isQuality = options => JSON.parse(options.body).text?.format?.name === 'quality';
+const verdict = v => ({ ok:true, json:async () => ({ status:'completed', output:[{ type:'message', content:[{ type:'output_text', text:JSON.stringify(v) }] }] }) });
+// The agent replies; the quality check answers with the given verdict.
+const model = (response, check = missed()) => async (_url, options) => isQuality(options) ? verdict(check) : agentTurn(tool('conversation_reply', { response }));
+const after = body => [{ id:'00000000-0000-4000-8000-000000000000', direction:'outbound', status:'sent', body:'Here are three loafers.' }, ...turn(body)];
 
-test('the signal is saved once beside the reply and never chosen as the reply', async () => {
+test('a missed verdict is saved once and never changes the reply', async () => {
   const saved = [];
-  const reply = await generateReply(turn('those are sneakers, not loafers'), env, async () => agentTurn(signal(), tool('conversation_reply', { response:'Fair—let me fix that.' })), { qualitySignal:async s => saved.push(s) });
-  assert.equal(reply, 'Fair—let me fix that.');
+  const body = await generateReply(after('those are sneakers, not loafers'), env, model('Fair—let me fix that.'), { qualitySignal:async s => saved.push(s) });
+  assert.equal(body, 'Fair—let me fix that.');
   assert.deepEqual(saved, [{ kind:'wrong_results', about:'previous_reply', summary:'Asked for loafers; Jules showed sneakers.' }]);
   assert.equal(chooseReplying([{ name:'record_quality_signal', args:{} }, { name:'find_products', args:{} }]).name, 'find_products');
 });
 
-test('the tool is offered only when a signal can be stored, and a failed or invalid save never changes the reply', async () => {
-  await generateReply(turn('hi'), env, async (_url, options) => { assert.ok(!toolNames(options).includes('record_quality_signal')); return agentTurn(tool('conversation_reply', { response:'Hi.' })); }, {});
-  assert.equal(await generateReply(turn('wrong again'), env, async () => agentTurn(signal(), tool('conversation_reply', { response:'Sorry.' })), { qualitySignal:async () => { throw new Error('column missing'); } }), 'Sorry.');
-  const saved = [];
+test('a fine verdict, a failed check or save, or an invalid signal never records or changes the reply', async () => {
+  const saved = [], memory = { qualitySignal:async s => saved.push(s) };
+  assert.equal(await generateReply(after('more like that'), env, model('Here you go.', fine), memory), 'Here you go.');
+  assert.equal(await generateReply(after('wrong again'), env, async (_u, o) => isQuality(o) ? { ok:false } : agentTurn(tool('conversation_reply', { response:'Sorry.' })), memory), 'Sorry.');
+  assert.equal(await generateReply(after('wrong again'), env, model('Sorry.'), { qualitySignal:async () => { throw new Error('column missing'); } }), 'Sorry.');
   for (const bad of [{ kind:'made_up' }, { summary:'' }, { summary:'see https://example.com' }])
-    await generateReply(turn('hmm'), env, async () => agentTurn(signal(bad), tool('conversation_reply', { response:'Ok.' })), { qualitySignal:async s => saved.push(s) });
+    await generateReply(after('hmm'), env, model('Ok.', missed(bad)), memory);
   assert.equal(saved.length, 0);
 });
 
-test('a signal without a reply asks the agent once more for a reply and still records only one signal', async () => {
-  const saved = []; let calls = 0;
-  const reply = await generateReply(turn('not what I asked for'), env, async () => ++calls === 1 ? agentTurn(signal()) : agentTurn(signal(), tool('conversation_reply', { response:'Got it—what should change?' })), { qualitySignal:async s => saved.push(s) });
-  assert.equal(calls, 2); assert.equal(reply, 'Got it—what should change?'); assert.equal(saved.length, 1);
+test('the check runs only when a signal can be stored and Jules has spoken; the side tool is not offered', async () => {
+  let checks = 0;
+  const counting = async (_url, options) => { if (isQuality(options)) { checks++; return verdict(missed()); } assert.ok(!toolNames(options).includes('record_quality_signal')); return agentTurn(tool('conversation_reply', { response:'Hi.' })); };
+  await generateReply(after('hi'), env, counting, {});
+  await generateReply(turn('hi'), env, counting, { qualitySignal:async () => {} });
+  assert.equal(checks, 0);
+  await generateReply(after('hi'), env, counting, { qualitySignal:async () => {} });
+  assert.equal(checks, 1);
 });
 
 test('the inbox stores the signal on the user’s message with a timestamp', async () => {
   let stored; const sent = [];
-  const store = { receive:async () => 'c', claimAI:async () => true, context:async () => turn('wrong item'), prepareAI:async () => {}, finish:async () => {},
+  const store = { receive:async () => 'c', claimAI:async () => true, context:async () => after('wrong item'), prepareAI:async () => {}, finish:async () => {},
     saveQualitySignal:async (id, s) => { stored = { id, ...s }; } };
   await receiveInInbox({ space:{ phone:'l' }, message:{ id:'m1', sender:{ id:'s' }, content:{ type:'text', text:'wrong item' }, attachments:[] } }, { AI_ENABLED:'true', OPENAI_API_KEY:'test' },
-    { store, send:async (_d, body) => sent.push(body), generate:(m, e, _f, memory) => generateReply(m, e, async () => agentTurn(signal(), tool('conversation_reply', { response:'On it.' })), memory) });
+    { store, send:async (_d, body) => sent.push(body), generate:(m, e, _f, memory) => generateReply(m, e, model('On it.'), memory) });
   assert.equal(stored.id, 'm1'); assert.equal(stored.kind, 'wrong_results'); assert.ok(Date.parse(stored.at)); assert.deepEqual(sent, ['On it.']);
 });
 
