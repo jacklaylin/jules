@@ -35,6 +35,8 @@ export function mountPurchases(request) {
   $('purchases-reload').onclick = () => conversation && loadPurchases(conversation);
   $('purchases-start').onclick = () => { const first = data && neighbour(data.items, null, filter()); if (first) openItem(first, true); };
   $('recheck-run').onclick = recheck;
+  $('report-build').onclick = () => send({ action: 'build-report' }, 'Building the style report…');
+  $('report-send').onclick = () => { if (confirm('Text this person a link to their style report?')) send({ action: 'send-report' }, 'Texting the link…'); };
   $('tags-run').onclick = () => send({ action: 'tag' }, 'Tagging purchases… this takes up to 20 seconds.');
   $('skipped-load').onclick = loadSkipped;
   $('missed-form').onsubmit = async event => {
@@ -107,6 +109,7 @@ function render() {
     el('td', { textContent: KINDS[p.kind] ?? p.kind }), el('td', { textContent: p.merchant ?? 'Unknown' }), el('td', { className: 'num', textContent: p.order_reference ?? '—' }),
     el('td', { className: 'num', textContent: day(p.at) }), el('td', { className: 'quote', textContent: p.evidence ? `“${p.evidence}”` : '' }))));
   renderTags();
+  renderReport();
   renderConnections();
   $('missed-list').replaceChildren(...[...data.missed].reverse().map(m => el('p', { className: 'fact-row', textContent: `${m.store}${m.when ? ` · ${m.when}` : ''} — ${m.description}` })));
 }
@@ -352,6 +355,18 @@ async function saveSkipped(email, label, row) {
 }
 
 // Tags are added automatically after each import; the button tags anything left (older history,
+// The style report as the person will see it (hidden lines marked), plus build and text actions.
+function renderReport() {
+  const report = data.report, card = report?.cards.find(c => c.type === 'receipt');
+  $('report-status').textContent = report ? `Built ${day(report.built_at)}${card && !card.written ? ' · the joke line used the fallback' : ''}${data.report_sent ? ` · link ${data.report_sent}` : ''}.` : 'Not built yet.';
+  $('report-preview').hidden = !card;
+  if (card) $('report-preview').textContent = [...card.lines.map(l => `${l.hidden ? '(hidden) ' : ''}${l.label} ×${l.n}`), `TOTAL: ${card.total}`].join('\n');
+  $('report-build').textContent = report ? 'Rebuild report' : 'Build report';
+  $('report-send').hidden = !report;
+  $('report-open').hidden = !report;
+  $('report-open').href = `/report?person=${encodeURIComponent(conversation)}`;
+}
+
 // or items corrected since). Each click tags as many as fit in one request.
 function renderTags() {
   const s = data.tag_status ?? { tagged: 0, pending: 0 }, run = data.tag_run;

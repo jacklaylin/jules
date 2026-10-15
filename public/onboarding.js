@@ -46,10 +46,12 @@ async function sourceCall(name,action,extra={}){
  for(let attempt=0;;attempt++){try{return await historyAPI('connection-'+action,{source:name,...extra});}catch(error){if(error.status!==409||attempt>=5)throw error;await wait(2000);}}
 }
 
+// Searching past emails an earlier import already checked adds nothing to "checked", so that count is shown too.
+const skipped=d=>d.already_read?`, skipped ${d.already_read.toLocaleString()} already checked`:'';
 function gmailLine(d){
- if(d.status==='listing')return 'Finding your shopping emails…';
+ if(d.status==='listing'&&!d.processed&&!d.already_read)return 'Finding your shopping emails…';
  if(d.status==='questions')return 'Almost done…';
- if(d.status==='extracting')return `Checked ${d.processed.toLocaleString()} ${d.processed===1?'email':'emails'} so far.`;
+ if(['listing','extracting'].includes(d.status))return `Checked ${d.processed.toLocaleString()} ${d.processed===1?'email':'emails'} so far${skipped(d)}.`;
  return '';
 }
 function shopLine(c){
