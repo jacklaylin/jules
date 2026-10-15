@@ -45,6 +45,10 @@
   ],
   "rewrites": [
     {
+      "source": "/report",
+      "destination": "/report.html"
+    },
+    {
       "source": "/onboarding/connect",
       "destination": "/onboarding.html"
     },
