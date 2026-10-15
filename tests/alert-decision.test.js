@@ -15,7 +15,7 @@ test('a sold-out size coming back in stock is its own event, even at the same pr
  const alert=alertWith({baselines:[{...offer(100,{available:false}),drop_percent:0}],last_result:{stock:'sold_out'},last_checked_at:'2026-10-10T13:00:00Z'});
  const decision=decidePriceCheck(alert,checks(offer(100)));
  assert.equal(decision.status,'restock');assert.equal(decision.event.kind,'restock');
- assert.match(decision.event.body,/Size M/);assert.ok(decision.event.body.includes(home));
+ assert.match(decision.event.body,/^🚨 back in stock: your saved Waxed jacket\. your size is available now for \$100\./);assert.ok(decision.event.body.includes(home));
  assert.equal(decidePriceCheck(alert,checks(offer(100))).event.fingerprint,decision.event.fingerprint,'a retry reuses the same delivery operation');
  // Still sold out, or an unreadable store, is not a restock.
  assert.equal(decidePriceCheck(alert,checks(offer(100,{available:false}))).event,null);
@@ -48,10 +48,10 @@ test('another store’s lower item price counts only when its listed shipping ke
  // $40 off with $60 shipping is not a saving.
  assert.equal(decidePriceCheck(alert,checks(offer(100),offer(60,{url:other,shipping:60}))).event,null);
  const free=decidePriceCheck(alert,checks(offer(100),offer(60,{url:other,shipping:0})));
- assert.equal(free.event.kind,'price_drop');assert.match(free.event.body,/Shipping to US: free/);assert.ok(free.event.body.includes(other));
+ assert.equal(free.event.kind,'price_drop');assert.match(free.event.body,/now at nordstrom\.com for \$60 \(was \$100, 40% off\)\. free shipping per the store/);assert.ok(free.event.body.includes(other));
  // The same store keeps its own shipping terms, so its item price is comparable.
  const same=decidePriceCheck(alert,checks(offer(95)));
- assert.equal(same.event.kind,'price_drop');assert.match(same.event.body,/Shipping, taxes and duties aren’t included/);
+ assert.equal(same.event.kind,'price_drop');assert.match(same.event.body,/your size is available now for \$95 \(was \$100, 5% off\)\. shipping and other fees not included\.\n/);
 });
 
 test('the cheapest delivered total wins and stores that do not ship to the user are excluded',()=>{
@@ -140,7 +140,7 @@ test('scheduled checks notify once on restock and keep the reference price',asyn
  const store=cronStore(alert);let offers=[offer(100,{available:false})];const bodies=[];
  const handler=createPriceChecksHandler({env:cronEnv,storeFactory:()=>store,inspect:async()=>({checks:checks(...offers)}),discover:async()=>({status:'unavailable',links:[],checks:[]}),send:async(_d,body)=>{bodies.push(body);}});
  await handler(cronReq,response());assert.equal(bodies.length,0);assert.equal(store.records.at(-1).result.stock,'sold_out');
- offers=[offer(100)];await handler(cronReq,response());assert.equal(bodies.length,1);assert.match(bodies[0],/back in stock/);
+ offers=[offer(100)];await handler(cronReq,response());assert.equal(bodies.length,1);assert.match(bodies[0],/back in stock/i);
  assert.equal(store.records.at(-1).result.event,'restock');assert.equal(store.records.at(-1).notified,true);assert.equal(alert.baselines[0].amount,100);
  await handler(cronReq,response());assert.equal(bodies.length,1,'staying in stock is not another restock');
 });
@@ -177,7 +177,7 @@ test('owner simulation runs the real decision without changing the alert or send
  assert.equal((await run({alert_id:id,deliver:true,offers:[{url:home,size:'M',amount:80,currency:'USD',available:true}]})).statusCode,403,'only the designated test conversation receives test sends');
  alert.conversation_id=testConversation;
  const sent=await run({alert_id:id,deliver:true,offers:[{url:home,size:'M',amount:80,currency:'USD',available:true}]},{conversation:testConversation});
- assert.equal(sent.body.delivery,'sent');assert.equal(sends,1);assert.match([...store.operations.values()][0].body,/^\[Test alert/);
+ assert.equal(sent.body.delivery,'sent');assert.equal(sends,1);assert.match([...store.operations.values()][0].body,/^\[test alert/);
  assert.equal(store.records.length,0);
 });
 
@@ -235,4 +235,14 @@ test('the owner rehearsal form lists only the designated test conversation’s a
  assert.equal(asked,testConversation);assert.equal(res.body.alerts[0].id,id);assert.deepEqual(res.body.alerts[0].links,[home,other]);assert.equal(res.body.alerts[0].stock,'in_stock');
  const missing=response();const second=post({action:'list'});
  await createPriceChecksHandler({env:{},storeFactory:()=>store,admin:second.admin})(second.req,missing);assert.equal(missing.statusCode,503);
+});
+
+test('alert texts read like a person: whole prices, color as "in", honest percent, link last',()=>{
+ const prada='https://www.prada.com/us/en/p/speedrock/2EE469_D7C_F0304_F_G000';
+ const alert={id,name:'Prada Speedrock Re-Nylon and suede sneakers · Ivory',size:'Prada 12',links:[{url:prada}],baselines:[{...offer(1170,{size:'Prada 12',url:prada}),drop_percent:10}]};
+ const body=decidePriceCheck(alert,[{url:prada,status:'checked',offers:[offer(800,{size:'Prada 12',url:prada})]}]).event.body;
+ assert.equal(body,'🚨 price drop on your saved Prada Speedrock Re-Nylon and suede sneakers in Ivory. your size is available now for $800 (was $1,170, 31% off). shipping and other fees not included.\n'+prada);
+ // Cents stay when present, and a sub-1% drop gets no percent rather than "0% off".
+ const small=decidePriceCheck({...alert,baselines:[{...alert.baselines[0],drop_percent:0}]},[{url:prada,status:'checked',offers:[offer(1165.5,{size:'Prada 12',url:prada})]}]).event.body;
+ assert.match(small,/for \$1,165\.50 \(was \$1,170\)\./);
 });
