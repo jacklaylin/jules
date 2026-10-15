@@ -47,7 +47,8 @@ async function act(work,message){
 // Shop reads in browser-driven steps; lease conflicts with a running Gmail step are retried briefly.
 const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function shopCall(action){for(let attempt=0;;attempt++){try{return await api('connection-'+action,{source:'shop'});}catch(error){if(error.status!==409||attempt>=5)throw error;await wait(2000);}}}
-async function shopRead(data){while(data.connections?.shop?.status==='extracting'){render(data);data=await shopCall('step');}render(data);}
+// With background work the server reads; the page only refreshes progress.
+async function shopRead(data){while(data.connections?.shop?.status==='extracting'){render(data);data=data.background?(await wait(4000),await api()):await shopCall('step');}render(data);}
 
 $('gmail-import').onclick=()=>act(async()=>{render(await api('start'));return 'Import started. Jules will text you when it’s done.';},'Starting import…');
 $('gmail-disconnect').onclick=()=>{if(!confirm('Disconnect Gmail? Jules stops reading your email. Purchases already found stay saved.'))return;act(async()=>{render(await api('disconnect'));return 'Gmail disconnected. Found purchases stay saved. You can also remove Jules in your Google account settings.';},'Disconnecting…');};

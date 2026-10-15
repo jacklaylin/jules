@@ -66,3 +66,21 @@ test('a re-import asks a still-unanswered question again once, so the completion
  assert.match(again.sent[0],/quick questions/);assert.equal(again.sent[1],'Were the BODE shirts for you?');
  await nextReceiptQuestion(again,owner,{},again.send);assert.equal(again.sent.length,2,'asked once per import');
 });
+test('one completion text names every source read in the round',async()=>{
+ const {importRound}=await import('../lib/receipt-notifications.js');
+ const state={items:[],questions:[]};
+ assert.match(completionText(state,['gmail','shop']),/^done reading your shopping emails and Shop orders\./);
+ assert.match(completionText(state,['shop']),/^done reading your Shop orders\./);
+ const at='2026-10-15T05:00:00Z';
+ assert.deepEqual(importRound({job:{status:'ready',started_at:at},connections:{shop:{status:'ready',imported_at:'2026-10-15T05:02:00Z'}}}),{key:at,done:true,sources:['gmail','shop']});
+ assert.deepEqual(importRound({job:{status:'ready',started_at:at},connections:{shop:{status:'awaiting_approval'}}}).sources,['gmail'],'a source still waiting is left out');
+ assert.deepEqual(importRound({connections:{shop:{status:'ready',imported_at:at}}}),{key:'shop:'+at,done:true,sources:['shop']});
+ assert.equal(importRound({job:{status:'extracting',started_at:at}}).done,false);
+});
+test('a Shop-only import gets the completion text and its questions',async()=>{
+ const questions=[{id:'q1',status:'open',question:'Were the BODE shirts for you?'}];
+ const store=ledger(labelled,{questions,job:undefined});const at='2026-10-15T05:00:00Z';
+ store.gmailImport=async()=>({data:{questions,connections:{shop:{status:'ready',imported_at:at}}}});
+ await announceImport(store,owner,{},store.send);
+ assert.match(store.sent[0],/^done reading your Shop orders\. i found 5/);assert.equal(store.sent[1],'Were the BODE shirts for you?');
+});

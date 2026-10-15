@@ -54,3 +54,15 @@ Review the diff, then commit the updated file.
 
 - Purchases inside Jules (Shop's spend requests). This would need the PRD's no-autonomous-checkout rule changed first.
 - Telling users when Shop ignored a search filter. Jules records these in diagnostics. Today it only sends Shop a store filter, and brand checks enforce that independently, so no user-facing note is needed yet.
+
+## October 15: Shop reads in the background, alongside Gmail
+
+Founder decision: Gmail and Shop read at the same time, the person can close the page, and Jules sends one completion text covering both.
+
+- **Server, not browser.** Connecting Shop hands approval polling and reading to the same background chain that runs Gmail (`lib/gmail-worker.js`). When both have work they take turns, one step each. The page only shows progress, so closing it changes nothing. Without a background worker (local runs), the page still drives each step.
+- **One completion text.** It waits until Gmail has finished and Shop has finished or failed, then names what was read: "done reading your shopping emails and Shop orders. i found…". Questions and the profile summary follow as before.
+- **10-minute cutoff.** If Shop is still waiting for approval 10 minutes after it was connected, the text goes out with what Gmail found. If Shop is approved later, its questions follow by text.
+- **Failures.** A Shop step that keeps failing (4 tries) stops Shop with "Couldn't finish reading your Shop history. Import it again from your account page." Gmail is unaffected, and the completion text no longer waits for Shop.
+- **Shop only.** Someone who connects only Shop also gets a completion text ("done reading your Shop orders…") and its questions. The 24-hour profile-summary fallback still covers Gmail imports only.
+
+**Setup:** in Supabase **SQL Editor**, run `db/026_history_sweep.sql` (after `025_sms_opt_out.sql`). It lets the once-a-minute restart also pick up a stalled Shop read. No credential is produced. Deploying before running it is safe: Shop still reads, and a stalled read resumes when the page is open.

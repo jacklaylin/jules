@@ -119,9 +119,13 @@ function renderSources(data){
 async function sourceCall(name,action,extra={}){
  for(let attempt=0;;attempt++){try{return await gmailAPI('connection-'+action,{source:name,...extra});}catch(error){if(error.status!==409||attempt>=5)throw error;await wait(2000);}}
 }
+// With background work the server polls for approval and reads; the page only shows progress, so
+// it can be closed. Without it (local runs), the page drives each step.
 async function runSource(name,data){
  if(sourceBusy.has(name))return;sourceBusy.add(name);
+ const working=d=>['awaiting_approval','extracting'].includes(d.connections?.[name]?.status);
  try{
+  if(data.background){while(working(data)){await wait(4000);data=await gmailAPI();renderGmail(data);}return;}
   while(data.connections?.[name]?.status==='awaiting_approval'){await wait((data.connections[name].interval??5)*1000);data=await sourceCall(name,'poll');renderGmail(data);}
   while(data.connections?.[name]?.status==='extracting'){data=await sourceCall(name,'step');renderGmail(data);}
  }catch(error){$('status').textContent=error.message;}
