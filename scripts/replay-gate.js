@@ -10,6 +10,7 @@
 import { AGENT_EVAL_CASES, runAgentEval } from '../lib/agent-eval.js';
 import { REPLAY_CASES, runReplay } from '../lib/replay.js';
 import { gateReport } from '../lib/replay-gate.js';
+import { checkSchema, schemaReport, formatSchemaReport } from '../lib/schema-check.js';
 
 const args = process.argv.slice(2), option = name => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : undefined; };
 const runs = Number(option('--runs') ?? 3), threshold = Number(option('--threshold') ?? 0.8), concurrency = Number(option('--concurrency') ?? 4);
@@ -18,6 +19,14 @@ if (!(Number.isInteger(runs) && runs > 0)) throw Error('--runs must be a positiv
 if (!(threshold >= 0 && threshold <= 1)) throw Error('--threshold must be between 0 and 1');
 if (!['all', 'agent', 'replay'].includes(suite)) throw Error('--suite must be all, agent or replay');
 if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY.startsWith('replace-with')) throw Error('OPENAI_API_KEY is missing; run with --env-file=.env.local');
+
+// An unrun migration breaks every reply in production (October 15), so the gate checks the schema
+// first when database credentials are in the environment.
+if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  const schema = schemaReport(await checkSchema(process.env));
+  console.log(formatSchemaReport(schema) + '\n');
+  if (!schema.ok) process.exit(schema.missing.length ? 1 : 2);
+} else console.log('Schema not checked: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are not set.\n');
 
 const env = { ...process.env, SEARCH_ENABLED: 'true' };
 // One cheap request first, so a bad key fails in a second with a clear message instead of as every case failing.
