@@ -431,3 +431,16 @@ test('repeat import passes over already-read mail and finds a brand store\'s old
  for(let i=0;i<80&&row.data.job.status!=='ready';i++)row=await step(row,{fetcher,prepare,interpret});
  assert.ok(row.data.job.ids.some(id=>id.startsWith('noise')));
 });
+// The account page's Import again sends the version the server reports, after the person agrees to the
+// same consent text onboarding shows; an older agreement is never upgraded silently.
+test('account re-import asks for the current consent and sends the version the server requires',async()=>{
+ const {readFileSync}=await import('node:fs');
+ const read=name=>readFileSync(new URL('../public/'+name,import.meta.url),'utf8');
+ const consent=html=>html.match(/<label class="check"><input type="checkbox" id="[^"]*consent[^"]*"><span>([\s\S]*?)<\/span><\/label>/)[1];
+ assert.equal(consent(read('account.html')),consent(read('onboarding.html')),'account and onboarding show the same consent');
+ assert.ok(read('onboarding.js').includes(`'${CONSENT_VERSION}'`),'onboarding sends the current consent version');
+ const older=publicImport({token_ciphertext:'sealed',data:{consent:{version:'gmail-receipts-5y-1000-v2'},job:{status:'ready',ids:[],processed:[]}}});
+ assert.equal(older.consent_required,true);assert.equal(older.consent_version,CONSENT_VERSION);
+ assert.equal(publicImport({data:{consent:{version:CONSENT_VERSION}}}).consent_required,false);
+ const js=read('account.js');assert.match(js,/api\('start',consentVersion\?\{consent:consentVersion\}:\{\}\)/);
+});

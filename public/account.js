@@ -9,7 +9,8 @@ const session=createSession({fetcher:fetch,storage:localStorage,lock:work=>navig
 const notice=text=>{$('notice').textContent=text;};
 const running=status=>['listing','extracting','questions'].includes(status);
 const day=iso=>iso?new Date(iso).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}):null;
-let busy=false,poll;
+let busy=false,poll,consentVersion=null;
+const importReady=()=>{if(!busy)$('gmail-import').disabled=Boolean(consentVersion)&&!$('gmail-consent-check').checked;};
 
 function showLogin(){$('account').hidden=true;$('login').hidden=false;notice('');enableAdminLink(null);}
 async function api(action,extra={}){
@@ -28,6 +29,9 @@ function render(data){
   working?(data.failed?`${data.account} · The import paused. Jules keeps retrying automatically.`:`${data.account} · Reading your shopping emails now. Checked ${data.processed.toLocaleString()} so far.`):
   `${data.account}${data.last_import_at?` · Last import ${day(data.last_import_at)}`:''}`;
  $('gmail-connect').hidden=data.connected;$('gmail-import').hidden=!data.connected||working;$('gmail-disconnect').hidden=!data.connected;
+ // When the consent changed since this account last agreed, Import again needs the new agreement first.
+ consentVersion=data.connected&&!working&&data.consent_required?data.consent_version:null;
+ $('gmail-consent').hidden=!consentVersion;if(!consentVersion)$('gmail-consent-check').checked=false;importReady();
  const shop=data.connections?.shop,available=(data.connections_available??[]).includes('shop');
  $('shop-card').hidden=!available;
  if(available){
@@ -56,13 +60,13 @@ async function shopAct(button,busyLabel,activity,work,done){
  result('shop',null);progress('shop','Asking Shop for your orders…');$('shop-state').textContent='Reading';$('shop-state').classList.remove('off');
  try{const data=await withActivity(activity,work,{agent:true});shopWorking=false;render(data);const c=data.connections?.shop??{};result('shop',c.error??done(c),Boolean(c.error));}
  catch(error){shopWorking=false;result('shop',error.message,true);await load();}
- finally{busy=false;shopWorking=false;button.textContent=label;buttons.forEach(b=>{b.disabled=false;});}
+ finally{busy=false;shopWorking=false;button.textContent=label;buttons.forEach(b=>{b.disabled=false;});importReady();}
 }
 async function act(work,message){
  if(busy)return;busy=true;notice(message);
  const buttons=[...document.querySelectorAll('#account button')];buttons.forEach(b=>{b.disabled=true;});
  try{const done=await work();if(done)notice(done);}catch(error){notice(error.message);}
- finally{busy=false;buttons.forEach(b=>{b.disabled=false;});}
+ finally{busy=false;buttons.forEach(b=>{b.disabled=false;});importReady();}
 }
 // Shop reads in browser-driven steps; lease conflicts with a running Gmail step are retried briefly.
 const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
@@ -70,7 +74,8 @@ async function shopCall(action){for(let attempt=0;;attempt++){try{return await a
 // Shop reads on the server when background work is on; the page then only refreshes progress.
 async function shopRead(data){while(data.connections?.shop?.status==='extracting'){render(data);data=data.background?(await wait(4000),await api()):await shopCall('step');}return data;}
 
-$('gmail-import').onclick=()=>act(async()=>{render(await api('start'));return 'Import started. Jules will text you when it’s done.';},'Starting import…');
+$('gmail-consent-check').onchange=importReady;
+$('gmail-import').onclick=()=>act(async()=>{render(await api('start',consentVersion?{consent:consentVersion}:{}));return 'Import started. Jules will text you when it’s done.';},'Starting import…');
 $('gmail-disconnect').onclick=()=>{if(!confirm('Disconnect Gmail? Jules stops reading your email. Purchases already found stay saved.'))return;act(async()=>{render(await api('disconnect'));return 'Gmail disconnected. Found purchases stay saved. You can also remove Jules in your Google account settings.';},'Disconnecting…');};
 $('shop-import').onclick=()=>shopAct($('shop-import'),'Importing…','Importing your Shop orders',async()=>shopRead(await shopCall('import')),c=>c.processed?`Done. Read ${c.processed} new Shop ${c.processed===1?'record':'records'}.`:'Done. No new Shop records since your last import.');
 $('shop-reread').onclick=()=>{if(!confirm('Re-read every Shop order with the latest reading? Earlier Shop results are replaced; Gmail history stays.'))return;shopAct($('shop-reread'),'Re-reading…','Re-reading your Shop orders',async()=>shopRead(await shopCall('reread')),c=>`Done. Re-read all ${c.found} Shop ${c.found===1?'record':'records'}.`);};

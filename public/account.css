@@ -14,3 +14,5 @@
 .account-result{margin:16px 0 4px;display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border-radius:var(--r-card);background:var(--fog)}
 .account-result .orb{--s:14px;margin-top:4px}.account-result p{margin:0}
 .account-result.error{background:var(--white);border:1px solid var(--line)}.account-result.error .orb{display:none}
+/* Shown before Import again only when the consent changed since this account last agreed. */
+.account-consent{margin:16px 0 4px;padding:14px 16px;border-radius:var(--r-card);background:var(--fog)}.account-consent .fine{margin:0 0 10px}.account-consent .check{line-height:1.5}.account-consent .check input{width:20px;height:20px;flex:none;accent-color:var(--ink)}
