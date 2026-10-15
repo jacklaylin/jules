@@ -38,6 +38,7 @@ test('database resolves old reply chain outside recent window within the same co
  const u=new URL(url);queries.push(u);
  let rows;
  if(u.searchParams.get('select')==='id,created_at,reply_provider_id')rows=[{id:'current',created_at:'2026-10-09',reply_provider_id:'provider-caption'}];
+ else if(u.searchParams.has('reply_provider_id'))rows=[];
  else if(u.searchParams.get('provider_id')==='eq.provider-caption')rows=[{id:'caption',provider_id:'provider-caption',direction:'inbound',body:'Lemaire hobo bag',reply_provider_id:'provider-bag'}];
  else if(u.searchParams.get('provider_id')==='eq.provider-bag')rows=[bag];
  else rows=[{...explicit,reply_context:undefined},newer];

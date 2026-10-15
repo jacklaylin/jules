@@ -114,3 +114,22 @@ test('search replies never end with a technical verification footer, and extras 
   assert.match(body,/^i found this option\./);assert.doesNotMatch(body,/product-page checks|Other retrieved sources|p\/b/);
   assert.doesNotMatch(formatSearch({products:[bonus('c','Our Legacy','likely_match')]}),/^I found this option/);
 });
+
+// A named model is the exact product the user wants; the model's plan field, not wording, decides.
+test('a named model is searched as identification and the query always carries the name',async()=>{
+  const briefs=[['Dries Van Noten pants in black','Peyter'],['black wide-leg trousers, ideally in my size','Peyter'],['Jacques Marie Mage sunglasses','Romi'],['Balenciaga large bag in black','Rodeo']];
+  for(const [query,named_model] of briefs){
+    const {recorded,queries,state}=await run({action:'start',query,search_plan:plan({named_model,required_brands:[]})},[p('a','Brand')]);
+    assert.match(queries[0],new RegExp(named_model));
+    assert.equal(state.search_plan.mode,'identify');assert.equal(recorded.text_wishlist_diagnostics.mode,'identify');
+    assert.equal(state.search_plan.named_model,named_model);
+  }
+  const {queries}=await run({action:'start',query:'Dries Van Noten Peyter pants',search_plan:plan({named_model:'peyter'})},[p('a','Brand')]);
+  assert.equal(queries[0].match(/peyter/gi).length,1,'a name already in the brief is not repeated');
+});
+test('without a named model the agent’s mode and brief are unchanged',async()=>{
+  for(const named_model of [null,undefined,'','  ']){
+    const {queries,state}=await run({action:'start',query:'relaxed khakis, any brand',search_plan:plan({named_model})},[p('a','Brand')]);
+    assert.equal(state.search_plan.mode,'discover');assert.match(queries[0],/^relaxed khakis, any brand/);
+  }
+});
