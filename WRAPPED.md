@@ -175,6 +175,7 @@ A new source (outfit photos, wishlist saves) adds an evidence kind and its own e
 
 0. Evidence store (done, section 0).
 1. Extraction + enrichment fields above, cached per item; backfill existing Gmail items once. Test that unstated colors and prices stay null.
+   **Item tags (built, October 15, 2026; `lib/item-tags.js`):** `item_type`, `group` (fixed list), `color_family` (fixed list) and `resale`, written by one model call per 30 items. They live in `gmail_imports.data.item_tags`, keyed by item ID with a fingerprint of the item's current details, so a correction re-tags that item and nothing else. They are a cache, not evidence or beliefs; "Delete imported history" removes them with the row. A colour family needs the receipt's colour field or an exact quote from the product text, otherwise `unknown`. The worker tags after each import finishes; Admin → People → Purchase history has a "Tag purchases" button for older history and shows each item's tags. Unit prices were already extracted. **Not yet:** the `discounted` flag needs a re-read of the original emails (like the price re-read) and comes with the first card that uses it.
 2. Signals + card library + selector as pure functions with fixture evidence sets (sparse, monochrome, one-store, sale-heavy, gift-heavy, two-era). Tests assert which cards are chosen and in what order, not copy.
 3. Writer + validator, reusing the `/style` structured-output and tone pattern.
 4. Render with the existing Wrapped card designs; share deck honors privacy classes.

@@ -13,7 +13,7 @@ export function matches(item, { status = '', store = '', source = '', query = ''
   const q = query.trim().toLowerCase();
   return (!status || statusOf(item) === status) && (!store || item.merchant === store) &&
     (!source || (source === 'multiple' ? item.sources.length > 1 : item.sources.includes(source))) &&
-    (!q || [item.brand, item.product, item.merchant, item.color, item.size_label, item.order_reference].some(v => v && v.toLowerCase().includes(q)));
+    (!q || [item.brand, item.product, item.merchant, item.color, item.size_label, item.order_reference, item.tags?.item_type, item.tags?.group, item.tags?.color_family].some(v => v && v.toLowerCase().includes(q)));
 }
 
 // The next (step 1) or previous (step -1) item in the filter, walking the full list from the current

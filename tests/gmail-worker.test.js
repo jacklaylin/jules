@@ -131,3 +131,10 @@ test('queued chat answers are applied with the lease, cleared, and followed by t
  assert.deepEqual(cleared,['imessage:fake']);assert.ok(asked>=1);assert.equal(steps,1,'import work continues after the answers');
  assert.ok(evidence.some(e=>JSON.stringify(e).includes('imessage:fake')),'the answer is written as correction evidence');
 });
+
+test('once an import has finished, the chain tags purchases for the style report after announcing',async()=>{const store=fixture(),calls=[];
+ await runGmailStep('owner',store,{},{},{step:async row=>({...row,data:{...row.data,job:{...row.data.job,status:'ready'}}}),announce:async()=>calls.push('announce'),tag:async(s,o)=>{assert.equal(o,'owner');calls.push('tag');return {tagged:0};},schedule:()=>{}});
+ assert.deepEqual(calls,['announce','tag']);
+ // A failed tagging run never fails the import.
+ const failing=fixture();failing.row.data.job.status='ready';
+ await runGmailStep('owner',failing,{},{},{tag:async()=>{throw Error('model down');},schedule:()=>{}});assert.equal(failing.row.data.job.status,'ready');});

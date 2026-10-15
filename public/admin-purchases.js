@@ -26,6 +26,8 @@ const title = item => [item.brand, item.product].filter(Boolean).join(' · ') ||
 const filter = () => ({ status: statusFilter, store: $('purchases-store').value, source: $('purchases-source').value, query: $('purchases-search').value });
 const itemParam = () => new URLSearchParams(location.search).get('item');
 const itemHref = id => { const url = new URL(location.href); url.searchParams.set('tab', 'purchases'); if (id) url.searchParams.set('item', id); else url.searchParams.delete('item'); return url; };
+// Style-report tags (type, group, colour family, resale). Empty until the item is tagged.
+const tagText = tags => tags ? ['Tags:', [tags.item_type, tags.group?.replace(/_/g, ' '), tags.color_family !== 'unknown' && tags.color_family, tags.resale && 'resale'].filter(Boolean).join(' · ')].join(' ') : null;
 
 export function mountPurchases(request) {
   api = request;
@@ -33,6 +35,7 @@ export function mountPurchases(request) {
   $('purchases-reload').onclick = () => conversation && loadPurchases(conversation);
   $('purchases-start').onclick = () => { const first = data && neighbour(data.items, null, filter()); if (first) openItem(first, true); };
   $('recheck-run').onclick = recheck;
+  $('tags-run').onclick = () => send({ action: 'tag' }, 'Tagging purchases… this takes up to 20 seconds.');
   $('skipped-load').onclick = loadSkipped;
   $('missed-form').onsubmit = async event => {
     event.preventDefault();
@@ -103,6 +106,7 @@ function render() {
   $('purchases-pending-list').replaceChildren(...data.pending.map(p => el('tr', {},
     el('td', { textContent: KINDS[p.kind] ?? p.kind }), el('td', { textContent: p.merchant ?? 'Unknown' }), el('td', { className: 'num', textContent: p.order_reference ?? '—' }),
     el('td', { className: 'num', textContent: day(p.at) }), el('td', { className: 'quote', textContent: p.evidence ? `“${p.evidence}”` : '' }))));
+  renderTags();
   renderConnections();
   $('missed-list').replaceChildren(...[...data.missed].reverse().map(m => el('p', { className: 'fact-row', textContent: `${m.store}${m.when ? ` · ${m.when}` : ''} — ${m.description}` })));
 }
@@ -116,7 +120,8 @@ function itemRow(item) {
   // "Reviewed" appears here only; the item review shows the correction history instead.
   const status = statusText(item, true);
   const row = el('a', { className: `purchase ${statusOf(item)}`, href: itemHref(item.id).search },
-    el('span', { className: 'purchase-title' }, el('strong', { textContent: title(item) }), el('span', { className: 'meta', textContent: facts(item).join(' · ') })),
+    el('span', { className: 'purchase-title' }, el('strong', { textContent: title(item) }), el('span', { className: 'meta', textContent: facts(item).join(' · ') }),
+      item.tags ? el('span', { className: 'meta', textContent: tagText(item.tags) }) : null),
     status ? el('span', { className: 'purchase-status', textContent: status }) : null);
   row.onclick = event => { if (event.metaKey || event.ctrlKey || event.shiftKey || event.button) return; event.preventDefault(); openItem(item.id, true); };
   return row;
@@ -149,7 +154,8 @@ function renderReview(id) {
     el('span', { id: 'review-state', role: 'status', ariaLive: 'polite' }));
   const status = statusText(item, false);
   const head = el('div', { className: 'review-head' },
-    el('div', {}, el('h2', { id: 'review-title', tabIndex: -1, textContent: title(item) }), el('p', { className: 'muted', textContent: facts(item).join(' · ') })),
+    el('div', {}, el('h2', { id: 'review-title', tabIndex: -1, textContent: title(item) }), el('p', { className: 'muted', textContent: facts(item).join(' · ') }),
+      item.tags ? el('p', { className: 'meta', textContent: tagText(item.tags) }) : null),
     status ? el('span', { className: 'purchase-status', textContent: status }) : null);
   box.replaceChildren(bar, el('section', { className: `review-item ${statusOf(item)}`, ariaLabel: 'Item' }, head,
     el('div', { className: 'review-columns' }, el('div', { className: 'review-evidence' }, evidence(item), corrections(item)), reviewForm(item))));
@@ -343,6 +349,16 @@ async function saveSkipped(email, label, row) {
     $('skipped-status').textContent = `Saved · ${result.labelled} labelled so far.`;
   } catch (error) { $('skipped-status').textContent = error.message; row.querySelectorAll('input').forEach(i => { i.checked = i.value === email.label; }); }
   finally { row.querySelectorAll('input').forEach(i => { i.disabled = false; }); }
+}
+
+// Tags are added automatically after each import; the button tags anything left (older history,
+// or items corrected since). Each click tags as many as fit in one request.
+function renderTags() {
+  const s = data.tag_status ?? { tagged: 0, pending: 0 }, run = data.tag_run;
+  $('tags-status').textContent = !s.tagged && !s.pending ? '' :
+    `Style tags: ${s.tagged} tagged${s.pending ? `, ${s.pending} still to tag` : ''}.` + (run ? ` Last run tagged ${run.tagged}.` : '');
+  $('tags-run').hidden = !s.pending;
+  $('tags-run').textContent = s.tagged ? 'Tag the rest' : 'Tag purchases';
 }
 
 // Connected sources: the listing report (why the history is as long as it is) and each record's outcome.

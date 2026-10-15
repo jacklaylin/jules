@@ -34,7 +34,8 @@
 
     <section id="tab-purchases" data-panel="purchases" hidden>
       <div data-browse><div class="toolbar"><label class="sr-only" for="purchases-search">Search purchases</label><input id="purchases-search" type="search" maxlength="100" placeholder="Brand, product, store, size"><div id="purchases-chips" class="filter-chips" role="group" aria-label="Filter by status"></div><label class="sr-only" for="purchases-store">Store</label><select id="purchases-store"><option value="">All stores</option></select><label class="sr-only" for="purchases-source">Found by</label><select id="purchases-source"><option value="">Any source</option><option value="gmail">Gmail</option><option value="shop">Shop</option><option value="screenshot">Chat screenshot</option><option value="multiple">More than one source</option></select><button id="purchases-reload" class="small" type="button">Reload</button></div>
-      <div class="purchases-intro"><p id="purchases-summary" class="muted"></p><button id="purchases-start" class="btn--butter" type="button" hidden>Start reviewing →</button></div></div>
+      <div class="purchases-intro"><p id="purchases-summary" class="muted"></p><button id="purchases-start" class="btn--butter" type="button" hidden>Start reviewing →</button></div>
+      <p class="muted purchases-tags"><span id="tags-status"></span> <button id="tags-run" class="small" type="button" hidden>Tag purchases</button></p></div>
       <p id="purchases-notice" role="status" aria-live="polite" class="muted"></p>
       <div id="purchase-review" class="purchase-review" hidden></div>
       <div data-browse><div id="purchases-list" class="purchase-list"></div>
