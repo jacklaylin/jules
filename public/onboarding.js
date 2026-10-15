@@ -6,6 +6,19 @@ const $=id=>document.getElementById(id),session=createSession({storage:localStor
 const fragment=new URLSearchParams(location.hash.slice(1));
 if(fragment.has('access_token'))session.save({access_token:fragment.get('access_token'),refresh_token:fragment.get('refresh_token'),expires_at:Number(fragment.get('expires_at'))||Date.now()/1000+(Number(fragment.get('expires_in'))||3600)});
 if(location.hash)history.replaceState(null,'',location.pathname+location.search);
+// A one-tap link texted by Jules signs in once. An already signed-in browser keeps its session if the link is spent.
+async function signInFromLink(token){
+ $('status').textContent='Signing you in…';
+ try{
+  const response=await fetch('/api/wishlist?phone_login=1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'link',token}),cache:'no-store'});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw Error(data.error||'Could not sign you in.');
+  session.save(data);$('status').textContent='';
+ }catch(error){
+  if(session.read()){$('status').textContent='';return;}
+  $('status').textContent=`${error.message} Log in with the number you text Jules from.`;$('login').hidden=false;throw error;
+ }
+}
 $('connect-logo').replaceChildren(createLogo());
 const logo=createLogo();$('thinking-logo').append(logo);
 let busy=false,textURL=false;
@@ -132,4 +145,4 @@ async function loadGmail(){
 $('gmail-connect-button').onclick=async()=>{if(!$('gmail-consent').checked){$('status').textContent='Review and confirm receipt analysis consent first.';return;}$('gmail-connect-button').disabled=true;try{if(gmailConnection){await gmailAPI('start',{consent:gmailConsentVersion});await runImport();}else{const data=await gmailAPI('connect',{consent:gmailConsentVersion});location.assign(data.url);}}catch(error){$('status').textContent=error.message;$('gmail-connect-button').disabled=false;}};
 $('gmail-start').onclick=async()=>{try{await gmailAPI('start');await runImport();}catch(error){$('status').textContent=error.message;}};
 $('gmail-resume').onclick=()=>runImport(true);
-await load();
+try{if(fragment.get('signin'))await signInFromLink(fragment.get('signin'));await load();}catch{}
