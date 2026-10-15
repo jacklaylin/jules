@@ -91,9 +91,9 @@ test('a save reports exactly what happened: saved now, alerts on, or already sav
   const store = { wishlistReplyId:async () => 'r1', wishlistEntries:async () => rows, recordEvidence:async () => {}, enablePriceAlert:async () => ({ active:true }) };
   const base = { identification_policy:'text_wishlist', user_confirmed:true };
   let outcome = {};
-  await finishTextWishlist({ store, result:base, env:{}, conversationId:id, outcome }); assert.deepEqual(outcome, { saved_now:true, alerts_turned_on:false });
+  await finishTextWishlist({ store, result:base, env:{}, conversationId:id, outcome }); assert.deepEqual(outcome, { saved_now:true, alerts_turned_on:false, saved_items:['Romi'] });
   outcome = {};
-  await finishTextWishlist({ store, result:{ ...base, alert_requests:[{ url, size:null, baselines:[], links:[{ url }] }] }, env:{}, conversationId:id, outcome }); assert.deepEqual(outcome, { saved_now:true, alerts_turned_on:true });
+  await finishTextWishlist({ store, result:{ ...base, alert_requests:[{ url, size:null, baselines:[], links:[{ url }] }] }, env:{}, conversationId:id, outcome }); assert.deepEqual(outcome, { saved_now:true, alerts_turned_on:true, saved_items:['Romi'] });
   outcome = {};
   await finishTextWishlist({ store, result:{ ...base, existing_saved_groups:[groupWishlist(rows)[0].id] }, env:{}, conversationId:id, outcome }); assert.deepEqual(outcome, { saved_now:false, alerts_turned_on:false });
 });

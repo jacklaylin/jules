@@ -81,6 +81,9 @@ Jules has no fixed reply text. In chat, the agent loop's model writes the final 
 - every link in this turn's drafts is present unchanged, and no other links are added (links already in the conversation, pending options or saved items may be repeated);
 - no price appears that a draft, the conversation or a pending option didn't state;
 - the model's structured `claims` (`saved_now`, `alerts_turned_on`, `alerts_turned_off`) match what this turn actually did.
+- when the wishlist is on, an independent reading of the message (`auditClaims`, one small structured model call) agrees with what this turn did: nothing said to be saved or alerted that wasn't, nothing done left unsaid, and no other item named as the one saved. The writer's own `claims` are self-reported, so they alone cannot catch a message that says "added" while declaring nothing. An unavailable reading leaves the declared claims standing. Save drafts name the saved items for the same reason.
+
+Links and prices from the recent turns may be repeated in composed messages too. Why a draft was sent instead of a model-written message is recorded in reply diagnostics (`compose_fallback` / `agent_fallback`: reason and problem kinds, never text). A save committed before the turn fails is reported by the fallback reply as completed work.
 
 A message that fails the checks gets one retry, with the problems listed in the tool output and `conversation_reply` forced. If it fails again, the plain factual drafts are sent (a conversation-only reply keeps only its sentences that pass). If the loop ends without a message (round cap or repeated calls), the drafts go to the composer below.
 
