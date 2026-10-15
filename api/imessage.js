@@ -1,6 +1,7 @@
 import { createProcessor, MAX_BYTES } from '../lib/imessage.js';
 import { waitUntil } from '@vercel/functions';
 import { receiveInInbox } from '../lib/inbox.js';
+import { handleReplyWatchdog } from '../lib/reply-watchdog.js';
 
 export const config = { api: { bodyParser: false }, maxDuration: 120 };
 // A search turn responds to the webhook once it is acknowledged; the search finishes in waitUntil,
@@ -8,6 +9,8 @@ export const config = { api: { bodyParser: false }, maxDuration: 120 };
 const process = createProcessor({ handle: (delivery, env) => receiveInInbox(delivery, env, { defer: waitUntil }) });
 
 export default async function handler(req, res) {
+  // The Supabase scheduler (db/028_reply_reliability.sql) calls this while a reply is stuck.
+  if (req.method === 'GET' && new URL(req.url, 'https://jules.invalid').searchParams.get('watchdog') === 'replies') return handleReplyWatchdog(req, res, globalThis.process.env);
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     res.statusCode = 405;

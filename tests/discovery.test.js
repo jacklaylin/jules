@@ -26,7 +26,11 @@ test('feedback excludes referenced products across batches; a new topic clears t
  assert.deepEqual(result.text_wishlist_state.options.map(o=>o.url),[p('c').url]);assert.equal(result.text_wishlist_state.excluded_urls.length,3);
  const next=result.text_wishlist_state;await act({action:'start',query:'More black low tops, less chunky',search_plan:{...plan,continuation:true,exclude_option_indices:[0]}},next,[p('a'),p('d')]);assert.deepEqual(result.text_wishlist_state.options.map(o=>o.url),[p('d').url]);
  await act({action:'start',query:'A bag for a friend',search_plan:plan},result.text_wishlist_state,[p('a')]);assert.deepEqual(result.text_wishlist_state.excluded_urls,[]);
- await assert.rejects(act({action:'start',query:'More',search_plan:{...plan,exclude_option_indices:[99]}},first,[]));
+ // A position that names no shown option is dropped; the search still runs and nothing else is excluded.
+ await act({action:'start',query:'More',search_plan:{...plan,exclude_option_indices:[99],keep_option_indices:[7]}},first,[p('e')]);
+ assert.deepEqual(result.text_wishlist_state.options.map(o=>o.url),[p('e').url]);assert.deepEqual(result.text_wishlist_state.excluded_urls,[]);
+ await act({action:'start',query:'Find these cheaper',search_plan:{...plan,keep_option_indices:[0]}},null,[p('f')]);
+ assert.deepEqual(result.text_wishlist_state.options.map(o=>o.url),[p('f').url]);
 });
 test('failed discovery preserves retry brief but never resurrects rejected choices',async()=>{
  let result;await textWishlistAction({action:'start',query:'Less chunky black sneakers',search_plan:{...plan,guidance:['less chunky']}},{state:{options:[p('old')]},text:'',env:{},record:async r=>{result=r;},search:async()=>{throw Error('Provider down');}});
