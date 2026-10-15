@@ -28,8 +28,12 @@ remain outside this milestone.
 
 `/admin` is the owner console: static HTML/CSS/JavaScript pages sharing one
 sign-in and a persistent tool menu (`public/admin-console.js`). People
-(`/admin`) is a read-only view of conversations, profiles and developer
-feedback; manual replies were retired on October 13, 2026. Test chat, Replays &
+(`/admin`) lists testers; each opens a person page at `/admin/people/<id>`
+with Personal memory, Conversation, Purchase history and Wishlist tabs
+(`?tab=` keeps the tab linkable). Manual replies were retired on October 13,
+2026; developer feedback is triaged in Claude, not in admin. The Wishlist tab
+shows each saved item's price alert and previews a test alert; test texts only
+go to `PRICE_ALERT_TEST_CONVERSATION_ID`. Test chat, Replays &
 evals, Search check, Photo identification and Costs live at
 `/admin/test-chat`, `/admin/replays`, `/admin/search`, `/admin/identify` and
 `/admin/costs`; the old page URLs redirect there. The owner's wishlist and

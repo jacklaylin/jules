@@ -17,7 +17,9 @@ const SOURCE_LABEL = { gmail: 'Gmail', shop: 'Shop' };
 const sourceName = s => SOURCE_LABEL[s] ?? s;
 const STOPS = { no_more_pages: 'the service said there were no more pages', next_page_without_cursor: 'the service said more pages exist but gave no way to request them', limit: 'the import limit was reached', page_cap: 'the page limit was reached', end: 'listing ended' };
 
-let api, conversation = null, data = null, busy = false, version = 0;
+let api, conversation = null, data = null, busy = false, version = 0, statusFilter = '';
+const IMPORT_STATUS = { ready: 'Import complete', listing: 'Import running', extracting: 'Import running', questions: 'Import running', paused: 'Import paused', not_started: 'No import yet' };
+const STATUSES = [['', 'All'], ['review', 'To review'], ['reviewed', 'Reviewed'], ['removed', 'Removed'], ['duplicate', 'Duplicates']];
 const notice = text => { $('purchases-notice').textContent = text; };
 const title = item => [item.brand, item.product].filter(Boolean).join(' · ') || 'Unnamed item';
 const reviewed = item => item.reviews.some(r => r.source === 'operator_review');
@@ -25,7 +27,7 @@ const statusOf = item => item.duplicate_of ? 'duplicate' : item.removed ? 'remov
 
 export function mountPurchases(request) {
   api = request;
-  for (const id of ['purchases-search', 'purchases-status', 'purchases-store', 'purchases-source']) $(id).addEventListener('input', render);
+  for (const id of ['purchases-search', 'purchases-store', 'purchases-source']) $(id).addEventListener('input', render);
   $('purchases-reload').onclick = () => conversation && loadPurchases(conversation);
   $('recheck-run').onclick = recheck;
   $('skipped-load').onclick = loadSkipped;
@@ -50,7 +52,7 @@ export async function loadPurchases(id) {
 async function send(body, message) {
   if (busy || !conversation) return false;
   busy = true; notice(message);
-  const buttons = [...$('purchases-panel').querySelectorAll('button')]; buttons.forEach(b => { b.disabled = true; });
+  const buttons = [...$('tab-purchases').querySelectorAll('button')]; buttons.forEach(b => { b.disabled = true; });
   try {
     const id = conversation, result = await api('/api/admin', { method: 'POST', body: JSON.stringify({ conversation: id, ...body }) });
     if (id === conversation) { data = result; render(); notice('Saved.'); }
@@ -62,26 +64,32 @@ async function send(body, message) {
 function render() {
   if (!data) return;
   const items = data.items, count = s => items.filter(i => statusOf(i) === s).length;
-  $('purchases-count').textContent = items.length ? `(${items.length})` : '';
+  $('purchases-count').textContent = items.length;
   $('purchases-summary').textContent = data.status === 'not_started' && !items.length ? 'No Gmail import for this person yet.' :
-    `${items.length} items · ${count('review')} to review · ${count('reviewed')} reviewed · ${count('removed')} removed · ${count('duplicate')} duplicates` +
-    `${data.pending.length ? ` · ${data.pending.length} unlinked events` : ''} · import ${data.status.replace('_', ' ')}` +
+    `${IMPORT_STATUS[data.status] ?? `Import ${data.status.replace('_', ' ')}`} · Imported history is partial` +
     (data.connections?.length ? ` · ${items.filter(i => i.sources.length > 1).length} found by more than one source` : '');
+  // The chips are the filter and the only place counts appear.
+  $('purchases-chips').replaceChildren(...STATUSES.map(([value, label]) => {
+    const chip = el('button', { type: 'button', textContent: `${label} ${value ? count(value) : items.length}` });
+    chip.setAttribute('aria-pressed', String(statusFilter === value));
+    chip.onclick = () => { statusFilter = value; render(); };
+    return chip;
+  }));
   const stores = [...new Set(items.map(i => i.merchant).filter(Boolean))].sort((a, b) => a.localeCompare(b));
   const chosen = $('purchases-store').value;
   $('purchases-store').replaceChildren(el('option', { value: '', textContent: 'All stores' }), ...stores.map(s => el('option', { value: s, textContent: s })));
   $('purchases-store').value = stores.includes(chosen) ? chosen : '';
-  const query = $('purchases-search').value.trim().toLowerCase(), status = $('purchases-status').value, store = $('purchases-store').value, source = $('purchases-source').value;
+  const query = $('purchases-search').value.trim().toLowerCase(), status = statusFilter, store = $('purchases-store').value, source = $('purchases-source').value;
   const shown = items.filter(i => (!status || statusOf(i) === status) && (!store || i.merchant === store) &&
     (!source || (source === 'multiple' ? i.sources.length > 1 : i.sources.includes(source))) &&
     (!query || [i.brand, i.product, i.merchant, i.color, i.size_label, i.order_reference].some(v => v && v.toLowerCase().includes(query))));
   const open = new Set([...$('purchases-list').querySelectorAll('details[open]')].map(d => d.dataset.item));
   $('purchases-list').replaceChildren(...(shown.length ? shown.map(i => itemRow(i, open.has(i.id))) : [el('p', { className: 'muted', textContent: items.length ? 'No items match these filters.' : 'No purchases found yet.' })]));
   $('purchases-pending').hidden = !data.pending.length;
-  $('purchases-pending-count').textContent = `(${data.pending.length})`;
-  $('purchases-pending-list').replaceChildren(...data.pending.map(p => el('div', { className: 'evidence' },
-    el('p', { className: 'meta', textContent: `${KINDS[p.kind] ?? p.kind} · ${p.merchant ?? 'store unknown'} · ${p.order_reference ? `order ${p.order_reference} · ` : ''}${day(p.at)}` }),
-    p.evidence ? el('blockquote', { textContent: p.evidence }) : null)));
+  $('purchases-pending-count').textContent = data.pending.length;
+  $('purchases-pending-list').replaceChildren(...data.pending.map(p => el('tr', {},
+    el('td', { textContent: KINDS[p.kind] ?? p.kind }), el('td', { textContent: p.merchant ?? 'Unknown' }), el('td', { className: 'num', textContent: p.order_reference ?? '—' }),
+    el('td', { className: 'num', textContent: day(p.at) }), el('td', { className: 'quote', textContent: p.evidence ? `“${p.evidence}”` : '' }))));
   renderConnections();
   $('missed-list').replaceChildren(...[...data.missed].reverse().map(m => el('p', { className: 'fact-row', textContent: `${m.store}${m.when ? ` · ${m.when}` : ''} — ${m.description}` })));
 }
@@ -89,10 +97,11 @@ function render() {
 function itemRow(item, open) {
   const facts = [item.merchant, item.size_label && `size ${item.size_label}${item.size_system ? ` (${item.size_system})` : ''}`, item.color, item.quantity > 1 && `×${item.quantity}`, item.price && item.price.text,
     day(item.events.find(e => e.kind === 'purchased')?.at), RECIPIENTS[item.recipient.value] + (item.recipient.basis === 'receipt_evidence' ? ' (receipt)' : ''), OUTCOMES[item.outcome]].filter(Boolean);
-  const badges = [item.sources.map(sourceName).join(' + '), item.removed && !item.duplicate_of && 'Removed', item.duplicate_of && 'Duplicate', item.confirmed && 'Confirmed', item.confirmed_fields.length && 'Edited', reviewed(item) && 'Reviewed'].filter(Boolean);
+  // Quiet status text on the right; "To review" rows show nothing because the filter says it.
+  const status = [item.sources.map(sourceName).join(' + '), item.removed && !item.duplicate_of && 'Removed', item.duplicate_of && 'Duplicate', item.confirmed && 'Confirmed', item.confirmed_fields.length && 'Edited', reviewed(item) && 'Reviewed'].filter(Boolean).join(' · ');
   const details = el('details', { className: `purchase ${statusOf(item)}`, open },
-    el('summary', {}, el('strong', { textContent: title(item) }), el('span', { className: 'meta', textContent: facts.join(' · ') }),
-      badges.length ? el('span', { className: 'badges' }, ...badges.map(b => el('span', { className: 'tag', textContent: b }))) : null),
+    el('summary', {}, el('span', { className: 'purchase-title' }, el('strong', { textContent: title(item) }), el('span', { className: 'meta', textContent: facts.join(' · ') })),
+      status ? el('span', { className: 'purchase-status', textContent: status }) : null),
     el('div', { className: 'purchase-body' }, evidence(item), history(item), reviewForm(item)));
   details.dataset.item = item.id;
   return details;
@@ -239,7 +248,7 @@ async function saveSkipped(email, label, row) {
 function renderConnections() {
   const connections = data.connections ?? [];
   $('purchases-sources').hidden = !connections.length;
-  $('purchases-sources-count').textContent = connections.length ? `(${connections.length})` : '';
+  $('purchases-sources-count').textContent = connections.length || '';
   $('purchases-sources-list').replaceChildren(...connections.map(c => {
     const pages = c.listing?.pages ?? [];
     const lists = pages.flatMap(p => Object.entries(p.lists)).reduce((m, [k, n]) => { m[k] = (m[k] ?? 0) + n; return m; }, {});

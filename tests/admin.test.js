@@ -92,3 +92,25 @@ test('history pages retain stable ordering and use service credentials only on s
   const page = await store.messages(id);
   assert.equal(page.messages.length, 100); assert.equal(page.messages[0].id, '99'); assert.equal(page.before.id, '99');
 });
+test('owner wishlist view joins each item to its price alert and only allows test texts for the test conversation', async () => {
+  const { groupWishlist } = await import('../lib/wishlist.js');
+  const row = { text_origin: 'true', reply_id: 'r1', item_id: 'one', name: 'Fixture loafer', match: 'likely_match', links: [{ url: 'https://shop.example.invalid/loafer' }], messages: { created_at: '2026-10-06' } };
+  const groupId = groupWishlist([row])[0].id;
+  const alert = { id: 'a1', group_id: groupId, active: true, size: '10', last_checked_at: null, notified: false, links: [{ url: 'https://shop.example.invalid/loafer' }],
+    baselines: [{ amount: 300, currency: 'USD', url: 'https://shop.example.invalid/loafer', available: true, private: 'dropped' }], last_result: { stock: 'in_stock' } };
+  let alertReads = 0;
+  const store = { async conversation(v) { return v === id ? conversation : null; }, async wishlistEntries() { return [row]; },
+    async priceAlerts() { alertReads++; return [alert]; }, async profile() { return { facts: [] }; } };
+  const get = env => { const res = response(); return createAdminHandler({ auth: async () => 200, storeFactory: () => store, env })({ method: 'GET', url: `/api/admin?view=wishlist&conversation=${id}`, headers: {} }, res).then(() => res); };
+  const forTest = await get({ PRICE_ALERTS_ENABLED: 'true', PRICE_ALERT_TEST_CONVERSATION_ID: id });
+  assert.equal(forTest.statusCode, 200); assert.equal(forTest.body.test_delivery, true); assert.equal(forTest.body.alerts_enabled, true);
+  const [item] = forTest.body.items;
+  assert.equal(item.name, 'Fixture loafer'); assert.equal(item.entries, undefined);
+  assert.deepEqual(item.price_alert.links, ['https://shop.example.invalid/loafer']);
+  assert.deepEqual(item.price_alert.baselines, [{ amount: 300, currency: 'USD', url: 'https://shop.example.invalid/loafer', available: true }]);
+  assert.equal(item.price_alert.stock, 'in_stock');
+  const other = await get({ PRICE_ALERTS_ENABLED: 'true', PRICE_ALERT_TEST_CONVERSATION_ID: operation });
+  assert.equal(other.body.test_delivery, false);
+  const reads = alertReads, off = await get({});
+  assert.equal(off.body.alerts_enabled, false); assert.equal(off.body.items[0].price_alert, null); assert.equal(alertReads, reads);
+});
