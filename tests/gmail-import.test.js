@@ -466,3 +466,11 @@ test('a store first found partway through an import has its other orders found i
  assert.deepEqual(row.data.job.stores_searched,['cyclingbrand.example']);
  assert.equal(queries.filter(q=>q.includes('from:cyclingbrand.example')&&!q.includes('filename:pdf')).length,1,'searched once, not again by the later store stage');
 });
+test('searches ask Gmail for large pages when earlier imports read many emails, and progress reports them',async()=>{
+ const sizes=[];const fetcher=async url=>{const u=new URL(url);sizes.push(u.searchParams.get('maxResults'));return jsonResponse({messages:[{id:'r1'}]});};
+ const job=newImportJob();let row={conversation_id:'owner',token_ciphertext:sealToken(tokens,'owner',env),data:{feedback:emptyReceiptState('owner'),scan_version:SCAN_VERSION,scanned_ids:['r1'],job}};
+ row=await step(row,{fetcher});assert.equal(sizes[0],'500');assert.equal(row.data.job.status,'listing');
+ assert.equal(publicImport(row,row.receipts).already_read,1);
+ const fresh={conversation_id:'owner',token_ciphertext:sealToken(tokens,'owner',env),data:{feedback:emptyReceiptState('owner'),job:newImportJob()}};
+ sizes.length=0;await step(fresh,{fetcher});assert.equal(sizes[0],'50');
+});

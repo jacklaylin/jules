@@ -237,3 +237,11 @@ With the order-subject change, a re-import found one MAAP order (June 2026) but 
 - **Purchase emails already read don't use the limit either.** Shopping emails already read and priced under the current rules are skipped during search, like irrelevant ones. Re-imports spend the 1,000-email limit only on new emails. The trade-off: a store email whose content changed after it was read is no longer re-checked for changes.
 
 Limits are unchanged. No migration.
+
+### October 15 follow-up: getting past already-read emails quickly
+
+On the next re-import, progress sat at 226 emails checked for several minutes. The import was working: it was paging through thousands of emails earlier imports had already read, 50 per page. Each page admitted nothing and still took a search step plus an empty reading step. Now:
+
+- Searches ask Gmail for 500 ids per page when there are already-read emails to skip (50 otherwise).
+- A page with nothing new goes straight to the next page or search, with no empty reading step.
+- The account and onboarding pages show the skipped count: "Checked 226 so far, skipped 2,582 already checked."
