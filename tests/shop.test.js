@@ -127,3 +127,22 @@ test('order listing reads every record list on a page, follows any cursor name a
   const stuck=await listShopOrders('token',{fetcher:async()=>rpc({orders:[{id:'x'}],pagination:{has_next_page:true,page_token:'?'}})});
   assert.equal(stuck.listing.stop,'next_page_without_cursor');assert.deepEqual(stuck.listing.pages[0].pagination_keys,['has_next_page','page_token']);
 });
+
+test('history is listed in passes: recent, earlier windows while they find more, then stores Shop already returned',async()=>{
+  const order=(id,date,seller='Amazon')=>({id,placed_at:date+'T10:00:00Z',seller:{name:seller}});
+  const sent=[];
+  const fetcher=async(_u,o)=>{
+    const a=JSON.parse(o.body).params.arguments;sent.push({date_to:a.date_to??null,query:a.query??null});
+    if(a.query==='Farfetch')return {ok:false,status:429};
+    if(a.query)return rpc({orders:[order('o1','2026-09-20')],pagination:{has_next_page:false}});
+    if(!a.date_to)return rpc({orders:[order('o1','2026-09-20'),order('o2','2026-09-15','Farfetch')],pagination:{has_next_page:false}});
+    if(a.date_to==='2026-09-14')return rpc({orders:[order('o3','2026-06-01'),order('o2','2026-09-15','Farfetch')],pagination:{has_next_page:false}});
+    return rpc({orders:[],pagination:{has_next_page:false}});
+  };
+  const result=await listShopOrders('token',{from:'2021-10-14',fetcher});
+  assert.deepEqual(result.records.map(r=>r.record.id),['o1','o2','o3'],'duplicates across passes appear once');
+  assert.deepEqual(result.listing.passes.map(p=>[p.name,p.new]),[['recent',2],['earlier',1],['earlier',0],['store',0],['store',0]]);
+  assert.deepEqual(sent.map(s=>s.date_to).filter(Boolean),['2026-09-14','2026-05-31']);
+  assert.deepEqual(sent.map(s=>s.query).filter(Boolean),['Amazon','Farfetch'],'only sellers Shop returned are searched');
+  assert.equal(result.listing.stop,'throttled','a throttled search ends listing and keeps what was found');
+});
