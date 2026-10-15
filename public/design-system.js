@@ -8,12 +8,14 @@ export function mountHeader(page){
  header=document.querySelector('.app-header');
  const brand=document.createElement('a');brand.className='wordmark';brand.href='/wishlist';brand.setAttribute('aria-label','Jules wishlist');brand.append(createLogo());
  nav=document.createElement('nav');nav.className='header-actions';nav.setAttribute('aria-label','Your collection');
- for(const [key,text,href] of [['wishlist','Wishlist','/wishlist'],['style','Your style','/style'],['admin','Admin','/admin'],['logout','Log out',null]]){
+ for(const [key,text,href] of [['wishlist','Wishlist','/wishlist'],['style','Your style','/style'],['admin','Admin','/admin'],['logout','Log out',null],['account','Account','/account']]){
   const control=document.createElement(href?'a':'button');control.className='nav-item';if(href)control.href=href;else control.type='button';
   if(key==='logout'){control.id='logout';control.hidden=true;}
   if(key==='admin'){control.id='admin-link';control.hidden=true;}
   if(key===page)control.setAttribute('aria-current','page');
   const textNode=document.createElement('span');textNode.textContent=text;
+  // Account is an avatar in the desktop bar and a labelled row in the phone menu.
+  if(key==='account'){control.className='nav-item nav-account';textNode.className='nav-text';const avatar=document.createElement('span');avatar.className='avatar';avatar.setAttribute('aria-hidden','true');avatar.innerHTML='<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8.5" r="3.8"/><path d="M4.8 20c1.2-3.6 4-5.4 7.2-5.4s6 1.8 7.2 5.4"/></svg>';control.append(avatar,textNode);nav.append(control);continue;}
   const mark=document.createElement('span');mark.className='nav-mark';mark.setAttribute('aria-hidden','true');const orb=document.createElement('span');orb.className='orb';mark.append(orb);control.append(textNode,mark);nav.append(control);
  }
  menuButton=document.createElement('button');menuButton.type='button';menuButton.className='menu-toggle';menuButton.textContent='Menu';menuButton.setAttribute('aria-expanded','false');menuButton.setAttribute('aria-controls','mobile-menu');menuButton.setAttribute('aria-haspopup','dialog');

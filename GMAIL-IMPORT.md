@@ -155,3 +155,15 @@ Vercel rejects a function that keeps calling its own URL after a few hops, and t
 ### Setup (once)
 
 In Supabase → SQL Editor, run `db/023_gmail_sweep.sql`. It enables `pg_cron`, `pg_net` and `pgcrypto`, creates the secret in Vault and schedules the job. No credential is shown or copied. The production URL is written into the file; edit it if the domain changes. To confirm it works: start an import, close the page, then check Supabase → Integrations → Cron → `jules-gmail-sweep` runs or the Vercel `gmail_sweep` log lines.
+
+## October 14 update: prices
+
+- **Reading.** Each purchase line now returns `unit_price` and `currency` with quotes. The model is told to give the price for one unit exactly as printed on the line (after a discount shown on that line), and null for multi-unit totals or order totals. It never computes, converts or estimates.
+- **Validation.** Code keeps the price only when the quote is in the email and contains the value. The amount is parsed technically (`parsePrice` handles `$1,234.50`, `2.450,00 DKK`, `CHF 1'250.00`). The currency is a three-letter code if printed, or €/£ mapped to EUR/GBP; an ambiguous `$`, `kr` or `¥` stays as written. A price with no currency printed is withheld. Items store `price: {amount, currency, text}`; prices are never converted between currencies.
+- **Existing emails.** Shopping emails read before this change are re-read once for prices only (`PRICE_VERSION`, stored as `price_version` on each source). `priceRecords` matches each priced line to an item from the same email and adds only the price; it never creates items. An email whose content changed is skipped. New emails are marked as priced when first read. `job.quality.repriced` counts the added prices. Click **Import again** to price an existing history.
+- **"Who you are" text.** It adds "what you usually spend: $X–$Y per item" when at least 3 purchases in one currency have prices. The range is the middle half (25th–75th percentile, interpolated), rounded to the nearest 10 under 200 and the nearest 50 above. It uses the currency with the most priced purchases and never converts.
+- **Admin.** The Purchase history panel shows each item's price as printed.
+
+## October 14 update: Open in Messages
+
+The onboarding done screen shows **Open Jules in Messages** when `JULES_PUBLIC_LINE` (Jules's iMessage number in international format, also used after signup) is set. The link is `sms:<number>`, which opens the Messages thread on iPhone and Mac. Without the setting, the button stays hidden.

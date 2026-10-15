@@ -219,6 +219,11 @@ fieldset label input[type=radio]{accent-color:var(--grape)}
 .nav-mark{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;flex:none;align-self:flex-start;margin-top:3px}.nav-mark .orb{--s:14px;display:none}
 .nav-item[aria-current=page] .nav-mark .orb,.nav-item:hover .nav-mark .orb,.nav-item:focus-visible .nav-mark .orb{display:inline-block}
 .nav-item:not([aria-current=page]):not(:hover):not(:focus-visible) .nav-mark{width:0}
+/* Account avatar: an icon in the desktop bar, a labelled row in the phone menu. */
+.nav-account .avatar{display:inline-grid;place-items:center;width:38px;height:38px;border-radius:50%;background:var(--fog);border:1px solid var(--line);color:var(--ink);flex:none;transition:border-color .15s}
+.header-actions .nav-account .nav-text{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.header-actions .nav-account:hover .avatar,.header-actions .nav-account:focus-visible .avatar,.header-actions .nav-account[aria-current=page] .avatar{border-color:var(--grape)}
+.mobile-menu .nav-account .nav-text{position:static;width:auto;height:auto;clip:auto}.mobile-menu .nav-account .avatar{width:48px;height:48px;order:-1}
 .menu-toggle{display:none}.menu-open{overflow:hidden}
 .mobile-menu{width:100%;height:100dvh;max-width:none;max-height:none;margin:0;border:0;border-radius:0;padding:0 var(--page-gutter) max(24px,env(safe-area-inset-bottom));background:var(--white);box-shadow:none;overflow:auto}
 .mobile-menu[open]{display:flex;flex-direction:column;animation:enter .2s ease both}

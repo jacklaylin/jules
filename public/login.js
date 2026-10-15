@@ -1,7 +1,7 @@
 import {mountPublicHeader} from './design-system.js';
 import {createSession} from './wishlist-session.js';
 mountPublicHeader();
-const $=id=>document.getElementById(id),destination=(['onboarding','style'].includes(new URLSearchParams(location.search).get('next'))?new URLSearchParams(location.search).get('next'):'wishlist');
+const $=id=>document.getElementById(id),destination=(['onboarding','style','account'].includes(new URLSearchParams(location.search).get('next'))?new URLSearchParams(location.search).get('next'):'wishlist');
 const session=createSession({storage:localStorage,lock:work=>navigator.locks?navigator.locks.request('jules-wishlist-refresh',work):work()});
 let challenge;
 try{if(await session.token())location.replace('/'+destination);}catch{$('login-status').textContent='Please sign in again to continue.';}
