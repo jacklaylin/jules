@@ -117,7 +117,7 @@ function renderFacts() {
   const rows = live.flatMap(fact => {
     const keyId = factKey(fact), input = el('input', { value: dirty.get(keyId) ?? fact.value, maxLength: 500 });
     input.setAttribute('aria-label', `${TYPES[fact.field] ?? fact.field} ${fact.key}`);
-    const save = el('button', { type: 'button', className: 'small primary', textContent: 'Save', disabled: !dirty.has(keyId) });
+    const save = el('button', { type: 'button', className: 'small btn--butter', textContent: 'Save', disabled: !dirty.has(keyId) });
     const remove = el('button', { type: 'button', className: 'small', textContent: 'Remove' });
     const row = el('tr', { className: dirty.has(keyId) ? 'dirty' : '' },
       el('td', { className: 'mono-label', textContent: TYPES[fact.field] ?? fact.field }), el('td', { className: 'fact-key', textContent: fact.key }),
@@ -205,7 +205,7 @@ function testForm(item) {
   const previous = el('select', {}, el('option', { value: '', textContent: 'As last recorded' }), el('option', { value: 'sold_out', textContent: 'Sold out (rehearse a restock)' }), el('option', { value: 'in_stock', textContent: 'In stock' }));
   const result = el('pre', { className: 'alert-result', role: 'status' });
   const preview = el('button', { type: 'submit', className: 'small', textContent: 'Preview message' });
-  const send = el('button', { type: 'button', className: 'small primary', textContent: 'Send test text', disabled: !wishlist.test_delivery });
+  const send = el('button', { type: 'button', className: 'small btn--butter', textContent: 'Send test text', disabled: !wishlist.test_delivery });
   form.append(
     el('p', { className: 'muted', textContent: `Runs the real alert decision on a made-up price. Nothing is saved. Reference: ${alert.baselines.map(b => money(b)).join(', ') || 'none yet'} · last stock: ${(alert.stock ?? 'unknown').replace('_', ' ')}.` }),
     el('div', { className: 'add-fact-fields' }, field('Store', storeSelect), field('Size', size), field('Price', price), field('Currency', currency), field('Listed shipping (optional)', shipping), field('Previous stock', previous)),
