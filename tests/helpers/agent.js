@@ -6,7 +6,7 @@ const defaults={
   save_to_wishlist:{option_indices:[],consent_context:'explicit_request',color_choices:[],size_choices:[],option_sizing:[],offer_alerts:true},
   manage_price_alerts:{operation:'create',option_indices:[],consent_context:'explicit_request',color_choices:[],size_choices:[],option_sizing:[],saved_item_ids:[]},
   wishlist_status:{response:'',include_link:false},update_purchase_history:{},update_profile:{changes:[],acknowledgment:''},profile_status:{response:''},
-  onboarding:{action:'status'},record_quality_signal:{kind:'other',about:'previous_reply',summary:''},conversation_reply:{response:'',claims:{saved_now:false,alerts_turned_on:false,alerts_turned_off:false}},prepare_checkout:{items:[]},
+  onboarding:{action:'status'},record_quality_signal:{kind:'other',about:'previous_reply',summary:''},conversation_reply:{response:'',claims:{saved_now:false,alerts_turned_on:false,alerts_turned_off:false}},prepare_checkout:{items:[]},add_order_screenshot:{image_message_id:null},
 };
 export const tool=(name,args={})=>({type:'function_call',name,arguments:JSON.stringify({...defaults[name],...args})});
 export const agentTurn=(...calls)=>({ok:true,json:async()=>({status:'completed',output:calls})});
