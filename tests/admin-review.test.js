@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {REASONS,statusOf,matches,neighbour,position,filterLabel,reviewKey} from '../public/admin-review.js';
+import {REASONS,statusOf,matches,neighbour,position,filterLabel,reviewKey,browseKey} from '../public/admin-review.js';
 
 const item=(id,extra={})=>({id,brand:'Brand',product:`Item ${id}`,merchant:'Nordstrom',sources:['gmail'],reviews:[],removed:false,confirmed:false,duplicate_of:null,...extra});
 const key=(k,extra={})=>({key:k,target:{tagName:'BODY'},...extra});
@@ -71,4 +71,21 @@ test('shortcuts work only on an open item review and never while typing',()=>{
  assert.equal(reviewKey(key('3'),{open:true,form:false}),null);
  assert.equal(reviewKey(key('Enter',{metaKey:true}),{open:true,form:false}),null);
  assert.deepEqual(reviewKey(key('j'),{open:true,form:false}),{type:'next'});
+});
+
+test('list keys: / searches, J/K move rows with nothing open, Esc closes the open item, typing and menus are left alone',()=>{
+ assert.deepEqual(browseKey(key('/'),{open:false}),{type:'search'});
+ assert.deepEqual(browseKey(key('/'),{open:true}),{type:'search'});
+ assert.deepEqual(browseKey(key('j'),{open:false}),{type:'row',step:1});
+ assert.deepEqual(browseKey(key('K'),{open:false}),{type:'row',step:-1});
+ // With an item open J/K belong to the item review (next/previous item), not the list.
+ assert.equal(browseKey(key('j'),{open:true}),null);
+ assert.deepEqual(reviewKey(key('j'),{open:true}),{type:'next'});
+ assert.deepEqual(browseKey(key('Escape'),{open:true}),{type:'close'});
+ assert.equal(browseKey(key('Escape'),{open:false}),null);
+ const field={tagName:'INPUT',type:'search'};
+ for(const k of ['/','j','Escape'])assert.equal(browseKey(key(k,{target:field}),{open:true}),null);
+ assert.equal(browseKey(key('Escape'),{open:true,menu:true}),null);
+ assert.equal(browseKey(key('/'),{open:false,dialog:true}),null);
+ assert.equal(browseKey(key('j',{metaKey:true}),{open:false}),null);
 });
