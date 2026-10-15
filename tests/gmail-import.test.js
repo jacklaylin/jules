@@ -187,6 +187,18 @@ test('pilot acceptance: connect, import, answer, rerun and correct through the s
  await run();assert.equal((await receiptsOf(store)).items.length,1);assert.equal((await receiptsOf(store)).items[0].recipient.value,'self');
  const id=(await receiptsOf(store)).items[0].id;const edited=await request(handler,{method:'POST',body:{action:'edit',event:{action:'set_recipient',item_ids:[id],value:'other',label:'sister'}}});assert.equal(edited.data.learning_count,0);assert.equal(edited.data.items.length,1);
 });
+test('a purchase-history answer with an unresolvable part saves the clear part and asks about the rest',async()=>{
+ const {updatePurchaseHistory}=await import('../lib/receipt-chat.js');const store=storage();const feedback=reconcileReceipt(emptyReceiptState('owner'),source,{events:[receipt()]}).state;
+ store.seed({conversation_id:'owner',revision:0,data:{feedback},token_ciphertext:null});store.context=async()=>[{provider_id:'in2',direction:'inbound',body:'answer',created_at:'2026-10-14'}];
+ const delivery={space:{phone:'synthetic-line'},message:{id:'in2',sender:{id:'synthetic-sender'},content:{text:'answer'}}};
+ const id=feedback.items[0].id,act=(action,item_ids,recipient=null)=>({action,item_ids,recipient,recipient_label:null,corrections:[],target_item_id:null,question_id:null});
+ const mixed=await updatePurchaseHistory(delivery,'owner',store,env,{interpret:async()=>({actions:[act('set_recipient',[id],'self'),act('report_return',[])]})});
+ assert.equal(mixed.updated,true);assert.match(mixed.body,/\?$/);
+ assert.equal((await receiptsOf(store)).items[0].recipient.value,'self');assert.equal((await receiptsOf(store)).items[0].outcome?.value??'unknown','unknown');
+ const store2=storage();store2.seed({conversation_id:'owner',revision:0,data:{feedback},token_ciphertext:null});store2.context=store.context;
+ const nothing=await updatePurchaseHistory(delivery,'owner',store2,env,{interpret:async()=>({actions:[act('report_return',['foreign'])]})});
+ assert.equal(nothing.updated,false);assert.equal(store2.rows.length,0);assert.match(nothing.body,/\?$/);
+});
 test('the purchase-history skill uses model context, records correction evidence, and replays without reinterpreting',async()=>{
  const {updatePurchaseHistory}=await import('../lib/receipt-chat.js');const store=storage();const feedback=reconcileReceipt(emptyReceiptState('owner'),source,{events:[receipt()]}).state;
  store.seed({conversation_id:'owner',revision:0,data:{feedback},token_ciphertext:null});store.context=async()=>[{provider_id:'in1',direction:'inbound',body:'The jeans were for my sister',created_at:'2026-10-10',reply_provider_id:'old1'}];

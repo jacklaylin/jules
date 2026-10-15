@@ -39,6 +39,7 @@ test('database resolves old reply chain outside recent window within the same co
  const u=new URL(url);queries.push(u);
  let rows;
  if(u.searchParams.get('select')==='id,created_at,reply_provider_id')rows=[{id:'current',created_at:'2026-10-09',reply_provider_id:'provider-caption'}];
+ else if(u.searchParams.has('reply_provider_id'))rows=[];
  else if(u.searchParams.get('provider_id')==='eq.provider-caption')rows=[{id:'caption',provider_id:'provider-caption',direction:'inbound',body:'Lemaire hobo bag',reply_provider_id:'provider-bag'}];
  else if(u.searchParams.get('provider_id')==='eq.provider-bag')rows=[bag];
  else rows=[{...explicit,reply_context:undefined},newer];
@@ -79,4 +80,50 @@ test('ambiguous image search cannot silently select the latest reference',async(
  const response=await generateReply([older,bag,{direction:'inbound',body:'Find that one'}],{OPENAI_API_KEY:'fake',SEARCH_ENABLED:'true'},async()=>agentTurn(tool('find_products',{query:'A bag',use_image:true,image_message_id:null})),
  {imageReferences:[older,bag],loadImages:async()=>{loaded=true;return []}});
  assert.equal(loaded,false);assert.ok(response);
+});
+
+// iMessage points every reply in a thread at the thread's first message. A product set Jules sent
+// later in that thread is what the user is answering, not the thread's first (older) result.
+const threadStore=(messages,queries=[])=>createStore({SUPABASE_URL:'https://example.invalid',SUPABASE_SERVICE_ROLE_KEY:'fake'},async(url)=>{
+ const u=new URL(url);queries.push(u);const p=k=>u.searchParams.get(k);
+ const inList=v=>v?.startsWith('in.(')?v.slice(4,-1).split(',').map(x=>JSON.parse(x)):null;
+ let rows;
+ if(p('select')==='id,created_at,reply_provider_id')rows=messages.filter(m=>m.provider_id===p('provider_id').slice(3));
+ else if(p('provider_id'))rows=messages.filter(m=>m.provider_id===p('provider_id').slice(3));
+ else if(p('reply_provider_id')){const ids=inList(p('reply_provider_id'));rows=messages.filter(m=>ids.includes(m.reply_provider_id)&&m.id!==p('id').slice(4)&&!m.developer_feedback&&(p('direction')?m.direction===p('direction').slice(3):true));}
+ else rows=[...messages].reverse();
+ return {ok:true,text:async()=>JSON.stringify(rows)};
+});
+const firstResult={text_wishlist_state:{stage:'search_clarification',options:[]}};
+const laterResult={text_wishlist_state:{stage:'choice',options:[{name:'Peyter pants',url:'https://shop.example.com/peyter'}]}};
+const root={id:'root',provider_id:'p-root',direction:'outbound',status:'sent',body:'No verified match yet',created_at:'2026-10-15T00:00:00Z',search_result:firstResult};
+const ask={id:'ask',provider_id:'p-ask',direction:'inbound',body:'Use the model name',created_at:'2026-10-15T00:01:00Z',reply_provider_id:'p-root'};
+const answer={id:'answer',provider_id:'p-answer',direction:'outbound',status:'sent',body:'Peyter pants',created_at:'2026-10-15T00:02:00Z',reply_provider_id:'p-ask',search_result:laterResult};
+const note={id:'note',provider_id:'p-note',direction:'inbound',body:'bug report',developer_feedback:'bug',created_at:'2026-10-15T00:03:00Z',reply_provider_id:'p-root'};
+test('a reply inside an iMessage thread resolves against the newest result in that thread',async()=>{
+ for(const body of ['Add them to my wishlist','Save these and watch the price','Not those, show me others']){
+  const current={id:'current',provider_id:'p-current',direction:'inbound',body,created_at:'2026-10-15T00:04:00Z',reply_provider_id:'p-root'};
+  const queries=[];const rows=await threadStore([root,ask,answer,note,current],queries).context('owner','p-current');
+  const now=rows.find(m=>m.id==='current');
+  assert.equal(now.reply_context.resolved,true);
+  assert.deepEqual(now.reply_context.messages.map(m=>m.id),['root','ask','answer']);
+  assert.equal(shoppingContext(rows,null).options[0].name,'Peyter pants');
+  assert.ok(queries.every(q=>q.searchParams.get('conversation_id')==='eq.owner'));
+  assert.ok(queries.filter(q=>q.searchParams.has('reply_provider_id')).every(q=>q.searchParams.get('created_at')==='lte.2026-10-15T00:04:00Z'&&q.searchParams.get('developer_feedback')==='is.null'));
+ }
+});
+test('thread turns never include unsent answers or other threads; the first result stays when nothing newer exists',async()=>{
+ const pending={...answer,id:'pending',provider_id:null,status:'generating'};
+ const elsewhere={...answer,id:'elsewhere',provider_id:'p-elsewhere',reply_provider_id:'p-other'};
+ const current={id:'current',provider_id:'p-current',direction:'inbound',body:'Yes that one',created_at:'2026-10-15T00:04:00Z',reply_provider_id:'p-root'};
+ const rows=await threadStore([root,ask,pending,elsewhere,current]).context('owner','p-current');
+ assert.deepEqual(rows.find(m=>m.id==='current').reply_context.messages.map(m=>m.id),['root','ask']);
+ assert.equal(shoppingContext(rows,laterResult.text_wishlist_state).stage,'search_clarification');
+});
+test('a photo sent inside a thread is the thread image the next reply refers to',async()=>{
+ const photo={id:'photo',provider_id:'p-photo',direction:'inbound',body:'This one',created_at:'2026-10-15T00:01:30Z',reply_provider_id:'p-root',message_images:[{id:'img',position:0}]};
+ const rootPhoto={...root,direction:'inbound',status:'received',message_images:[{id:'root-img',position:0}],search_result:null};
+ const current={id:'current',provider_id:'p-current',direction:'inbound',body:'Where is it from',created_at:'2026-10-15T00:04:00Z',reply_provider_id:'p-root'};
+ const rows=await threadStore([rootPhoto,photo,current]).context('owner','p-current');
+ assert.equal(referencedImage(rows).id,'photo');
 });
