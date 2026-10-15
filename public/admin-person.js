@@ -1,5 +1,6 @@
 import {mountAdminShell,adminJson,adminFetch,adminToken,anchorMenus} from './admin-console.js';
 import {mountPurchases,loadPurchases,syncPurchaseView} from './admin-purchases.js';
+import {browseKey} from './admin-review.js';
 // Admin › People › one person: Personal memory, Conversation, Purchase history and Wishlist tabs.
 // The selected tab lives in the URL (?tab=) so every view can be linked.
 mountAdminShell('people');
@@ -107,32 +108,46 @@ async function openMessage(id) {
 
 // ---------- Personal memory ----------
 const TYPES = { gender: 'gender', shopping_range: 'clothing range', size: 'size', brand: 'brand', category: 'category', style: 'style', budget: 'budget' };
-let profileVersion = 0, facts = [], profileBusy = false;
+let profileVersion = 0, facts = [], profileBusy = false, typeFilter = '';
 const dirty = new Map(), factKey = fact => `${fact.field}|${fact.key}`;
 function evidenceText(fact) {
   if (fact.source === 'operator') return `Owner edit · ${day(fact.updated_at)}`;
   const kind = fact.source === 'message' ? 'User statement' : 'Learned';
   return `${kind} · ${day(fact.updated_at)}${fact.evidence ? ` · “${fact.evidence}”` : ''}`;
 }
+// Type filter (the only counts) and search narrow the table; unsaved values survive filtering.
+function renderTypes(live) {
+  const counts = live.reduce((m, f) => m.set(f.field, (m.get(f.field) ?? 0) + 1), new Map());
+  if (typeFilter && !counts.has(typeFilter)) typeFilter = '';
+  $('memory-types').replaceChildren(...[['', 'All', live.length], ...Object.keys(TYPES).filter(t => counts.has(t)).map(t => [t, TYPES[t][0].toUpperCase() + TYPES[t].slice(1), counts.get(t)])].map(([value, label, n]) => {
+    const button = el('button', { type: 'button' }, label, el('span', { className: 'count', textContent: n }));
+    button.setAttribute('aria-pressed', String(typeFilter === value));
+    button.onclick = () => { typeFilter = value; renderFacts(); };
+    return button;
+  }));
+}
 function renderFacts() {
   const live = facts.filter(f => !f.deleted);
   $('count-memory').textContent = live.length; $('stat-facts').textContent = live.length;
-  const rows = live.flatMap(fact => {
+  renderTypes(live);
+  const q = $('memory-search').value.trim().toLowerCase();
+  const shown = live.filter(f => (!typeFilter || f.field === typeFilter) && (!q || [f.key, f.value, f.evidence, dirty.get(factKey(f))].some(v => v && v.toLowerCase().includes(q))));
+  const rows = shown.flatMap(fact => {
     const keyId = factKey(fact), input = el('input', { value: dirty.get(keyId) ?? fact.value, maxLength: 500 });
     input.setAttribute('aria-label', `${TYPES[fact.field] ?? fact.field} ${fact.key}`);
-    const save = el('button', { type: 'button', className: 'small btn--butter', textContent: 'Save', disabled: !dirty.has(keyId) });
-    const remove = el('button', { type: 'button', className: 'small', textContent: 'Remove' });
+    const save = el('button', { type: 'button', className: 'small btn--butter', textContent: 'Save', hidden: !dirty.has(keyId) });
+    const remove = el('button', { type: 'button', className: 'small quiet', textContent: 'Remove' });
     const row = el('tr', { className: dirty.has(keyId) ? 'dirty' : '' },
       el('td', { className: 'mono-label', textContent: TYPES[fact.field] ?? fact.field }), el('td', { className: 'fact-key', textContent: fact.key }),
-      el('td', {}, input), el('td', { className: 'fact-evidence', textContent: evidenceText(fact) }), el('td', { className: 'fact-actions' }, save, remove));
+      el('td', {}, input), el('td', { className: 'fact-evidence', textContent: evidenceText(fact), title: evidenceText(fact) }), el('td', { className: 'fact-actions' }, save, remove));
     input.oninput = () => {
       if (input.value === fact.value) dirty.delete(keyId); else dirty.set(keyId, input.value);
-      save.disabled = !dirty.has(keyId); row.classList.toggle('dirty', dirty.has(keyId)); renderDirty();
+      save.hidden = !dirty.has(keyId); row.classList.toggle('dirty', dirty.has(keyId)); renderDirty();
     };
     save.onclick = () => changeProfile({ action: 'set', field: fact.field, key: fact.key, value: input.value }, keyId);
     remove.onclick = () => changeProfile({ action: 'remove', field: fact.field, key: fact.key, value: '' }, keyId);
     if (!fact.source_id) return [row];
-    const source = el('button', { type: 'button', className: 'small', textContent: 'Show source', ariaExpanded: 'false' });
+    const source = el('button', { type: 'button', className: 'small quiet', textContent: 'Source', ariaExpanded: 'false' });
     const message = () => messages.find(m => m.id === fact.source_id);
     const sourceRow = el('tr', { className: 'source-row', hidden: true }, el('td', { colSpan: 5 },
       el('span', { className: 'mono-label', textContent: 'Source' }), ' ',
@@ -143,10 +158,11 @@ function renderFacts() {
       const found = message();
       sourceRow.querySelector('.source-text').textContent = found ? `Inbound message · ${when(found.created_at)}${found.message_images?.length ? ' · with photo' : ''} · “${found.body.slice(0, 160)}”` : 'Inbound message (older than the loaded conversation)';
     };
-    row.lastChild.append(source);
+    row.lastChild.prepend(source);
     return [row, sourceRow];
   });
-  $('profile-facts').replaceChildren(...(rows.length ? rows : [el('tr', {}, el('td', { colSpan: 5, className: 'muted', textContent: 'No saved preferences yet. Learn from existing messages or add one below.' }))]));
+  const empty = live.length ? 'No preferences match these filters.' : 'No saved preferences yet. Add one, or use More › Learn from existing messages.';
+  $('profile-facts').replaceChildren(...(rows.length ? rows : [el('tr', {}, el('td', { colSpan: 5, className: 'muted', textContent: empty }))]));
   renderDirty();
 }
 function renderDirty() {
@@ -156,7 +172,6 @@ function renderDirty() {
 async function loadProfile() {
   const data = await api(`/api/profile?conversation=${encodeURIComponent(person)}`);
   profileVersion = data.version; facts = data.facts;
-  $('profile-summary').textContent = data.summary || 'No saved preferences yet.';
   $('memory-conflict').hidden = true;
   renderFacts();
 }
@@ -171,15 +186,27 @@ async function changeProfile(change, keyId) {
     if (response.status === 409) { $('memory-conflict').hidden = false; $('profile-notice').textContent = ''; return; }
     if (!response.ok) throw new Error(data.error ?? 'Could not save.');
     if (keyId) dirty.delete(keyId);
-    profileVersion = data.version; facts = data.facts; $('profile-summary').textContent = data.summary || 'No saved preferences yet.';
+    profileVersion = data.version; facts = data.facts;
     $('profile-notice').textContent = data.limited ? 'Learned from the latest 100 incoming messages. Earlier history was not included.' : change.action === 'remove' ? 'Removed. Add it again below to restore it.' : 'Saved.';
-    if (change.action === 'set' && !keyId) $('profile-add').reset();
+    if (change.action === 'set' && !keyId) { $('profile-add').reset(); showAddFact(false); }
   } catch (error) { $('profile-notice').textContent = error.message; }
   finally { profileBusy = false; buttons.forEach(b => { b.disabled = false; }); renderFacts(); }
 }
 const reloadProfile = () => loadProfile().then(() => { $('profile-notice').textContent = dirty.size ? 'Reloaded. Your unsaved values are kept; save them again.' : 'Reloaded.'; }).catch(error => { $('profile-notice').textContent = error.message; });
-$('profile-reload').onclick = reloadProfile; $('conflict-reload').onclick = reloadProfile;
-$('profile-import').onclick = () => changeProfile({ action: 'import' });
+$('conflict-reload').onclick = reloadProfile;
+$('profile-import').onclick = () => { $('memory-more').hidePopover(); changeProfile({ action: 'import' }); };
+$('memory-search').addEventListener('input', renderFacts);
+function showAddFact(open) {
+  $('tool-add-fact').hidden = !open; $('memory-add-open').setAttribute('aria-expanded', String(open));
+  if (open) $('fact-field').focus();
+}
+$('memory-add-open').onclick = () => showAddFact($('tool-add-fact').hidden);
+$('memory-add-close').onclick = () => showAddFact(false);
+// "/" searches the open tab's list (Purchase history handles its own keys).
+addEventListener('keydown', event => {
+  if ($('tab-memory').hidden || document.querySelector('dialog[open], .dv-pop:popover-open')) return;
+  if (browseKey(event, { open: false })?.type === 'search') { event.preventDefault(); $('memory-search').focus(); }
+});
 $('profile-add').onsubmit = event => { event.preventDefault(); changeProfile({ action: 'set', field: $('fact-field').value, key: $('fact-key').value, value: $('fact-value').value }); };
 
 // ---------- Wishlist ----------
