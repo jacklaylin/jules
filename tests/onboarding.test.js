@@ -92,3 +92,11 @@ test('the newest shopping turn is the one interpreted, and choosing a search lea
  },{onboarding:{state:'ready'},onboardingAction:()=>assert.fail('No onboarding action'),wishlistAction:async intent=>{searched=intent;return 'options';}});
  assert.equal(reply,'options');assert.equal(searched.action,'start');assert.equal(f.state(),'ready');
 });
+test('onboarding links are signed only in the delivered text, never in the ledger',async()=>{
+ const {signInLinks}=await import('../lib/onboarding.js');const site={SITE_ORIGIN:'https://jules.example'};let minted=0;const store={createSignInLink:async()=>{minted++;return '00000000-0000-4000-8000-00000000000a';}};
+ assert.equal(await signInLinks('go: https://jules.example/onboarding.',{store,conversationId:'c',env:site}),'go: https://jules.example/onboarding#signin=00000000-0000-4000-8000-00000000000a.');
+ assert.equal(await signInLinks('https://jules.example/onboarding?view=ready and https://jules.example/wishlist',{store,conversationId:'c',env:site}),'https://jules.example/onboarding?view=ready and https://jules.example/wishlist');assert.equal(minted,1);
+ assert.equal(await signInLinks('https://jules.example/onboarding',{store:{createSignInLink:async()=>{throw Error('down');}},conversationId:'c',env:site}),'https://jules.example/onboarding');
+ const f=fixture();f.store.createSignInLink=store.createSignInLink;await welcomeTester('synthetic',f.store,{...env,GMAIL_IMPORT_ENABLED:'true'},f.send);
+ assert.match(f.sent.at(-1),/onboarding#signin=0000/);assert.ok([...f.operations.values()].every(o=>!o.body.includes('signin')));
+});
