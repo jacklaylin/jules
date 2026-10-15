@@ -116,3 +116,18 @@ test('the sweep restarts a quiet source that is still reading or waiting for app
  assert.equal(sweepDue({updated_at:quiet,connections:{shop:{status:'ready'}}}),false);
  assert.equal(sweepDue({updated_at:new Date().toISOString(),connections:{shop:{status:'extracting'}}}),false);
 });
+
+// Chat answers queued while this chain held the lease (lib/receipt-chat.js) are applied as a step of their own.
+test('queued chat answers are applied with the lease, cleared, and followed by the next question before work continues',async()=>{
+ const {createReceiptFeedback}=await import('../lib/receipt-feedback.js');
+ const store=fixture(),cleared=[];let asked=0;
+ store.row.data.feedback={...createReceiptFeedback('owner',[{id:'shirt',source_ids:['s1'],brand:'BODE',product_name:'Shirt'}]),questions:[]};
+ const answer={id:'imessage:fake',at:'2026-10-15T04:18:21Z',proposal:{actions:[{item_ids:['shirt'],action:'set_recipient',recipient:'self',recipient_label:null,corrections:[],target_item_id:null,question_id:null}]}};
+ const claim=store.claimGmailImport;store.claimGmailImport=async()=>({...await claim(),chat_answers:cleared.length?[]:[answer]});
+ store.clearHistoryAnswers=async(_o,ids)=>{cleared.push(...ids);};
+ const evidence=[],finish=store.finishGmailImport;store.finishGmailImport=async(o,r,data,token,rows=[])=>{evidence.push(...rows);return finish(o,r,data,token);};
+ let steps=0;
+ await runGmailStep('owner',store,{},{deadline:Date.now()+60000},{step:async row=>{steps++;return {...row,data:{...row.data,job:{...row.data.job,status:'ready'}}};},ask:async()=>{asked++;},announce:async()=>{},schedule:()=>{}});
+ assert.deepEqual(cleared,['imessage:fake']);assert.ok(asked>=1);assert.equal(steps,1,'import work continues after the answers');
+ assert.ok(evidence.some(e=>JSON.stringify(e).includes('imessage:fake')),'the answer is written as correction evidence');
+});
