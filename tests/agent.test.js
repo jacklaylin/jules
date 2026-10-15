@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {generateReply as agentReply} from '../lib/ai.js';
-import {withConsent,toolOutputs} from './helpers/agent.js';
+import {withConsent,toolOutputs,isConsentCheck,consentResponse} from './helpers/agent.js';
 // These tests cover tool routing; the consent check approves (its own tests are in agent.test.js).
 const generateReply=(messages,env,fetcher,memory)=>agentReply(messages,env,withConsent(fetcher),memory);
 import {textWishlistAction} from '../lib/text-wishlist.js';
@@ -118,7 +118,8 @@ test('conflicting readings never persist: save alongside interest runs the inter
   const save=tool('save_to_wishlist',{option_indices:[0,1]}),interest=tool('respond_to_options',{decision:'interest',option_indices:[0,1]});
   const parse=c=>({name:c.name,args:JSON.parse(c.arguments)});
   assert.equal(chooseReplying([save,interest].map(parse)).name,'respond_to_options');
-  assert.equal(chooseReplying([tool('conversation_reply',{response:'ok'}),save].map(parse)).name,'conversation_reply');
+  // A reply written alongside a save is only early: the save runs (behind the consent check) and the reply waits.
+  assert.equal(chooseReplying([tool('conversation_reply',{response:'ok'}),save].map(parse)).name,'save_to_wishlist');
   assert.equal(chooseReplying([save,tool('manage_price_alerts',{operation:'create'})].map(parse)).name,'manage_price_alerts');
   let executed;
   await generateReply([{direction:'inbound',body:'the ivory and black ones'}],env,async()=>agentTurn(save,interest),
@@ -137,4 +138,38 @@ test('an independent consent check gates every save: a block makes the agent re-
   // With the user's actual request, the check approves and the save runs.
   saved=0;assert.equal(await agentReply([{direction:'inbound',body:'save the ivory pair'}],env,withConsent(async()=>agentTurn(tool('save_to_wishlist',{option_indices:[0]}))),{facts,wishlistState:choice,wishlistAction:async()=>{saved++;return 'Saved';}}),'Saved');
   assert.equal(saved,1);
+});
+
+test('the model decides continuation and option indices afresh: the previous plan shows only the brief’s lasting parts',async()=>{
+  const plan={continuation:false,mode:'discover',named_model:null,required_brands:['Our Legacy'],hard_constraints:['pleated'],guidance:[],keep_option_indices:[2],exclude_option_indices:[0]};
+  let context;
+  await generateReply([{direction:'inbound',body:'other options?'}],env,async(_url,options)=>{context=agentContext(options);return agentTurn(tool('conversation_reply',{response:'ok'}));},
+    {facts,wishlistState:{...choice,search_brief:'Our Legacy pleated khakis',search_plan:plan},wishlistAction:async()=>'ok'});
+  assert.equal(context.pending_shopping.search_plan,undefined);
+  assert.deepEqual(context.pending_shopping.previous_search_plan,{mode:'discover',named_model:null,required_brands:['Our Legacy'],hard_constraints:['pleated'],guidance:[]});
+  assert.equal(context.pending_shopping.search_brief,'Our Legacy pleated khakis');
+});
+test('a save written alongside the closing reply still runs (behind the consent check); the reply waits for its result',async()=>{
+  let saved=0,rounds=0;
+  const reply=await generateReply([{direction:'inbound',body:'save the black ones. what do they cost?'}],env,async()=>{rounds++;
+    return agentTurn(tool('save_to_wishlist',{option_indices:[1],consent_context:'explicit_request'}),tool('conversation_reply',{response:'Saved, price unknown.'}));},
+    {facts,wishlistState:choice,wishlistAction:async()=>{saved++;return 'Saved the black pair.';}});
+  assert.equal(saved,1);assert.match(reply,/Saved the black pair/);
+});
+test('a call refused only for its timing can be made again; one that ran cannot',async()=>{
+  // Nothing pending: the alert is refused until the search's results exist, then the same call runs.
+  let alerts=0,searched=0,request=0;
+  const found={stage:'choice',query:'x',options};
+  // The raw loop (no restating model), so the model's own third call is the alert.
+  await agentReply([{direction:'inbound',body:'find these cheaper and watch the price'}],env,async(_url,options)=>{
+    if(isConsentCheck(options))return consentResponse(true);
+    request++;
+    const outputs=toolOutputs(options);
+    if(request===1)return agentTurn(tool('manage_price_alerts',{operation:'create',option_indices:[0],consent_context:'explicit_request'}));
+    if(request===2){assert.equal(outputs[0].status,'not_run');return agentTurn(tool('find_products',{query:'Example Trail'}));}
+    if(request===3)return agentTurn(tool('manage_price_alerts',{operation:'create',option_indices:[0],consent_context:'explicit_request'}));
+    return agentTurn(tool('conversation_reply',{response:'done'}));},
+    {facts,wishlistState:null,shoppingState:()=>searched?found:null,
+      wishlistAction:async intent=>{if(intent.action==='start'){searched++;return 'Found one.';}alerts++;return 'Watching it.';}});
+  assert.equal(searched,1);assert.equal(alerts,1);
 });
