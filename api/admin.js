@@ -5,22 +5,25 @@ import { purchaseReview, reviewPurchase, reportMissedPurchase } from '../lib/pur
 import { groupWishlist } from '../lib/wishlist.js';
 import { marketEnvironment } from '../lib/shopping-market.js';
 import { metricsTrend } from '../lib/chat-metrics.js';
+import { deleteImportedHistory } from '../lib/gmail-import.js';
 
 export const config = { api: { bodyParser: false }, maxDuration: 30 };
 // Owner view. Conversations are read-only (Jules replies automatically); the owner can review and
 // correct imported purchase history.
-export function createAdminHandler({ auth = authorize, storeFactory = createStore, env = process.env } = {}) {
+export function createAdminHandler({ auth = authorize, storeFactory = createStore, env = process.env, fetcher = fetch } = {}) {
   return async (req, res) => {
     try {
       const access = await auth(req.headers, env);
       if (access !== 200) return json(res, access, { error: access === 503 ? 'Admin is not configured yet.' : 'Please sign in with the owner account.' });
       if (!['GET','POST'].includes(req.method)) { res.setHeader('Allow', 'GET, POST'); return json(res, 405, { error: 'Method not allowed.' }); }
       if (req.method === 'POST') {
-        // The only writes are purchase-history reviews; manual replies stay retired.
+        // The only writes are purchase-history reviews and the onboarding reset; manual replies stay retired.
         const input = await readJson(req);
-        if (!['review', 'missed'].includes(input.action)) return json(res, 400, { error: 'Unknown purchase action.' });
+        if (!['review', 'missed', 'reset-onboarding'].includes(input.action)) return json(res, 400, { error: 'Unknown purchase action.' });
+        if (input.action === 'reset-onboarding' && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Reset onboarding from the Jules admin page.' });
         const store = storeFactory(env);
         if (!uuid(input.conversation) || !await store.conversation(input.conversation)) return json(res, 404, { error: 'Conversation not found.' });
+        if (input.action === 'reset-onboarding') return json(res, 200, await resetOnboarding(store, input, env, fetcher));
         if (input.action === 'review') await reviewPurchase(store, input.conversation, input);
         else await reportMissedPurchase(store, input.conversation, input);
         return json(res, 200, await purchaseReview(store, input.conversation));
@@ -50,6 +53,18 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
       return json(res, [400, 409, 413, 415].includes(error.status) ? error.status : 503, { error: 'Could not load this view. Refresh and try again.' });
     }
   };
+}
+// Lets the owner re-run onboarding with an existing tester number. Imported history goes first, the
+// same way the person's own delete does, so a busy import stops the reset before anything changes.
+// Taste profile, wishlist, alerts, signup and every other conversation stay as they are.
+async function resetOnboarding(store, input, env, fetcher) {
+  if (input.confirm !== true) throw Object.assign(new Error('Confirm the onboarding reset first.'), { status: 400 });
+  if (!await store.onboardingSession(input.conversation)) throw Object.assign(new Error('This person has no onboarding to reset.'), { status: 409 });
+  const history = await deleteImportedHistory(store, input.conversation, env, fetcher);
+  if (history === 'busy') throw Object.assign(new Error('An import step is running for this person. Try again in two minutes; nothing was changed.'), { status: 409 });
+  const { texts_removed } = await store.resetOnboarding(input.conversation);
+  console.log(JSON.stringify({ event: 'admin_onboarding_reset', texts_removed, history }));
+  return { state: 'invited', texts_removed, history };
 }
 // A person's saved items with each item's price alert, for the owner's Wishlist tab. Test texts
 // stay limited to the designated test conversation; for everyone else the tab only previews.

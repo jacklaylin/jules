@@ -144,3 +144,24 @@ test('passive list and PDP reads preserve saved evidence without retailer checks
  }
  assert.equal(external,0);
 });
+test('one card per product: the same product saved from different stores merges, different products stay apart',async()=>{
+ const {groupWishlist}=await import('../lib/wishlist.js');
+ const saved=(item,rank,brand,name,url,amount,extra={})=>({reply_id:id,item_id:item,text_origin:true,candidate_rank:rank,brand,name,sourcing_status:'store_found',messages:{created_at:'2026-10-15T15:38:17Z'},
+  links:[{url,price_snapshot:{amount,currency:'USD',source_url:url,checked_at:'2026-10-15T15:36:35Z'}}],...extra});
+ const dsm=saved(id,0,'Dries Van Noten',"Dries Van Noten - Men's Peyter Pants - (Black)",'https://shop-us.doverstreetmarket.com/products/peyter',795);
+ const vitkac=saved(other,1,'Dries Van Noten','Dries Van Noten BLACK "Peyter" pants','https://www.vitkac.com/us/p/peyter-trousers',630);
+ const groups=groupWishlist([vitkac,dsm]);
+ assert.equal(groups.length,1);
+ assert.equal(groups[0].id,groupWishlist([dsm])[0].id,'the first-saved card keeps its id, so an alert on it stays attached');
+ assert.deepEqual(groups[0].links.map(l=>l.retailer),['shop-us.doverstreetmarket.com','vitkac.com']);
+ assert.deepEqual(groups[0].price_ranges,[{currency:'USD',min:630,max:795}]);
+ assert.equal(groups[0].entries.length,2,'removing the card removes both saves');
+ // A later save of the same product joins the earlier card instead of replacing its id.
+ const later={...vitkac,reply_id:'later',messages:{created_at:'2026-10-16T09:00:00Z'}};
+ assert.equal(groupWishlist([dsm,later])[0].id,groupWishlist([dsm])[0].id);
+ // Different color, color known to only one store, different model, different brand, or no brand: separate cards.
+ for(const differ of [{name:'Dries Van Noten NAVY "Peyter" pants'},{name:'Dries Van Noten "Peyter" pants'},{name:'Dries Van Noten BLACK "Pinner" pants'},{brand:'Other House',name:'Other House BLACK Peyter pants'},{brand:null},{selected_color:'Navy'}])
+  assert.equal(groupWishlist([dsm,{...vitkac,...differ}]).length,2,JSON.stringify(differ));
+ // Two listings of one name at the same store may be different variants; keep them apart.
+ assert.equal(groupWishlist([dsm,{...vitkac,links:[{url:'https://shop-us.doverstreetmarket.com/products/peyter-2'}]}]).length,2);
+});

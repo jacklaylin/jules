@@ -100,3 +100,8 @@ test('onboarding links are signed only in the delivered text, never in the ledge
  const f=fixture();f.store.createSignInLink=store.createSignInLink;await welcomeTester('synthetic',f.store,{...env,GMAIL_IMPORT_ENABLED:'true'},f.send);
  assert.match(f.sent.at(-1),/onboarding#signin=0000/);assert.ok([...f.operations.values()].every(o=>!o.body.includes('signin')));
 });
+test('the onboarding page greets testers by the first name they signed up with, when there is one',async()=>{
+ const f=fixture();f.store.signupFirstName=async id=>{assert.equal(id,conversation.id);return 'Ada';};
+ let res=response();await api(f)(request(),res);assert.equal(res.data.first_name,'Ada');
+ f.store.signupFirstName=async()=>{throw Error('down');};res=response();await api(f)(request(),res);assert.equal(res.statusCode,200);assert.equal(res.data.first_name,null);
+});

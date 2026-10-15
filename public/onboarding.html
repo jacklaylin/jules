@@ -1,10 +1,66 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Your purchase history — Jules</title><link rel="icon" href="/brand/icon.svg"><link rel="stylesheet" href="/design-system.css"><link rel="stylesheet" href="/public-auth.css"><link rel="stylesheet" href="/onboarding.css"><script type="module" src="/onboarding.js"></script></head>
-<body class="public-auth-page"><header class="app-header public-header"><a class="wordmark" href="/" aria-label="Jules home"><img src="/brand/wordmark.svg" alt="Jules" width="75" height="55"></a></header><main><section class="public-auth">
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Let’s get to know each other — Jules</title><link rel="icon" href="/brand/icon.svg"><link rel="stylesheet" href="/design-system.css"><link rel="stylesheet" href="/onboarding.css"><script type="module" src="/onboarding.js"></script></head>
+<body class="onboarding-page"><header class="app-header public-header onboarding-header"><a class="wordmark" href="/" aria-label="Jules home"><img src="/brand/wordmark.svg" alt="Jules" width="75" height="55"></a></header>
+<main class="onboarding">
 
-<section id="connect" hidden><h1>Let Jules read<br>your receipts.</h1><p>The real Gmail connection is coming later. For now, try the flow: this button does not connect Gmail, read emails, or build a taste profile.</p><button class="btn--butter" id="connect-button">Connect Gmail — demo ↗</button><button id="skip-button">Not now — open my wishlist</button></section>
-<section id="thinking" hidden><div id="thinking-logo" aria-hidden="true"></div><h1 id="thinking-title">Reading your receipts.</h1><p id="playful" role="status" aria-live="polite">Finding the useful details.</p><div id="thinking-loader" class="aqua" role="progressbar" aria-label="Reading receipts"></div><p id="thinking-message">You can close this screen. We’ll text you when it’s done.</p><p id="demo-disclosure" class="fine">This is a demo. No email is connected or analyzed.</p><a class="btn" id="demo-wishlist" href="/wishlist">Open my wishlist ↗</a></section>
-<section id="gmail-connect" hidden><h1>Let <span id="connect-logo" aria-label="Jules">jules</span> read your receipts</h1><ul class="receipt-benefits"><li>Shopping receipts, orders and returns</li><li>Read-only, disconnect any time</li><li>Never sold or shared for marketing</li></ul><details class="gmail-disclosure"><summary>What Jules reads and saves</summary><p>Import matching purchase, cancellation and return emails from the last five years, up to 1,000 emails. Recent receipts and returns are prioritized before related-order searches and broader discovery. This is a selected history, not a complete record of your inbox or everything you own.</p><p>Google grants read-only mailbox access. Jules uses it to find shopping emails and read their text and receipt PDFs. Jules cannot send, change or delete your emails.</p></details><label class="check"><input type="checkbox" id="gmail-consent"><span> When I connect an account, Jules may read the shopping emails, receipts and orders it finds there. Jules sends their text to OpenAI to analyze; OpenAI doesn’t use it to train its models. Jules keeps what it learns, like items bought, brands, stores and sizes, plus short quotes as evidence, in my private profile to personalize suggestions. It doesn’t keep full emails. Jules removes email addresses and labeled card and phone numbers first, but names and addresses may remain. The Jules team can see my imported purchase history and the quotes behind it to fix problems during this test. Jules never sells this data or uses it for ads. It’s kept until I delete it or close my account, and I can disconnect or delete imported history anytime. <a href="/privacy" target="_blank">Privacy Policy</a></span></label><button class="btn--butter" id="gmail-connect-button">Connect Gmail ↗</button><a class="btn" href="/wishlist">Not now</a></section>
-<section id="gmail-history" hidden><h1 id="gmail-history-title">All done.</h1><p id="gmail-progress" role="status"></p><p id="gmail-notice"></p><p id="text-followup">Jules texted you what it found. Reply there to answer a question or correct anything.</p><a class="btn btn--butter" id="open-messages" hidden>Open Jules in Messages ↗</a><div id="actions"><button class="btn--butter" id="gmail-start">Start import</button><button id="gmail-resume">Resume now</button></div><a class="btn" id="account-link" href="/account">Manage your connections ↗</a><a class="btn" href="/wishlist">Open my wishlist ↗</a></section><section id="shop-orders" hidden><h2 id="shop-title">Add your Shop orders</h2><p>If you use the Shop app, Jules can also read your Shop order history. Orders already found in Gmail are matched, not counted twice.</p><details class="gmail-disclosure"><summary>What Jules reads and saves</summary><p>Up to 100 orders from the last five years that Shop tracks: orders from stores that use Shop checkout and orders Shop found in your email. Shop doesn’t cover every store, so this is a partial history.</p><p>Shop shows you a code and asks you to approve “Jules” in the Shop app. Jules reads your orders only; it can’t buy, use your saved cards or change your account. Remove the connection any time in Shop’s settings.</p></details><label class="check" id="shop-consent-label"><input type="checkbox" id="shop-consent"><span> When I connect an account, Jules may read the shopping emails, receipts and orders it finds there. Jules sends their text to OpenAI to analyze; OpenAI doesn’t use it to train its models. Jules keeps what it learns, like items bought, brands, stores and sizes, plus short quotes as evidence, in my private profile to personalize suggestions. It doesn’t keep full emails. Jules removes email addresses and labeled card and phone numbers first, but names and addresses may remain. The Jules team can see my imported purchase history and the quotes behind it to fix problems during this test. Jules never sells this data or uses it for ads. It’s kept until I delete it or close my account, and I can disconnect or delete imported history anytime. <a href="/privacy" target="_blank">Privacy Policy</a></span></label><p id="shop-progress" role="status" aria-live="polite"></p><p id="shop-approve" hidden>Your code: <strong id="shop-code"></strong> <a class="btn btn--butter" id="shop-approve-link" target="_blank" rel="noopener">Approve in Shop ↗</a></p><div class="shop-actions"><button class="btn--butter" id="shop-connect">Connect Shop ↗</button><button data-managed id="shop-import" hidden>Import Shop orders again</button><button id="shop-reread" hidden>Re-read all Shop orders</button><button id="shop-disconnect" hidden>Disconnect Shop</button></div></section>
-<p id="status" role="status" aria-live="polite">Loading…</p><a id="login" class="btn btn--butter" href="/login?next=onboarding" hidden>Log in to continue ↗</a><button id="retry" hidden>Try again</button><a id="messages-help" href="/wishlist" hidden>Open my wishlist</a>
-<noscript>Enable JavaScript to connect Gmail and review your history.</noscript></section></main></body></html>
+<section id="signing-in" class="ob-center" hidden><span class="ob-logo" data-logo="thinking" aria-hidden="true"></span><p class="ob-line" role="status">Signing you in…</p></section>
+
+<section id="expired" hidden><span class="orb orb--still ob-orb" aria-hidden="true"></span><h1>This link has expired.</h1><p class="intro">Sign-in links work once, for a day. Get a fresh one and you’ll be right back where you were.</p><div class="ob-actions"><button type="button" class="btn btn--butter" id="resend">Text me a new link</button></div><p class="ob-line" id="resend-status" role="status" aria-live="polite"></p></section>
+
+<section id="signed-out" hidden><h1>Log in to continue.</h1><p class="intro">Use the number you text Jules from. We’ll text you a code.</p><div class="ob-actions"><a class="btn btn--butter" href="/login?next=onboarding">Log in ↗</a></div></section>
+
+<section id="unavailable" hidden><h1>Connecting accounts isn’t open yet.</h1><p class="intro">You can still text Jules photos, screenshots and links.</p><div class="ob-actions"><a class="btn btn--butter messages-link" hidden>Go to Messages ↗</a></div></section>
+
+<section id="connect" hidden><div class="ob-columns">
+ <div class="ob-lead">
+  <p class="label" id="greeting" hidden></p>
+  <h1 id="connect-title">Let’s get to know each other.</h1>
+  <p class="intro" id="connect-intro">Connect where you shop. Jules learns your style from what you actually buy, not a quiz.</p>
+  <div class="ob-consent" id="consent-full"><p class="label">One thing first</p><label class="check"><input type="checkbox" id="consent"><span>When I connect an account, Jules may read the shopping emails, receipts and orders it finds there. Jules sends their text to OpenAI to analyze; OpenAI doesn’t use it to train its models. Jules keeps what it learns, like items bought, brands, stores and sizes, plus short quotes as evidence, in my private profile to personalize suggestions. It doesn’t keep full emails. Jules removes email addresses and labeled card and phone numbers first, but names and addresses may remain. The Jules team can see my imported purchase history and the quotes behind it to fix problems during this test. Jules never sells this data or uses it for ads. It’s kept until I delete it or close my account, and I can disconnect or delete imported history anytime. <a href="/privacy" target="_blank">Privacy Policy</a></span></label></div>
+  <div class="ob-consent ob-consent--done" id="consent-done" hidden><span class="ob-tick" aria-hidden="true">✓</span><span>Agreed to the connected-accounts consent</span><button type="button" id="consent-read">Read</button></div>
+ </div>
+ <div class="ob-sources">
+  <section class="ob-source ob-source--featured" id="gmail-card" aria-labelledby="gmail-name">
+   <div class="ob-source__head"><span class="ob-badge" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg></span><div><p class="ob-source__name" id="gmail-name">Gmail</p><p class="ob-source__what" id="gmail-what">Receipts, orders and returns from your email</p></div><span class="ob-ok" id="gmail-ok" hidden>✓ Connected</span></div>
+   <p class="ob-progress" id="gmail-progress" role="status" aria-live="polite"></p>
+   <details id="gmail-details"><summary>What Jules reads</summary><p class="fine">Shopping emails and receipt PDFs from the last 5 years, up to 1,000. Read-only: Jules can’t send, change or delete email. Google asks you to approve on its own screen.</p></details>
+   <button type="button" class="btn btn--butter" id="gmail-connect">Connect Gmail ↗</button>
+  </section>
+  <section class="ob-source" id="shop-card" aria-labelledby="shop-name" hidden>
+   <div class="ob-source__head"><span class="ob-badge" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1.2 11.2a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8L5 8z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg></span><div><p class="ob-source__name" id="shop-name">Shop</p><p class="ob-source__what">Orders from the Shop app</p></div><span class="ob-ok" id="shop-ok" hidden>✓ Connected</span></div>
+   <div id="shop-approve" class="ob-approve" hidden><p>Shop will ask you to approve Jules. Check this code matches:</p><p class="ob-code" id="shop-code" aria-label="Your code"></p><a class="btn btn--butter" id="shop-approve-link" target="_blank" rel="noopener">Approve in Shop ↗</a><p class="fine">Approve, then come back here. This updates on its own.</p></div>
+   <p class="ob-progress" id="shop-progress" role="status" aria-live="polite"></p>
+   <details id="shop-details"><summary>What Jules reads</summary><p class="fine">Up to 100 orders from the last 5 years that Shop tracks. A partial history. Read-only: Jules can’t buy, use saved cards or change your account. Orders already found in Gmail aren’t counted twice.</p></details>
+   <button type="button" class="btn" id="shop-connect">Connect Shop ↗</button>
+  </section>
+  <div class="ob-soon"><span class="orb orb--still" aria-hidden="true"></span><span>More places to connect are on the way.</span></div>
+  <div class="ob-actions"><button type="button" class="btn" id="continue" hidden>Continue</button><a class="ob-text-link messages-link" id="not-now" hidden>Not now, go to Messages</a></div>
+ </div>
+</div></section>
+
+<section id="reading" hidden>
+ <span class="ob-logo" data-logo="thinking" aria-hidden="true"></span>
+ <h1>Reading your history.</h1>
+ <div class="aqua" role="progressbar" aria-label="Reading your shopping history"></div>
+ <ul class="ob-rows">
+  <li id="row-gmail" hidden><div class="ob-row__top"><span class="ob-row__name">Gmail</span><span class="label" id="row-gmail-state"></span></div><p id="row-gmail-line" role="status"></p><button type="button" class="btn" id="gmail-resume" hidden>Resume Gmail</button></li>
+  <li id="row-shop" hidden><div class="ob-row__top"><span class="ob-row__name">Shop</span><span class="label" id="row-shop-state"></span></div><p id="row-shop-line" role="status"></p></li>
+ </ul>
+ <p class="ob-close">You can close this page. Jules will text you when she’s done.</p>
+ <div class="ob-actions"><a class="btn btn--butter messages-link" hidden>Go to Messages ↗</a></div>
+</section>
+
+<section id="done" hidden>
+ <span class="ob-logo" data-logo="done" aria-hidden="true"></span>
+ <h1>All done.</h1>
+ <p class="intro">Check Messages. Jules texted you what she found.</p>
+ <ul class="ob-rows">
+  <li id="done-gmail" hidden><div class="ob-row__top"><span class="ob-row__name">Gmail</span><span class="ob-ok">✓ Read</span></div></li>
+  <li id="done-shop" hidden><div class="ob-row__top"><span class="ob-row__name">Shop</span><span class="ob-ok" id="done-shop-state">✓ Read</span></div><p id="done-shop-line" hidden></p></li>
+ </ul>
+ <div class="ob-actions ob-actions--end"><a class="btn btn--butter messages-link" hidden>Go to Messages ↗</a><a class="ob-text-link" href="/account">Manage your connections</a></div>
+</section>
+
+<p id="status" role="status" aria-live="polite"></p><button type="button" class="btn" id="retry" hidden>Try again</button>
+<noscript>Enable JavaScript to connect your accounts.</noscript>
+</main></body></html>

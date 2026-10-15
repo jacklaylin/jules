@@ -167,3 +167,25 @@ In Supabase → SQL Editor, run `db/023_gmail_sweep.sql`. It enables `pg_cron`, 
 ## October 14 update: Open in Messages
 
 The onboarding done screen shows **Open Jules in Messages** when `JULES_PUBLIC_LINE` (Jules's iMessage number in international format, also used after signup) is set. The link is `sms:<number>`, which opens the Messages thread on iPhone and Mac. Without the setting, the button stays hidden.
+
+## October 15 update: order screenshots in chat
+
+Gmail and Shop miss a lot of shopping (in-app orders, stores that don't email item details). Testers can now send a screenshot of an order history, an order's details or a receipt (Zara, Uniqlo, Nike, the Amazon app…) in the Jules chat, and Jules adds those purchases to the same history. There is no import button or keyword: the chat agent decides the image is a past order and calls `add_order_screenshot` (`lib/order-screenshots.js`); for a product the tester wants found it searches as before. The tool is only offered when the message has (or replies to) an image.
+
+How it reads a screenshot:
+
+1. One vision call transcribes the visible shopping text (store name, order number, statuses, items, colors, sizes, prices). Names, addresses, contact and card details are left out.
+2. The transcript goes through the same receipt reader and validation as Gmail and Shop. Every kept field must quote text from the screenshot (or the message sent with it). A price, size or date that isn't shown stays unknown; the order date is used only when exactly one full date is visible.
+3. Items link to ones Gmail, Shop or an earlier screenshot already found (same store and order number, or the same store and product within 14 days), so a purchase isn't counted twice. Linking ignores letter case ("WIDE-LEG JEANS" = "Wide-leg jeans").
+4. Evidence rows use the origin `chat_screenshot` (source IDs `screenshot:<message>:<image>`). "Delete imported history" removes them with Gmail and Shop evidence, and the usual chat and admin corrections apply.
+
+Jules confirms briefly ("got those, added 3 purchases from zara") and still answers anything else in the message. A replayed message is read once: the job data keeps a short note per screenshot (`gmail_imports.data.screenshots`, counts only, no transcript). If an email or Shop import is running, the screenshot waits in the same chat queue as history answers and is added before the import's next step.
+
+**Before deploying**, run `db/029_chat_screenshots.sql` in the Supabase SQL editor (one row in `evidence_origins`). Without it the save is rejected and Jules says it couldn't save the screenshot. `node --env-file=.env.local scripts/schema-check.js` reports it if missed.
+
+### Checking it in production
+
+1. Text your Jules line a screenshot of an order from a retailer's app, for example "here's my zara order". Jules should say how many purchases it added and from which store.
+2. Open Admin → People → you → Purchases and set "Found by" to "Chat screenshot". The new items are there; an order Gmail already had shows "Gmail + Chat screenshot" instead of a second card.
+3. Send the same screenshot again: Jules should say they were already in your history, and no new card appears.
+4. In Vercel logs, search `order_screenshot_imported` (counts of added, linked and withheld items) and `order_screenshot_read_failed` / `order_screenshot_write_failed` for failures. `order_screenshot_busy` means it was queued behind a running import.

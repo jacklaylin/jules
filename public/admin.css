@@ -9,7 +9,7 @@ p{line-height:1.65}.login-card{max-width:490px;margin:7vh auto}.login-card>p{col
 .people-table tbody tr{cursor:pointer}.people-table tbody tr:hover td{background:#FAF9F7}.people-table td{height:44px}
 
 /* Person page */
-.person-title{display:flex;flex-wrap:wrap;align-items:center;gap:14px}.person-title h1{font-size:clamp(34px,4vw,52px)}
+.person-title{display:flex;flex-wrap:wrap;align-items:center;gap:14px}.person-title #reset-onboarding{margin-left:auto}.person-title h1{font-size:clamp(34px,4vw,52px)}
 [data-panel]{padding-top:4px}
 .memory-table .fact-key{font:400 13px var(--font-mono);overflow-wrap:anywhere;min-width:130px}.memory-table .fact-evidence{font-size:13px;color:var(--text-2);min-width:220px}
 .memory-table .fact-actions{white-space:nowrap}.memory-table .fact-actions button{margin:2px}
