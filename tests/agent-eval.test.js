@@ -13,6 +13,7 @@ test('every labeled case offers its expected tools in its own context, and runs 
     const expected=[...[].concat(c.expect.tool??[]).filter(Boolean),...Object.keys(c.expect.also??{})];
     assert.ok(expected.some(name=>offered.includes(name))||!expected.length,`${c.id}: none of ${expected} offered`);
     for(const name of expected.filter(n=>n!=='conversation_reply'))assert.ok(offered.includes(name),`${c.id}: ${name} not offered`);
+    if(c.expect.signal!==undefined)assert.ok(offered.includes('record_quality_signal'),`${c.id}: record_quality_signal not offered`);
     assert.equal(report.id,c.id);
   }
 });
@@ -26,5 +27,9 @@ test('scoring checks tool, nested arguments, set-valued indices, forbidden tools
   const details=AGENT_EVAL_CASES.find(x=>x.id==='details-arrive');
   assert.equal(scoreAgentEval(details,[{name:'find_products',args:{search_plan:{continuation:true,mode:'identify',guidance:[]}}}]).passed,true);
   const statement=AGENT_EVAL_CASES.find(x=>x.id==='size-statement');
-  assert.equal(scoreAgentEval(statement,[{name:'update_profile',args:{changes:[{action:'remember',field:'size'}]}}]).passed,true);
+  assert.equal(scoreAgentEval(statement,[{name:'update_profile',args:{changes:[{action:'remember',field:'size'}]}}]).passed,true);  const signal=AGENT_EVAL_CASES.find(x=>x.id==='signal-wrong-category'),quiet=AGENT_EVAL_CASES.find(x=>x.id==='no-signal-thinking-aloud');
+  assert.equal(scoreAgentEval(signal,[{name:'find_products',args:{}},{name:'record_quality_signal',args:{kind:'wrong_results'}}]).passed,true);
+  assert.match(scoreAgentEval(signal,[{name:'find_products',args:{}}]).failures[0],/missing record_quality_signal/);
+  assert.match(scoreAgentEval(quiet,[{name:'respond_to_options',args:{}},{name:'record_quality_signal',args:{kind:'other'}}]).failures[0],/unexpected record_quality_signal/);
+  assert.equal(scoreAgentEval(quiet,[{name:'respond_to_options',args:{}}]).passed,true);
 });
