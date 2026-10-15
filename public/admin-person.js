@@ -243,6 +243,22 @@ function renderWishlist() {
 }
 async function loadWishlist() { wishlist = await api(`/api/admin?view=wishlist&conversation=${encodeURIComponent(person)}`); renderWishlist(); }
 
+// ---------- Reset onboarding ----------
+// Owner re-test of signup and onboarding with an existing number; the dialog lists what is removed.
+$('reset-onboarding').onclick = () => { $('reset-person').textContent = $('person-name').textContent; $('reset-error').hidden = true; $('reset-dialog').showModal(); };
+$('reset-cancel').onclick = () => $('reset-dialog').close();
+$('reset-confirm').onclick = async () => {
+  const buttons = [$('reset-confirm'), $('reset-cancel')]; buttons.forEach(b => { b.disabled = true; }); $('reset-confirm').textContent = 'Resetting…';
+  try {
+    const data = await api('/api/admin', { method: 'POST', body: JSON.stringify({ action: 'reset-onboarding', conversation: person, confirm: true }) });
+    $('reset-dialog').close();
+    const texts = `${data.texts_removed} onboarding text${data.texts_removed === 1 ? '' : 's'} removed`;
+    notice(`Onboarding reset. ${texts}; ${data.history === 'cleared' ? 'imported history deleted and Gmail and Shop disconnected' : 'there was no imported history'}. Sign up again with this number to start over.`);
+    loadMessages().catch(error => notice(`Conversation: ${error.message}`)); loadProfile().catch(() => {}); loadPurchases(person);
+  } catch (error) { $('reset-error').textContent = error.message; $('reset-error').hidden = false; }
+  finally { buttons.forEach(b => { b.disabled = false; }); $('reset-confirm').textContent = 'Reset onboarding'; }
+};
+
 // ---------- Start ----------
 showTab(new URLSearchParams(location.search).get('tab'));
 if (!/^[0-9a-f-]{36}$/i.test(person)) { $('person-name').textContent = 'Person not found'; notice('This link does not name a person. Go back to People.'); }
