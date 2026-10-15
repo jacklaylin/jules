@@ -67,13 +67,15 @@ test('without FOUNDER_ALERT_PHONE nothing extra is sent, and the reason is still
 });
 
 test('when the model fails after a durable action, the reply reports that action instead of the generic text', async () => {
-  const db = memoryStore(), sent = [];
-  const generate = async (_m, _e, _f, memory) => { await memory.feedbackAction('the reply was too long'); throw new Error('AI request failed'); };
-  await receiveInInbox(delivery('fake-message', '#dev the reply was too long'), env, { ...quiet, store: db, generate, send: sendTo(sent) });
-  assert.deepEqual(db.feedback, ['the reply was too long', 'the reply was too long'], 'the retry re-runs the same idempotent save');
+  const db = memoryStore({ purchaseHistory: async () => ({ items: 2 }) }), sent = [];
+  let runs = 0;
+  const historyUpdate = async () => { runs++; return { updated: true, body: 'i’ve updated your purchase history.' }; };
+  const generate = async (_m, _e, _f, memory) => { await memory.purchaseHistoryAction(); throw new Error('AI request failed'); };
+  await receiveInInbox(delivery(), { ...env, GMAIL_IMPORT_ENABLED: 'true' }, { ...quiet, store: db, generate, send: sendTo(sent), historyUpdate });
+  assert.equal(runs, 2, 'the retry re-runs the same idempotent update');
   assert.notEqual(sent[0].body, GENERIC_FALLBACK);
-  assert.match(sent[0].body, /feedback saved/); assert.equal(db.rows[0].source, 'ai_fallback');
-  assert.deepEqual(db.diagnostics.get('ai:fake-message').completed, ['feedback']);
+  assert.match(sent[0].body, /purchase history/); assert.equal(db.rows[0].source, 'ai_fallback');
+  assert.deepEqual(db.diagnostics.get('ai:fake-message').completed, ['purchase_history']);
 });
 
 test('a turn past its deadline is answered before the function limit; late search results are not attached', async () => {

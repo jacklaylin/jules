@@ -8,7 +8,7 @@ Goal: a tester should almost never see "i couldn’t prepare a reply just now", 
 - One retry with a compact context (PR #44) runs only when there is time for it.
 - The whole turn has a 105-second deadline (the Vercel function stops at 120). Work still running after it is abandoned, and its late search results are not attached to the reply.
 - Starting the typing/read-receipt connection is bounded to 5 seconds and sending to 30 seconds. A send that never answers is recorded as `uncertain`, never resent.
-- If the model still fails, the reply reports what this turn already did, such as feedback saved or a purchase-history answer recorded, and asks for the rest again. With nothing finished, the generic text stands.
+- If the model still fails, the reply reports what this turn already did, such as a purchase-history answer recorded or a profile update saved, and asks for the rest again. With nothing finished, the generic text stands.
 - Every fallback is saved with `outcome: 'fallback'`, `step`, `error_class`, `model_status`, `elapsed_ms` and `compact_retry`. The founder gets a text after the tester's reply has gone out.
 
 ## Root causes fixed
