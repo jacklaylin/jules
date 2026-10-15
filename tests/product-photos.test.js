@@ -118,6 +118,11 @@ test('website photos require matching structured product data and trusted asset 
  assert.equal(images.length,1);assert.equal(images[0].source_url,'https://www.barbour.com/jacket');assert.equal((await sharp(Buffer.from(images[0].data,'base64')).metadata()).width,500);
 });
 
+test('website photos read schema.org ImageObject contentUrl and skip entries without a URL',()=>{
+ const html='<script type="application/ld+json">'+JSON.stringify({'@type':'Product',name:'Transport Windowpane Waxed Jacket',image:[{'@type':'ImageObject',contentUrl:'https://www.barbour.com/front.jpg'},{'@type':'ImageObject'},{'@type':'ImageObject',url:'https://www.barbour.com/back.jpg'}]})+'</script>';
+ assert.deepEqual(listingPhotos(html,'Transport Windowpane Waxed Jacket','https://www.barbour.com/products/jacket'),['https://www.barbour.com/front.jpg','https://www.barbour.com/back.jpg']);
+});
+
 test('a canonical multi-color ProductGroup establishes identity without assigning one variant price or stock',()=>{
  const url='https://visionaryoptics.com/products/romi';
  const group={'@type':'ProductGroup','@id':'/products/romi#product',name:'Jacques Marie Mage Romi Sunglasses',brand:{name:'Jacques Marie Mage'},hasVariant:[{'@type':'Product',name:'Jacques Marie Mage Romi Sunglasses - 6D Agar Yellow',color:'6D Agar Yellow',url:url+'?variant=1',offers:{price:'960',priceCurrency:'USD'}},{'@type':'Product',name:'Jacques Marie Mage Romi Sunglasses - Black',color:'Black',url:url+'?variant=2',offers:{price:'990',priceCurrency:'USD'}}]};
