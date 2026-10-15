@@ -20,7 +20,7 @@ const body=new Element('body'),header=new Element('header');header.className='ap
 const media=[];
 globalThis.document={body,getElementById:id=>body.querySelector('#'+id),createElement:tag=>new Element(tag),querySelector:selector=>body.querySelector(selector),querySelectorAll:selector=>body.querySelectorAll(selector),addEventListener(){}};
 globalThis.window={addEventListener(){}};globalThis.scrollY=0;globalThis.matchMedia=query=>{const value={query,matches:false,addEventListener(type,fn){this.change=fn;}};media.push(value);return value;};
-const {mountHeader,enableAdminLink,updateWishlistCount}=await import('../public/design-system.js');
+const {mountHeader,enableAdminLink}=await import('../public/design-system.js');
 mountHeader('wishlist');
 const nav=()=>document.querySelector('.header-actions');
 
@@ -36,10 +36,6 @@ test('mobile menu moves the existing actions without replacing their handlers an
  button.onclick();assert.equal(nav().parent,menu);assert.equal(menu.open,true);assert.equal(button.getAttribute('aria-expanded'),'true');assert.equal(document.querySelector('#logout').onclick,handler);
  menu.listeners.cancel({preventDefault(){}});assert.equal(menu.open,false);assert.equal(nav().parent,header);assert.equal(button.getAttribute('aria-expanded'),'false');
  button.onclick();media.find(m=>m.query==='(max-width:800px)').change({matches:false});assert.equal(menu.open,false);assert.equal(nav().parent,header);
-});
-test('menu count reflects actual wishlist state and can be cleared at sign-out',()=>{
- updateWishlistCount(5);const count=document.querySelector('.menu-count');assert.equal(count.textContent,'5 items on your wishlist');assert.equal(count.hidden,false);
- updateWishlistCount(1);assert.equal(count.textContent,'1 item on your wishlist');updateWishlistCount(null);assert.equal(count.hidden,true);
 });
 test('a delayed permission response cannot reveal Admin after sign-out',async()=>{
  let release;globalThis.fetch=()=>new Promise(resolve=>{release=resolve;});const checking=enableAdminLink('fixture-token');await enableAdminLink(null);release({ok:true});await checking;assert.equal(document.querySelector('#admin-link').hidden,true);

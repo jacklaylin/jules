@@ -1,5 +1,5 @@
 import {createLogo,initBrandActivity} from './brand-ui.js';
-let menu,menuButton,nav,header,menuCount,wishlistCount=null;
+let menu,menuButton,nav,header;
 export function mountPublicHeader(){
  for(const link of document.querySelectorAll('.public-header .wordmark'))link.replaceChildren(createLogo());
  initBrandActivity();
@@ -19,18 +19,17 @@ export function mountHeader(page){
   const mark=document.createElement('span');mark.className='nav-mark';mark.setAttribute('aria-hidden','true');const orb=document.createElement('span');orb.className='orb';mark.append(orb);control.append(textNode,mark);nav.append(control);
  }
  menuButton=document.createElement('button');menuButton.type='button';menuButton.className='menu-toggle';menuButton.textContent='Menu';menuButton.setAttribute('aria-expanded','false');menuButton.setAttribute('aria-controls','mobile-menu');menuButton.setAttribute('aria-haspopup','dialog');
- menu=document.createElement('dialog');menu.id='mobile-menu';menu.className='mobile-menu';menu.setAttribute('aria-label','Main navigation');
+ menu=document.createElement('dialog');menu.id='mobile-menu';menu.className='mobile-menu';menu.setAttribute('aria-label','Main navigation');menu.tabIndex=-1;
  const top=document.createElement('div');top.className='menu-header';const menuBrand=brand.cloneNode(true);const close=document.createElement('button');close.type='button';close.textContent='Close ×';close.className='menu-close';close.setAttribute('aria-label','Close menu');top.append(menuBrand,close);
- menuCount=document.createElement('p');menuCount.className='menu-count';menuCount.hidden=true;menu.append(top,menuCount);document.body.append(menu);
+ menu.append(top);document.body.append(menu);
  function restore(){if(menu.open)return;header.insertBefore(nav,menuButton);menuButton.setAttribute('aria-expanded','false');document.body.classList.remove('menu-open');}
  function closeMenu(){if(menu.open)menu.close();restore();}
- menuButton.onclick=()=>{menu.insertBefore(nav,menuCount);menuButton.setAttribute('aria-expanded','true');document.body.classList.add('menu-open');menu.showModal();};
+ menuButton.onclick=()=>{menu.append(nav);menuButton.setAttribute('aria-expanded','true');document.body.classList.add('menu-open');menu.showModal();menu.focus?.();};
  close.onclick=closeMenu;menu.addEventListener('close',restore);menu.addEventListener('cancel',event=>{event.preventDefault();closeMenu();});
  nav.addEventListener('click',event=>{if(event.target.closest('a,button')&&menu.open)closeMenu();});
  const mobile=matchMedia('(max-width:800px)');mobile.addEventListener('change',event=>{if(!event.matches)closeMenu();});
- header.replaceChildren(brand,nav,menuButton);updateWishlistCount(wishlistCount);initBrandActivity();initHeader();
+ header.replaceChildren(brand,nav,menuButton);initBrandActivity();initHeader();
 }
-export function updateWishlistCount(count){wishlistCount=count;if(!menuCount)return;menuCount.hidden=count===null;menuCount.textContent=count===null?'':`${count} ${count===1?'item':'items'} on your wishlist`;}
 // The owner sees one Admin entry; everyone else never learns the console exists.
 let adminToken,permissionRevision=0;
 export async function enableAdminLink(token){
