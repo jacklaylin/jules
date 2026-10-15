@@ -1,8 +1,9 @@
-import {mountAdminShell,adminJson,adminFetch,adminToken} from './admin-console.js';
+import {mountAdminShell,adminJson,adminFetch,adminToken,anchorMenus} from './admin-console.js';
 import {mountPurchases,loadPurchases,syncPurchaseView} from './admin-purchases.js';
 // Admin › People › one person: Personal memory, Conversation, Purchase history and Wishlist tabs.
 // The selected tab lives in the URL (?tab=) so every view can be linked.
 mountAdminShell('people');
+anchorMenus();
 const $ = id => document.getElementById(id);
 const el = (tag, props = {}, ...children) => { const node = Object.assign(document.createElement(tag), props); node.append(...children.filter(c => c != null && c !== false)); return node; };
 const badge = (kind, text) => el('span', { className: `badge ${kind}`, textContent: text });
@@ -20,8 +21,8 @@ function showTab(tab, push = false) {
   // On phones the tab strip scrolls sideways; keep the selected tab in view.
   const active = document.querySelector('.tabs a[aria-current]'), strip = active.parentElement;
   strip.scrollLeft = Math.max(0, active.offsetLeft - strip.offsetLeft - 16);
-  // ?item= names the purchase under review; choosing a tab (push) returns Purchase history to its list.
-  const url = new URL(location.href); url.searchParams.set('tab', tab); if (tab !== 'purchases' || push) url.searchParams.delete('item');
+  // ?item= names the purchase under review and ?view= the Purchase history view; choosing a tab (push) returns it to its list.
+  const url = new URL(location.href); url.searchParams.set('tab', tab); if (tab !== 'purchases' || push) { url.searchParams.delete('item'); url.searchParams.delete('view'); }
   if (push) history.pushState(null, '', url); else history.replaceState(null, '', url);
   syncPurchaseView();
 }
@@ -90,7 +91,7 @@ async function loadMessages(earlier = false) {
   const query = new URLSearchParams({ conversation: person });
   if (earlier && cursor) query.set('before', JSON.stringify(cursor));
   const data = await api(`/api/admin?${query}`);
-  if (!earlier) { $('person-name').textContent = data.conversation.sender_id; $('crumb').textContent = data.conversation.sender_id; document.title = `Jules admin · ${data.conversation.sender_id}`; }
+  if (!earlier) { $('person-name').textContent = data.conversation.sender_id; document.title = `Jules admin · ${data.conversation.sender_id}`; }
   messages = earlier ? [...data.messages, ...messages] : data.messages; cursor = data.before;
   renderMessages();
 }

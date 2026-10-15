@@ -1,9 +1,10 @@
 import {adminFetch} from './admin-console.js';
-import {REASONS,STATUSES,reviewed,statusOf,matches,neighbour,position,filterLabel,reviewKey} from './admin-review.js';
+import {REASONS,STATUSES,reviewed,statusOf,matches,neighbour,position,filterLabel,reviewKey,browseKey} from './admin-review.js';
 // Admin People: browse and correct a person's imported purchase history. Every correction
 // carries a "what was wrong" label; the server records it as correction evidence.
-// Opening a row shows the item review (?tab=purchases&item=<id>): the email evidence beside the
-// correction form, with J/K, 1–7 and ⌘/Ctrl+Enter so a reviewer can work through a filter by keyboard.
+// Laid out as a data view: views (?view=), one toolbar row, one status line, dense rows. Opening a row shows the
+// item review beside the list (?tab=purchases&item=<id>): the email evidence beside the correction form, with
+// J/K, 1–7 and ⌘/Ctrl+Enter so a reviewer can work through a filter by keyboard.
 const $ = id => document.getElementById(id);
 const el = (tag, props = {}, ...children) => { const node = Object.assign(document.createElement(tag), props); node.append(...children.filter(c => c != null)); return node; };
 const day = at => at ? new Date(at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : 'date unknown';
@@ -25,7 +26,9 @@ const notice = text => { $('purchases-notice').textContent = text; };
 const title = item => [item.brand, item.product].filter(Boolean).join(' · ') || 'Unnamed item';
 const filter = () => ({ status: statusFilter, store: $('purchases-store').value, source: $('purchases-source').value, query: $('purchases-search').value });
 const itemParam = () => new URLSearchParams(location.search).get('item');
-const itemHref = id => { const url = new URL(location.href); url.searchParams.set('tab', 'purchases'); if (id) url.searchParams.set('item', id); else url.searchParams.delete('item'); return url; };
+const VIEWS = ['unlinked', 'skipped', 'sources'];
+const viewParam = () => { const view = new URLSearchParams(location.search).get('view'); return VIEWS.includes(view) ? view : ''; };
+const itemHref = id => { const url = new URL(location.href); url.searchParams.set('tab', 'purchases'); url.searchParams.delete('view'); if (id) url.searchParams.set('item', id); else url.searchParams.delete('item'); return url; };
 // Style-report tags (type, group, colour family, resale). Empty until the item is tagged.
 const tagText = tags => tags ? ['Tags:', [tags.item_type, tags.group?.replace(/_/g, ' '), tags.color_family !== 'unknown' && tags.color_family, tags.resale && 'resale'].filter(Boolean).join(' · ')].join(' ') : null;
 
@@ -34,6 +37,12 @@ export function mountPurchases(request) {
   for (const id of ['purchases-search', 'purchases-store', 'purchases-source']) $(id).addEventListener('input', render);
   $('purchases-reload').onclick = () => conversation && loadPurchases(conversation);
   $('purchases-start').onclick = () => { const first = data && neighbour(data.items, null, filter()); if (first) openItem(first, true); };
+  $('purchases-clear').onclick = () => { $('purchases-store').value = ''; $('purchases-source').value = ''; render(); };
+  for (const button of $('purchases-views').querySelectorAll('button')) button.onclick = () => setView(button.dataset.view);
+  // More: each choice closes the menu; tools open as a panel above the list.
+  $('purchases-more').addEventListener('click', event => { if (event.target.closest('button')) $('purchases-more').hidePopover(); });
+  for (const button of $('purchases-more').querySelectorAll('[data-tool]')) button.onclick = () => openTool(button.dataset.tool);
+  for (const button of $('tab-purchases').querySelectorAll('[data-close-tool]')) button.onclick = () => { button.closest('.dv-tool').hidden = true; };
   $('recheck-run').onclick = recheck;
   $('report-build').onclick = () => send({ action: 'build-report' }, 'Building the style report…');
   $('report-send').onclick = () => { if (confirm('Text this person a link to their style report?')) send({ action: 'send-report' }, 'Texting the link…'); };
@@ -78,20 +87,49 @@ async function send(body, message) {
   finally { busy = false; buttons.forEach(b => { b.disabled = false; }); render(); }
 }
 
+function setView(view) {
+  const url = new URL(location.href); url.searchParams.set('tab', 'purchases'); url.searchParams.delete('item');
+  if (view) url.searchParams.set('view', view); else url.searchParams.delete('view');
+  history.pushState(null, '', url); render();
+}
+
+function openTool(name) {
+  for (const tool of $('tab-purchases').querySelectorAll('.dv-tool')) tool.hidden = tool.id !== `tool-${name}`;
+  $(`tool-${name}`).querySelector('h2').scrollIntoView({ block: 'nearest' });
+}
+
+// Store and source live in the Filters menu; when set they show as removable tokens on the status line.
+function renderTokens() {
+  const set = [$('purchases-store'), $('purchases-source')].filter(select => select.value);
+  $('purchases-filter-count').hidden = !set.length; $('purchases-filter-count').textContent = set.length;
+  $('purchases-tokens').replaceChildren(...set.map(select => {
+    const label = `${select.closest('label').firstChild.textContent}: ${select.selectedOptions[0].textContent}`;
+    const remove = el('button', { type: 'button', textContent: '×', ariaLabel: `Remove filter ${label}` });
+    remove.onclick = () => { select.value = ''; render(); };
+    return el('span', { className: 'dv-token' }, label, remove);
+  }));
+}
+
 function render() {
-  const open = !$('tab-purchases').hidden && itemParam();
-  for (const part of document.querySelectorAll('[data-browse]')) part.hidden = !!open;
+  const view = viewParam(), open = !$('tab-purchases').hidden && !view && itemParam();
+  for (const button of $('purchases-views').querySelectorAll('button')) button.setAttribute('aria-pressed', String(button.dataset.view === view));
+  for (const panel of $('tab-purchases').querySelectorAll('[data-view-panel]')) panel.hidden = panel.dataset.viewPanel !== view;
+  for (const part of $('tab-purchases').querySelectorAll('[data-list-only]')) part.hidden = !!view;
+  $('tab-purchases').classList.toggle('reviewing', !!open);
+  $('purchases-browse').classList.toggle('open', !!open);
+  $('purchases-list').classList.toggle('dv-compact', !!open);
   $('purchase-review').hidden = !open;
   if (open) renderReview(open); else shownReview = null;
-  if (!data) return;
+  if (!data) { renderTokens(); return; }
   const items = data.items, count = s => items.filter(i => statusOf(i) === s).length;
   $('purchases-count').textContent = items.length;
+  $('purchases-loader').hidden = !['listing', 'extracting', 'questions'].includes(data.status);
   $('purchases-summary').textContent = data.status === 'not_started' && !items.length ? 'No Gmail import for this person yet.' :
     `${IMPORT_STATUS[data.status] ?? `Import ${data.status.replace('_', ' ')}`} · Imported history is partial` +
     (data.connections?.length ? ` · ${items.filter(i => i.sources.length > 1).length} found by more than one source` : '');
-  // The chips are the filter and the only place counts appear.
+  // The status filter is the only place counts appear.
   $('purchases-chips').replaceChildren(...STATUSES.map(([value, label]) => {
-    const chip = el('button', { type: 'button', textContent: `${label} ${value ? count(value) : items.length}` });
+    const chip = el('button', { type: 'button' }, label, el('span', { className: 'count', textContent: value ? count(value) : items.length }));
     chip.setAttribute('aria-pressed', String(statusFilter === value));
     chip.onclick = () => { statusFilter = value; render(); };
     return chip;
@@ -100,9 +138,12 @@ function render() {
   const chosen = $('purchases-store').value;
   $('purchases-store').replaceChildren(el('option', { value: '', textContent: 'All stores' }), ...stores.map(s => el('option', { value: s, textContent: s })));
   $('purchases-store').value = stores.includes(chosen) ? chosen : '';
+  renderTokens();
   const current = filter(), shown = items.filter(i => matches(i, current));
-  $('purchases-start').hidden = !shown.length;
-  $('purchases-list').replaceChildren(...(shown.length ? shown.map(itemRow) : [el('p', { className: 'muted', textContent: items.length ? 'No items match these filters.' : 'No purchases found yet.' })]));
+  $('purchases-start').hidden = !shown.length || !!open || !!view;
+  const head = el('div', { className: 'dv-head', ariaHidden: 'true' }, ...['Item', 'Store', 'Size', 'Colour', 'Price', 'Date', 'For', 'Status'].map((text, n) => el('span', { className: n === 7 ? 'end' : '', textContent: text })));
+  $('purchases-list').replaceChildren(...(shown.length ? [head, ...shown.map(itemRow)] : [el('p', { className: 'empty-state', textContent: items.length ? 'No purchases match these filters.' : 'No purchases found yet.' })]));
+  if (open) $('purchases-list').querySelector('[aria-current="true"]')?.scrollIntoView({ block: 'nearest' });
   $('purchases-pending').hidden = !data.pending.length;
   $('purchases-pending-count').textContent = data.pending.length;
   $('purchases-pending-list').replaceChildren(...data.pending.map(p => el('tr', {},
@@ -118,14 +159,23 @@ const facts = item => [item.merchant, item.size_label && `size ${item.size_label
   day(item.events.find(e => e.kind === 'purchased')?.at), RECIPIENTS[item.recipient.value] + (item.recipient.basis === 'receipt_evidence' ? ' (receipt)' : ''), OUTCOMES[item.outcome]].filter(Boolean);
 const statusText = (item, withReviewed) => [item.sources.map(sourceName).join(' + '), item.removed && !item.duplicate_of && 'Removed', item.duplicate_of && 'Duplicate', item.confirmed && 'Confirmed', item.confirmed_fields.length && 'Edited', withReviewed && reviewed(item) && 'Reviewed'].filter(Boolean).join(' · ');
 
+// One dense row. Cells clip with the full text on hover; with an item open (or on a phone) the row
+// shrinks to the item and one facts line.
 function itemRow(item) {
   // Quiet status text on the right; "To review" rows show nothing because the filter says it.
   // "Reviewed" appears here only; the item review shows the correction history instead.
-  const status = statusText(item, true);
-  const row = el('a', { className: `purchase ${statusOf(item)}`, href: itemHref(item.id).search },
-    el('span', { className: 'purchase-title' }, el('strong', { textContent: title(item) }), el('span', { className: 'meta', textContent: facts(item).join(' · ') }),
-      item.tags ? el('span', { className: 'meta', textContent: tagText(item.tags) }) : null),
-    status ? el('span', { className: 'purchase-status', textContent: status }) : null);
+  const status = statusText(item, true), outcome = OUTCOMES[item.outcome];
+  const cell = text => el('span', { className: 'dv-col muted', textContent: text ?? '', title: text ?? '' });
+  const name = el('span', {}, item.brand ? el('strong', { textContent: item.brand }) : null, item.brand && item.product ? ' · ' : '',
+    item.product ?? (item.brand ? '' : 'Unnamed item'), item.quantity > 1 ? ` ×${item.quantity}` : '');
+  const row = el('a', { className: `dv-row ${statusOf(item)}`, href: itemHref(item.id).search, title: tagText(item.tags) ?? '' },
+    el('span', { className: 'dv-item' }, name, el('span', { className: 'dv-facts', textContent: facts(item).join(' · ') })),
+    cell(item.merchant), cell(item.size_label && `${item.size_label}${item.size_system ? ` (${item.size_system})` : ''}`), cell(item.color),
+    cell(item.price?.text), cell(day(item.events.find(e => e.kind === 'purchased')?.at)),
+    cell(RECIPIENTS[item.recipient.value] + (item.recipient.basis === 'receipt_evidence' ? ' (receipt)' : '')),
+    el('span', { className: 'end muted', title: [outcome, status].filter(Boolean).join(' · ') }, outcome ? el('strong', { textContent: outcome }) : null, outcome && status ? ' · ' : '', status));
+  row.dataset.id = item.id;
+  if (item.id === itemParam()) row.setAttribute('aria-current', 'true');
   row.onclick = event => { if (event.metaKey || event.ctrlKey || event.shiftKey || event.button) return; event.preventDefault(); openItem(item.id, true); };
   return row;
 }
@@ -134,7 +184,20 @@ function openItem(id, push = false) {
   const url = itemHref(id);
   if (push) history.pushState(null, '', url); else history.replaceState(null, '', url);
   render();
-  if (id) { scrollTo({ top: 0 }); $('review-title')?.focus({ preventScroll: true }); }
+  // Desktop keeps the list beside the item, so only the split comes into view; on a phone the item is its own screen.
+  if (id) { if (matchMedia('(max-width: 800px)').matches) scrollTo({ top: 0 }); else $('purchases-browse').scrollIntoView({ block: 'start' }); $('review-title')?.focus({ preventScroll: true }); }
+}
+
+// Esc: back to the list, with the row that was open focused so J/K carry on from it.
+function closeItem() {
+  const id = itemParam();
+  openItem(null, true);
+  $('purchases-list').querySelector(`[data-id="${CSS.escape(id)}"]`)?.focus();
+}
+
+function focusRow(step) {
+  const rows = [...$('purchases-list').querySelectorAll('.dv-row')], at = rows.indexOf(document.activeElement);
+  rows[at < 0 ? (step > 0 ? 0 : rows.length - 1) : Math.min(rows.length - 1, Math.max(0, at + step))]?.focus();
 }
 
 // ---------- Item review ----------
@@ -142,18 +205,17 @@ function renderReview(id) {
   if (shownReview && shownReview.id === id && shownReview.data === data) return;
   shownReview = { id, data };
   const box = $('purchase-review');
-  const back = el('a', { href: itemHref(null).search, className: 'review-back', textContent: '← All purchases' });
-  back.onclick = event => { event.preventDefault(); openItem(null, true); };
+  const back = el('a', { href: itemHref(null).search, className: 'review-back' }, 'Close ', el('span', { className: 'kbd', textContent: 'Esc' }));
+  back.onclick = event => { event.preventDefault(); closeItem(); };
   if (!data) { box.replaceChildren(el('div', { className: 'review-bar' }, back), el('p', { className: 'muted', role: 'status', textContent: 'Loading purchase…' })); return; }
   const item = data.items.find(i => i.id === id);
   if (!item) { box.replaceChildren(el('div', { className: 'review-bar' }, back), el('p', { className: 'empty-state', textContent: 'This item is no longer in their purchase history. Go back to all purchases.' })); return; }
   const current = filter(), { index, total } = position(data.items, id, current);
-  const step = (label, dir) => { const button = el('button', { type: 'button', className: 'small', textContent: label }); button.onclick = () => move(dir); return button; };
   const kbd = text => el('span', { className: 'kbd', textContent: text });
-  const bar = el('div', { className: 'review-bar' }, back,
-    el('strong', { className: 'review-where', textContent: `Reviewing: ${filterLabel(current)} · ${index ? `${index} of ${total}` : `not in this filter (${total} ${total === 1 ? 'item' : 'items'})`}` }),
-    el('span', { className: 'review-keys muted' }, el('span', {}, kbd('J'), ' next'), el('span', {}, kbd('K'), ' previous'), el('span', {}, kbd('1'), '–', kbd('7'), ' pick a label'), el('span', {}, kbd('⌘ ↵'), ' save and open next')),
-    el('span', { className: 'review-steps' }, step('← Previous', -1), step('Next →', 1)),
+  const step = (label, dir, key) => { const button = el('button', { type: 'button', className: 'small' }, ...(dir < 0 ? [kbd(key), ` ${label}`] : [`${label} `, kbd(key)])); button.onclick = () => move(dir); return button; };
+  const bar = el('div', { className: 'review-bar' },
+    el('strong', { className: 'review-where mono-label', textContent: `Reviewing: ${filterLabel(current)} · ${index ? `${index} of ${total}` : `not in this filter (${total} ${total === 1 ? 'item' : 'items'})`}` }),
+    el('span', { className: 'review-steps' }, step('Previous', -1, 'K'), step('Next', 1, 'J'), back),
     el('span', { id: 'review-state', role: 'status', ariaLive: 'polite' }));
   const status = statusText(item, false);
   const head = el('div', { className: 'review-head' },
@@ -183,9 +245,19 @@ function move(dir) {
 }
 
 function onKey(event) {
-  if ($('tab-purchases').hidden || !itemParam() || !data) return;
+  if ($('tab-purchases').hidden || viewParam()) return;
+  const dialog = !!document.querySelector('dialog[open]'), menu = !!document.querySelector('.dv-pop:popover-open');
+  const browse = browseKey(event, { open: !!itemParam(), dialog, menu });
+  if (browse) {
+    event.preventDefault();
+    if (browse.type === 'search') $('purchases-search').focus();
+    else if (browse.type === 'close') closeItem();
+    else focusRow(browse.step);
+    return;
+  }
+  if (!itemParam() || !data) return;
   const item = data.items.find(i => i.id === itemParam()), form = $('purchase-review').querySelector('form.review-form');
-  const action = reviewKey(event, { open: !!item, busy, form: !!form, dialog: !!document.querySelector('dialog[open]') });
+  const action = reviewKey(event, { open: !!item, busy, form: !!form, dialog: dialog || menu });
   if (!action) return;
   event.preventDefault();
   if (action.type === 'next') move(1);
@@ -235,10 +307,12 @@ function reviewForm(item) {
     el('label', { className: 'chip' }, el('input', { type: 'radio', name, value, required: true }), el('span', { className: 'kbd', textContent: String(n + 1) }), label)));
   const extra = el('div', { className: 'review-extra' });
   const note = el('textarea', { maxLength: 500, rows: 2, placeholder: 'Optional: what should Jules have read instead?' });
-  const saveNext = el('button', { type: 'submit', textContent: 'Save and open next ' }, el('span', { className: 'kbd', textContent: '⌘ ↵' }));
+  // Save and open next is the fast path, so it is the primary (butter) button. Save correction stays first so
+  // Enter in a field still saves without moving on.
+  const saveNext = el('button', { type: 'submit', className: 'btn--butter', textContent: 'Save and open next ' }, el('span', { className: 'kbd', textContent: '⌘ ↵' }));
   saveNext.dataset.next = '';
   form.append(chips, extra, el('label', {}, 'Note', note), el('div', { className: 'review-actions' },
-    el('button', { type: 'submit', className: 'btn--butter', textContent: 'Save correction' }), saveNext,
+    el('button', { type: 'submit', textContent: 'Save correction' }), saveNext,
     el('span', { className: 'muted', textContent: 'Saved edits sit on top; the email is never changed.' })));
   chips.addEventListener('change', () => { extra.replaceChildren(...extraFields(item, form[name].value)); });
   form.onsubmit = async event => {
@@ -371,9 +445,9 @@ function renderReport() {
 function renderTags() {
   const s = data.tag_status ?? { tagged: 0, pending: 0 }, run = data.tag_run;
   $('tags-status').textContent = !s.tagged && !s.pending ? '' :
-    `Style tags: ${s.tagged} tagged${s.pending ? `, ${s.pending} still to tag` : ''}.` + (run ? ` Last run tagged ${run.tagged}.` : '');
+    `· Style tags: ${s.tagged} tagged${s.pending ? `, ${s.pending} still to tag` : ''}.` + (run ? ` Last run tagged ${run.tagged}.` : '');
   $('tags-run').hidden = !s.pending;
-  $('tags-run').textContent = s.tagged ? 'Tag the rest' : 'Tag purchases';
+  $('tags-run').replaceChildren(s.tagged ? 'Tag the rest' : 'Tag purchases', el('span', { className: 'hint', textContent: `${s.pending} untagged` }));
 }
 
 // Connected sources: the listing report (why the history is as long as it is) and each record's outcome.
