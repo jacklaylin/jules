@@ -6,6 +6,19 @@ const $=id=>document.getElementById(id),session=createSession({storage:localStor
 const fragment=new URLSearchParams(location.hash.slice(1));
 if(fragment.has('access_token'))session.save({access_token:fragment.get('access_token'),refresh_token:fragment.get('refresh_token'),expires_at:Number(fragment.get('expires_at'))||Date.now()/1000+(Number(fragment.get('expires_in'))||3600)});
 if(location.hash)history.replaceState(null,'',location.pathname+location.search);
+// A one-tap link texted by Jules signs in once. An already signed-in browser keeps its session if the link is spent.
+async function signInFromLink(token){
+ $('status').textContent='Signing you in…';
+ try{
+  const response=await fetch('/api/wishlist?phone_login=1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'link',token}),cache:'no-store'});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw Error(data.error||'Could not sign you in.');
+  session.save(data);$('status').textContent='';
+ }catch(error){
+  if(session.read()){$('status').textContent='';return;}
+  $('status').textContent=`${error.message} Log in with the number you text Jules from.`;$('login').hidden=false;throw error;
+ }
+}
 $('connect-logo').replaceChildren(createLogo());
 const logo=createLogo();$('thinking-logo').append(logo);
 let busy=false,textURL=false;
@@ -44,7 +57,7 @@ async function act(action){
 }
 $('connect-button').onclick=()=>act('connect-demo');$('skip-button').onclick=()=>act('skip');$('retry').onclick=load;
 let importBusy=false, gmailConnection=false, expandedConsent=false;
-const gmailConsentVersion="gmail-receipts-5y-1000-v2";
+const gmailConsentVersion="gmail-receipts-5y-1000-v3";
 async function gmailAPI(action,extra={}){
  const token=await session.token();if(!token){$('login').hidden=false;throw Error('Log in with the number you text Jules from to continue.');}
  const response=await fetch('/api/wishlist?gmail=1',{method:action?'POST':'GET',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},...(action?{body:JSON.stringify({action,...extra})}:{}),cache:'no-store'});
@@ -90,7 +103,7 @@ async function runImport(resume=false){
 // <name>-orders, -title, -consent, -consent-label, -progress, -approve, -code, -approve-link, -connect,
 // -import, -reread, -disconnect. Approval happens in the source's app with a short code; the page then reads
 // records in steps.
-const SOURCES={shop:{label:'Shop',noun:'orders',consent:'shop-orders-5y-100-v1'}},wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+const SOURCES={shop:{label:'Shop',noun:'orders',consent:'shop-orders-5y-100-v2'}},wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const sourceBusy=new Set();
 function renderSources(data){
  for(const [name,source] of Object.entries(SOURCES)){
@@ -106,9 +119,13 @@ function renderSources(data){
 async function sourceCall(name,action,extra={}){
  for(let attempt=0;;attempt++){try{return await gmailAPI('connection-'+action,{source:name,...extra});}catch(error){if(error.status!==409||attempt>=5)throw error;await wait(2000);}}
 }
+// With background work the server polls for approval and reads; the page only shows progress, so
+// it can be closed. Without it (local runs), the page drives each step.
 async function runSource(name,data){
  if(sourceBusy.has(name))return;sourceBusy.add(name);
+ const working=d=>['awaiting_approval','extracting'].includes(d.connections?.[name]?.status);
  try{
+  if(data.background){while(working(data)){await wait(4000);data=await gmailAPI();renderGmail(data);}return;}
   while(data.connections?.[name]?.status==='awaiting_approval'){await wait((data.connections[name].interval??5)*1000);data=await sourceCall(name,'poll');renderGmail(data);}
   while(data.connections?.[name]?.status==='extracting'){data=await sourceCall(name,'step');renderGmail(data);}
  }catch(error){$('status').textContent=error.message;}
@@ -132,4 +149,4 @@ async function loadGmail(){
 $('gmail-connect-button').onclick=async()=>{if(!$('gmail-consent').checked){$('status').textContent='Review and confirm receipt analysis consent first.';return;}$('gmail-connect-button').disabled=true;try{if(gmailConnection){await gmailAPI('start',{consent:gmailConsentVersion});await runImport();}else{const data=await gmailAPI('connect',{consent:gmailConsentVersion});location.assign(data.url);}}catch(error){$('status').textContent=error.message;$('gmail-connect-button').disabled=false;}};
 $('gmail-start').onclick=async()=>{try{await gmailAPI('start');await runImport();}catch(error){$('status').textContent=error.message;}};
 $('gmail-resume').onclick=()=>runImport(true);
-await load();
+try{if(fragment.get('signin'))await signInFromLink(fragment.get('signin'));await load();}catch{}

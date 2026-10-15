@@ -66,3 +66,53 @@ test('the sweep endpoint requires the secret generated in Supabase Vault',async(
  resetSweepSecret();
 });
 test('a successful step clears sweep retries',async()=>{const store=fixture();store.row.data.job.sweep_retries=3;await runGmailStep('owner',store,{},{},{step:async row=>row,schedule:()=>{}});assert.equal(store.row.data.job.sweep_retries,undefined);});
+test('the reading-your-emails text is sent on the first import only',async()=>{
+ const run=async data=>{const store=fixture(),notes=[];store.row.data={...data,job:{status:'listing',started_at:'s'}};await runGmailStep('owner',store,{},{},{step:async row=>row,notify:async(s,o,e,stage)=>{notes.push(stage);return {status:'sent'};},schedule:()=>{}});return notes;};
+ assert.deepEqual(await run({}),['started:s']);
+ assert.deepEqual(await run({sources:[{id:'m1'}]}),[]);
+ assert.deepEqual(await run({scanned_ids:['x']}),[]);
+});
+
+// Connected sources (Shop) in the background chain
+function sourceFixture(connections,job=null){const store=fixture();store.row.data={connections,...(job?{job}:{})};if(!job)store.row.token_ciphertext=null;return store;}
+const approved=(status='extracting')=>({status,credential:'sealed',imported_at:new Date().toISOString(),queue:[{id:'shop:1'}],processed:0});
+test('a source waiting for approval is polled on the server at its interval, with no browser',async()=>{
+ const store=sourceFixture({shop:{status:'awaiting_approval',pending:{interval:5,polled_at:Date.now(),started_at:new Date().toISOString()}}});const actions=[],waits=[];
+ const source=async(s,action,{data,state,pending})=>{actions.push(action);return {data:{...data,connections:{shop:approved('ready')}},state,pending,evidence:[]};};
+ let clock=Date.now();await runGmailStep('owner',store,{},{deadline:Date.now()+60000},{source,now:()=>clock,wait:async ms=>{waits.push(ms);clock+=ms;},announce:async()=>{},ask:async()=>{},schedule:()=>assert.fail()});
+ assert.equal(waits.length,1);assert.ok(waits[0]>0&&waits[0]<=5000,'waits for the poll interval');assert.deepEqual(actions,['poll']);
+});
+test('Gmail and a source take turns in one chain, and the completion text waits for both',async()=>{
+ const store=sourceFixture({shop:approved()},{status:'extracting',started_at:new Date(Date.now()-60000).toISOString()});let gmailSteps=0,shopSteps=0;const order=[],announced=[];
+ const step=async row=>{gmailSteps++;order.push('gmail');return {...row,data:{...row.data,job:{...row.data.job,status:gmailSteps>=2?'ready':'extracting'}}};};
+ const source=async(s,action,{data,state,pending})=>{shopSteps++;order.push('shop');return {data:{...data,connections:{shop:{...data.connections.shop,status:shopSteps>=2?'ready':'extracting'}}},state,pending,evidence:[]};};
+ await runGmailStep('owner',store,{},{deadline:Date.now()+60000},{step,source,announce:async()=>{announced.push(structuredClone(store.row.data));},ask:async()=>{},schedule:()=>{}});
+ assert.deepEqual(order,['gmail','shop','gmail','shop']);assert.equal(announced.length,1,'one completion text');
+ assert.equal(announced[0].job.status,'ready');assert.equal(announced[0].connections.shop.status,'ready');
+});
+test('approval that never comes stops holding back the completion text after the cutoff',async()=>{
+ const started=new Date(Date.now()-11*60000).toISOString();
+ const store=sourceFixture({shop:{status:'awaiting_approval',pending:{interval:5,polled_at:Date.now(),started_at:started}}},{status:'ready',started_at:'s'});let announced=0;
+ await runGmailStep('owner',store,{},{deadline:0},{announce:async()=>{announced++;},schedule:()=>{},wait:async()=>{}});
+ assert.equal(announced,1);assert.equal(store.row.data.announced,'s');
+ await runGmailStep('owner',store,{},{deadline:0},{announce:async()=>{announced++;},schedule:()=>{},wait:async()=>{}});assert.equal(announced,1,'announced once');
+ const fresh=sourceFixture({shop:{status:'awaiting_approval',pending:{interval:5,polled_at:Date.now(),started_at:new Date().toISOString()}}},{status:'ready',started_at:'s'});
+ await runGmailStep('owner',fresh,{},{deadline:0},{announce:async()=>assert.fail('inside the cutoff'),schedule:()=>{},wait:async()=>{}});
+});
+test('a source finishing after its round was announced goes on to its questions',async()=>{
+ const store=sourceFixture({shop:approved()},{status:'ready',started_at:'s'});store.row.data.announced='s';const calls=[];
+ const source=async(s,action,{data,state,pending})=>({data:{...data,connections:{shop:{...data.connections.shop,status:'ready'}}},state,pending,evidence:[]});
+ await runGmailStep('owner',store,{},{},{source,announce:async()=>calls.push('announce'),ask:async()=>calls.push('ask'),schedule:()=>{}});
+ assert.deepEqual(calls,['ask']);
+});
+test('a source that keeps failing stops with a message to import again, and does not hold back the text',async()=>{
+ const store=sourceFixture({shop:approved()},{status:'ready',started_at:'s'});let announced=0;const options={source:async()=>{throw Error('down');},announce:async()=>{announced++;},schedule:()=>{},wait:async()=>{}};
+ for(let i=0;i<4;i++)await runGmailStep('owner',store,{},{},options);
+ assert.equal(store.row.data.connections.shop.status,'connected');assert.match(store.row.data.connections.shop.error,/Import it again/);assert.equal(announced,1);
+});
+test('the sweep restarts a quiet source that is still reading or waiting for approval',()=>{
+ const quiet=new Date(Date.now()-120000).toISOString();
+ assert.equal(sweepDue({updated_at:quiet,connections:{shop:{status:'awaiting_approval'}}}),true);
+ assert.equal(sweepDue({updated_at:quiet,connections:{shop:{status:'ready'}}}),false);
+ assert.equal(sweepDue({updated_at:new Date().toISOString(),connections:{shop:{status:'extracting'}}}),false);
+});

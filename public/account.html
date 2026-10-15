@@ -9,7 +9,7 @@
 <p id="gmail-summary"></p>
 <div class="account-actions">
 <a class="btn btn--butter" id="gmail-connect" href="/onboarding" hidden>Connect Gmail ↗</a>
-<button class="primary" id="gmail-import" hidden>Import again</button>
+<button class="btn--butter" id="gmail-import" hidden>Import again</button>
 <button id="gmail-disconnect" hidden>Disconnect Gmail</button>
 </div>
 <p class="fine">Disconnecting stops Jules reading your email. Purchases already found stay saved until you delete them.</p>
@@ -17,9 +17,11 @@
 <section class="account-card" id="shop-card" aria-labelledby="shop-title" hidden>
 <div class="account-card-head"><h2 id="shop-title">Shop</h2><span class="tag" id="shop-state"></span></div>
 <p id="shop-summary"></p>
+<div class="account-progress" id="shop-progress" role="status" aria-live="polite" hidden><p id="shop-progress-label"></p><span class="aqua" aria-hidden="true"></span></div>
+<div class="account-result" id="shop-result" role="status" aria-live="polite" hidden><span class="orb" aria-hidden="true"></span><p id="shop-result-text"></p></div>
 <div class="account-actions">
 <a class="btn btn--butter" id="shop-connect" href="/onboarding" hidden>Connect Shop ↗</a>
-<button class="primary" id="shop-import" hidden>Import again</button>
+<button class="btn--butter" id="shop-import" hidden>Import again</button>
 <button id="shop-reread" hidden>Re-read all orders</button>
 <button id="shop-disconnect" hidden>Disconnect Shop</button>
 </div>

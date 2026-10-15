@@ -1,5 +1,5 @@
 import { composeReply } from '../lib/compose.js';
-const TEST_LABEL='[Test alert — not a real price]\n';
+const TEST_LABEL='[test alert — not a real price]\n';
 import { timingSafeEqual, randomUUID } from 'node:crypto';
 import { createStore } from '../lib/store.js';
 import { inspectAlertLinks, sizeKey } from '../lib/price-alerts.js';

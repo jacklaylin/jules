@@ -9,3 +9,8 @@
 .account-card .tag.off{background:var(--fog)}
 .account-actions{display:flex;flex-wrap:wrap;gap:10px;margin:16px 0 4px}
 #notice:empty{display:none}
+/* In-card progress and result for a connected source: the shared Aqua loader and orb, beside the action. */
+.account-progress{margin:16px 0 4px;display:grid;gap:10px}.account-progress p{color:var(--text-2)}.account-progress .aqua{display:block;width:100%;max-width:360px}
+.account-result{margin:16px 0 4px;display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border-radius:var(--r-card);background:var(--fog)}
+.account-result .orb{--s:14px;margin-top:4px}.account-result p{margin:0}
+.account-result.error{background:var(--white);border:1px solid var(--line)}.account-result.error .orb{display:none}

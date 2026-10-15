@@ -49,18 +49,18 @@ test('sold-out listings are never offered as options when an available one verif
 test('when everything verified is sold out, Jules says so and offers alternatives without a choice to save',async()=>{
   for(const mode of ['discover','identify']){
     const {reply,state}=await run(start({mode,required_brands:['Our Legacy']}),[p('a','Our Legacy',{availability:'OutOfStock'}),p('b','Our Legacy',{availability:'SoldOut'})]);
-    assert.equal((reply.match(/Sold out/g)??[]).length,2,mode);assert.match(reply,/^Every match I verified is sold out./);assert.match(reply,/similar item/);
+    assert.equal((reply.match(/ · sold out/g)??[]).length,2,mode);assert.match(reply,/^every match i verified is sold out./);assert.match(reply,/similar item/);
     assert.notEqual(state.stage,'choice');assert.deepEqual(state.options,[]);
   }
 });
 test('reply wording follows the final number of options',async()=>{
   const one=await run(start(),[p('a','Our Legacy')]);
-  assert.doesNotMatch(one.reply,/A few options|Which feel closest|^1\. /m);assert.match(one.reply,/One option/);
-  const three=await run(start(),[p('a','A'),p('b','B'),p('c','C')]);assert.match(three.reply,/A few options/);assert.match(three.reply,/Which feel closest/);
-  const seen=await run(start({mode:'identify'}),[p('a','Our Legacy')]);assert.match(seen.reply,/This could match/);
-  const seenMany=await run(start({mode:'identify'}),[p('a','Our Legacy'),p('b','Our Legacy',{name:'Other trouser b'})]);assert.match(seenMany.reply,/These could match/);
-  assert.match(formatSearch({products:[p('a','A')]}),/^I found this option\./);
-  assert.match(formatSearch({products:[p('a','A'),p('b','B')]}),/^I found these options\./);
+  assert.doesNotMatch(one.reply,/A few options|Which feel closest|^1\. /m);assert.match(one.reply,/one option/);
+  const three=await run(start(),[p('a','A'),p('b','B'),p('c','C')]);assert.match(three.reply,/a few options/);assert.match(three.reply,/which feel closest/);
+  const seen=await run(start({mode:'identify'}),[p('a','Our Legacy')]);assert.match(seen.reply,/this could match/);
+  const seenMany=await run(start({mode:'identify'}),[p('a','Our Legacy'),p('b','Our Legacy',{name:'Other trouser b'})]);assert.match(seenMany.reply,/these could match/);
+  assert.match(formatSearch({products:[p('a','A')]}),/^i found this option\./);
+  assert.match(formatSearch({products:[p('a','A'),p('b','B')]}),/^i found these options\./);
 });
 test('a continued brand search keeps the brand while excluding what was already shown',async()=>{
   const first=await run(start({required_brands:['Our Legacy']}),[p('a','Our Legacy')]);
@@ -100,10 +100,10 @@ test('a link the user just sent is offered first when verified and acknowledged 
     assert.doesNotMatch(verified.reply,/couldn’t open the page you sent/);
     const blocked={...link,sourcing_status:'store_not_found',match:'unverified',listing_check:undefined};
     const failed=await run(start({mode,required_brands:['Our Legacy']}),[p('a','Our Legacy')],reference(blocked));
-    assert.match(failed.reply,/^I couldn’t open the page you sent/,mode);assert.match(failed.reply,/products\/a/);
+    assert.match(failed.reply,/^i couldn’t open the page you sent/,mode);assert.match(failed.reply,/products\/a/);
     assert.deepEqual(failed.recorded.text_wishlist_diagnostics.supplied_links.map(s=>s.status),['unverified']);
     const nothing=await run(start({mode,required_brands:['Our Legacy']}),[],reference(blocked));
-    assert.match(nothing.reply,/^I couldn’t open the page you sent/,mode);assert.match(nothing.reply,/similar brands/);
+    assert.match(nothing.reply,/^i couldn’t open the page you sent/,mode);assert.match(nothing.reply,/similar brands/);
   }
   const sold={...link,listing_check:{...link.listing_check,availability:'OutOfStock'}};
   const soldReply=await run(start({mode:'identify'}),[p('a','Our Legacy')],reference(sold));
@@ -111,6 +111,25 @@ test('a link the user just sent is offered first when verified and acknowledged 
 });
 test('search replies never end with a technical verification footer, and extras never read as the found item',()=>{
   const body=formatSearch({products:[p('a','A'),u('b','B'),u('c','C')]});
-  assert.match(body,/^I found this option\./);assert.doesNotMatch(body,/product-page checks|Other retrieved sources|p\/b/);
+  assert.match(body,/^i found this option\./);assert.doesNotMatch(body,/product-page checks|Other retrieved sources|p\/b/);
   assert.doesNotMatch(formatSearch({products:[bonus('c','Our Legacy','likely_match')]}),/^I found this option/);
+});
+
+// A named model is the exact product the user wants; the model's plan field, not wording, decides.
+test('a named model is searched as identification and the query always carries the name',async()=>{
+  const briefs=[['Dries Van Noten pants in black','Peyter'],['black wide-leg trousers, ideally in my size','Peyter'],['Jacques Marie Mage sunglasses','Romi'],['Balenciaga large bag in black','Rodeo']];
+  for(const [query,named_model] of briefs){
+    const {recorded,queries,state}=await run({action:'start',query,search_plan:plan({named_model,required_brands:[]})},[p('a','Brand')]);
+    assert.match(queries[0],new RegExp(named_model));
+    assert.equal(state.search_plan.mode,'identify');assert.equal(recorded.text_wishlist_diagnostics.mode,'identify');
+    assert.equal(state.search_plan.named_model,named_model);
+  }
+  const {queries}=await run({action:'start',query:'Dries Van Noten Peyter pants',search_plan:plan({named_model:'peyter'})},[p('a','Brand')]);
+  assert.equal(queries[0].match(/peyter/gi).length,1,'a name already in the brief is not repeated');
+});
+test('without a named model the agent’s mode and brief are unchanged',async()=>{
+  for(const named_model of [null,undefined,'','  ']){
+    const {queries,state}=await run({action:'start',query:'relaxed khakis, any brand',search_plan:plan({named_model})},[p('a','Brand')]);
+    assert.equal(state.search_plan.mode,'discover');assert.match(queries[0],/^relaxed khakis, any brand/);
+  }
 });
