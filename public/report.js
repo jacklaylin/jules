@@ -170,7 +170,8 @@ function matchCard(card){
    el('span',{className:'match-badge','aria-hidden':'true'},svg('svg',{viewBox:'0 -1.5 48 48',width:36,height:36},svg('path',{d:HEART})))),
   el('p',{className:'match-credit',textContent:card.icon.photo?.credit??''}),
   el('p',{className:'match-pct'},el('b',{textContent:`${card.pct}%`}),' match'),
-  el('p',{className:'match-line',textContent:card.line}),
+  // Every card says what you both love and what you both hate; reports built before that keep one line.
+  ...(card.love?[card.love,card.hate].filter(Boolean):[card.line]).map(text=>el('p',{className:'match-line',textContent:text})),
   foot('story-foot match-foot'));
 }
 function spectrumCard(card){

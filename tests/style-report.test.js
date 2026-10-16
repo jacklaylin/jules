@@ -607,25 +607,47 @@ test('the style match picks the icon whose brands, palette, price and signals fi
  // Without price or signal data those parts are left out, not guessed: still a match from brands.
  const plain=styleMatch(state,tags,{});
  assert.equal(plain.eligible,true);assert.ok(plain.shared.brands.length>=2);
+ // What they both love comes with counts; what they both hate is what the purchases never include.
+ assert.deepEqual(m.loves.find(l=>l.text==='Our Legacy'),{text:'Our Legacy',fact:'Our Legacy: 3 of 12 items'});
+ assert.deepEqual(m.avoids.map(a=>a.key),['colour','prints','suits_tailoring']);
+ assert.equal(m.avoids[0].fact,'0 of 12 items with a known colour are a colour');
+ // Never a hate the icon is known for: a pink icon doesn't "hate colour".
+ const colourful=matchHistory(['Juicy Couture','Juicy Couture','Skims','Miu Miu','Von Dutch','Zara','Gap','Uniqlo','H&M','Skims']);
+ const paris=styleMatch(colourful.state,colourful.tags,{});
+ assert.equal(paris.icon.name,'Paris Hilton');assert.ok(!paris.avoids.some(a=>a.key==='colour'));
  // Too little history: no card.
  assert.equal(styleMatch(matchHistory(['Nike','Nike','Nike']).state,{}).eligible,false);
 });
 
-test('the match line names only shared brands and has a third-person twin for share links',async()=>{
- const card={icon:{name:'Frank Ocean',first:'Frank',traits:['Cult brands','Clean shapes','Says little']},shared:{brands:['Our Legacy','Nike'],signals:[],palette:null}};
+test('the match card says what you both love and what you both hate, each a counted fact',async()=>{
+ const card={icon:{name:'Frank Ocean',first:'Frank',traits:['Cult brands','Clean shapes','Says little']},shared:{brands:['Our Legacy','Nike'],signals:[],palette:null},
+  loves:[{text:'Our Legacy',fact:'Our Legacy: 6 of 40 items'},{text:'Nike',fact:'Nike: 5 of 40 items'}],
+  avoids:[{key:'prints',text:'prints',words:'print|pattern|stripe|check|floral',fact:'0 prints in 31 items with a known colour'}]};
  const names=['Our Legacy','Nike','Zara'];
- assert.equal(validMatchLine('You both love Our Legacy and say very little.',card,names),'you both love Our Legacy and say very little');
- assert.equal(validMatchLine('you both hate a logo more than an early meeting',card,names),'you both hate a logo more than an early meeting');
- // Every line keeps the card's love/hate frame.
- assert.equal(validMatchLine('you both buy Our Legacy like the care label has a syllabus',card,names),null);
- for(const bad of ['you both love Zara','you both love 4 hoodies','you both love Nike and are loyal to it','you both love '+'y'.repeat(90)])assert.equal(validMatchLine(bad,card,names),null,bad);
- const written=await writeMatchLine(card,async()=>({line:'you both love Our Legacy and say very little',shared:'Jack and Frank both love Our Legacy and say very little'}),names,'Jack');
- assert.equal(written.shared,'Jack and Frank both love Our Legacy and say very little');
- const fallback=await writeMatchLine(card,async()=>({line:'you both love Zara',shared:'you both love Zara'}),names,'Jack');
- assert.equal(fallback.written,false);assert.equal(fallback.line,'you both love Our Legacy and Nike, and the rest is just details');assert.match(fallback.shared,/^Jack and Frank both love/);assert.ok(!/\byou\b/.test(fallback.shared));
- // The share view shows the match about the person and leaves out what it was computed from.
- const view=sharedView({cards:[{type:'match',pct:94,icon:{key:'frank-ocean',...card.icon,kind:'real',photo:null},shared:card.shared,orders:121,line:written.line,shared_line:written.shared}],feedback:[],hidden:{}},'Jack');
- assert.deepEqual(Object.keys(view.cards[0]).sort(),['icon','line','pct','type']);
- assert.equal(view.cards[0].line,'Jack and Frank both love Our Legacy and say very little');
+ assert.equal(validMatchLine('You both love Our Legacy enough to own 6 of the same idea.',card,names),'you both love Our Legacy enough to own 6 of the same idea');
+ assert.equal(validMatchLine('you both hate a print, 31 items and not one pattern',card,names,null,{kind:'hate'}),'you both hate a print, 31 items and not one pattern');
+ // The frame is checked per line, numbers must come from that line's facts, and a hate is about a counted avoid.
+ for(const [bad,kind] of [['you both buy Our Legacy like the care label has a syllabus','love'],['you both hate a print','love'],['you both love Our Legacy','hate'],
+  ['you both love Our Legacy, all 7 pieces','love'],['you both hate logos more than mondays','hate'],['you both love Zara','love'],['you both love Nike and are loyal to it','love'],['you both love '+'y'.repeat(70),'love']])
+  assert.equal(validMatchLine(bad,card,names,null,{kind}),null,bad);
+ const out={love:'you both love Our Legacy enough to own 6 of the same idea',hate:'you both hate a print, 31 items and not one pattern',
+  shared_love:'Jack and Frank both love Our Legacy enough to own 6 of the same idea',shared_hate:'Jack and Frank both hate a print, 31 items and not one pattern'};
+ const written=await writeMatchLine(card,async()=>out,names,'Jack');
+ assert.deepEqual(written,{...out,written:{love:true,hate:true}});
+ // A line that fails keeps the other one and falls back to its plain fact, never filler.
+ const half=await writeMatchLine(card,async()=>({...out,hate:'you both hate logos'}),names,'Jack');
+ assert.equal(half.love,out.love);assert.equal(half.hate,'you both hate a print');assert.equal(half.shared_hate,'Jack and Frank both hate a print');
+ const fallback=await writeMatchLine(card,async()=>{throw Error('down');},names,'Jack');
+ assert.deepEqual([fallback.love,fallback.hate,fallback.shared_love],['you both love Our Legacy and Nike','you both hate a print','Jack and Frank both love Our Legacy and Nike']);
+ // With nothing they both avoid, the card has only the love line.
+ const loveOnly=await writeMatchLine({...card,avoids:[]},async()=>({...out,hate:''}),names,'Jack');
+ assert.equal(loveOnly.hate,null);assert.equal(loveOnly.love,out.love);
+ // The share view shows both lines about the person and leaves out what they were computed from.
+ const view=sharedView({cards:[{type:'match',pct:94,icon:{key:'frank-ocean',...card.icon,kind:'real',photo:null},shared:card.shared,loves:card.loves,avoids:card.avoids,orders:121,...written}],feedback:[],hidden:{}},'Jack');
+ assert.deepEqual(Object.keys(view.cards[0]).sort(),['hate','icon','love','pct','type']);
+ assert.equal(view.cards[0].hate,'Jack and Frank both hate a print, 31 items and not one pattern');
  assert.equal(sharePreview(view).description,'94% style match with Frank Ocean. Who’s your style icon?');
+ // A report built before the two lines keeps its single line.
+ const old=sharedView({cards:[{type:'match',pct:94,icon:{key:'frank-ocean',...card.icon,kind:'real',photo:null},shared:card.shared,orders:121,line:'you both love Nike',shared_line:'Jack and Frank both love Nike'}],feedback:[],hidden:{}},'Jack');
+ assert.equal(old.cards[0].line,'Jack and Frank both love Nike');
 });
