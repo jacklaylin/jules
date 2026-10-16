@@ -116,6 +116,8 @@ async function openMessage(id) {
 const TYPES = { gender: 'gender', shopping_range: 'clothing range', size: 'size', brand: 'brand', category: 'category', style: 'style', budget: 'budget' };
 let profileVersion = 0, facts = [], profileBusy = false, typeFilter = '';
 const dirty = new Map(), factKey = fact => `${fact.field}|${fact.key}`;
+// Same shape check as lib/relevance.js sizeKeyShape: a size key is category/system[/brand].
+const malformedSize = fact => { const parts = String(fact.key ?? '').split('/'); return fact.field === 'size' && !(parts.length >= 2 && parts.length <= 3 && parts.every(p => p.trim())); };
 function evidenceText(fact) {
   if (fact.source === 'operator') return `Owner edit · ${day(fact.updated_at)}`;
   const kind = fact.source === 'message' ? 'User statement' : 'Learned';
@@ -144,7 +146,7 @@ function renderFacts() {
     const save = el('button', { type: 'button', className: 'small btn--butter', textContent: 'Save', hidden: !dirty.has(keyId) });
     const remove = el('button', { type: 'button', className: 'small quiet', textContent: 'Remove' });
     const row = el('tr', { className: dirty.has(keyId) ? 'dirty' : '' },
-      el('td', { className: 'fact-type', textContent: TYPES[fact.field] ?? fact.field }), el('td', { className: 'fact-key', textContent: fact.key }),
+      el('td', { className: 'fact-type', textContent: TYPES[fact.field] ?? fact.field }), el('td', { className: 'fact-key' }, fact.key, malformedSize(fact) ? ' ' : null, malformedSize(fact) ? el('span', { className: 'badge warn', title: 'Size keys need the item it is for: category/system[/brand]. Remove this and add the correct one.', textContent: 'Needs category' }) : null),
       el('td', {}, input), el('td', { className: 'fact-evidence', textContent: evidenceText(fact), title: evidenceText(fact) }), el('td', { className: 'fact-actions' }, save, remove));
     input.oninput = () => {
       if (input.value === fact.value) dirty.delete(keyId); else dirty.set(keyId, input.value);
