@@ -60,14 +60,11 @@ test('every shown line is logged with its card, fact, source and prompt version,
  assert.equal(view.votes.receipt,null);
 });
 
-test('2+ 👍 from different people put a line in the writer prompt on the next build; a 👎 swaps it to "don’t write like this"',async()=>{
+test('one 👍 puts a line in the writer prompt on the next build; a 👎 swaps it to "don’t write like this"',async()=>{
  const store=world(),w=writer();
  for(const p of people)await buildReport(store,p,{},{interpret:w});
  assert.ok(!w.last().includes('Lines people liked'),'nothing learned yet');
  await vote(store,A,{vote:'up'});
- await buildReport(store,C,{},{interpret:w});
- assert.ok(!w.last().includes('Lines people liked'),'one person is not enough');
- await vote(store,B,{vote:'up'});
  await buildReport(store,C,{},{interpret:w});
  assert.match(w.last(),/Lines people liked on this card[^]*"ONE COLOUR AND A CROP TOP HABIT"/);
  assert.match(w.last(),/never reuse their facts/);
