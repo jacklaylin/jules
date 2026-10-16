@@ -230,7 +230,7 @@ function readCard(card){
   return paddle;
  }));
  return el('article',{className:'story-card story-read','aria-label':`${report.shared?'Their':'Your'} fit, read: ${card.verdict}. Scores ${card.scores.map(s=>`${s.label} ${s.n}`).join(', ')}`},
-  el('h2',{className:'read-title',textContent:report.shared?(report.name?`Reading ${report.name}’s fit`:'Reading their fit'):'Reading your fit'}),
+  el('h2',{className:'read-title',textContent:report.shared?(report.name?`Now, for ${report.name}’s fit check`:'Now, for their fit check'):'Now, for a fit check'}),
   el('div',{className:'read-band'},stage),
   el('p',{className:'read-closer',textContent:card.closer}),
   el('div',{className:'read-finale','aria-hidden':'true'},el('p',{className:'read-verdict',textContent:card.verdict}),paddles),
