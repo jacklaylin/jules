@@ -465,3 +465,22 @@ test('Spectrum computes sliders from purchases and the brand list, then names th
  seq=0;
  assert.equal(spectrum(projectReceiptEvidence(owner,buy({product:'Tee',merchant:'COS',brand:'COS',order_reference:'C1'})).state,{}).eligible,false);
 });
+
+test('In / Out: one order of several colourways is not a habit that went out, and plurals read right',()=>{
+ seq=0;
+ const rows=[
+  // One December order of four colourways, then nothing: not "out".
+  ...Array.from({length:4},(_,k)=>buy({product:'Opaline '+k,merchant:'Tiger Leather',brand:'Tiger Leather',order_reference:'T1'},{at:Date.UTC(2024,11,4)})).flat(),
+  // Four separate orders of accessories in 2024, none in 2026: a real habit that went out.
+  ...Array.from({length:4},(_,k)=>buy({product:'Belt '+k,merchant:'Lemaire',brand:'Lemaire',order_reference:'B'+k},{at:Date.UTC(2024,k,1)})).flat(),
+  // A sixth 2024 order, so both years are busy enough for the card.
+  ...buy({product:'Tee old',merchant:'Arket',brand:'Arket',order_reference:'A1'},{at:Date.UTC(2024,6,1)}),
+  ...Array.from({length:6},(_,k)=>buy({product:'Tee '+k,merchant:'COS',brand:'COS',order_reference:'C'+k},{at:Date.UTC(2026,k,1)})).flat(),
+ ];
+ const state=projectReceiptEvidence(owner,rows).state;
+ const tags=tagsFor(state,i=>/Tee/.test(i.product)?{item_type:'tee',group:'tops',color_family:'black',resale:false}:{item_type:'leather accessory',group:'accessories',color_family:'brown',resale:false});
+ const c=inOut(state,tags);
+ assert.ok(!c.out.some(o=>o.text==='Tiger Leather'),'a single order is not an era');
+ assert.ok(c.out.some(o=>o.text==='Lemaire'));
+ assert.ok(c.out.some(o=>o.text==='leather accessories'),'accessory → accessories');
+});

@@ -112,10 +112,19 @@ function gatekeeperCard(card,animate){
 }
 // Scales the 360×640 card to the largest size that fits its space, centred: same layout on every screen.
 const CARD_W=360,CARD_H=640;
+// Cards are designed 360 wide. Where the space is taller than 9:16 (a tall phone), the card fills the
+// full width and grows taller, its contents stretching into the room, so nothing is boxed in by margins
+// (founder, 16 Oct). Where it's wider (desktop, landscape), it stays 9:16 and is centred.
+// On a phone the card may also run a little shorter than 640 (down to 560: every card's contents still
+// fit), so it can use the full width instead of leaving bands at the sides.
+const CARD_MIN_H=560;
 function fitCard(){
  const box=$('card'),card=box.firstElementChild;if(!card||!box.clientWidth)return;
- const scale=Math.min(box.clientWidth/CARD_W,box.clientHeight/CARD_H);
- card.style.transform=`translate(${(box.clientWidth-CARD_W*scale)/2}px,${(box.clientHeight-CARD_H*scale)/2}px) scale(${scale})`;
+ const phone=box.clientWidth<600;
+ let scale=phone?Math.min(box.clientWidth/CARD_W,box.clientHeight/CARD_MIN_H):box.clientWidth/CARD_W,height=box.clientHeight/scale;
+ if(!phone&&height<CARD_H){scale=Math.min(box.clientWidth/CARD_W,box.clientHeight/CARD_H);height=CARD_H;}
+ card.style.height=`${height}px`;
+ card.style.transform=`translate(${(box.clientWidth-CARD_W*scale)/2}px,${(box.clientHeight-height*scale)/2}px) scale(${scale})`;
 }
 addEventListener('resize',fitCard);
 // Brand chips show whole rows only: chips that don't fit the card's height are dropped, never cut off.
@@ -231,7 +240,9 @@ $('tap-next').onclick=()=>go(index+1);
 $('tap-prev').onclick=()=>go(index-1);
 $('arrow-next').onclick=()=>go(index+1);
 $('arrow-prev').onclick=()=>go(index-1);
-$('home').append(wordmark());$('chrome-home').append(wordmark());
+$('home').append(wordmark());
+// On phones the wordmark sits in the bottom row beside the actions instead of inside each card.
+$('controls').append(el('span',{className:'controls-mark'},wordmark()));$('chrome-home').append(wordmark());
 const exit=person?'/admin':sharedToken?'/':'/wishlist';
 // × leaves the whole report (not just the card): back to the wishlist, or to admin for a preview.
 $('close').onclick=()=>{location.href=exit;};

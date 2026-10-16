@@ -73,6 +73,15 @@ body.report-page:has(.report-player:not([hidden])[data-ground="inout"]){backgrou
 .story-card{position:absolute;left:0;top:0;width:360px;height:640px;box-sizing:border-box;transform-origin:0 0;display:flex;flex-direction:column;gap:14px;padding:16px 22px 0;color:var(--white);overflow:hidden}
 .story-title{margin:0;font-size:34px;line-height:1}
 .story-foot{display:flex;justify-content:flex-end;padding-bottom:4px}
+/* Phones: the wordmark lives in the bottom row beside the actions, not inside each card; the card is
+   the screen's own ground, so it doesn't clip shadows at its edge. */
+.controls-mark{margin-left:auto;display:flex;align-items:center}
+.controls-mark .report-wordmark{font-size:28px}
+@media (max-width:899px),(max-height:599px){
+ .story-foot .report-wordmark{display:none}
+ .report-card,.story-inout{overflow:visible}
+}
+@media (min-width:900px) and (min-height:600px){.controls-mark{display:none}}
 /* Shared cards ask the friend reading them: "What about you?" beside the wordmark. */
 .story-ask{margin-right:auto;align-self:center;font:500 10px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;opacity:.75}
 .report-wordmark{font:400 24px/1 var(--font-serif);letter-spacing:-.04em;white-space:nowrap}
