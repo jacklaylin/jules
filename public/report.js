@@ -156,20 +156,19 @@ function emojiCard(card,animate){
 }
 // Spectrum, the closer (canvas card 7): the person's type, its line, and the sliders behind it. Every
 // dot starts in the middle and slides out to its spot.
-// Style match (canvas card 5): "It's a style match." over a polaroid of the icon with the hanger
-// badge, the computed overlap and why. No free photo yet: an empty frame with the icon's name, which
+// Style match (canvas card 5): "It's a style match." over a polaroid of the icon with a heart
+// badge (a swipe-right like), the computed match and why. No free photo yet: an empty frame with the icon's name, which
 // is the intended look, not a broken image.
-const HANGER='M20 12 a4 4 0 1 1 6 3.5 c-1.5 1 -2 2 -2 4 L5 34 a2 2 0 0 0 1.2 3.6 h35.6 a2 2 0 0 0 1.2 -3.6 L24 19.5';
+const HEART='M24 40 C10 30 5 23 5 16 a9.5 9.5 0 0 1 19 -3 a9.5 9.5 0 0 1 19 3 c0 7 -5 14 -19 24 z';
 function matchCard(card){
  const photo=card.icon.photo?.url?el('img',{className:'match-photo',src:card.icon.photo.url,alt:card.icon.name}):el('div',{className:'match-photo match-empty','aria-hidden':'true'});
  return el('article',{className:'story-card story-match','aria-label':`${card.pct}% style match with ${card.icon.name}`},
   el('h2',{className:'match-head',textContent:'It’s a style match.'}),
   el('div',{className:'match-stage'},
    el('figure',{className:'match-polaroid'},photo,el('figcaption',{textContent:card.icon.name})),
-   el('span',{className:'match-badge','aria-hidden':'true'},svg('svg',{viewBox:'0 0 48 48',width:30,height:30},svg('path',{d:HANGER})))),
+   el('span',{className:'match-badge','aria-hidden':'true'},svg('svg',{viewBox:'0 0 48 48',width:36,height:36},svg('path',{d:HEART})))),
   el('p',{className:'match-credit',textContent:card.icon.photo?.credit??''}),
-  el('p',{className:'match-pct'},el('b',{textContent:`${card.pct}%`}),` closet overlap with ${card.icon.first}`),
-  el('p',{className:'match-traits',textContent:card.icon.traits.join(' · ')}),
+  el('p',{className:'match-pct'},el('b',{textContent:`${card.pct}%`}),' match'),
   el('p',{className:'match-line',textContent:card.line}),
   foot('story-foot match-foot'));
 }
