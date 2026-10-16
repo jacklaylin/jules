@@ -44,6 +44,7 @@ export function mountPurchases(request) {
   for (const button of $('person-more').querySelectorAll('[data-tool]')) button.onclick = () => openTool(button.dataset.tool);
   for (const button of $('tab-purchases').querySelectorAll('[data-close-tool]')) button.onclick = () => { button.closest('.dv-tool').hidden = true; };
   $('recheck-run').onclick = recheck;
+  $('report-open').onclick = () => open(`/report?person=${encodeURIComponent(conversation)}`, '_blank', 'noopener');
   $('report-build').onclick = () => send({ action: 'build-report' }, 'Building the style report…');
   $('report-send').onclick = () => { if (confirm('Text this person a link to their style report?')) send({ action: 'send-report' }, 'Texting the link…'); };
   $('tags-run').onclick = () => send({ action: 'tag' }, 'Tagging purchases… this takes up to 20 seconds.');
@@ -445,16 +446,15 @@ async function saveSkipped(email, label, row) {
 }
 
 // Tags are added automatically after each import; the button tags anything left (older history,
-// The style report as the person will see it (hidden lines marked), plus build and text actions.
+// The style report lives in the More menu: open it (the player shows every card as the person sees it),
+// build or regenerate it, and text the link. Hints say when it was built and whether the link went out.
+const hint = text => text ? [el('span', { className: 'hint', textContent: text })] : [];
 function renderReport() {
-  const report = data.report, card = report?.cards.find(c => c.type === 'receipt');
-  $('report-status').textContent = report ? `Built ${day(report.built_at)}${card && !card.written ? ' · the joke line used the fallback' : ''}${data.report_sent ? ` · link ${data.report_sent}` : ''}.` : 'Not built yet.';
-  $('report-preview').hidden = !card;
-  if (card) $('report-preview').textContent = [...card.lines.map(l => `${l.hidden ? '(hidden) ' : ''}${l.label} ×${l.n}`), `TOTAL: ${card.total}`].join('\n');
-  $('report-build').textContent = report ? 'Rebuild report' : 'Build report';
+  const report = data.report;
+  $('report-build').replaceChildren(report ? 'Regenerate report' : 'Build report', ...hint(report && `built ${day(report.built_at)}`));
+  $('report-send').replaceChildren('Text them the link…', ...hint(data.report_sent === 'sent' ? 'sent' : data.report_sent));
   $('report-send').hidden = !report;
   $('report-open').hidden = !report;
-  $('report-open').href = `/report?person=${encodeURIComponent(conversation)}`;
 }
 
 // or items corrected since). Each click tags as many as fit in one request.
