@@ -53,7 +53,12 @@
    "signals": [
     "statement"
    ],
-   "photo": null
+   "photo": {
+    "url": "/brand/icons/paris-hilton.jpg",
+    "credit": "PHOTO: Kevin Paul · CC BY 4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Paris_Hilton_at_WWD_Style_Awards_2026_(cropped).jpg",
+    "licence": "CC BY 4.0"
+   }
   },
   {
    "key": "jacob-elordi",
@@ -78,7 +83,12 @@
     "luxury"
    ],
    "signals": [],
-   "photo": null
+   "photo": {
+    "url": "/brand/icons/jacob-elordi.jpg",
+    "credit": "PHOTO: JoshPopov · CC BY 4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:JacobElordi-TIFF2025-01_(cropped_2).png",
+    "licence": "CC BY 4.0"
+   }
   },
   {
    "key": "carolyn-bessette-kennedy",
@@ -102,7 +112,12 @@
     "luxury"
    ],
    "signals": [],
-   "photo": null
+   "photo": {
+    "url": "/brand/icons/carolyn-bessette-kennedy.jpg",
+    "credit": "PHOTO: John Mathew Smith · CC BY-SA 2.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Carolyn_Bessete_Kennedy_1999_(HQ).jpg",
+    "licence": "CC BY-SA 2.0"
+   }
   },
   {
    "key": "harry-styles",
@@ -128,7 +143,12 @@
    "signals": [
     "statement"
    ],
-   "photo": null
+   "photo": {
+    "url": "/brand/icons/harry-styles.jpg",
+    "credit": "PHOTO: Raph_PH · CC BY 2.0",
+    "source": "https://commons.wikimedia.org/wiki/File:HarryStylesWembley170623_(65_of_93)_(52982678051)_(cropped_2).jpg",
+    "licence": "CC BY 2.0"
+   }
   },
   {
    "key": "rihanna",
@@ -154,7 +174,12 @@
    "signals": [
     "statement"
    ],
-   "photo": null
+   "photo": {
+    "url": "/brand/icons/rihanna.jpg",
+    "credit": "PHOTO: SIGMA · CC BY 3.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Rihanna_Fenty_2018.png",
+    "licence": "CC BY 3.0"
+   }
   },
   {
    "key": "iris-apfel",
@@ -180,7 +205,12 @@
     "statement",
     "resale"
    ],
-   "photo": null
+   "photo": {
+    "url": "/brand/icons/iris-apfel.jpg",
+    "credit": "PHOTO: Miami Film Festival · CC BY-SA 2.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Iris_Apfel_at_MIFF_(cropped).jpg",
+    "licence": "CC BY-SA 2.0"
+   }
   },
   {
    "key": "diane-keaton",
@@ -205,7 +235,12 @@
    "signals": [
     "tailoring"
    ],
-   "photo": null
+   "photo": {
+    "url": "/brand/icons/diane-keaton.jpg",
+    "credit": "PHOTO: Ruven Afanador · CC BY-SA 3.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Diane_Keaton_2012-1_(cropped)_(cropped).jpg",
+    "licence": "CC BY-SA 3.0"
+   }
   },
   {
    "key": "jeff-goldblum",
@@ -231,7 +266,12 @@
     "statement",
     "tailoring"
    ],
-   "photo": null
+   "photo": {
+    "url": "/brand/icons/jeff-goldblum.jpg",
+    "credit": "PHOTO: Gage Skidmore · CC BY-SA 3.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Jeff_Goldblum_by_Gage_Skidmore_3.jpg",
+    "licence": "CC BY-SA 3.0"
+   }
   },
   {
    "key": "steve-jobs",
@@ -257,7 +297,12 @@
    "signals": [
     "uniform"
    ],
-   "photo": null
+   "photo": {
+    "url": "/brand/icons/steve-jobs.jpg",
+    "credit": "PHOTO: Matthew Yohe · CC BY-SA 3.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Steve_Jobs_Headshot_2010_(cropped_4).jpg",
+    "licence": "CC BY-SA 3.0"
+   }
   },
   {
    "key": "carrie-bradshaw",
@@ -482,7 +527,12 @@
     "premium"
    ],
    "signals": [],
-   "photo": null
+   "photo": {
+    "url": "/brand/icons/sofia-coppola.jpg",
+    "credit": "PHOTO: LucaFazPhoto · CC BY-SA 4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Sofia_Coppola_at_82nd_Venice_International_Film_Festival-8_(cropped).jpg",
+    "licence": "CC BY-SA 4.0"
+   }
   },
   {
    "key": "jane-birkin",
@@ -507,7 +557,12 @@
    "signals": [
     "denim"
    ],
-   "photo": null
+   "photo": {
+    "url": "/brand/icons/jane-birkin.jpg",
+    "credit": "PHOTO: Unknown author · Public domain",
+    "source": "https://commons.wikimedia.org/wiki/File:Jane_birkin_1970.jpg",
+    "licence": "Public domain"
+   }
   },
   {
    "key": "a-ap-rocky",
@@ -534,7 +589,12 @@
     "niche",
     "resale"
    ],
-   "photo": null
+   "photo": {
+    "url": "/brand/icons/a-ap-rocky.jpg",
+    "credit": "PHOTO: Gabriel Hutchinson · CC BY-SA 4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:A$AP_Rocky_at_the_2025_Cannes_Film_Festival_(cropped_3x4).jpg",
+    "licence": "CC BY-SA 4.0"
+   }
   },
   {
    "key": "bad-bunny",
@@ -561,7 +621,12 @@
    "signals": [
     "statement"
    ],
-   "photo": null
+   "photo": {
+    "url": "/brand/icons/bad-bunny.jpg",
+    "credit": "PHOTO: Toglenn · CC BY-SA 4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Bad_Bunny_2019_by_Glenn_Francis_(cropped).jpg",
+    "licence": "CC BY-SA 4.0"
+   }
   },
   {
    "key": "timothee-chalamet",
@@ -588,7 +653,12 @@
     "statement",
     "niche"
    ],
-   "photo": null
+   "photo": {
+    "url": "/brand/icons/timothee-chalamet.jpg",
+    "credit": "PHOTO: Harald Krichel · CC BY-SA 4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Timoth%C3%A9e_Chalamet-63482_(cropped).jpg",
+    "licence": "CC BY-SA 4.0"
+   }
   },
   {
    "key": "pharrell",
@@ -615,7 +685,12 @@
     "statement",
     "sporty"
    ],
-   "photo": null
+   "photo": {
+    "url": "/brand/icons/pharrell.jpg",
+    "credit": "PHOTO: Ramsey Cardy/Sportsfile · CC BY 2.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Pharrell_Williams_2024_(54133384149).jpg",
+    "licence": "CC BY 2.0"
+   }
   },
   {
    "key": "mary-kate-ashley-olsen",
@@ -640,7 +715,12 @@
    "signals": [
     "niche"
    ],
-   "photo": null
+   "photo": {
+    "url": "/brand/icons/mary-kate-ashley-olsen.jpg",
+    "credit": "PHOTO: David Shankbone · CC BY 3.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Ashley_Mary-Kate_Olsen_2011_Shankbone_3_(cropped).jpg",
+    "licence": "CC BY 3.0"
+   }
   },
   {
    "key": "princess-diana",
@@ -666,7 +746,12 @@
    "signals": [
     "sporty"
    ],
-   "photo": null
+   "photo": {
+    "url": "/brand/icons/princess-diana.jpg",
+    "credit": "PHOTO: John Mathew Smith · CC BY-SA 2.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Diana,_Princess_of_Wales_1997_(2).jpg",
+    "licence": "CC BY-SA 2.0"
+   }
   },
   {
    "key": "bill-cunningham",
@@ -691,7 +776,12 @@
    "signals": [
     "uniform"
    ],
-   "photo": null
+   "photo": {
+    "url": "/brand/icons/bill-cunningham.jpg",
+    "credit": "PHOTO: Jiyang Chen · CC BY-SA 3.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Bill_Cunningham_at_Fashion_Week_photographed_by_Jiyang_Chen_(cropped).jpg",
+    "licence": "CC BY-SA 3.0"
+   }
   },
   {
    "key": "frank-ocean",
@@ -717,7 +807,12 @@
    "signals": [
     "niche"
    ],
-   "photo": null
+   "photo": {
+    "url": "/brand/icons/frank-ocean.jpg",
+    "credit": "PHOTO: Andras Ladocsi · CC BY-SA 4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Frank_Ocean_2022_Blonded.jpg",
+    "licence": "CC BY-SA 4.0"
+   }
   },
   {
    "key": "jerry-seinfeld",
@@ -746,7 +841,12 @@
     "denim",
     "uniform"
    ],
-   "photo": null
+   "photo": {
+    "url": "/brand/icons/jerry-seinfeld.jpg",
+    "credit": "PHOTO: Zafrir Keren · CC BY-SA 3.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Jerry_Seinfeld_2023.jpg",
+    "licence": "CC BY-SA 3.0"
+   }
   },
   {
    "key": "paul-mescal",
@@ -772,7 +872,12 @@
     "sporty",
     "resale"
    ],
-   "photo": null
+   "photo": {
+    "url": "/brand/icons/paul-mescal.jpg",
+    "credit": "PHOTO: Jay Dixit · CC BY-SA 4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Paul_Mescal_at_the_Toronto_International_Film_Festival_in_2025_2_(cropped_2).jpg",
+    "licence": "CC BY-SA 4.0"
+   }
   },
   {
    "key": "sporty-spice",
@@ -799,7 +904,12 @@
    "signals": [
     "sporty"
    ],
-   "photo": null
+   "photo": {
+    "url": "/brand/icons/sporty-spice.jpg",
+    "credit": "PHOTO: Raimond Spekking · CC BY-SA 4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:2019_Melanie_C._(cropped).jpg",
+    "licence": "CC BY-SA 4.0"
+   }
   },
   {
    "key": "wednesday-addams",
@@ -852,7 +962,12 @@
     "tailoring",
     "knit"
    ],
-   "photo": null
+   "photo": {
+    "url": "/brand/icons/john-f-kennedy.jpg",
+    "credit": "PHOTO: Cecil Stoughton · Public domain",
+    "source": "https://commons.wikimedia.org/wiki/File:John_F._Kennedy,_White_House_color_photo_portrait.jpg",
+    "licence": "Public domain"
+   }
   },
   {
    "key": "blair-waldorf",
@@ -906,7 +1021,12 @@
     "denim",
     "tailoring"
    ],
-   "photo": null
+   "photo": {
+    "url": "/brand/icons/ralph-lauren.jpg",
+    "credit": "PHOTO: Arnaldo Anaya-Lucca · CC BY-SA 3.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Ralph_Lauren_2013.jpg",
+    "licence": "CC BY-SA 3.0"
+   }
   },
   {
    "key": "yvon-chouinard",
@@ -933,7 +1053,12 @@
     "sporty",
     "uniform"
    ],
-   "photo": null
+   "photo": {
+    "url": "/brand/icons/yvon-chouinard.jpg",
+    "credit": "PHOTO: Tom Frost · CC BY-SA 3.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Yvon_Chouinard_by_Tom_Frost.jpg",
+    "licence": "CC BY-SA 3.0"
+   }
   },
   {
    "key": "cheryl-strayed",
@@ -960,7 +1085,12 @@
    "signals": [
     "sporty"
    ],
-   "photo": null
+   "photo": {
+    "url": "/brand/icons/cheryl-strayed.jpg",
+    "credit": "PHOTO: Larry D. Moore · CC BY 4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Cheryl_Strayed_2012.jpg",
+    "licence": "CC BY 4.0"
+   }
   },
   {
    "key": "ron-swanson",

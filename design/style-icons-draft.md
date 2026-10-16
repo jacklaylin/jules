@@ -69,3 +69,11 @@ MVP: each icon uses a freely licensed photo where one exists (e.g. Wikimedia Com
 1. Added prep (JFK, Blair Waldorf, Ralph Lauren) and outdoors (Yvon Chouinard, Cheryl Strayed, Ron Swanson). Cycling shoppers can match Chouinard or Cunningham.
 2. Icons who have died stay in.
 3. Legal check stays a launch gate; not blocking the build.
+
+## Photos (October 16)
+
+Founder rule: free-licence photos only for MVP; paid licensing and the legal review stay a launch gate. Each photo below comes from Wikimedia Commons with its licence confirmed on the file page (Commons license review, Flickr review or a VRT permission ticket where one applies). The source page, licence and credit are recorded per icon in `data/style-icons.json`, and the image is stored at `public/brand/icons/<key>.jpg` (600px tall) because the site only serves its own images.
+
+**Photo (all 26 real icons):** Paris Hilton (CC BY 4.0), Jacob Elordi (CC BY 4.0), Carolyn Bessette-Kennedy (CC BY-SA 2.0), Harry Styles (CC BY 2.0), Rihanna (CC BY 3.0), Iris Apfel (CC BY-SA 2.0), Diane Keaton (CC BY-SA 3.0), Jeff Goldblum (CC BY-SA 3.0), Steve Jobs (CC BY-SA 3.0), Sofia Coppola (CC BY-SA 4.0), Jane Birkin (public domain), A$AP Rocky (CC BY-SA 4.0), Bad Bunny (CC BY-SA 4.0), Timothée Chalamet (CC BY-SA 4.0), Pharrell (CC BY 2.0), Mary-Kate & Ashley Olsen (CC BY 3.0), Princess Diana (CC BY-SA 2.0), Bill Cunningham (CC BY-SA 3.0), Frank Ocean (CC BY-SA 4.0), Jerry Seinfeld (CC BY-SA 3.0), Paul Mescal (CC BY-SA 4.0), Sporty Spice (CC BY-SA 4.0), John F. Kennedy (public domain), Ralph Lauren (CC BY-SA 3.0), Yvon Chouinard (CC BY-SA 3.0), Cheryl Strayed (CC BY 4.0).
+
+**Empty frame with the name (all 12 characters):** Moira Rose, Carrie Bradshaw, Elle Woods, Cher Horowitz, Rachel Green, Kendall Roy, Carmy Berzatto, Don Draper, Miranda Priestly, Wednesday Addams, Blair Waldorf, Ron Swanson. A photo of the actor is never used for the character.
