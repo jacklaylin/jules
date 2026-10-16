@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Jules admin · Report jokes</title><link rel="stylesheet" href="/design-system.css"><link rel="stylesheet" href="/admin.css">
+  <script src="/report-jokes.js" type="module"></script><link rel="modulepreload" href="/admin-console.js"><link rel="modulepreload" href="/design-system.js"><link rel="modulepreload" href="/brand-ui.js"><link rel="modulepreload" href="/activity.js"><link rel="modulepreload" href="/wishlist-session.js"><link rel="modulepreload" href="/admin-session.js">
+<link rel="icon" href="/brand/icon.svg" type="image/svg+xml"></head>
+<body class="admin-console">
+  <main>
+    <div class="dv-heading"><h1 class="dv-title">Report jokes</h1><span class="dv-heading-note">Thumbs on style report lines, last 7 days</span></div>
+    <div class="dv-status"><span id="summary"></span><span id="notice" role="status" aria-live="polite"></span></div>
+    <h2 class="dv-subhead">Best lines</h2>
+    <p class="dv-heading-note">👍 and no 👎. A line with 👍 from 2+ people joins its card’s examples in the writer prompt.</p>
+    <div id="best" class="dv-list jokes-list" aria-label="Best lines"></div>
+    <h2 class="dv-subhead">Worst lines</h2>
+    <p class="dv-heading-note">Any 👎. A named miss, or a 👎 on a one-line card, goes in the prompt as “don’t write like this”. An unnamed 👎 on a multi-line card counts half, spread across it.</p>
+    <div id="worst" class="dv-list jokes-list" aria-label="Worst lines"></div>
+    <h2 class="dv-subhead">Prompt versions</h2>
+    <p class="dv-heading-note">Lines shown this week per card and prompt. A prompt edit gets a new version automatically.</p>
+    <div id="prompts" class="dv-list jokes-prompts" aria-label="Prompt versions"></div>
+  </main>
+</body>
+</html>

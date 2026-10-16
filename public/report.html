@@ -67,6 +67,10 @@
   <dialog id="sheet-down" class="report-sheet" aria-labelledby="down-title">
     <h2 id="down-title" class="display">What’s off?</h2>
     <p>Pick one. Jules uses it for your next report.</p>
+    <div id="down-lines" class="report-down-lines" hidden>
+      <p class="report-down-label">Which one missed? <span>Optional</span></p>
+      <div id="down-line-picks" class="report-line-picks"></div>
+    </div>
     <div class="report-chips">
       <button type="button" data-reason="wrong">It’s wrong</button>
       <button type="button" data-reason="not_funny">Not funny</button>
