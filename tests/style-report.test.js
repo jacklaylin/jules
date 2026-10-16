@@ -614,15 +614,18 @@ test('the style match picks the icon whose brands, palette, price and signals fi
 test('the match line names only shared brands and has a third-person twin for share links',async()=>{
  const card={icon:{name:'Frank Ocean',first:'Frank',traits:['Cult brands','Clean shapes','Says little']},shared:{brands:['Our Legacy','Nike'],signals:[],palette:null}};
  const names=['Our Legacy','Nike','Zara'];
- assert.equal(validMatchLine('You both buy Our Legacy and say very little.',card,names),'you both buy Our Legacy and say very little');
- for(const bad of ['you both love Zara','you both own 4 hoodies','you both are loyal to Nike','y'.repeat(101)])assert.equal(validMatchLine(bad,card,names),null,bad);
- const written=await writeMatchLine(card,async()=>({line:'you both buy Our Legacy and say very little',shared:'Jack and Frank both buy Our Legacy and say very little'}),names,'Jack');
- assert.equal(written.shared,'Jack and Frank both buy Our Legacy and say very little');
+ assert.equal(validMatchLine('You both love Our Legacy and say very little.',card,names),'you both love Our Legacy and say very little');
+ assert.equal(validMatchLine('you both hate a logo more than an early meeting',card,names),'you both hate a logo more than an early meeting');
+ // Every line keeps the card's love/hate frame.
+ assert.equal(validMatchLine('you both buy Our Legacy like the care label has a syllabus',card,names),null);
+ for(const bad of ['you both love Zara','you both love 4 hoodies','you both love Nike and are loyal to it','you both love '+'y'.repeat(90)])assert.equal(validMatchLine(bad,card,names),null,bad);
+ const written=await writeMatchLine(card,async()=>({line:'you both love Our Legacy and say very little',shared:'Jack and Frank both love Our Legacy and say very little'}),names,'Jack');
+ assert.equal(written.shared,'Jack and Frank both love Our Legacy and say very little');
  const fallback=await writeMatchLine(card,async()=>({line:'you both love Zara',shared:'you both love Zara'}),names,'Jack');
- assert.equal(fallback.written,false);assert.match(fallback.shared,/^Jack and Frank both/);assert.ok(!/\byou\b/.test(fallback.shared));
+ assert.equal(fallback.written,false);assert.equal(fallback.line,'you both love Our Legacy and Nike, and the rest is just details');assert.match(fallback.shared,/^Jack and Frank both love/);assert.ok(!/\byou\b/.test(fallback.shared));
  // The share view shows the match about the person and leaves out what it was computed from.
  const view=sharedView({cards:[{type:'match',pct:94,icon:{key:'frank-ocean',...card.icon,kind:'real',photo:null},shared:card.shared,orders:121,line:written.line,shared_line:written.shared}],feedback:[],hidden:{}},'Jack');
  assert.deepEqual(Object.keys(view.cards[0]).sort(),['icon','line','pct','type']);
- assert.equal(view.cards[0].line,'Jack and Frank both buy Our Legacy and say very little');
+ assert.equal(view.cards[0].line,'Jack and Frank both love Our Legacy and say very little');
  assert.equal(sharePreview(view).description,'94% style match with Frank Ocean. Who’s your style icon?');
 });
