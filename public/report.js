@@ -170,7 +170,8 @@ function matchCard(card){
    el('span',{className:'match-badge','aria-hidden':'true'},svg('svg',{viewBox:'0 -1.5 48 48',width:36,height:36},svg('path',{d:HEART})))),
   el('p',{className:'match-credit',textContent:card.icon.photo?.credit??''}),
   el('p',{className:'match-pct'},el('b',{textContent:`${card.pct}%`}),' match'),
-  el('p',{className:'match-line',textContent:card.line}),
+  // Every card says what you both love and what you both hate; reports built before that keep one line.
+  ...(card.love?[card.love,card.hate].filter(Boolean):[card.line]).map(text=>el('p',{className:'match-line',textContent:text})),
   foot('story-foot match-foot'));
 }
 function spectrumCard(card){
@@ -327,7 +328,7 @@ $('controls').append(el('span',{className:'controls-mark'},wordmark()));$('chrom
 const exit=person?'/admin':sharedToken?'/':'/wishlist';
 // × leaves the whole report (not just the card): back to the wishlist, or to admin for a preview.
 $('close').onclick=()=>{location.href=exit;};
-$('chrome-close').href=exit;$('end-exit').href=exit;
+$('chrome-close').href=exit;$('end-close').href=exit;
 $('chrome-next').onclick=()=>go(0);
 $('chrome-prev').onclick=()=>go(report.cards.length-1);
 // Desktop keyboard, while no sheet is open. Cards: arrows move. Intro: → starts.
@@ -349,12 +350,13 @@ document.addEventListener('keydown',event=>{
 });
 $('restart').onclick=()=>go(0);
 // Sharing: the person's own choice. The first tap makes an unguessable link; the phone's share sheet
-// opens when there is one, otherwise the link is copied. Stop sharing turns the link off for everyone.
+// opens when there is one, otherwise the link is copied. The link is permanent and always shows the
+// latest report (founder, 16 Oct: no turning it off).
 const shareUrl=()=>`${location.origin}/r/${report.share.token}`;
 // The server returns only the report; keep what came with the first load.
 const keep=next=>({...next,name:report.name,text_url:report.text_url,missing_sources:report.missing_sources,read_photos:report.read_photos});
 async function shareLink(){
- if(!report.share){const result=await api('POST',{action:'report-share'});report=keep(result.report);shareStatus();}
+ if(!report.share){const result=await api('POST',{action:'report-share'});report=keep(result.report);}
  return shareUrl();
 }
 // Older browsers and some in-app views block the clipboard API; the selection copy still works there.
@@ -371,13 +373,8 @@ async function shareReport(){
   await copyLink(url);
  }catch(error){toast(error.message||'Couldn’t make a link. Try again.');}
 }
-function shareStatus(){$('unshare').hidden=readOnly||!report?.share;}
-$('share').onclick=shareReport;$('end-share').onclick=shareReport;
+$('share').onclick=shareReport;$('end-share').onclick=$('end-share-row').onclick=shareReport;
 $('end-copy').onclick=async()=>{try{await copyLink(await shareLink());}catch(error){toast(error.message||'Couldn’t make a link. Try again.');}};
-$('unshare').onclick=async()=>{
- try{const result=await api('POST',{action:'report-unshare'});report=keep(result.report);shareStatus();toast('Link turned off. Nobody can open it now.');}
- catch(error){toast(error.message);}
-};
 // A fresh read of another photo takes a few seconds; the card replays its entrance when it lands.
 $('read-shuffle').onclick=async()=>{
  const button=$('read-shuffle');button.disabled=true;button.textContent='Judging…';
@@ -436,11 +433,12 @@ function opened(result){
  // The end card: what Jules learns from and what to do next. With an order source still unlinked it
  // says this is all for now and leads with connecting it (founder, 16 Oct).
  const own=!readOnly,missing=own?report.missing_sources??[]:[];
- $('end-share').hidden=$('end-copy').hidden=!own;
- $('end-chat').hidden=!own||!report.text_url;if(report.text_url)$('end-chat').href=report.text_url;
- $('end-pair').hidden=$('end-copy').hidden&&$('end-chat').hidden;
+ // With a source missing, connecting it takes the pill and Share drops to a row.
  $('end-connect').hidden=!missing.length;
  $('end-connect').textContent=`Connect ${missing.map(s=>SOURCE_LABEL[s]??s).join(' and ')} ↗`;
+ $('end-share').hidden=!own||missing.length>0;$('end-share-row').hidden=!own||!missing.length;
+ $('end-copy').hidden=!own;
+ $('end-chat').hidden=!own||!report.text_url;if(report.text_url)$('end-chat').href=report.text_url;
  if(report.shared){
   // A friend's view: about the person, ending with an invitation to get their own.
   // The name appears once, in the headline; the eyebrow says where the report comes from, and the
@@ -455,7 +453,6 @@ function opened(result){
   $('intro-eyebrow').textContent=(person?'Admin preview · ':'')+[report.name?`For ${report.name}`:'For you',report.built_at&&day(report.built_at)].filter(Boolean).join(' · ');
   $('end-title').textContent=missing.length?'That’s all, for now…':report.name?`That’s your report, ${report.name}.`:'That’s your report.';
  }
- shareStatus();
  show('view-intro');
 }
 async function load(){

@@ -87,12 +87,12 @@ function ledger({asked=true,photos=0,questions=[]}={}){
 }
 const env={STYLE_ENABLED:'true'};
 const reading=async(store)=>store.sources.length?[{text:'mostly black',source_ids:[store.sources[0].id]}]:[];
-test('after asking for outfit photos, the summary waits for five before it is sent',async()=>{
- const store=ledger({photos:2});
+test('after asking for outfit photos, the summary waits for two before it is sent',async()=>{
+ const store=ledger({photos:1});
  await announceImport(store,owner,env,store.send);
  assert.equal(store.sent.length,1,'only the completion text: the summary waits for photos');
  assert.equal(await sendProfile(store,owner,env,store.send,null,{reading}),null);
- for(let i=2;i<5;i++)store.sources.push({id:'p'+i,kind:'outfit',mime_type:'image/jpeg',data:'x'});
+ for(let i=1;i<2;i++)store.sources.push({id:'p'+i,kind:'outfit',mime_type:'image/jpeg',data:'x'});
  await sendProfile(store,owner,env,store.send,null,{reading});
  assert.equal(store.sent.length,2);assert.match(store.sent[1],/what you wear: mostly black/);
  assert.equal(await sendProfile(store,owner,env,store.send,null,{reading:()=>assert.fail('read once')}),null,'sent once, without reading the photos again');

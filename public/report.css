@@ -150,17 +150,18 @@ body.report-page:has(.report-player:not([hidden])[data-ground="inout"]){backgrou
 .story-match{background:var(--bubblegum);color:var(--ink);padding:22px;gap:10px}
 .story-match p{margin:0}
 .match-head{margin:0;text-align:center;font:800 46px/.9 var(--font-sans);letter-spacing:-.055em;animation:gate-pop .6s cubic-bezier(.16,1,.3,1) .7s both}
-.match-stage{position:relative;height:250px;display:flex;justify-content:center;align-items:center}
-.match-polaroid{margin:0;width:186px;background:var(--white);padding:8px 8px 0;box-shadow:0 10px 24px #17120f40;transform:rotate(-3deg);animation:match-in .7s cubic-bezier(.16,1,.3,1) both}
-.match-photo{display:block;width:100%;height:196px;object-fit:cover;background:#DDD7D0}
+/* The stage gives up height first on short phones (two lines below it); the polaroid scales with it. */
+.match-stage{position:relative;flex:1 1 0;min-height:180px;max-height:250px;container-type:size;display:flex;justify-content:center;align-items:center}
+.match-polaroid{margin:0;background:var(--white);padding:8px 8px 0;box-shadow:0 10px 24px #17120f40;transform:rotate(-3deg);animation:match-in .7s cubic-bezier(.16,1,.3,1) both}
+.match-photo{display:block;height:calc(100cqh - 54px);aspect-ratio:170/196;object-fit:cover;background:#DDD7D0}
 .match-empty{background:repeating-linear-gradient(135deg,#F3F1EE 0 10px,#ECE8E3 10px 20px)}
 .match-polaroid figcaption{font:400 24px/1 var(--font-serif);letter-spacing:-.03em;padding:9px 2px 11px;text-align:center}
-.match-badge{position:absolute;left:calc(50% + 70px);top:6px;width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid var(--ink);background:var(--white);box-sizing:border-box;animation:gate-pop .5s ease-out both,match-beat 1.6s ease-in-out 1.4s infinite}
+.match-badge{position:absolute;left:calc(50% + 28cqh);top:6px;width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid var(--ink);background:var(--white);box-sizing:border-box;animation:gate-pop .5s ease-out both,match-beat 1.6s ease-in-out 1.4s infinite}
 .match-badge path{fill:var(--tangerine);stroke:var(--ink);stroke-width:3;stroke-linejoin:round}
 .match-credit{font:500 8px var(--font-mono);letter-spacing:.06em;text-align:center;min-height:10px;color:#17120fb3;text-transform:uppercase}
 .match-pct{font:800 22px/.85 var(--font-sans);letter-spacing:-.04em}
 .match-pct b{font-size:64px;font-weight:800;letter-spacing:-.06em}
-.match-line{font-size:17px;line-height:1.3;font-weight:600;letter-spacing:-.01em}
+.match-line{font-size:17px;line-height:1.25;font-weight:600;letter-spacing:-.01em}
 .match-foot{margin-top:auto}
 @keyframes match-in{from{opacity:0;transform:translateX(160px) rotate(20deg)}}
 @keyframes match-beat{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
@@ -233,17 +234,23 @@ body.report-page:has(.report-player:not([hidden])[data-ground="inout"]){backgrou
 .report-end h1{margin:0;font-size:60px;line-height:.95}
 .report-end p{margin:0;font-size:16px;line-height:1.45;color:var(--text-2)}
 .report-end .label{color:var(--text-2)}
-.report-end-actions{display:flex;flex-direction:column;gap:12px}
-/* One grape primary (connect when a source is missing, otherwise share); the rest step back to white. */
-.report-end .report-cta{background:var(--white);color:var(--ink)}
-.report-end .report-end-actions>.report-cta:not([hidden]){background:var(--grape);color:var(--white)}
-.report-end .report-end-actions>.report-cta:not([hidden])~.report-cta{background:var(--white);color:var(--ink)}
-.report-end-pair{display:flex;gap:10px}
-.report-end-pair .report-cta{flex:1 1 0;min-width:0;font-size:15px;padding:0 8px;white-space:nowrap}
-@media (max-width:360px){.report-end-pair .report-cta{font-size:14px}}
+.report-end-actions{display:flex;flex-direction:column;gap:20px}
+/* Option A: one grape pill (connect when a source is missing, otherwise share), then quiet rows. */
+.report-end .report-cta{background:var(--grape);color:var(--white)}
+.report-end a.report-cta{position:relative}
+.report-end a.report-cta::after{content:"";position:absolute;left:8px;right:8px;top:2px;height:44%;border-radius:inherit;background:linear-gradient(var(--gloss-top),var(--gloss-bottom));pointer-events:none}
+.report-end-rows{display:flex;flex-direction:column;border-top:1px solid var(--line)}
+.report-end-row{min-height:56px;display:flex;align-items:center;gap:12px;padding:0 4px;border:0;border-bottom:1px solid var(--line);border-radius:0;background:transparent;color:var(--ink);font:600 16px var(--font-sans);text-align:left;text-decoration:none;cursor:pointer;box-shadow:none}
+.report-end-row::after{display:none}
+.report-end-row>span:first-of-type{flex:1}
+.report-end-row-go{color:var(--text-2)}
+.report-end-row[hidden]{display:none}
+@media (hover:hover) and (pointer:fine){.report-end-row:hover{transform:none;color:var(--grape)}}
+.report-end-row:focus-visible{outline:3px solid var(--grape);outline-offset:-3px}
+.report-end-close{position:absolute;top:14px;right:14px;width:44px;height:44px;border:1px solid var(--line);background:var(--white);color:var(--ink);text-decoration:none}
+/* Short phones: rows stay above the 44px touch minimum so nothing is cut off. */
+@media (max-height:640px){.report-end{padding-top:56px;padding-bottom:28px}.report-end h1{font-size:52px}.report-end-actions{gap:14px}.report-end-row{min-height:48px}}
 .report-copy-field{position:fixed;opacity:0;pointer-events:none}
-.report-end-links{display:flex;justify-content:center;align-items:center;gap:28px}
-.report-end-links .report-link{display:inline-flex;align-items:center;font-size:15px;color:var(--ink)}
 
 /* Sheets */
 .report-sheet{border:0;border-radius:24px 24px 0 0;margin:auto auto 0;width:100%;max-width:440px;box-sizing:border-box;padding:24px 22px 34px;color:var(--ink);background:var(--white)}
@@ -367,6 +374,13 @@ body.report-page:has(.report-player:not([hidden])[data-ground="inout"]){backgrou
  .report-chrome .report-home{position:absolute;left:40px;top:27px}
  .report-chrome-close{position:absolute;right:40px;top:20px;width:48px;height:48px;border:1.5px solid #ffffff59;text-decoration:none}
  .report-chrome-close:focus-visible{outline:3px solid var(--grape);outline-offset:3px}
+ /* Card controls match the end screen (option A): one filled grape pill for Share, everything else a
+    quiet outline, the same hairline as the close and arrow buttons (founder, 16 Oct). */
+ .report-player[data-ground] .report-icon-button,.report-player[data-ground] .report-pill-button{border-color:#ffffff59;background:#ffffff0d;color:var(--white)}
+ .report-player[data-ground] .report-icon-button[aria-pressed="true"]{background:var(--butter);border-color:var(--butter);color:var(--ink)}
+ .report-player[data-ground] .report-share{position:relative;overflow:hidden;background:var(--grape);border-color:var(--grape);color:var(--white);box-shadow:var(--shadow-gel)}
+ .report-player[data-ground] .report-share::after{display:block}
+ .report-end-close{display:none}
  /* Sheets open as centred dialogs instead of rising from the bottom. */
  .report-sheet{margin:auto;border-radius:24px}
  .report-toast{bottom:40px}

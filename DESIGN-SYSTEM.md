@@ -32,6 +32,17 @@ Actions use one gel-pill vocabulary with 44px minimum targets. Selected radio ch
 
 The header retains a compact scroll state without shifting body spacing. Desktop shows serif Wishlist, Wardrobe, Your style, permission-controlled Admin, and Log out links, with an orb marking the active page. At 800px and below, a gel Menu button opens a full-screen white modal with the same navigation nodes in a vertical list. Escape/Close restores focus and page scrolling; resizing to desktop closes the menu. Admin-link permissions and logout handlers remain attached to the same elements. The last header item is the **Account** avatar (`.nav-account`): a 38px fog circle with a person outline in the desktop bar, grape-bordered on hover and on `/account`. In the phone menu it becomes a labelled "Account" row with a larger avatar. The menu footer reports the actual wishlist count when available and is cleared on sign-out.
 
+### One pill, then quiet rows (secondary actions)
+
+A screen that ends with several next steps uses one coloured gel pill for the single most useful action, then lists the rest as quiet rows (founder, October 16, 2026; first used on the style report end screen). Don't stack several equal-weight pills or split secondary actions into half-width pills.
+
+- **Primary:** one full-width gel pill, 56px tall. Grape when the action is sharing, butter otherwise. If a prerequisite is missing (for example an unlinked order source), that prerequisite takes the pill and the usual primary drops into the rows.
+- **Rows:** full width, at least 56px tall (48px on screens under 640px tall, still above the 44px touch minimum), separated by 1px `line` hairlines with one above the first row. Each row is a 22px icon, a 12px (`space-3`) gap, the label in Bricolage 600 16px `ink`, and an optional `text-2` "↗" at the far end when the row leaves the page (Messages, another site). No pill, fill, gloss or shadow; hover turns the label grape on fine pointers; focus is the grape ring drawn inside the row.
+- **Leaving:** Exit or Close is a 44px round × button in the top-right corner (1px `line` border on white), not a row or a text link. On the desktop stage the window's own close button replaces it.
+- **Icons:** line icons on a 24px grid, 1.8px stroke in `currentColor`, round caps and joins, no fill, `aria-hidden` beside a visible label. Current set: share (arrow out of a tray), link (two chain links), chat (speech bubble), replay (circular arrow) and close (×, 2px stroke). Draw a new icon in the same style rather than adding an icon set or emoji.
+
+On dark grounds (the desktop story stage) the same hierarchy holds: Share is the one filled grape gel pill, and the other controls (thumbs, Edit lines, Shuffle, close, arrows) are quiet outlines, a 1.5px white border at 35% opacity over a 5% white fill. A pressed thumb fills with butter.
+
 ## Activity and motion
 
 `public/activity.js` tracks concurrent requests and local workflows. It shows the actual current action and that action's elapsed time. The orb and Aqua loader replace the old spinner. Private image fetches retain neutral per-image placeholders without flashing the page activity panel.
