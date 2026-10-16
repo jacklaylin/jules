@@ -1,0 +1,2562 @@
+{
+ "version": 1,
+ "source": "design/brand-niche-draft.md (approved October 15, 2026)",
+ "brands": [
+  {
+   "name": "Shein",
+   "niche": 1,
+   "tier": "V",
+   "lean": "T",
+   "for": "W"
+  },
+  {
+   "name": "Walmart",
+   "niche": 1,
+   "tier": "V",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Amazon",
+   "niche": 1,
+   "tier": "V",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "H&M",
+   "niche": 2,
+   "tier": "V",
+   "lean": "T",
+   "for": "A"
+  },
+  {
+   "name": "Old Navy",
+   "niche": 2,
+   "tier": "V",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Nike",
+   "niche": 2,
+   "tier": "M",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Target",
+   "niche": 2,
+   "tier": "V",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Kohl's",
+   "niche": 2,
+   "tier": "V",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Men's Wearhouse",
+   "niche": 2,
+   "tier": "V",
+   "lean": "C",
+   "for": "M"
+  },
+  {
+   "name": "Primark",
+   "niche": 3,
+   "tier": "V",
+   "lean": "T",
+   "for": "A"
+  },
+  {
+   "name": "Zara",
+   "niche": 3,
+   "tier": "M",
+   "lean": "T",
+   "for": "A"
+  },
+  {
+   "name": "Forever 21",
+   "niche": 3,
+   "tier": "V",
+   "lean": "T",
+   "for": "W"
+  },
+  {
+   "name": "Fashion Nova",
+   "niche": 3,
+   "tier": "V",
+   "lean": "T",
+   "for": "W"
+  },
+  {
+   "name": "Adidas",
+   "niche": 3,
+   "tier": "M",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Macy's",
+   "niche": 3,
+   "tier": "M",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Skechers",
+   "niche": 3,
+   "tier": "V",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "TJ Maxx",
+   "niche": 3,
+   "tier": "V",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Under Armour",
+   "niche": 3,
+   "tier": "M",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Gap",
+   "niche": 4,
+   "tier": "M",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "American Eagle",
+   "niche": 4,
+   "tier": "V",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Puma",
+   "niche": 4,
+   "tier": "M",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Converse",
+   "niche": 4,
+   "tier": "M",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Nordstrom Rack",
+   "niche": 4,
+   "tier": "V",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Victoria's Secret",
+   "niche": 4,
+   "tier": "M",
+   "lean": "N",
+   "for": "W"
+  },
+  {
+   "name": "Uniqlo",
+   "niche": 5,
+   "tier": "V",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "ASOS",
+   "niche": 5,
+   "tier": "V",
+   "lean": "T",
+   "for": "A"
+  },
+  {
+   "name": "Hollister",
+   "niche": 5,
+   "tier": "V",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Express",
+   "niche": 5,
+   "tier": "M",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Jos. A. Bank",
+   "niche": 5,
+   "tier": "M",
+   "lean": "C",
+   "for": "M"
+  },
+  {
+   "name": "Columbia",
+   "niche": 5,
+   "tier": "M",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Tommy Hilfiger",
+   "niche": 5,
+   "tier": "M",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Cole Haan",
+   "niche": 8,
+   "tier": "M",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Michael Kors",
+   "niche": 5,
+   "tier": "M",
+   "lean": "N",
+   "for": "W"
+  },
+  {
+   "name": "Vans",
+   "niche": 5,
+   "tier": "M",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Mango",
+   "niche": 6,
+   "tier": "M",
+   "lean": "T",
+   "for": "W"
+  },
+  {
+   "name": "Levi's",
+   "niche": 6,
+   "tier": "M",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Calvin Klein",
+   "niche": 6,
+   "tier": "M",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Ann Taylor",
+   "niche": 6,
+   "tier": "M",
+   "lean": "C",
+   "for": "W",
+   "aliases": [
+    "LOFT"
+   ]
+  },
+  {
+   "name": "Lands' End",
+   "niche": 6,
+   "tier": "M",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "The North Face",
+   "niche": 6,
+   "tier": "M",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Champion",
+   "niche": 6,
+   "tier": "V",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Crocs",
+   "niche": 6,
+   "tier": "V",
+   "lean": "T",
+   "for": "A"
+  },
+  {
+   "name": "Ugg",
+   "niche": 6,
+   "tier": "M",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Ray-Ban",
+   "niche": 6,
+   "tier": "M",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Lulus",
+   "niche": 6,
+   "tier": "V",
+   "lean": "T",
+   "for": "W"
+  },
+  {
+   "name": "Lululemon",
+   "niche": 7,
+   "tier": "M",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Talbots",
+   "niche": 7,
+   "tier": "M",
+   "lean": "C",
+   "for": "W"
+  },
+  {
+   "name": "Abercrombie & Fitch",
+   "niche": 8,
+   "tier": "M",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Banana Republic",
+   "niche": 8,
+   "tier": "M",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Nordstrom",
+   "niche": 8,
+   "tier": "P",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Skims",
+   "niche": 8,
+   "tier": "M",
+   "lean": "T",
+   "for": "W"
+  },
+  {
+   "name": "Coach",
+   "niche": 8,
+   "tier": "M",
+   "lean": "C",
+   "for": "W"
+  },
+  {
+   "name": "eBay",
+   "niche": 8,
+   "tier": "V",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Chico's",
+   "niche": 8,
+   "tier": "M",
+   "lean": "C",
+   "for": "W"
+  },
+  {
+   "name": "Athleta",
+   "niche": 9,
+   "tier": "M",
+   "lean": "N",
+   "for": "W"
+  },
+  {
+   "name": "Kate Spade",
+   "niche": 9,
+   "tier": "M",
+   "lean": "C",
+   "for": "W"
+  },
+  {
+   "name": "L.L.Bean",
+   "niche": 9,
+   "tier": "M",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Hugo Boss",
+   "niche": 10,
+   "tier": "P",
+   "lean": "C",
+   "for": "M"
+  },
+  {
+   "name": "Ralph Lauren",
+   "niche": 9,
+   "tier": "P",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Princess Polly",
+   "niche": 9,
+   "tier": "V",
+   "lean": "T",
+   "for": "W"
+  },
+  {
+   "name": "New Balance",
+   "niche": 9,
+   "tier": "M",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Patagonia",
+   "niche": 10,
+   "tier": "P",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "J.Crew",
+   "niche": 10,
+   "tier": "M",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Dr. Martens",
+   "niche": 10,
+   "tier": "M",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Birkenstock",
+   "niche": 10,
+   "tier": "M",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "J.Jill",
+   "niche": 10,
+   "tier": "M",
+   "lean": "C",
+   "for": "W"
+  },
+  {
+   "name": "Urban Outfitters",
+   "niche": 10,
+   "tier": "M",
+   "lean": "T",
+   "for": "A"
+  },
+  {
+   "name": "Poshmark",
+   "niche": 10,
+   "tier": "V",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "ThredUp",
+   "niche": 10,
+   "tier": "V",
+   "lean": "N",
+   "for": "W"
+  },
+  {
+   "name": "Alo Yoga",
+   "niche": 12,
+   "tier": "M",
+   "lean": "T",
+   "for": "W"
+  },
+  {
+   "name": "Vineyard Vines",
+   "niche": 12,
+   "tier": "M",
+   "lean": "C",
+   "for": "M"
+  },
+  {
+   "name": "Free People",
+   "niche": 12,
+   "tier": "M",
+   "lean": "T",
+   "for": "W"
+  },
+  {
+   "name": "Madewell",
+   "niche": 12,
+   "tier": "M",
+   "lean": "C",
+   "for": "W"
+  },
+  {
+   "name": "Carhartt",
+   "niche": 12,
+   "tier": "M",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Dickies",
+   "niche": 12,
+   "tier": "V",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Hoka",
+   "niche": 12,
+   "tier": "M",
+   "lean": "T",
+   "for": "A"
+  },
+  {
+   "name": "On",
+   "niche": 12,
+   "tier": "M",
+   "lean": "T",
+   "for": "A"
+  },
+  {
+   "name": "Anthropologie",
+   "niche": 13,
+   "tier": "M",
+   "lean": "N",
+   "for": "W"
+  },
+  {
+   "name": "Revolve",
+   "niche": 13,
+   "tier": "M",
+   "lean": "T",
+   "for": "W"
+  },
+  {
+   "name": "Quince",
+   "niche": 14,
+   "tier": "V",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Allbirds",
+   "niche": 14,
+   "tier": "M",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Johnston & Murphy",
+   "niche": 12,
+   "tier": "M",
+   "lean": "C",
+   "for": "M"
+  },
+  {
+   "name": "Chubbies",
+   "niche": 14,
+   "tier": "M",
+   "lean": "T",
+   "for": "M"
+  },
+  {
+   "name": "Bonobos",
+   "niche": 15,
+   "tier": "M",
+   "lean": "C",
+   "for": "M"
+  },
+  {
+   "name": "Brooks Brothers",
+   "niche": 14,
+   "tier": "M",
+   "lean": "C",
+   "for": "M"
+  },
+  {
+   "name": "Vinted",
+   "niche": 14,
+   "tier": "V",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Clarks Originals",
+   "niche": 14,
+   "tier": "M",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Everlane",
+   "niche": 16,
+   "tier": "M",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Psycho Bunny",
+   "niche": 16,
+   "tier": "M",
+   "lean": "N",
+   "for": "M"
+  },
+  {
+   "name": "Fear of God Essentials",
+   "niche": 16,
+   "tier": "M",
+   "lean": "T",
+   "for": "M"
+  },
+  {
+   "name": "Charles Tyrwhitt",
+   "niche": 16,
+   "tier": "M",
+   "lean": "C",
+   "for": "M"
+  },
+  {
+   "name": "Blundstone",
+   "niche": 16,
+   "tier": "M",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Shopbop",
+   "niche": 16,
+   "tier": "P",
+   "lean": "N",
+   "for": "W"
+  },
+  {
+   "name": "Fjällräven",
+   "niche": 16,
+   "tier": "M",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Barbour",
+   "niche": 18,
+   "tier": "P",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "AllSaints",
+   "niche": 18,
+   "tier": "M",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Aritzia",
+   "niche": 18,
+   "tier": "M",
+   "lean": "T",
+   "for": "W"
+  },
+  {
+   "name": "Massimo Dutti",
+   "niche": 18,
+   "tier": "M",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Eileen Fisher",
+   "niche": 18,
+   "tier": "P",
+   "lean": "C",
+   "for": "W"
+  },
+  {
+   "name": "Arc'teryx",
+   "niche": 18,
+   "tier": "P",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Golden Goose",
+   "niche": 18,
+   "tier": "P",
+   "lean": "T",
+   "for": "A"
+  },
+  {
+   "name": "Moncler",
+   "niche": 18,
+   "tier": "L",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Supreme",
+   "niche": 18,
+   "tier": "M",
+   "lean": "T",
+   "for": "A"
+  },
+  {
+   "name": "Vuori",
+   "niche": 18,
+   "tier": "M",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Mejuri",
+   "niche": 18,
+   "tier": "M",
+   "lean": "T",
+   "for": "W"
+  },
+  {
+   "name": "Smartwool",
+   "niche": 18,
+   "tier": "M",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Saks Fifth Avenue",
+   "niche": 18,
+   "tier": "P",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Neiman Marcus",
+   "niche": 18,
+   "tier": "P",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Club Monaco",
+   "niche": 20,
+   "tier": "M",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Reformation",
+   "niche": 22,
+   "tier": "P",
+   "lean": "T",
+   "for": "W"
+  },
+  {
+   "name": "COS",
+   "niche": 22,
+   "tier": "M",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Theory",
+   "niche": 22,
+   "tier": "P",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Allen Edmonds",
+   "niche": 22,
+   "tier": "P",
+   "lean": "C",
+   "for": "M"
+  },
+  {
+   "name": "Peter Millar",
+   "niche": 22,
+   "tier": "P",
+   "lean": "C",
+   "for": "M"
+  },
+  {
+   "name": "Reiss",
+   "niche": 22,
+   "tier": "P",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Salomon",
+   "niche": 22,
+   "tier": "M",
+   "lean": "T",
+   "for": "A"
+  },
+  {
+   "name": "Farfetch",
+   "niche": 22,
+   "tier": "P",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Depop",
+   "niche": 22,
+   "tier": "V",
+   "lean": "T",
+   "for": "A"
+  },
+  {
+   "name": "Cotopaxi",
+   "niche": 22,
+   "tier": "M",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Vince",
+   "niche": 24,
+   "tier": "P",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Mizzen+Main",
+   "niche": 24,
+   "tier": "M",
+   "lean": "N",
+   "for": "M"
+  },
+  {
+   "name": "Rhone",
+   "niche": 24,
+   "tier": "M",
+   "lean": "N",
+   "for": "M"
+  },
+  {
+   "name": "Veja",
+   "niche": 24,
+   "tier": "M",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Stüssy",
+   "niche": 24,
+   "tier": "M",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Outdoor Voices",
+   "niche": 24,
+   "tier": "M",
+   "lean": "T",
+   "for": "W"
+  },
+  {
+   "name": "Sandro",
+   "niche": 26,
+   "tier": "P",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Maje",
+   "niche": 26,
+   "tier": "P",
+   "lean": "T",
+   "for": "W"
+  },
+  {
+   "name": "& Other Stories",
+   "niche": 26,
+   "tier": "M",
+   "lean": "T",
+   "for": "W"
+  },
+  {
+   "name": "Rag & Bone",
+   "niche": 26,
+   "tier": "P",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Mack Weldon",
+   "niche": 26,
+   "tier": "M",
+   "lean": "N",
+   "for": "M"
+  },
+  {
+   "name": "Kith",
+   "niche": 26,
+   "tier": "P",
+   "lean": "T",
+   "for": "A"
+  },
+  {
+   "name": "Carhartt WIP",
+   "niche": 26,
+   "tier": "M",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "The RealReal",
+   "niche": 26,
+   "tier": "P",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Faherty",
+   "niche": 28,
+   "tier": "P",
+   "lean": "C",
+   "for": "M"
+  },
+  {
+   "name": "Suitsupply",
+   "niche": 28,
+   "tier": "M",
+   "lean": "C",
+   "for": "M"
+  },
+  {
+   "name": "Net-a-Porter",
+   "niche": 28,
+   "tier": "L",
+   "lean": "N",
+   "for": "W"
+  },
+  {
+   "name": "Chloé",
+   "niche": 28,
+   "tier": "L",
+   "lean": "N",
+   "for": "W"
+  },
+  {
+   "name": "Frame",
+   "niche": 30,
+   "tier": "P",
+   "lean": "N",
+   "for": "W"
+  },
+  {
+   "name": "Sézane",
+   "niche": 30,
+   "tier": "P",
+   "lean": "C",
+   "for": "W"
+  },
+  {
+   "name": "Palace",
+   "niche": 30,
+   "tier": "M",
+   "lean": "T",
+   "for": "A"
+  },
+  {
+   "name": "Filson",
+   "niche": 30,
+   "tier": "P",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Red Wing",
+   "niche": 30,
+   "tier": "P",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Huckberry",
+   "niche": 30,
+   "tier": "M",
+   "lean": "C",
+   "for": "M"
+  },
+  {
+   "name": "Stone Island",
+   "niche": 30,
+   "tier": "P",
+   "lean": "N",
+   "for": "M"
+  },
+  {
+   "name": "Belstaff",
+   "niche": 30,
+   "tier": "P",
+   "lean": "C",
+   "for": "M"
+  },
+  {
+   "name": "Represent",
+   "niche": 30,
+   "tier": "P",
+   "lean": "T",
+   "for": "M"
+  },
+  {
+   "name": "Jacquemus",
+   "niche": 30,
+   "tier": "L",
+   "lean": "T",
+   "for": "A"
+  },
+  {
+   "name": "Max Mara",
+   "niche": 30,
+   "tier": "L",
+   "lean": "C",
+   "for": "W"
+  },
+  {
+   "name": "Mytheresa",
+   "niche": 30,
+   "tier": "L",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Bergdorf Goodman",
+   "niche": 30,
+   "tier": "L",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Cuyana",
+   "niche": 30,
+   "tier": "P",
+   "lean": "C",
+   "for": "W"
+  },
+  {
+   "name": "Mr Porter",
+   "niche": 32,
+   "tier": "L",
+   "lean": "C",
+   "for": "M"
+  },
+  {
+   "name": "Arket",
+   "niche": 32,
+   "tier": "M",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Todd Snyder",
+   "niche": 32,
+   "tier": "P",
+   "lean": "C",
+   "for": "M"
+  },
+  {
+   "name": "Citizens of Humanity",
+   "niche": 32,
+   "tier": "P",
+   "lean": "N",
+   "for": "W"
+  },
+  {
+   "name": "Isabel Marant",
+   "niche": 32,
+   "tier": "L",
+   "lean": "T",
+   "for": "W"
+  },
+  {
+   "name": "Mother",
+   "niche": 32,
+   "tier": "P",
+   "lean": "T",
+   "for": "W"
+  },
+  {
+   "name": "Polène",
+   "niche": 34,
+   "tier": "P",
+   "lean": "T",
+   "for": "W"
+  },
+  {
+   "name": "Gentle Monster",
+   "niche": 32,
+   "tier": "P",
+   "lean": "T",
+   "for": "A"
+  },
+  {
+   "name": "Miu Miu",
+   "niche": 32,
+   "tier": "L",
+   "lean": "T",
+   "for": "W"
+  },
+  {
+   "name": "Agolde",
+   "niche": 34,
+   "tier": "P",
+   "lean": "T",
+   "for": "W"
+  },
+  {
+   "name": "Buck Mason",
+   "niche": 34,
+   "tier": "P",
+   "lean": "C",
+   "for": "M"
+  },
+  {
+   "name": "Outerknown",
+   "niche": 34,
+   "tier": "P",
+   "lean": "N",
+   "for": "M"
+  },
+  {
+   "name": "Staud",
+   "niche": 34,
+   "tier": "P",
+   "lean": "T",
+   "for": "W"
+  },
+  {
+   "name": "Ami Paris",
+   "niche": 34,
+   "tier": "P",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Sporty & Rich",
+   "niche": 34,
+   "tier": "M",
+   "lean": "T",
+   "for": "A"
+  },
+  {
+   "name": "Vestiaire Collective",
+   "niche": 34,
+   "tier": "P",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Moscot",
+   "niche": 34,
+   "tier": "P",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Matches",
+   "niche": 34,
+   "tier": "L",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Celine",
+   "niche": 34,
+   "tier": "L",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Bottega Veneta",
+   "niche": 34,
+   "tier": "L",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Louis Vuitton",
+   "niche": 10,
+   "tier": "L",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Gucci",
+   "niche": 12,
+   "tier": "L",
+   "lean": "T",
+   "for": "A"
+  },
+  {
+   "name": "Chanel",
+   "niche": 12,
+   "tier": "L",
+   "lean": "C",
+   "for": "W"
+  },
+  {
+   "name": "Burberry",
+   "niche": 14,
+   "tier": "L",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Dior",
+   "niche": 14,
+   "tier": "L",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Versace",
+   "niche": 14,
+   "tier": "L",
+   "lean": "T",
+   "for": "A"
+  },
+  {
+   "name": "Saint Laurent",
+   "niche": 20,
+   "tier": "L",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Prada",
+   "niche": 20,
+   "tier": "L",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Balenciaga",
+   "niche": 22,
+   "tier": "L",
+   "lean": "T",
+   "for": "A"
+  },
+  {
+   "name": "Fendi",
+   "niche": 22,
+   "tier": "L",
+   "lean": "N",
+   "for": "W"
+  },
+  {
+   "name": "Hermès",
+   "niche": 22,
+   "tier": "L",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Valentino",
+   "niche": 24,
+   "tier": "L",
+   "lean": "N",
+   "for": "W"
+  },
+  {
+   "name": "Givenchy",
+   "niche": 26,
+   "tier": "L",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Tom Ford",
+   "niche": 26,
+   "tier": "L",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Alexander McQueen",
+   "niche": 28,
+   "tier": "L",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Loewe",
+   "niche": 38,
+   "tier": "L",
+   "lean": "T",
+   "for": "A"
+  },
+  {
+   "name": "Loro Piana",
+   "niche": 44,
+   "tier": "L",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Thom Browne",
+   "niche": 44,
+   "tier": "L",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Maison Margiela",
+   "niche": 46,
+   "tier": "L",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Brunello Cucinelli",
+   "niche": 48,
+   "tier": "L",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Comme des Garçons",
+   "niche": 48,
+   "tier": "L",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Marni",
+   "niche": 50,
+   "tier": "L",
+   "lean": "T",
+   "for": "A"
+  },
+  {
+   "name": "Issey Miyake",
+   "niche": 52,
+   "tier": "L",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "JW Anderson",
+   "niche": 52,
+   "tier": "L",
+   "lean": "T",
+   "for": "A"
+  },
+  {
+   "name": "Jil Sander",
+   "niche": 52,
+   "tier": "L",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "The Row",
+   "niche": 54,
+   "tier": "L",
+   "lean": "C",
+   "for": "W"
+  },
+  {
+   "name": "Rick Owens",
+   "niche": 60,
+   "tier": "L",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Dries Van Noten",
+   "niche": 62,
+   "tier": "L",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Raf Simons",
+   "niche": 64,
+   "tier": "L",
+   "lean": "N",
+   "for": "M"
+  },
+  {
+   "name": "Yohji Yamamoto",
+   "niche": 68,
+   "tier": "L",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Ganni",
+   "niche": 35,
+   "tier": "P",
+   "lean": "T",
+   "for": "W"
+  },
+  {
+   "name": "Faithfull the Brand",
+   "niche": 36,
+   "tier": "M",
+   "lean": "T",
+   "for": "W"
+  },
+  {
+   "name": "Cult Gaia",
+   "niche": 36,
+   "tier": "P",
+   "lean": "T",
+   "for": "W"
+  },
+  {
+   "name": "Acne Studios",
+   "niche": 38,
+   "tier": "P",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "A.P.C.",
+   "niche": 38,
+   "tier": "P",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Aimé Leon Dore",
+   "niche": 38,
+   "tier": "P",
+   "lean": "C",
+   "for": "M"
+  },
+  {
+   "name": "Castelli",
+   "niche": 38,
+   "tier": "P",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Girlfriend Collective",
+   "niche": 38,
+   "tier": "M",
+   "lean": "N",
+   "for": "W"
+  },
+  {
+   "name": "Set Active",
+   "niche": 38,
+   "tier": "M",
+   "lean": "T",
+   "for": "W"
+  },
+  {
+   "name": "The Frankie Shop",
+   "niche": 40,
+   "tier": "P",
+   "lean": "T",
+   "for": "W"
+  },
+  {
+   "name": "Rapha",
+   "niche": 40,
+   "tier": "P",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "SSENSE",
+   "niche": 40,
+   "tier": "P",
+   "lean": "T",
+   "for": "A"
+  },
+  {
+   "name": "Common Projects",
+   "niche": 40,
+   "tier": "L",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Rouje",
+   "niche": 40,
+   "tier": "P",
+   "lean": "T",
+   "for": "W"
+  },
+  {
+   "name": "Realisation Par",
+   "niche": 40,
+   "tier": "P",
+   "lean": "T",
+   "for": "W"
+  },
+  {
+   "name": "Taylor Stitch",
+   "niche": 40,
+   "tier": "P",
+   "lean": "C",
+   "for": "M"
+  },
+  {
+   "name": "Unbound Merino",
+   "niche": 38,
+   "tier": "M",
+   "lean": "N",
+   "for": "M"
+  },
+  {
+   "name": "Ulla Johnson",
+   "niche": 40,
+   "tier": "P",
+   "lean": "N",
+   "for": "W"
+  },
+  {
+   "name": "Doen",
+   "niche": 42,
+   "tier": "P",
+   "lean": "N",
+   "for": "W"
+  },
+  {
+   "name": "End. Clothing",
+   "niche": 42,
+   "tier": "P",
+   "lean": "N",
+   "for": "M"
+  },
+  {
+   "name": "Spier & Mackay",
+   "niche": 44,
+   "tier": "M",
+   "lean": "C",
+   "for": "M"
+  },
+  {
+   "name": "C.P. Company",
+   "niche": 42,
+   "tier": "P",
+   "lean": "N",
+   "for": "M"
+  },
+  {
+   "name": "Proper Cloth",
+   "niche": 42,
+   "tier": "P",
+   "lean": "C",
+   "for": "M"
+  },
+  {
+   "name": "Noah",
+   "niche": 46,
+   "tier": "P",
+   "lean": "C",
+   "for": "M"
+  },
+  {
+   "name": "Bodega",
+   "niche": 44,
+   "tier": "P",
+   "lean": "T",
+   "for": "A"
+  },
+  {
+   "name": "Mansur Gavriel",
+   "niche": 44,
+   "tier": "P",
+   "lean": "C",
+   "for": "W"
+  },
+  {
+   "name": "Wax London",
+   "niche": 46,
+   "tier": "M",
+   "lean": "N",
+   "for": "M"
+  },
+  {
+   "name": "Norse Projects",
+   "niche": 46,
+   "tier": "P",
+   "lean": "C",
+   "for": "M"
+  },
+  {
+   "name": "Sunspel",
+   "niche": 46,
+   "tier": "P",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Rotate Birger Christensen",
+   "niche": 46,
+   "tier": "P",
+   "lean": "T",
+   "for": "W"
+  },
+  {
+   "name": "Ancient Greek Sandals",
+   "niche": 48,
+   "tier": "P",
+   "lean": "C",
+   "for": "W"
+  },
+  {
+   "name": "Toteme",
+   "niche": 48,
+   "tier": "P",
+   "lean": "C",
+   "for": "W"
+  },
+  {
+   "name": "Drake's",
+   "niche": 50,
+   "tier": "P",
+   "lean": "C",
+   "for": "M"
+  },
+  {
+   "name": "Ciele",
+   "niche": 50,
+   "tier": "M",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Nanushka",
+   "niche": 50,
+   "tier": "P",
+   "lean": "T",
+   "for": "W"
+  },
+  {
+   "name": "Lisa Says Gah",
+   "niche": 50,
+   "tier": "M",
+   "lean": "T",
+   "for": "W"
+  },
+  {
+   "name": "Aeyde",
+   "niche": 50,
+   "tier": "P",
+   "lean": "C",
+   "for": "W"
+  },
+  {
+   "name": "Khaite",
+   "niche": 52,
+   "tier": "L",
+   "lean": "C",
+   "for": "W"
+  },
+  {
+   "name": "Alden",
+   "niche": 52,
+   "tier": "L",
+   "lean": "C",
+   "for": "M"
+  },
+  {
+   "name": "Oliver Spencer",
+   "niche": 52,
+   "tier": "P",
+   "lean": "C",
+   "for": "M"
+  },
+  {
+   "name": "Snow Peak",
+   "niche": 52,
+   "tier": "P",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Grailed",
+   "niche": 52,
+   "tier": "P",
+   "lean": "N",
+   "for": "M"
+  },
+  {
+   "name": "Percival",
+   "niche": 54,
+   "tier": "M",
+   "lean": "N",
+   "for": "M"
+  },
+  {
+   "name": "Tricker's",
+   "niche": 54,
+   "tier": "P",
+   "lean": "C",
+   "for": "M"
+  },
+  {
+   "name": "Tracksmith",
+   "niche": 56,
+   "tier": "P",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "MAAP",
+   "niche": 58,
+   "tier": "P",
+   "lean": "T",
+   "for": "A"
+  },
+  {
+   "name": "Pas Normal Studios",
+   "niche": 64,
+   "tier": "P",
+   "lean": "T",
+   "for": "A"
+  },
+  {
+   "name": "Velocio",
+   "niche": 66,
+   "tier": "P",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Café du Cycliste",
+   "niche": 66,
+   "tier": "P",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Ornot",
+   "niche": 70,
+   "tier": "P",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Attaquer",
+   "niche": 70,
+   "tier": "P",
+   "lean": "T",
+   "for": "A"
+  },
+  {
+   "name": "Bandit",
+   "niche": 72,
+   "tier": "P",
+   "lean": "T",
+   "for": "A"
+  },
+  {
+   "name": "Soar",
+   "niche": 72,
+   "tier": "P",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Satisfy",
+   "niche": 74,
+   "tier": "L",
+   "lean": "T",
+   "for": "A"
+  },
+  {
+   "name": "District Vision",
+   "niche": 74,
+   "tier": "P",
+   "lean": "T",
+   "for": "A"
+  },
+  {
+   "name": "Search and State",
+   "niche": 82,
+   "tier": "P",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Norrøna",
+   "niche": 60,
+   "tier": "P",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Veilance",
+   "niche": 64,
+   "tier": "L",
+   "lean": "N",
+   "for": "M"
+  },
+  {
+   "name": "Goldwin",
+   "niche": 66,
+   "tier": "P",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "And Wander",
+   "niche": 72,
+   "tier": "P",
+   "lean": "T",
+   "for": "A"
+  },
+  {
+   "name": "Rachel Comey",
+   "niche": 58,
+   "tier": "P",
+   "lean": "N",
+   "for": "W"
+  },
+  {
+   "name": "Paloma Wool",
+   "niche": 58,
+   "tier": "M",
+   "lean": "T",
+   "for": "W"
+  },
+  {
+   "name": "St. Agni",
+   "niche": 58,
+   "tier": "P",
+   "lean": "C",
+   "for": "W"
+  },
+  {
+   "name": "Sandy Liang",
+   "niche": 62,
+   "tier": "P",
+   "lean": "T",
+   "for": "W"
+  },
+  {
+   "name": "Rejina Pyo",
+   "niche": 62,
+   "tier": "P",
+   "lean": "N",
+   "for": "W"
+  },
+  {
+   "name": "Simone Rocha",
+   "niche": 62,
+   "tier": "L",
+   "lean": "N",
+   "for": "W"
+  },
+  {
+   "name": "Molly Goddard",
+   "niche": 64,
+   "tier": "L",
+   "lean": "T",
+   "for": "W"
+  },
+  {
+   "name": "Christopher Esber",
+   "niche": 66,
+   "tier": "P",
+   "lean": "T",
+   "for": "W"
+  },
+  {
+   "name": "Cecilie Bahnsen",
+   "niche": 66,
+   "tier": "L",
+   "lean": "N",
+   "for": "W"
+  },
+  {
+   "name": "Collina Strada",
+   "niche": 66,
+   "tier": "P",
+   "lean": "T",
+   "for": "W"
+  },
+  {
+   "name": "Matteau",
+   "niche": 66,
+   "tier": "P",
+   "lean": "C",
+   "for": "W"
+  },
+  {
+   "name": "Ciao Lucia",
+   "niche": 70,
+   "tier": "P",
+   "lean": "N",
+   "for": "W"
+  },
+  {
+   "name": "Baserange",
+   "niche": 72,
+   "tier": "P",
+   "lean": "C",
+   "for": "W"
+  },
+  {
+   "name": "Shushu/Tong",
+   "niche": 74,
+   "tier": "P",
+   "lean": "T",
+   "for": "W"
+  },
+  {
+   "name": "Low Classic",
+   "niche": 74,
+   "tier": "P",
+   "lean": "N",
+   "for": "W"
+  },
+  {
+   "name": "Le Monde Béryl",
+   "niche": 76,
+   "tier": "P",
+   "lean": "C",
+   "for": "W"
+  },
+  {
+   "name": "Eckhaus Latta",
+   "niche": 76,
+   "tier": "P",
+   "lean": "T",
+   "for": "A"
+  },
+  {
+   "name": "Maryam Nassir Zadeh",
+   "niche": 76,
+   "tier": "P",
+   "lean": "N",
+   "for": "W"
+  },
+  {
+   "name": "Jesse Kamm",
+   "niche": 78,
+   "tier": "P",
+   "lean": "C",
+   "for": "W"
+  },
+  {
+   "name": "Ninamounah",
+   "niche": 80,
+   "tier": "P",
+   "lean": "T",
+   "for": "W"
+  },
+  {
+   "name": "Black Crane",
+   "niche": 80,
+   "tier": "P",
+   "lean": "C",
+   "for": "W"
+  },
+  {
+   "name": "Lauren Manoogian",
+   "niche": 82,
+   "tier": "P",
+   "lean": "C",
+   "for": "W"
+  },
+  {
+   "name": "Martiniano",
+   "niche": 82,
+   "tier": "P",
+   "lean": "C",
+   "for": "W"
+  },
+  {
+   "name": "Amomento",
+   "niche": 84,
+   "tier": "P",
+   "lean": "C",
+   "for": "W"
+  },
+  {
+   "name": "Cawley Studio",
+   "niche": 84,
+   "tier": "P",
+   "lean": "C",
+   "for": "W"
+  },
+  {
+   "name": "Universal Works",
+   "niche": 56,
+   "tier": "M",
+   "lean": "C",
+   "for": "M"
+  },
+  {
+   "name": "YMC",
+   "niche": 58,
+   "tier": "P",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Paraboot",
+   "niche": 58,
+   "tier": "P",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Studio Nicholson",
+   "niche": 62,
+   "tier": "P",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Our Legacy",
+   "niche": 64,
+   "tier": "P",
+   "lean": "N",
+   "for": "M"
+  },
+  {
+   "name": "Margaret Howell",
+   "niche": 64,
+   "tier": "P",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Beams Plus",
+   "niche": 64,
+   "tier": "P",
+   "lean": "C",
+   "for": "M"
+  },
+  {
+   "name": "ERL",
+   "niche": 64,
+   "tier": "P",
+   "lean": "T",
+   "for": "M"
+  },
+  {
+   "name": "Lemaire",
+   "niche": 66,
+   "tier": "L",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "J.M. Weston",
+   "niche": 66,
+   "tier": "L",
+   "lean": "C",
+   "for": "M"
+  },
+  {
+   "name": "Nigel Cabourn",
+   "niche": 66,
+   "tier": "P",
+   "lean": "C",
+   "for": "M"
+  },
+  {
+   "name": "Sacai",
+   "niche": 62,
+   "tier": "L",
+   "lean": "T",
+   "for": "A"
+  },
+  {
+   "name": "Brain Dead",
+   "niche": 62,
+   "tier": "M",
+   "lean": "T",
+   "for": "A"
+  },
+  {
+   "name": "Junya Watanabe",
+   "niche": 66,
+   "tier": "L",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Engineered Garments",
+   "niche": 68,
+   "tier": "P",
+   "lean": "N",
+   "for": "M"
+  },
+  {
+   "name": "Wales Bonner",
+   "niche": 68,
+   "tier": "L",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Jacques Marie Mage",
+   "niche": 68,
+   "tier": "L",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Bode",
+   "niche": 70,
+   "tier": "L",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Cav Empt",
+   "niche": 70,
+   "tier": "P",
+   "lean": "T",
+   "for": "M"
+  },
+  {
+   "name": "Le Laboureur",
+   "niche": 72,
+   "tier": "M",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Needles",
+   "niche": 70,
+   "tier": "P",
+   "lean": "T",
+   "for": "M"
+  },
+  {
+   "name": "Martine Rose",
+   "niche": 70,
+   "tier": "L",
+   "lean": "T",
+   "for": "M"
+  },
+  {
+   "name": "Charles Jeffrey Loverboy",
+   "niche": 70,
+   "tier": "P",
+   "lean": "T",
+   "for": "A"
+  },
+  {
+   "name": "Online Ceramics",
+   "niche": 70,
+   "tier": "M",
+   "lean": "T",
+   "for": "A"
+  },
+  {
+   "name": "Undercover",
+   "niche": 70,
+   "tier": "L",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Anderson & Sheppard",
+   "niche": 70,
+   "tier": "L",
+   "lean": "C",
+   "for": "M"
+  },
+  {
+   "name": "Kapital",
+   "niche": 72,
+   "tier": "P",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "S.S. Daley",
+   "niche": 72,
+   "tier": "P",
+   "lean": "N",
+   "for": "M"
+  },
+  {
+   "name": "Craig Green",
+   "niche": 72,
+   "tier": "L",
+   "lean": "N",
+   "for": "M"
+  },
+  {
+   "name": "Ottolinger",
+   "niche": 72,
+   "tier": "P",
+   "lean": "T",
+   "for": "W"
+  },
+  {
+   "name": "Hereu",
+   "niche": 72,
+   "tier": "P",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Viberg",
+   "niche": 72,
+   "tier": "L",
+   "lean": "C",
+   "for": "M"
+  },
+  {
+   "name": "Visvim",
+   "niche": 74,
+   "tier": "L",
+   "lean": "N",
+   "for": "M"
+  },
+  {
+   "name": "The Armoury",
+   "niche": 74,
+   "tier": "L",
+   "lean": "C",
+   "for": "M"
+  },
+  {
+   "name": "Orslow",
+   "niche": 74,
+   "tier": "P",
+   "lean": "C",
+   "for": "M"
+  },
+  {
+   "name": "Blue Blue Japan",
+   "niche": 74,
+   "tier": "P",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Séfr",
+   "niche": 74,
+   "tier": "P",
+   "lean": "N",
+   "for": "M"
+  },
+  {
+   "name": "Sky High Farm Workwear",
+   "niche": 74,
+   "tier": "P",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "JJJJound",
+   "niche": 76,
+   "tier": "P",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Auralee",
+   "niche": 78,
+   "tier": "P",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Paolina Russo",
+   "niche": 78,
+   "tier": "P",
+   "lean": "T",
+   "for": "W"
+  },
+  {
+   "name": "Story mfd.",
+   "niche": 80,
+   "tier": "P",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Bryceland's",
+   "niche": 80,
+   "tier": "P",
+   "lean": "C",
+   "for": "M"
+  },
+  {
+   "name": "Lady White Co.",
+   "niche": 80,
+   "tier": "P",
+   "lean": "C",
+   "for": "M"
+  },
+  {
+   "name": "Arpenteur",
+   "niche": 82,
+   "tier": "P",
+   "lean": "C",
+   "for": "M"
+  },
+  {
+   "name": "Kardo",
+   "niche": 82,
+   "tier": "P",
+   "lean": "N",
+   "for": "M"
+  },
+  {
+   "name": "Mfpen",
+   "niche": 82,
+   "tier": "P",
+   "lean": "C",
+   "for": "M"
+  },
+  {
+   "name": "Nicholas Daley",
+   "niche": 82,
+   "tier": "P",
+   "lean": "N",
+   "for": "M"
+  },
+  {
+   "name": "Toogood",
+   "niche": 84,
+   "tier": "P",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Comoli",
+   "niche": 86,
+   "tier": "P",
+   "lean": "C",
+   "for": "M"
+  },
+  {
+   "name": "Camoshita",
+   "niche": 84,
+   "tier": "P",
+   "lean": "C",
+   "for": "M"
+  },
+  {
+   "name": "Stoffa",
+   "niche": 86,
+   "tier": "L",
+   "lean": "C",
+   "for": "M"
+  },
+  {
+   "name": "Kaptain Sunshine",
+   "niche": 88,
+   "tier": "P",
+   "lean": "C",
+   "for": "M"
+  },
+  {
+   "name": "Evan Kinori",
+   "niche": 88,
+   "tier": "P",
+   "lean": "C",
+   "for": "M"
+  },
+  {
+   "name": "Taiga Takahashi",
+   "niche": 88,
+   "tier": "L",
+   "lean": "C",
+   "for": "M"
+  },
+  {
+   "name": "Oakley",
+   "niche": 6,
+   "tier": "M",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Asics",
+   "niche": 6,
+   "tier": "M",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Bombas",
+   "niche": 10,
+   "tier": "M",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "Umbro",
+   "niche": 10,
+   "tier": "V",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "Calpak",
+   "niche": 18,
+   "tier": "M",
+   "lean": "T",
+   "for": "W"
+  },
+  {
+   "name": "Madhappy",
+   "niche": 30,
+   "tier": "M",
+   "lean": "T",
+   "for": "A"
+  },
+  {
+   "name": "Kotn",
+   "niche": 35,
+   "tier": "M",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "John Elliott",
+   "niche": 52,
+   "tier": "P",
+   "lean": "N",
+   "for": "M"
+  },
+  {
+   "name": "Nili Lotan",
+   "niche": 55,
+   "tier": "P",
+   "lean": "C",
+   "for": "W"
+  },
+  {
+   "name": "Pamela Love",
+   "niche": 55,
+   "tier": "P",
+   "lean": "N",
+   "for": "W"
+  },
+  {
+   "name": "Entire Studios",
+   "niche": 60,
+   "tier": "M",
+   "lean": "T",
+   "for": "A"
+  },
+  {
+   "name": "Cherry Los Angeles",
+   "niche": 60,
+   "tier": "M",
+   "lean": "T",
+   "for": "M"
+  },
+  {
+   "name": "Tekla",
+   "niche": 65,
+   "tier": "P",
+   "lean": "C",
+   "for": "A"
+  },
+  {
+   "name": "CDLP",
+   "niche": 70,
+   "tier": "P",
+   "lean": "C",
+   "for": "M"
+  },
+  {
+   "name": "Ondo",
+   "niche": 20,
+   "tier": "M",
+   "lean": "N",
+   "for": "A"
+  },
+  {
+   "name": "SquidHaus",
+   "niche": 30,
+   "tier": "V",
+   "lean": "T",
+   "for": "A"
+  },
+  {
+   "name": "Sown Again",
+   "niche": 45,
+   "tier": "V",
+   "lean": "T",
+   "for": "A"
+  },
+  {
+   "name": "KVRT STVFF",
+   "niche": 75,
+   "tier": "M",
+   "lean": "T",
+   "for": "M"
+  },
+  {
+   "name": "Goodhood",
+   "niche": 60,
+   "tier": "P",
+   "lean": "T",
+   "for": "A",
+   "store": true
+  },
+  {
+   "name": "Haven",
+   "niche": 62,
+   "tier": "P",
+   "lean": "N",
+   "for": "M",
+   "store": true
+  },
+  {
+   "name": "Garmentory",
+   "niche": 62,
+   "tier": "P",
+   "lean": "N",
+   "for": "W",
+   "store": true
+  },
+  {
+   "name": "Mohawk General Store",
+   "niche": 66,
+   "tier": "P",
+   "lean": "N",
+   "for": "A",
+   "store": true
+  },
+  {
+   "name": "Dover Street Market",
+   "niche": 72,
+   "tier": "L",
+   "lean": "N",
+   "for": "A",
+   "store": true
+  }
+ ]
+}
