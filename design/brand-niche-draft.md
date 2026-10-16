@@ -25,7 +25,7 @@ Bands, as a guide for edits:
 
 1. Match each order line to a brand on this list (by brand name, then by store domain). Unmatched brands are **left out, not guessed**.
 2. For multi-brand stores (SSENSE, Nordstrom, Grailed…), use the **item's brand** when the receipt names one; fall back to the store's own row only when it doesn't.
-3. Score = average niche of the person's matched brands, each weighted by the square root of its order count (so 14 Uniqlo orders count more than one Uniqlo order, but don't drown out everything else).
+3. Score = average niche of the person's most niche quarter of matched brands (at least 3), each brand counted once however many orders it has. Changed October 16 at the founder's request: an order-weighted average of all brands let restocked basics (Lululemon, Nike) drag down someone who also buys Satisfy, Bode and Eckhaus Latta.
 4. Show the card only with **3+ matched distinct brands** covering at least half of the person's orders. Otherwise the card is skipped.
 
 ## Mass market and mall (0–15)
