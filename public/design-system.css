@@ -302,6 +302,14 @@ button.small{min-height:32px;padding:0 14px;font-size:13px}
 
 /* Data view (admin table pattern, Oct 15 design): views, one toolbar row, one status line, dense rows, and a detail
    panel beside the list. Occasional actions live in a More menu; secondary filters in a Filters menu. */
+.dv-title{font-size:34px;line-height:1;margin:0 0 14px}
+/* Metric strip: one bordered row of small figures (value + verdict badge), a label cell first. Two columns on phones. */
+.dv-metrics{display:flex;flex-wrap:wrap;border:1px solid var(--line);border-radius:16px;overflow:hidden;margin:0 0 4px}
+.dv-metric{display:grid;align-content:center;justify-items:start;gap:3px;padding:8px 16px;border-right:1px solid var(--line);font-size:12px;color:var(--text-2)}
+.dv-metric:last-child{border-right:0}.dv-metric>strong{font-size:16px;font-weight:600;color:var(--ink)}
+.dv-metric-label>strong{font-size:13px}.dv-metric .badge{font-size:11px;padding:3px 8px 3px 5px}.dv-metric .badge::before{width:13px;height:13px}
+.dv-toolbar-note{font-size:12px;color:var(--text-2)}
+.dv-empty{margin:0;padding:14px 10px;font-size:13px;color:var(--text-2)}
 .dv-toolbar{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center;margin:14px 0 8px}.dv-toolbar .spacer{flex:1}
 .dv-toolbar button.small{min-height:34px}
 .dv-divider{width:1px;height:22px;background:var(--line)}
@@ -364,6 +372,8 @@ button.quiet{border-color:transparent;box-shadow:none;background:transparent;col
 .dv-tool-head{display:flex;align-items:center;gap:10px;margin-bottom:6px}.dv-tool-head h2{margin:0;font-size:22px}.dv-tool-head button{margin-left:auto}
 @media(max-width:800px){
  .dv-toolbar button.small,.dv-search,.dv-views button,.seg button{min-height:44px}.dv-search{width:100%}.dv-keys,.dv-divider{display:none}
+ .dv-metrics{display:grid;grid-template-columns:1fr 1fr}.dv-metric{border-right:0;border-top:1px solid var(--line)}.dv-metric-label~.dv-metric:nth-child(even){border-right:1px solid var(--line)}
+ .dv-metric-label{grid-column:1/-1;border-top:0}
  .dv-split.open{display:block;border:0;border-radius:0;overflow:visible}.dv-split.open>.dv-list{display:none}.dv-split.open>.dv-detail{padding:0}
 }
 /* Owner confirmation for an action that removes data: say exactly what goes and what stays. */

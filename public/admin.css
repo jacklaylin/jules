@@ -5,8 +5,8 @@ p{line-height:1.65}.login-card{max-width:490px;margin:7vh auto}.login-card>p{col
 .tool-card{max-width:620px;margin:28px 0}main>button[data-mode]{margin:0 8px 10px 0}
 
 /* People list */
-.chat-metrics{margin:24px 0 8px}.chat-metrics .stats div{min-width:120px}.chat-metrics .badge{justify-self:start}
-.people-table tbody tr{cursor:pointer}.people-table tbody tr:hover td{background:#FAF9F7}.people-table td{height:44px}
+.people-list{--dv-cols:minmax(0,2fr) minmax(0,1fr) 80px}
+@media(max-width:800px){.people-list{--dv-cols:minmax(0,1fr) auto 64px}.people-list .dv-row{min-height:48px}}
 
 /* Person page */
 .person-title{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin-bottom:10px}.person-title h1{font-size:34px;line-height:1;margin:0}.person-title .spacer{flex:1}
