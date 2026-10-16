@@ -126,6 +126,23 @@ function fitChips(){
  for(const chip of list.children)if(chip.offsetTop+chip.offsetHeight>room)chip.hidden=true;
 }
 addEventListener('resize',fitChips);
+// Four emojis (canvas card): four slot-machine reels spin through decoys and land on the person's
+// emojis one after another; each caption is the fact that earned it.
+const DECOYS=['🛍️','👠','🧢','🕶️','🧥','👜','🎒','🧦','🥿','👗','🧶','👟'];
+function emojiCard(card,animate){
+ const reels=card.picks.map((pick,i)=>{
+  const strip=el('div',{className:'emoji-strip'},...Array.from({length:9},(_,k)=>el('span',{textContent:DECOYS[(k*5+i*3)%DECOYS.length],'aria-hidden':'true'})),el('span',{textContent:pick.emoji}));
+  const delay=0.3+i*0.25,dur=1.3+i*0.25;
+  strip.style.animationDelay=`${delay}s`;strip.style.animationDuration=`${dur}s`;
+  const caption=el('p',{className:'emoji-fact',textContent:pick.fact});caption.style.animationDelay=`${(delay+dur).toFixed(2)}s`;
+  const window_=el('div',{className:'emoji-window'},strip);window_.style.animationDelay=`${(delay+dur).toFixed(2)}s`;
+  return el('li',{className:'emoji-reel','aria-label':`${pick.emoji} ${pick.fact}`},window_,caption);
+ });
+ return el('article',{className:'story-card story-emoji','aria-label':`${Theirs()} style in four emojis`},
+  el('h2',{className:'story-title emoji-title',textContent:`${Theirs()} style in four emojis`}),
+  el('ul',{className:'emoji-grid'},...reels),
+  foot());
+}
 // In / Out (canvas card 4): the "in / out" meme as a notes-app list on a butter ground. IN lines slide
 // in, then OUT lines (struck through), then the closing line. Every fact is counted by code.
 function inOutCard(card){
@@ -161,7 +178,7 @@ function lockedCard(card){
    el('p',{className:'locked-hint',textContent:'Or text Jules a photo of an old receipt.'})),
   foot());
 }
-const RENDER={receipt:receiptCard,gatekeeper:gatekeeperCard,inout:inOutCard,locked:lockedCard};
+const RENDER={receipt:receiptCard,gatekeeper:gatekeeperCard,emoji:emojiCard,inout:inOutCard,locked:lockedCard};
 
 function renderCard(animate=true){
  const card=report.cards[index];

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {receiptLines,validTotal,writeTotal,buildReport,updateReport,reportView,handleReport,FALLBACK_TOTAL,gatekeeper,nicheBrand,validGateLine,writeGateLine,reportWriter,REPORT_MODEL,inOut,validInOutLine,writeInOutLine,lockedCards,MIN_CARDS,sharedView,handleSharedReport,sharePreview,handleSharePage} from '../lib/style-report.js';
+import {receiptLines,validTotal,writeTotal,buildReport,updateReport,reportView,handleReport,FALLBACK_TOTAL,gatekeeper,nicheBrand,validGateLine,writeGateLine,reportWriter,REPORT_MODEL,inOut,validInOutLine,writeInOutLine,lockedCards,MIN_CARDS,sharedView,handleSharedReport,sharePreview,handleSharePage,fourEmojis} from '../lib/style-report.js';
 import {tagFingerprint} from '../lib/item-tags.js';
 import {purchaseEvidence,projectReceiptEvidence} from '../lib/receipt-extraction.js';
 import {signInLinks} from '../lib/onboarding.js';
@@ -398,4 +398,40 @@ test('the preview description comes from the best shared card',()=>{
  assert.equal(sharePreview({name:'Jack',cards:[{type:'receipt',lines:[{label:'BLACK ANYTHING',n:22}]},{type:'gatekeeper',score:71,verdict:'Cult member'}]}).description,'Niche score 71, cult member. How niche are you?');
  assert.equal(sharePreview({name:'Jack',cards:[{type:'receipt',lines:[{label:'BLACK ANYTHING',n:22}]}]}).description,'Black anything ×22. What would yours say?');
  assert.equal(sharePreview({name:null,cards:[]}).title,'A style report · Jules');
+});
+
+test('four emojis: each is earned by a counted fact, the four strongest win, and the variety limits hold',()=>{
+ seq=0;
+ const rows=[
+  // 12 SSENSE orders of black tees: 🖤 and the store emojis 🔁 / 📦 (only one of that pair may show).
+  ...Array.from({length:12},(_,k)=>buy({product:'Tee '+k,merchant:'SSENSE',brand:'Our Legacy',order_reference:'S'+k})).flat(),
+  // Cycling kit from a cycling brand: 🚲.
+  ...Array.from({length:4},(_,k)=>buy({product:'Jersey '+k,merchant:'MAAP',brand:'MAAP',order_reference:'M'+k})).flat(),
+  // Six pairs of sneakers: 👟.
+  ...Array.from({length:6},(_,k)=>buy({product:'Sneaker '+k,merchant:'Nike',brand:'Nike',order_reference:'N'+k})).flat(),
+ ];
+ const state=projectReceiptEvidence(owner,rows).state;
+ const tags=tagsFor(state,i=>/Tee/.test(i.product)?{item_type:'t-shirt',group:'tops',color_family:'black',resale:false}
+  :/Jersey/.test(i.product)?{item_type:'race jersey',group:'activewear',color_family:'black',resale:false}
+  :{item_type:'sneakers',group:'shoes',color_family:'white',resale:false});
+ const e=fourEmojis(state,tags,{gateScore:80});
+ assert.equal(e.eligible,true);assert.equal(e.picks.length,4);
+ const emojis=e.picks.map(p=>p.emoji);
+ // Never both of a pair, never two colours.
+ assert.ok(!(emojis.includes('🔁')&&emojis.includes('📦')));
+ assert.ok(emojis.filter(x=>['🖤','🤍','🩶','💙','🤎','🩷','🫒','🌈'].includes(x)).length<=1);
+ // Every caption is a fact from the purchases, never an amount.
+ assert.ok(e.picks.every(p=>p.fact&&!/[$€£]/.test(p.fact)));
+ const fact=Object.fromEntries(e.picks.map(p=>[p.emoji,p.fact]));
+ if(fact['🗝️'])assert.equal(fact['🗝️'],'niche score 80');
+ if(fact['🚲'])assert.equal(fact['🚲'],'4 pieces of cycling kit');
+ // Too little to earn four: no card, no filler.
+ seq=0;
+ const thin=Array.from({length:3},(_,k)=>buy({product:'Tee '+k,merchant:'COS',brand:'COS',order_reference:'C'+k})).flat();
+ assert.equal(fourEmojis(projectReceiptEvidence(owner,thin).state,{}).eligible,false);
+});
+
+test('the emoji card is shared as just its emojis and facts',()=>{
+ const report={id:'r',built_at:'2026-10-16T00:00:00Z',hidden:{},feedback:[],cards:[{type:'emoji',picks:[{emoji:'🖤',fact:'82% black',secret:'x'}]}]};
+ assert.deepEqual(sharedView(report,'Jack').cards,[{type:'emoji',picks:[{emoji:'🖤',fact:'82% black'}]}]);
 });
