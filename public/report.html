@@ -44,15 +44,22 @@
   </section>
 
   <section id="view-end" class="report-frame report-end" hidden>
+    <a id="end-close" class="report-icon-button report-end-close" href="/wishlist" aria-label="Close report"><svg width="16" height="16" viewBox="0 0 18 18" aria-hidden="true"><path d="M3 3 L15 15 M15 3 L3 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></a>
     <div class="report-end-copy">
       <h1 class="display" id="end-title">That’s your report.</h1>
-      <p id="end-body">More cards are on the way as Jules gets to know you. Hidden lines stay hidden.</p>
-      <p id="share-status" class="report-share-status" hidden>Shared · anyone with this link can see your shared cards: <a id="share-link" class="report-share-link"></a></p>
+      <p id="end-body">Jules gets to know you through your orders, outfits and chats, and texts you when more readings are ready. Until then:</p>
     </div>
+    <!-- Option A (founder, 16 Oct): one grape pill, then quiet rows. -->
     <div class="report-end-actions">
-      <button id="end-share" class="report-cta report-cta-share" type="button">Share your report ↗</button>
-      <a id="end-cta" class="report-cta" href="/wishlist">See your wishlist</a>
-      <button id="restart" class="report-link" type="button">Watch again</button>
+      <a id="end-connect" class="report-cta" href="/account" hidden></a>
+      <button id="end-share" class="report-cta" type="button">Share your report ↗</button>
+      <a id="end-cta" class="report-cta" href="/signup" hidden>Get your own report ↗</a>
+      <div class="report-end-rows">
+        <button id="end-share-row" class="report-end-row" type="button" hidden><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5M5 13v7h14v-7"/></svg><span>Share your report</span></button>
+        <button id="end-copy" class="report-end-row" type="button"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg><span>Copy report link</span></button>
+        <a id="end-chat" class="report-end-row" hidden><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg><span>Chat with Jules</span><span class="report-end-row-go" aria-hidden="true">↗</span></a>
+        <button id="restart" class="report-end-row" type="button"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.3-5.6M4 4v4h4"/></svg><span>Watch again</span></button>
+      </div>
     </div>
   </section>
 
