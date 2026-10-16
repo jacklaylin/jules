@@ -1,41 +1,87 @@
-import {mountAdminShell,adminJson} from './admin-console.js';
+import {mountAdminShell,adminJson,anchorMenus} from './admin-console.js';
+import {viewOf,totalLine,coverageText,budgetText,providerLines,serviceRow,featureRows,meteredText,entryBody} from './costs-view.js';
+// Admin › Costs as a data view: the day's total beside the title, views By service · By feature · Evals,
+// the day picker in the toolbar and coverage/budget in the status line. Update an amount opens its form above the table.
 mountAdminShell('costs');
+anchorMenus();
 const $ = id => document.getElementById(id);
-const money = value => value === null ? 'Unknown' : new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',minimumFractionDigits:2,maximumFractionDigits:4}).format(value);
-$('date').value = new Intl.DateTimeFormat('en-CA',{timeZone:'UTC',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-const api=(options={})=>adminJson(`/api/costs?date=${encodeURIComponent($('date').value)}`,options);
-let version=0;
-async function load() {
-  const request=++version;
-  $('total').textContent='Loading…'; $('rows').replaceChildren();$('coverage').textContent='';$('budget-status').textContent='';$('openai-status').textContent='';$('serpapi-status').textContent='';$('github-status').textContent='';$('vercel-status').textContent='';$('metered-rows').replaceChildren();$('metered-status').textContent='';
-  try {
-    const data=await api(); if(request!==version)return;
-    $('notice').textContent='';$('total').textContent=data.total===null?'Costs unknown':`${money(data.total)} ${data.missing?'known subtotal':'recorded'}`;
-    $('coverage').textContent=data.missing?`${data.missing} of ${data.rows.length} services have missing usage or subscription amounts. The total is incomplete.`:'All services have recorded usage and subscription amounts.';
-    $('budget-status').textContent=data.budget===null?'No daily warning budget set.':`Daily warning budget: ${money(data.budget)} · ${data.total!==null && data.total>data.budget?'OVER BUDGET':data.missing?'Coverage incomplete; actual costs may exceed budget':'Within recorded budget'}`;
-    const openai=data.providers.openai;
-    $('openai-status').textContent=`OpenAI: ${openai.message}${openai.status==='connected'?` Total reported ${openai.periodStart} through ${openai.periodEnd} (UTC): ${money(openai.periodTotal)}. Checked ${new Date(openai.checkedAt).toLocaleString()}.`:''}`;
-    const serpapi=data.providers.serpapi;
-    $('serpapi-status').textContent=`SerpApi: ${serpapi.message}${serpapi.status==='connected'?` ${serpapi.used} searches used this billing month; ${serpapi.remaining} credits left; allowance ${serpapi.allowance}. Checked ${new Date(serpapi.checkedAt).toLocaleString()}.`:''}`;
-    for(const name of ['github','vercel']) {
-      const provider=data.providers[name];
-      $(name+'-status').textContent=`${name==='github'?'GitHub':'Vercel'}: ${provider.message}${provider.status==='connected'?` Reported daily charges: ${money(provider.daily)}. ${name==='vercel'?`Excluded unallocated team charges: ${money(provider.unallocated)}. `:''}Checked ${new Date(provider.checkedAt).toLocaleString()}.`:''}`;
-    }
-    const metered=data.metered;
-    $('metered-status').textContent=!metered?'Metered usage is unavailable.':!metered.features.length?'No metered calls on this day.':`${money(metered.total)} estimated · ${money(metered.evals)} from eval test runs`;
-    for(const f of metered?.features??[]){const tr=document.createElement('tr');for(const text of [f.label,String(f.calls),money(f.cost)]){const td=document.createElement('td');td.textContent=text;tr.append(td);}$('metered-rows').append(tr);}
-    if(!$('service').options.length)for(const row of data.rows){const option=document.createElement('option');option.value=row.id;option.textContent=row.name;$('service').append(option);}
-    for(const row of data.rows){
-      const tr=document.createElement('tr');const name=document.createElement('td');const link=document.createElement('a');link.href=row.url;link.target='_blank';link.rel='noopener noreferrer';link.textContent=row.name;name.append(link);
-      if(row.note){const note=document.createElement('small');note.textContent=row.note;name.append(note);}tr.append(name);
-      for(const text of [money(row.usage),row.daily===null?'Unknown':`${money(row.daily)} (${money(row.monthly)}/mo)`,money(row.total),`${row.source} · ${row.complete?'Recorded':'Incomplete'}`]){const td=document.createElement('td');td.textContent=text;tr.append(td);}
-      $('rows').append(tr);
-    }
-  }catch(error){if(request===version){$('total').textContent='Unavailable';$('notice').textContent=error.message;}}
+const el = (tag, { dataset, ...props } = {}, ...children) => { const node = Object.assign(document.createElement(tag), props); Object.assign(node.dataset, dataset); node.append(...children.filter(c => c !== null)); return node; };
+$('date').value = new Intl.DateTimeFormat('en-CA', { timeZone: 'UTC', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+const api = (options = {}) => adminJson(`/api/costs?date=${encodeURIComponent($('date').value)}`, options);
+let version = 0, data = null, refreshedAt = null;
+
+function showView() {
+  const view = viewOf(location.search);
+  for (const button of $('cost-views').querySelectorAll('button')) button.setAttribute('aria-pressed', String(button.dataset.view === view));
+  for (const panel of document.querySelectorAll('[data-view-panel]')) panel.hidden = panel.dataset.viewPanel !== view;
+  summary();
 }
-$('refresh').onclick=load;$('date').onchange=load;
-$('entry').onsubmit=async event=>{
-  event.preventDefault();$('save').disabled=true;
-  try{const kind=$('kind').value;await api({method:'POST',body:JSON.stringify({service:kind==='budget'?'openai':$('service').value,kind,date:kind==='usage'?$('date').value:$('date').value.slice(0,7)+'-01',amount:Number($('amount').value),note:$('note').value})});await load();$('amount').value='';$('note').value='';}catch(error){$('notice').textContent=error.message;}finally{$('save').disabled=false;}
+// The metered estimate for the open view (By feature, Evals) joins the status line.
+function summary() {
+  const view = viewOf(location.search);
+  $('view-summary').textContent = data && view ? meteredText(data.metered, view === 'evals') : '';
+}
+for (const button of $('cost-views').querySelectorAll('button')) button.onclick = () => {
+  const url = new URL(location.href);
+  if (button.dataset.view) url.searchParams.set('view', button.dataset.view); else url.searchParams.delete('view');
+  history.replaceState(null, '', url); showView();
 };
+
+const emptyRow = (columns, text) => el('tr', {}, el('td', { colSpan: columns, className: 'muted', textContent: text }));
+function render() {
+  const { amount, label } = totalLine(data);
+  $('total').textContent = amount; $('total-label').textContent = label ? `${$('date').value} (UTC) · ${label}` : '';
+  $('refreshed').textContent = refreshedAt ? `Refreshed ${new Date(refreshedAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}` : '';
+  $('coverage').textContent = data ? coverageText(data) : '';
+  const budget = data ? budgetText(data) : { text: '', over: false };
+  $('budget-status').textContent = budget.text; $('budget-status').className = budget.over ? 'error' : '';
+  summary();
+  if (!data) return;
+  $('rows').replaceChildren(...data.rows.map(serviceRow).map(row => el('tr', {},
+    el('td', {}, el('a', { href: row.url, target: '_blank', rel: 'noopener noreferrer', className: 'service-name', textContent: row.name }), row.note ? el('small', { textContent: row.note }) : null),
+    el('td', { className: 'end num', textContent: row.usage, dataset: { label: 'Usage today' } }), el('td', { className: 'end num', textContent: row.subscription, dataset: { label: 'Subscription / day' } }), el('td', { className: 'end num', textContent: row.total, dataset: { label: 'Recorded total' } }),
+    el('td', {}, el('span', { className: `badge ${row.complete ? 'ok' : 'warn'}`, textContent: row.complete ? 'Recorded' : 'Incomplete' }), ' ', el('span', { className: 'muted', textContent: row.source })))));
+  for (const [id, evals] of [['feature-rows', false], ['eval-rows', true]]) {
+    const rows = featureRows(data.metered, evals);
+    $(id).replaceChildren(...(rows.length ? rows.map(f => el('tr', {}, el('td', { textContent: f.label }), el('td', { className: 'end num', textContent: f.calls, dataset: { label: 'Calls' } }), el('td', { className: 'end num', textContent: f.cost, dataset: { label: 'Estimated cost' } })))
+      : [emptyRow(3, data.metered?.features.length ? `No ${evals ? 'eval test runs' : 'user activity'} on this day.` : `${meteredText(data.metered, evals)}.`)]));
+  }
+  $('providers').replaceChildren(...providerLines(data.providers).flatMap(([name, text]) => [el('dt', { textContent: name }), el('dd', { textContent: text })]));
+  if (!$('service').options.length) $('service').append(...data.rows.map(row => el('option', { value: row.id, textContent: row.name })));
+}
+
+async function load() {
+  const request = ++version;
+  $('loader').hidden = false; $('notice').textContent = ''; $('notice').className = '';
+  try {
+    const fresh = await api(); if (request !== version) return;
+    data = fresh; refreshedAt = Date.now();
+  } catch (error) {
+    if (request !== version) return;
+    data = null; $('rows').replaceChildren(emptyRow(5, 'Costs could not be loaded.'));
+    $('notice').className = 'error'; $('notice').textContent = `Could not load costs: ${error.message} Try Refresh in More.`;
+  } finally { if (request === version) { $('loader').hidden = true; render(); } }
+}
+
+function toggleEntry(open) {
+  $('tool-entry').hidden = !open; $('entry-open').setAttribute('aria-expanded', String(open));
+  if (open) { $('tool-entry').scrollIntoView({ block: 'nearest' }); $('service').focus(); } else $('entry-open').focus();
+}
+$('entry-open').onclick = () => toggleEntry($('tool-entry').hidden);
+$('entry-close').onclick = () => toggleEntry(false);
+$('entry').onsubmit = async event => {
+  event.preventDefault(); $('save').disabled = true; $('entry-error').hidden = true;
+  try {
+    await api({ method: 'POST', body: JSON.stringify(entryBody({ kind: $('kind').value, service: $('service').value, date: $('date').value, amount: $('amount').value, note: $('note').value })) });
+    $('amount').value = ''; $('note').value = '';
+    await load(); $('notice').textContent = 'Amount saved.';
+  } catch (error) { $('entry-error').textContent = `Not saved: ${error.message}`; $('entry-error').hidden = false; }
+  finally { $('save').disabled = false; }
+};
+$('refresh').onclick = () => { $('costs-more').hidePopover(); load(); };
+$('date').onchange = load;
+// The service list does not apply to the all-services budget.
+$('kind').onchange = () => { $('service').disabled = $('kind').value === 'budget'; };
+addEventListener('popstate', showView);
+showView();
 load();
