@@ -146,7 +146,7 @@ body.report-page:has(.report-player:not([hidden])[data-ground="inout"]){backgrou
 @keyframes emoji-thunk{0%{transform:scale(1)}40%{transform:scale(1.08)}100%{transform:scale(1)}}
 @keyframes emoji-rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 
-/* Style match (design canvas, card 5): bubblegum ground, a tilted polaroid with a hanger badge. */
+/* Style match (design canvas, card 5): bubblegum ground, a tilted polaroid with a heart badge. */
 .story-match{background:var(--bubblegum);color:var(--ink);padding:22px;gap:10px}
 .story-match p{margin:0}
 .match-head{margin:0;text-align:center;font:800 46px/.9 var(--font-sans);letter-spacing:-.055em;animation:gate-pop .6s cubic-bezier(.16,1,.3,1) .7s both}
@@ -155,12 +155,11 @@ body.report-page:has(.report-player:not([hidden])[data-ground="inout"]){backgrou
 .match-photo{display:block;width:100%;height:196px;object-fit:cover;background:#DDD7D0}
 .match-empty{background:repeating-linear-gradient(135deg,#F3F1EE 0 10px,#ECE8E3 10px 20px)}
 .match-polaroid figcaption{font:400 24px/1 var(--font-serif);letter-spacing:-.03em;padding:9px 2px 11px;text-align:center}
-.match-badge{position:absolute;left:calc(50% + 70px);top:6px;width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid var(--ink);background:var(--butter);box-sizing:border-box;animation:gate-pop .5s ease-out both,match-beat 1.6s ease-in-out 1.4s infinite}
-.match-badge path{fill:none;stroke:var(--ink);stroke-width:3.2;stroke-linecap:round;stroke-linejoin:round}
+.match-badge{position:absolute;left:calc(50% + 70px);top:6px;width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid var(--ink);background:var(--white);box-sizing:border-box;animation:gate-pop .5s ease-out both,match-beat 1.6s ease-in-out 1.4s infinite}
+.match-badge path{fill:var(--tangerine);stroke:var(--ink);stroke-width:3;stroke-linejoin:round}
 .match-credit{font:500 8px var(--font-mono);letter-spacing:.06em;text-align:center;min-height:10px;color:#17120fb3;text-transform:uppercase}
 .match-pct{font:800 22px/.85 var(--font-sans);letter-spacing:-.04em}
 .match-pct b{font-size:64px;font-weight:800;letter-spacing:-.06em}
-.match-traits{font:500 10px var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:#17120fb3}
 .match-line{font-size:17px;line-height:1.3;font-weight:600;letter-spacing:-.01em}
 .match-foot{margin-top:auto}
 @keyframes match-in{from{opacity:0;transform:translateX(160px) rotate(20deg)}}

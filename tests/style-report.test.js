@@ -624,4 +624,5 @@ test('the match line names only shared brands and has a third-person twin for sh
  const view=sharedView({cards:[{type:'match',pct:94,icon:{key:'frank-ocean',...card.icon,kind:'real',photo:null},shared:card.shared,orders:121,line:written.line,shared_line:written.shared}],feedback:[],hidden:{}},'Jack');
  assert.deepEqual(Object.keys(view.cards[0]).sort(),['icon','line','pct','type']);
  assert.equal(view.cards[0].line,'Jack and Frank both buy Our Legacy and say very little');
+ assert.equal(sharePreview(view).description,'94% style match with Frank Ocean. Who’s your style icon?');
 });
