@@ -158,6 +158,30 @@ test('a rebuild reads the photo again when the kept read is from the four-judge 
  assert.equal(read.scores.length,3);
 });
 
+test('a failed re-read keeps the earlier read, and with none to keep the locked card says to try again',async()=>{
+ const store=await fixture({photos:['o1','o2']});
+ const {buildRead}=await import('../lib/style-report.js');
+ const {card}=await buildRead(store,owner,env,{interpret:writer,judges});
+ const failing=async()=>{throw Error('Read request failed');};
+ // An old-format read is re-read; when that fails the old card stays rather than vanishing.
+ const old={...card,scores:[...card.scores,{label:'Drip',n:8}]};
+ store.row.data.style_report={cards:[old],feedback:[],hidden:{}};
+ await buildReport(store,owner,env,{interpret:writer,judges:failing});
+ let cards=store.row.data.style_report.cards;
+ assert.equal(cards.find(c=>c.type==='read')?.scores.length,4,'the earlier read is kept');
+ assert.ok(!cards.some(c=>c.type==='locked'&&c.card==='read'));
+ // No earlier read to keep: a locked card, not a missing one.
+ store.row.data.style_report={cards:[],feedback:[],hidden:{}};
+ await buildReport(store,owner,env,{interpret:writer,judges:failing});
+ cards=store.row.data.style_report.cards;
+ assert.ok(!cards.some(c=>c.type==='read'));
+ const lock=cards.find(c=>c.type==='locked'&&c.card==='read');
+ assert.ok(lock,'the Read is locked, not dropped');assert.match(lock.why,/again/);
+ // The next build tries again and the read appears.
+ await buildReport(store,owner,env,{interpret:writer,judges});
+ assert.equal(store.row.data.style_report.cards.find(c=>c.type==='read')?.scores.length,3);
+});
+
 test('a shared read shows the photo and third-person lines only, and drops the card if the photo is gone',async()=>{
  const store=await fixture({photos:['o2']});
  const {buildRead}=await import('../lib/style-report.js');

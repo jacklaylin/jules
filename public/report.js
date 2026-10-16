@@ -11,6 +11,8 @@ const person=new URLSearchParams(location.search).get('person');
 const sharedToken=location.pathname.match(/^\/r\/([A-Za-z0-9_-]{22})\/?$/)?.[1]??null;
 // Read-only views record nothing and offer no edits or sharing.
 const readOnly=Boolean(person||sharedToken);
+// Export mode (/r/<link>?export=<card>): the server screenshots one finished card as a Story image.
+const exportCard=sharedToken?new URLSearchParams(location.search).get('export'):null;
 const el=(tag,props={},...children)=>{const node=Object.assign(document.createElement(tag),props);node.append(...children.filter(c=>c!=null&&c!==false));return node;};
 let report=null,index=0;
 
@@ -317,7 +319,7 @@ function renderCard(animate=true){
 function go(i){if(i<0){show('view-intro');return;}if(i>=report.cards.length){show('view-end');return;}index=i;renderCard();}
 
 async function save(body,done){
- try{const result=await api('POST',{card:report.cards[index].type,...body});report={...result.report,name:report.name,text_url:report.text_url,read_photos:result.read_photos??report.read_photos,cards:result.report.cards.filter(c=>RENDER[c.type])};renderCard(false);if(done)toast(done);}
+ try{const result=await api('POST',{card:report.cards[index].type,...body});report={...result.report,name:report.name,text_url:report.text_url,missing_sources:report.missing_sources,read_photos:result.read_photos??report.read_photos,cards:result.report.cards.filter(c=>RENDER[c.type])};renderCard(false);if(done)toast(done);}
  catch(error){toast(error.message);}
 }
 $('intro-start').onclick=()=>go(0);
@@ -331,7 +333,7 @@ $('controls').append(el('span',{className:'controls-mark'},wordmark()));$('chrom
 const exit=person?'/admin':sharedToken?'/':'/wishlist';
 // × leaves the whole report (not just the card): back to the wishlist, or to admin for a preview.
 $('close').onclick=()=>{location.href=exit;};
-$('chrome-close').href=exit;
+$('chrome-close').href=exit;$('end-close').href=exit;
 $('chrome-next').onclick=()=>go(0);
 $('chrome-prev').onclick=()=>go(report.cards.length-1);
 // Desktop keyboard, while no sheet is open. Cards: arrows move. Intro: → starts.
@@ -356,24 +358,93 @@ $('restart').onclick=()=>go(0);
 // opens when there is one, otherwise the link is copied. The link is permanent and always shows the
 // latest report (founder, 16 Oct: no turning it off).
 const shareUrl=()=>`${location.origin}/r/${report.share.token}`;
-async function shareReport(){
+// The server returns only the report; keep what came with the first load.
+const keep=next=>({...next,name:report.name,text_url:report.text_url,missing_sources:report.missing_sources,read_photos:report.read_photos});
+async function shareLink(){
+ if(!report.share){const result=await api('POST',{action:'report-share'});report=keep(result.report);}
+ return shareUrl();
+}
+// Older browsers and some in-app views block the clipboard API; the selection copy still works there.
+async function copyLink(url){
+ let copied=false;
+ try{await navigator.clipboard.writeText(url);copied=true;}
+ catch{const field=el('textarea',{value:url,readOnly:true,className:'report-copy-field'});document.body.append(field);field.select();try{copied=document.execCommand('copy');}catch{}field.remove();}
+ toast(copied?'Link copied. Anyone with it can see your shared cards.':`Your link: ${url.replace(/^https?:\/\//,'')}`);
+}
+// One share sheet on a card and at the end (founder, 16 Oct): Instagram Story first, then the link.
+// Each card's Story image is a 1080×1920 screenshot of exactly what a friend sees (lib/report-image.js),
+// made while the sheet is open so the tap can hand it straight to the phone's share sheet (phones only
+// allow that right after a tap). The link is copied with it for the Story's link sticker.
+const images=new Map();let shareJob=0,storyFiles=null;
+async function cardImage(type){
+ const key=`${report.share.token}:${report.built_at}:${type}`;
+ if(!images.has(key))images.set(key,fetch(`/api/image?report=${report.share.token}&card=${type}`).then(async r=>{
+  if(r.status===404)return null;if(!r.ok)throw Error('Couldn’t make the image.');
+  return new File([await r.blob()],`jules-${type}.png`,{type:'image/png'});
+ }).catch(error=>{images.delete(key);throw error;}));
+ return images.get(key);
+}
+const canShareFiles=files=>Boolean(navigator.canShare?.({files}));
+function story(state,note){
+ $('share-story').setAttribute('aria-disabled',String(state!=='ready'));$('share-story').hidden=state==='none';
+ $('share-story-note').textContent=note;
+}
+async function openShare(scope){
+ const job=++shareJob;storyFiles=null;
+ $('share-title').textContent=scope==='end'?'Share your report':'Share this card';
+ $('share-story-title').textContent='Instagram Story';
+ $('share-copy-note').textContent='Making your link…';story('busy','Making your image…');
+ $('sheet-share').showModal();
+ let url;
+ try{url=await shareLink();}catch(error){$('sheet-share').close();toast(error.message||'Couldn’t make a link. Try again.');return;}
+ if(job!==shareJob)return;
+ $('share-copy-note').textContent=url.replace(/^https?:\/\//,'');
+ // From the end screen, every card a friend would see; from a card, that card (none for a locked one).
+ const types=(scope==='end'?report.cards:[report.cards[index]]).map(c=>c.type).filter(t=>t!=='locked');
+ if(!types.length){story('none','');return;}
  try{
-  if(!report.share){const result=await api('POST',{action:'report-share'});report={...result.report,name:report.name,text_url:report.text_url,read_photos:report.read_photos};shareStatus();}
-  const url=shareUrl();
-  if(navigator.share){try{await navigator.share({title:'My style report',text:'Jules went through my orders. What would yours say?',url});return;}catch(error){if(error?.name==='AbortError')return;}}
-  try{await navigator.clipboard.writeText(url);toast('Link copied. Anyone with it can see your shared cards.');}
-  catch{toast('Here’s your link. Copy it from the end screen.');}
- }catch(error){toast(error.message||'Couldn’t make a link. Try again.');}
+  const files=[];
+  for(const [n,type] of types.entries()){
+   if(types.length>1)story('busy',`Making your images… ${n+1} of ${types.length}`);
+   const file=await cardImage(type);if(job!==shareJob)return;
+   if(file)files.push(file);
+  }
+  // A card kept out of sharing ("Wouldn't share") has no image; the link still works.
+  if(!files.length){story('none','');return;}
+  storyFiles=files;
+  const many=files.length>1;
+  if(!canShareFiles(files))$('share-story-title').textContent='Download for your Story';
+  story('ready',`${many?`${files.length} cards as 9:16 images`:'This card as a 9:16 image'}, with your link copied for the sticker`);
+ }catch{if(job===shareJob)story('busy','Couldn’t make the image. Close and try again.');}
 }
-function shareStatus(){
- $('share-status').hidden=readOnly||!report?.share;
- if(report?.share&&!readOnly){$('share-link').href=shareUrl();$('share-link').textContent=shareUrl().replace(/^https?:\/\//,'');}
-}
-$('share').onclick=shareReport;$('end-share').onclick=shareReport;
+$('share-story').onclick=()=>{
+ if(!storyFiles)return;
+ const files=storyFiles,url=shareUrl();
+ // Not awaited: the share sheet has to open in the same tap.
+ navigator.clipboard?.writeText(url).catch(()=>{});
+ if(canShareFiles(files)){
+  navigator.share({files}).then(()=>{$('sheet-share').close();toast('Shared. Your link is copied for the link sticker.');}).catch(error=>{if(error?.name!=='AbortError')toast('Couldn’t open sharing. Try again.');});
+  return;
+ }
+ for(const file of files){const a=el('a',{href:URL.createObjectURL(file),download:file.name});a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
+ $('sheet-share').close();toast(files.length>1?'Images downloaded. Your link is copied for the sticker.':'Image downloaded. Your link is copied for the sticker.');
+};
+$('share-copy').onclick=async()=>{if(!report.share)return;$('sheet-share').close();await copyLink(shareUrl());};
+$('share-more').onclick=async()=>{
+ if(!report.share)return;
+ const url=shareUrl();
+ if(navigator.share){try{await navigator.share({title:'My style report',text:'Jules went through my orders. What would yours say?',url});$('sheet-share').close();}catch(error){if(error?.name!=='AbortError')toast('Couldn’t open sharing. Copy the link instead.');}return;}
+ $('sheet-share').close();await copyLink(url);
+};
+$('share').onclick=()=>openShare('card');$('end-share').onclick=$('end-share-row').onclick=()=>openShare('end');
+$('sheet-share').addEventListener('close',()=>{shareJob++;});
+// Every sheet closes on a tap outside it, as well as its own buttons.
+for(const sheet of document.querySelectorAll('dialog.report-sheet'))sheet.addEventListener('click',event=>{if(event.target!==sheet)return;const r=sheet.getBoundingClientRect();if(event.clientY<r.top||event.clientY>r.bottom||event.clientX<r.left||event.clientX>r.right)sheet.close();});
+$('end-copy').onclick=async()=>{try{await copyLink(await shareLink());}catch(error){toast(error.message||'Couldn’t make a link. Try again.');}};
 // A fresh read of another photo takes a few seconds; the card replays its entrance when it lands.
 $('read-shuffle').onclick=async()=>{
  const button=$('read-shuffle');button.disabled=true;button.textContent='Judging…';
- try{const result=await api('POST',{action:'read-shuffle',card:'read'});report={...result.report,name:report.name,text_url:report.text_url,read_photos:result.read_photos??report.read_photos,cards:result.report.cards.filter(c=>RENDER[c.type])};
+ try{const result=await api('POST',{action:'read-shuffle',card:'read'});report={...result.report,name:report.name,text_url:report.text_url,missing_sources:report.missing_sources,read_photos:result.read_photos??report.read_photos,cards:result.report.cards.filter(c=>RENDER[c.type])};
   index=Math.max(0,report.cards.findIndex(c=>c.type==='read'));renderCard(true);}
  catch(error){toast(error.message);}
  finally{button.disabled=false;button.textContent='Shuffle';}
@@ -420,13 +491,23 @@ async function signInFromLink(token){
  session.save(result);
 }
 const READ_AGAIN_MS=15000;
+const SOURCE_LABEL={gmail:'Gmail',shop:'Shop'};
 function opened(result){
- clearInterval(stepTimer);report={...result.report,text_url:result.text_url??null,read_photos:result.read_photos??0};
+ clearInterval(stepTimer);report={...result.report,text_url:result.text_url??null,missing_sources:result.missing_sources??[],read_photos:result.read_photos??0};
  // The person's own time zone, so "1am checkouts" means their 1am. Saved for the next build; never in
  // an admin preview or a friend's view.
  if(!readOnly){const tz=Intl.DateTimeFormat().resolvedOptions().timeZone;if(tz&&tz!==report.timezone)api('POST',{action:'report-timezone',timezone:tz}).catch(()=>{});}
  // A card this page doesn't draw (for example from an older report) is skipped, never shown broken.
  report={...report,cards:report.cards.filter(c=>RENDER[c.type])};
+ // The end card: what Jules learns from and what to do next. With an order source still unlinked it
+ // says this is all for now and leads with connecting it (founder, 16 Oct).
+ const own=!readOnly,missing=own?report.missing_sources??[]:[];
+ // With a source missing, connecting it takes the pill and Share drops to a row.
+ $('end-connect').hidden=!missing.length;
+ $('end-connect').textContent=`Connect ${missing.map(s=>SOURCE_LABEL[s]??s).join(' and ')} ↗`;
+ $('end-share').hidden=!own||missing.length>0;$('end-share-row').hidden=!own||!missing.length;
+ $('end-copy').hidden=!own;
+ $('end-chat').hidden=!own||!report.text_url;if(report.text_url)$('end-chat').href=report.text_url;
  if(report.shared){
   // A friend's view: about the person, ending with an invitation to get their own.
   // The name appears once, in the headline; the eyebrow says where the report comes from, and the
@@ -435,16 +516,26 @@ function opened(result){
   $('intro-title').textContent=report.name?`${report.name}’s style report is in.`:'A style report is in.';
   $('end-title').textContent='What would yours say?';
   $('end-body').textContent=`${report.name?`Jules made ${report.name}’s`:'Jules made this'} from real orders. Get yours by connecting your order emails.`;
-  $('end-cta').textContent='Get your own report ↗';$('end-cta').href='/signup';
-  $('end-share').hidden=true;
+  $('end-cta').hidden=false;
   if(!report.cards.length){message('Nothing shared here yet.','This report has no cards to show right now.','Style report',{label:'Get your own report ↗',href:'/signup'});return;}
+  if(exportCard)return exportOne(exportCard);
  }else{
   $('intro-eyebrow').textContent=(person?'Admin preview · ':'')+[report.name?`For ${report.name}`:'For you',report.built_at&&day(report.built_at)].filter(Boolean).join(' · ');
-  $('end-title').textContent=report.name?`That’s your report, ${report.name}.`:'That’s your report.';
-  $('end-share').hidden=readOnly;
+  $('end-title').textContent=missing.length?'That’s all, for now…':report.name?`That’s your report, ${report.name}.`:'That’s your report.';
  }
- shareStatus();
  show('view-intro');
+}
+// Draws one card in its finished state, then says so once its fonts and images have loaded.
+async function exportOne(type){
+ const at=report.cards.findIndex(c=>c.type===type);
+ if(at<0){document.documentElement.dataset.export='missing';return;}
+ document.documentElement.classList.add('report-exporting');
+ index=at;show('view-card');renderCard(false);
+ await document.fonts.ready;
+ await Promise.all([...$('card').querySelectorAll('img')].map(img=>img.complete?null:new Promise(done=>{img.onload=img.onerror=done;})));
+ fitCard();fitChips();fitRead();
+ // A beat for layout after fitting; not animation frames, which a hidden page may never run.
+ setTimeout(()=>{document.documentElement.dataset.export='ready';},120);
 }
 async function load(){
  const result=await api('GET');
