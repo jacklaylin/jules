@@ -242,6 +242,11 @@ body.report-page:has(.report-player:not([hidden])[data-ground="inout"]){backgrou
 .report-sheet>p{margin:0 0 14px;font-size:14px;color:var(--text-2)}
 .report-chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
 .report-chips button{min-height:44px;border-radius:999px;padding:0 18px;border:1.5px solid var(--ink);background:var(--white);color:var(--ink);font:600 15px var(--font-sans);cursor:pointer;box-shadow:0 3px 6px #17120f26}
+/* 👎 "which one missed?": the card's lines, any number picked, then a reason sends it. */
+.report-down-label{margin:0 0 8px;font:600 14px var(--font-sans)}.report-down-label span{font-weight:400;color:var(--text-2)}
+.report-line-picks{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
+.report-line-pick{min-height:44px;border-radius:14px;padding:10px 14px;border:1.5px solid var(--line-strong);background:var(--white);color:var(--ink);font:500 15px/1.3 var(--font-sans);text-align:left;cursor:pointer}
+.report-line-pick[aria-pressed="true"]{background:var(--butter);border-color:var(--ink)}
 .report-toggles{display:flex;flex-direction:column;margin-bottom:10px}
 .report-toggle{min-height:52px;display:flex;justify-content:space-between;align-items:center;gap:12px;border:0;border-bottom:1px solid var(--line,#E8E4E0);background:transparent;color:var(--ink);padding:6px 0;text-align:left;cursor:pointer}
 .report-toggle-text{display:flex;flex-direction:column;gap:2px}

@@ -306,8 +306,20 @@ $('unshare').onclick=async()=>{
  catch(error){toast(error.message);}
 };
 $('vote-up').onclick=()=>save({action:'report-feedback',vote:'up'},'Noted. More like this.');
-$('vote-down').onclick=()=>$('sheet-down').showModal();
-for(const button of $('sheet-down').querySelectorAll('[data-reason]'))button.onclick=()=>{$('sheet-down').close();save({action:'report-feedback',vote:'down',reason:button.dataset.reason},'Thanks. Jules will do better next time.');};
+// 👎 asks which line missed when the card has more than one; skipping still counts, half as much.
+let missed=new Set();
+$('vote-down').onclick=()=>{
+ const card=report.cards[index],lines=report.copy?.[card.type]??[];missed=new Set();
+ $('down-lines').hidden=lines.length<2;
+ $('down-line-picks').replaceChildren(...lines.map(line=>{
+  const button=el('button',{type:'button',className:'report-line-pick',textContent:card.type==='emoji'?`${line.slot} ${line.text}`:line.text});
+  button.setAttribute('aria-pressed','false');
+  button.onclick=()=>{missed.has(line.id)?missed.delete(line.id):missed.add(line.id);button.setAttribute('aria-pressed',String(missed.has(line.id)));};
+  return button;
+ }));
+ $('sheet-down').showModal();
+};
+for(const button of $('sheet-down').querySelectorAll('[data-reason]'))button.onclick=()=>{$('sheet-down').close();save({action:'report-feedback',vote:'down',reason:button.dataset.reason,...(missed.size?{lines:[...missed]}:{})},'Thanks. Jules will do better next time.');};
 for(const button of document.querySelectorAll('[data-close]'))button.onclick=()=>button.closest('dialog').close();
 for(const dialog of document.querySelectorAll('dialog'))dialog.addEventListener('click',event=>{if(event.target===dialog)dialog.close();});
 
