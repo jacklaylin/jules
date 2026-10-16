@@ -8,8 +8,11 @@
 <body class="admin-console">
   <main>
     <h1 class="dv-title">People</h1>
-    <section id="chat-metrics" class="dv-metrics" aria-labelledby="chat-metrics-title" hidden>
-      <div class="dv-metric dv-metric-label"><strong id="chat-metrics-title">Chat quality</strong><span>Last 7 days vs the 7 before</span></div>
+    <section id="chat-metrics" class="chat-metrics" aria-labelledby="chat-metrics-title" hidden>
+      <div id="chat-metrics-strip" class="dv-metrics">
+        <div class="dv-metric dv-metric-label"><strong id="chat-metrics-title">Chat quality</strong><span>Last 7 days vs the 7 before</span></div>
+      </div>
+      <details class="fold metrics-help"><summary>What these numbers mean</summary><dl id="chat-metrics-help"></dl></details>
     </section>
     <div class="dv-toolbar">
       <label class="dv-search"><span class="sr-only">Search identifier</span><input id="people-search" type="search" maxlength="40" placeholder="Search identifier"><span class="kbd" aria-hidden="true">/</span></label>

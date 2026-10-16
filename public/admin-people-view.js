@@ -26,28 +26,45 @@ export function countLine(shown, total, refreshedAt, now = Date.now()) {
 }
 
 // Chat quality summary (lib/chat-metrics.js metricsTrend). Counts only; the full breakdown is scripts/chat-metrics.js.
+// Each metric has a plain label, the noun for its sample, and a one-line explanation shown under the strip.
+const sec = v => `${v}s`, pct = v => `${Math.round(v * 100)}%`;
 export const METRICS = [
-  ['first_message_s.median', 'First message', v => `${v}s`],
-  ['final_result_s.median', 'Final result', v => `${v}s`],
-  ['final_result_s.p90', 'Final result p90', v => `${v}s`],
-  ['failure_rate', 'Failed replies', v => `${Math.round(v * 100)}%`],
-  ['model_written_share', 'Model-written', v => `${Math.round(v * 100)}%`],
-  ['first_try_rate', 'First-try find', v => `${Math.round(v * 100)}%`],
+  { key: 'first_message_s.median', label: 'First reply', format: sec, noun: ['reply', 'replies'],
+    explain: 'Typical wait from a tester’s message to Jules’s first text back, including a quick “looking now”. Half of waits were shorter.' },
+  { key: 'final_result_s.median', label: 'Full answer', format: sec, noun: ['reply', 'replies'],
+    explain: 'Typical wait until the complete answer (search results, saved item, or the reply itself). Half of waits were shorter.' },
+  { key: 'final_result_s.p90', label: 'Slowest 10%', format: sec, noun: ['reply', 'replies'],
+    explain: '1 in 10 full answers took at least this long. Shows the bad waits the typical number hides.' },
+  { key: 'failure_rate', label: 'Failed replies', format: pct, noun: ['message', 'messages'],
+    explain: 'Tester messages that got the generic “something went wrong” text or no reply at all.' },
+  { key: 'model_written_share', label: 'Written by AI', format: pct, noun: ['reply', 'replies'], higher: true,
+    explain: 'Replies the model wrote in Jules’s voice, rather than fixed text. Replies sent before this was recorded are left out.' },
+  { key: 'first_try_rate', label: 'Found first try', format: pct, noun: ['pick', 'picks'], higher: true,
+    explain: 'When a tester asked for a specific product and then picked or saved one, how often it was in the first set of results.' },
 ];
 const TONE = { better: 'ok', worse: 'fail' };
 const known = v => v !== null && v !== undefined;
+const count = (n, [one, many]) => `${n} ${n === 1 ? one : many}`;
 
-// One cell per metric: this week's value, the verdict as a badge word, and last week's value for the tooltip.
+// One cell per metric: this week's value (a dash when there is none), the verdict as a badge word,
+// the week before's value ("vs 15.5s") and the sample behind this week's number ("61 replies"), so the
+// badge is never the only signal. Which direction is better matches DIRECTIONS in lib/chat-metrics.js.
 export function metricCells(trend) {
-  return METRICS.map(([key, label, format]) => {
+  return METRICS.map(({ key, label, format, noun, explain, higher = false }) => {
     const moved = trend?.moved?.find(m => m.metric === key);
     const verdict = moved?.verdict ?? 'no data';
-    return { key, label, value: known(moved?.after) ? format(moved.after) : '—', tone: TONE[verdict] ?? 'plain',
-      verdict: verdict[0].toUpperCase() + verdict.slice(1), was: known(moved?.before) ? `Previous 7 days: ${format(moved.before)}` : 'No earlier data' };
+    const value = known(moved?.after) ? format(moved.after) : '—';
+    const was = known(moved?.before) ? `vs ${format(moved.before)}` : 'nothing before';
+    const sample = known(moved?.after) ? count(moved.after_n ?? 0, noun) : `no ${noun[1]}`;
+    return { key, label, value, explain, better: higher ? 'Higher is better.' : 'Lower is better.',
+      tone: TONE[verdict] ?? 'plain', verdict: verdict[0].toUpperCase() + verdict.slice(1), was, sample };
   });
 }
 
+// The status-line summary in plain words: how many messages the numbers come from.
 export function metricsNote(current) {
   if (!current) return '';
-  return `${current.turns} turns (${current.timed_turns} timed), ${current.fallbacks} fallbacks, ${current.stuck} never delivered, ${current.named_accepted} named-product searches with a pick.`;
+  const failed = current.fallbacks + current.stuck;
+  return `Last 7 days: ${count(current.turns, ['tester message', 'tester messages'])}, ${failed} failed (${current.fallbacks} generic, ${current.stuck} never sent)`
+    + `${current.named_searches ? `, ${current.named_accepted} of ${current.named_searches} named-product searches ended in a pick` : ''}.`;
 }
