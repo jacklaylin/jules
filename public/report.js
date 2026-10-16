@@ -207,7 +207,7 @@ function inOutCard(card){
 // one by one, the closer fades in, then the photo dims and four judges raise their scorecards. Code on
 // the server placed every dot and sticker in card pixels (photo frame at 22,66, 316×420); the stage
 // here is that 360×420 band, scaled down on short screens so nothing moves relative to the photo.
-const STAGE_TOP=66,PADDLE_TILT=['-11deg','-4deg','5deg','10deg'],PADDLE_STICK=[136,150,200,124];
+const STAGE_TOP=66,PADDLE_TILT=['-9deg','2deg','9deg'],PADDLE_STICK=[150,200,140];
 // The photo arrives as a data URL; the site's Content-Security-Policy allows blob: images but not data:,
 // so it is shown through a blob URL (one per photo, reused across redraws).
 let shownPhoto={data:null,url:null};

@@ -59,10 +59,10 @@ const answer=(over={})=>({photo_id:'p2',problem:'none',person:{x0:350,y0:150,x1:
   {item:'track jacket',kind:'clothing',x:520,y:400,options:[{line:'the jacket is doing the heavy lifting',shared:'Jack’s jacket is doing the heavy lifting'},{line:'track jacket that has never once seen a track',shared:'a track jacket that has never once seen a track'}]},
   {item:'jacket again',kind:'clothing',x:522,y:402,options:[{line:'too close to the last one',shared:'too close to the last one'}]},
   {item:'jeans',kind:'clothing',x:480,y:700,options:[{line:'one of your 300 pairs of cream jeans',shared:'one of Jack’s 300 pairs of cream jeans'},{line:'cream jeans in the city and somehow still clean',shared:'cream jeans in the city and somehow still clean'}]}],
- scores:[8,7,8,9],closer:{line:'clean, sporty and a little smug, and the judges allow it',shared:'clean, sporty and a little smug, and the judges allow it'},...over});
+ scores:[8,7,9],closer:{line:'clean, sporty and a little smug, and the judges allow it',shared:'clean, sporty and a little smug, and the judges allow it'},...over});
 const allOk=async({context})=>({results:context.lines.map(l=>({id:l.id,ok:true}))});
 
-test('a read keeps lines off the face, apart and checked, scores four drawn categories and picks a verdict from its band',async()=>{
+test('a read keeps lines off the face, apart and checked, scores three drawn categories and picks a verdict from its band',async()=>{
  const photos=[{id:'p1',data:await photo()},{id:'p2',data:await photo()}];
  let asked=null;
  // The second check rejects the first jeans option, so the second option is used.
@@ -74,7 +74,7 @@ test('a read keeps lines off the face, apart and checked, scores four drawn cate
  assert.deepEqual(card.callouts.map(c=>c.text),['patch cap: merch from a dive bar you’ve never been to','track jacket that has never once seen a track','cream jeans in the city and somehow still clean'],
   'the cap (headwear) may sit on the head; the face callout, the AI phrase, the crowded point and the rejected option are dropped');
  assert.ok(card.callouts.every(c=>c.shared&&!/\byou/.test(c.shared)));
- assert.equal(card.scores.length,4);assert.ok(card.scores.every(s=>READ_CATEGORIES.includes(s.label)));
+ assert.equal(card.scores.length,3);assert.ok(card.scores.every(s=>READ_CATEGORIES.includes(s.label)));
  assert.deepEqual(asked.categories,card.scores.map(s=>s.label),'the judges score the categories code drew');
  assert.equal(card.band,'strong');assert.ok(READ_BANDS.find(b=>b.band==='strong').verdicts.includes(card.verdict));
  assert.equal(card.closer,'clean, sporty and a little smug, and the judges allow it');assert.equal(card.written,true);
@@ -85,7 +85,7 @@ test('a photo that cannot be read asks again, a bad closer falls back to the ban
  const photos=[{id:'p2',data:await photo()}];
  assert.deepEqual(await readFit({photos,interpret:allOk,env:{},judges:async()=>answer({photo_id:null,problem:'several_people'})}),{status:'unusable',problem:'several_people'});
  assert.deepEqual(await readFit({photos,interpret:allOk,env:{},judges:async()=>answer({person:{x0:450,y0:400,x1:500,y1:600}})}),{status:'unusable',problem:'too_small'});
- const fallback=await readFit({photos,name:'Jack',interpret:allOk,env:{},judges:async()=>answer({scores:[3,2,4,3],closer:{line:'the vibes are elevated',shared:'the vibes are elevated'}})});
+ const fallback=await readFit({photos,name:'Jack',interpret:allOk,env:{},judges:async()=>answer({scores:[3,2,4],closer:{line:'the vibes are elevated',shared:'the vibes are elevated'}})});
  const band=READ_BANDS.find(b=>b.band==='disaster');
  assert.equal(fallback.card.written,false);assert.ok(band.closers.some(c=>c[0]===fallback.card.closer));
  assert.ok(!/\byou/.test(fallback.card.closer_shared));
@@ -295,7 +295,7 @@ test('when the whole bank is retired, the card states the score plainly and logs
  const {card}=await readFit({photos:[{id:'p2',data:await photo()}],facts:[{item:'cream jeans',n:12}],name:'Jack',lessons,interpret:allOk,env:{},
   judges:async()=>answer({closer:{line:'the vibes are elevated',shared:'the vibes are elevated'}})});
  assert.equal(card.band,'strong');
- assert.equal(card.verdict,'Averaged 8');assert.equal(card.closer,'four judges, 8 on average');
+ assert.equal(card.verdict,'Averaged 8');assert.equal(card.closer,'three judges, 8 on average');
  const logged=COPY_CARDS.read.lines(card);
  assert.equal(logged.find(l=>l.slot==='verdict').source,'fact');assert.equal(logged.find(l=>l.slot==='closer').source,'fact');
 });
