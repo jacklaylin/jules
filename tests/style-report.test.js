@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {receiptLines,validTotal,writeTotal,buildReport,updateReport,reportView,handleReport,FALLBACK_TOTAL,gatekeeper,nicheBrand,validGateLine,writeGateLine,reportWriter,REPORT_MODEL,inOut,validInOutLine,writeInOutLine,lockedCards,MIN_CARDS,sharedView,handleSharedReport,sharePreview,handleSharePage,fourEmojis,spectrum,validEmojiCaption,writeEmojiCaptions,styleMatch,validMatchLine,writeMatchLine,unlockedCards,newCardsText,sendNewCards} from '../lib/style-report.js';
+import {receiptLines,validTotal,writeTotal,buildReport,updateReport,reportView,handleReport,FALLBACK_TOTAL,gatekeeper,nicheBrand,validGateLine,writeGateLine,reportWriter,REPORT_MODEL,inOut,validInOutLine,writeInOutLine,lockedCards,MIN_CARDS,sharedView,handleSharedReport,sharePreview,handleSharePage,fourEmojis,spectrum,validEmojiCaption,writeEmojiCaptions,styleMatch,validMatchLine,writeMatchLine,sendNewCardText,sendReportLink,newCardsText} from '../lib/style-report.js';
 import {tagFingerprint} from '../lib/item-tags.js';
 import {purchaseEvidence,projectReceiptEvidence} from '../lib/receipt-extraction.js';
 import {signInLinks} from '../lib/onboarding.js';
@@ -302,46 +302,90 @@ test('the In / Out closing line uses only the card’s facts, with a fallback',a
  assert.equal(fallback.written,false);assert.ok(fallback.verdict);assert.ok(!/\byou(r)?\b/i.test(fallback.shared));
 });
 
-test('a report always has at least three cards: missing built cards are shown locked with what unlocks them',()=>{
- const gate={matched:1},then={eligible:false};
- const locked=lockedCards(['receipt'],{gate,then});
+// Counts for a light history: one busy year, a few known brands, half the emoji habits.
+const sparse={gate:{eligible:false,matched:1,orders:5,covered:1},then:{eligible:false,busy_years:[2025],years:{2025:7,2023:4}},
+ emoji:{eligible:false,picks:2},match:{eligible:false,items:7,brands:3},closer:{eligible:false,visible:1,gaps:[{slider:'price',n:3,unit:'known'},{slider:'stores',n:2,unit:'orders'}]}};
+test('a report always has at least three cards: missing built cards are shown locked, closest to unlocking first',()=>{
+ const locked=lockedCards(['receipt'],sparse);
  assert.equal(1+locked.length,MIN_CARDS);
- assert.deepEqual(locked.map(c=>[c.type,c.card]),[['locked','gatekeeper'],['locked','emoji']]);
- assert.ok(locked.every(c=>c.why&&c.title));
+ // In / Out is 11 of 12 orders there; Style match is 7 of 10 items but 3 of 5 brands (60%).
+ assert.deepEqual(locked.map(c=>[c.type,c.card]),[['locked','inout'],['locked','match']]);
+ assert.ok(locked.every(c=>c.why&&c.title&&c.unlock));
  // Enough real cards: nothing locked.
- assert.deepEqual(lockedCards(['receipt','gatekeeper','inout'],{gate,then}),[]);
- // Two real cards: one locked card fills the gap.
- assert.deepEqual(lockedCards(['receipt','gatekeeper'],{gate,then}).map(c=>c.card),['emoji']);
+ assert.deepEqual(lockedCards(['receipt','gatekeeper','inout'],sparse),[]);
+ // Two real cards: the single closest card fills the gap.
+ assert.deepEqual(lockedCards(['receipt','inout'],sparse).map(c=>c.card),['match']);
+ // Cards that aren't built (Starter pack, Dating) are never offered.
+ assert.deepEqual(new Set(lockedCards(['receipt'],{}).map(c=>c.card)).size,2);
+ assert.ok(lockedCards([],sparse).every(c=>['gatekeeper','emoji','inout','match','spectrum'].includes(c.card)));
 });
 
-test('every built card can be locked, and the ones closest to unlocking come first, with real counts',()=>{
- const facts={gate:{matched:0,orders:4,covered:0},emoji:{earned:1},then:{busy_years:[2025]},match:{items:9,brands:4},closer:{visible:2}};
- const locked=lockedCards(['receipt'],facts);
- // Style match is 90% there, Spectrum two thirds, In / Out half; Four emojis and Gatekeeper are further off.
- assert.deepEqual(locked.map(c=>c.card),['match','spectrum']);
- assert.match(locked[0].why,/9 pieces from 4 brands/);
- assert.match(locked[1].why,/place 2 so far/);
- const all=lockedCards([],facts);
- assert.deepEqual(all.map(c=>c.card),['match','spectrum','inout']);
- assert.match(all[2].why,/Only 2025/);
- // With nothing known, ties keep deck order.
- assert.deepEqual(lockedCards(['receipt']).map(c=>c.card),['gatekeeper','emoji']);
- for(const c of lockedCards([],{}))assert.ok(c.title&&c.why&&!/undefined|NaN/.test(c.why),c.card);
+test('every locked card names the one action that unlocks it, from real counts and never money',()=>{
+ const all=Object.fromEntries(lockedCards(['receipt'],sparse,5).map(c=>[c.card,c]));
+ assert.deepEqual(Object.keys(all).sort(),['emoji','gatekeeper','inout','match','spectrum']);
+ assert.equal(all.inout.unlock,'2 more orders from 2023');assert.match(all.inout.why,/7 orders from 2025/);
+ assert.equal(all.match.unlock,'3 more items, from 2 brands you haven’t bought yet');assert.match(all.match.why,/7 items from 3 brands/);
+ assert.equal(all.emoji.unlock,'orders that show 2 more shopping habits');assert.match(all.emoji.why,/2 of the 4/);
+ // Gatekeeper: 2 known brands missing, and 5 orders need 3 covered.
+ assert.equal(all.gatekeeper.unlock,'3 more orders from brands Jules knows, 2 of them from brands new to you');
+ // Spectrum: two scales short, so the nearest slider (stores, 2 orders) is the next step.
+ assert.equal(all.spectrum.unlock,'2 more orders for the next scale');assert.match(all.spectrum.why,/1 of the 3/);
+ for(const c of Object.values(all))assert.ok(!/\$|€|£|spend|spent|price/i.test(c.why+c.unlock),c.card);
+ // One scale short, and the niche scale (Gatekeeper's 2 orders) is nearer than stores (4 orders).
+ const one=lockedCards(['receipt','gatekeeper','emoji','inout','match'],{gate:{eligible:false,matched:3,orders:8,covered:3},closer:{visible:2,gaps:[{slider:'stores',n:4,unit:'orders'}]}},1)[0];
+ assert.equal(one.card,'spectrum');assert.equal(one.unlock,'2 more orders from brands Jules knows');
+ assert.equal(lockedCards(['receipt','inout','match','emoji'],{gate:{eligible:true},closer:{visible:2,gaps:[{slider:'stores',n:4,unit:'orders'},{slider:'price',n:1,unit:'known'}]}},1)[0].unlock,'1 more item from brands Jules knows');
+ // In / Out with two busy years but nothing changed can't say what unlocks it, so it isn't offered.
+ assert.ok(!lockedCards(['receipt'],{...sparse,then:{eligible:false,busy_years:[2024,2025],years:{2024:6,2025:9}}}).some(c=>c.card==='inout'));
+ // No busy year yet: both years' gaps.
+ assert.equal(lockedCards(['receipt','match'],{then:{eligible:false,busy_years:[],years:{2025:4,2024:1}}})[0].unlock,'2 more orders from 2025 and 5 more orders from 2024');
 });
 
-test('a rebuild that unlocks a card texts the person once, only after they have their report link',async()=>{
- assert.deepEqual(unlockedCards(null,[{type:'receipt'},{type:'match'}]),[],'a first build unlocks nothing');
- const before={cards:[{type:'receipt'},{type:'locked',card:'match'},{type:'locked',card:'spectrum'}]};
- assert.deepEqual(unlockedCards(before,[{type:'receipt'},{type:'match'},{type:'spectrum'},{type:'locked',card:'inout'}]),['match','spectrum']);
- assert.deepEqual(unlockedCards({cards:[{type:'receipt'},{type:'match'}]},[{type:'receipt'},{type:'match'}]),[]);
- assert.equal(newCardsText(['match'],'https://x.test/'),'your style report has a new card: style match. https://x.test/report');
- assert.match(newCardsText(['match','spectrum','inout'],'https://x.test'),/3 new cards: style match, spectrum and in \/ out\./);
- const sent=[],env={SITE_ORIGIN:'https://x.test'};
- const store={conversation:async()=>({id:owner}),reserve:async()=>true,operation:async()=>null,recentMessages:async()=>[],completeOperation:async()=>{},markSent:async()=>{}};
- const send=async(target,text)=>{sent.push(text);return {status:'sent'};};
- assert.equal(await sendNewCards(store,owner,env,{report:{id:'r1'},unlocked:['match']},send),null,'not texted their report yet');
- assert.equal(await sendNewCards(store,owner,env,{report:{id:'r1',linked:true},unlocked:[]},send),null);
- assert.deepEqual(sent,[]);
+test('the counts behind locked cards come from the same rules that build the cards',()=>{
+ const {state,tags}=history();
+ const then=inOut(state,tags);assert.equal(then.eligible,false);assert.deepEqual(then.years,{2023:3,2024:1,2025:6},'the returned overshirt’s order is left out');
+ const match=styleMatch(state,tags);assert.equal(match.eligible,false);assert.equal(match.items,10);assert.equal(match.brands,3);
+ // Three orders from a store Jules doesn't know: every scale says what it still needs.
+ seq=0;const small=projectReceiptEvidence(owner,[0,1,2].flatMap(k=>buy({product:'Tee '+k,order_reference:'T'+k}))).state;
+ assert.deepEqual(spectrum(small,{}).gaps,[{slider:'price',n:8,unit:'known'},{slider:'era',n:8,unit:'known'},{slider:'variety',n:7,unit:'items'},{slider:'stores',n:5,unit:'orders'}]);
+ assert.deepEqual([fourEmojis(small,{}).eligible,fourEmojis(small,{}).picks],[false,0]);
+});
+
+test('a rebuild that turns a card real reports it once, ever',async()=>{
+ const store=fixture(),first=await buildReport(store,owner,{},{interpret:writer});
+ assert.deepEqual(first.unlocked,[],'a first report has nothing new');
+ const realType=first.report.cards.find(c=>c.type!=='locked'&&c.type!=='receipt')?.type;
+ assert.ok(realType);
+ // A report from before the seen list, whose last build didn't have this card (locked or just missing).
+ const drop=()=>{const r=store.row.data.style_report;delete r.seen;r.cards=r.cards.filter(c=>c.type!==realType);};
+ drop();
+ const second=await buildReport(store,owner,{},{interpret:writer});
+ assert.deepEqual(second.unlocked,[realType]);assert.ok(store.row.data.style_report.seen.includes(realType));
+ assert.deepEqual((await buildReport(store,owner,{},{interpret:writer})).unlocked,[],'the next rebuild is quiet');
+ // A return drops it out and a later order brings it back: not news twice.
+ store.row.data.style_report.cards=store.row.data.style_report.cards.filter(c=>c.type!==realType);
+ assert.deepEqual((await buildReport(store,owner,{},{interpret:writer})).unlocked,[],'dropping out and coming back is not news twice');
+});
+
+test('the new-card text is one signed /report link, sent once per unlock',async()=>{
+ const ledger=new Map(),sent=[];
+ const store={...fixture(),conversation:async id=>({id,line:'+15550000000',sender_id:'+15551111111'}),createSignInLink:async()=>'tok',
+  reserve:async(conversation,operation,body)=>ledger.has(operation)?false:(ledger.set(operation,{conversation_id:conversation,status:'reserved',body}),true),
+  operation:async operation=>ledger.get(operation)??null,finish:async(operation,status)=>{ledger.get(operation).status=status;}};
+ const env={SITE_ORIGIN:'https://jules.example/'};
+ await buildReport(store,owner,{},{interpret:writer});
+ const send=async(target,body)=>{sent.push(body);return {id:'m1'};};
+ assert.equal(await sendNewCardText(store,owner,env,['gatekeeper'],send),null,'not texted their report link yet');
+ // The founder sends the report link; the next build knows it.
+ await sendReportLink(store,owner,env,send);sent.length=0;
+ await buildReport(store,owner,{},{interpret:writer});
+ assert.equal((await store.gmailImport(owner)).data.style_report.linked,true);
+ assert.equal(await sendNewCardText(store,owner,env,[],send),null,'nothing unlocked, nothing sent');
+ assert.equal((await sendNewCardText(store,owner,env,['gatekeeper'],send)).status,'sent');
+ assert.equal((await sendNewCardText(store,owner,env,['gatekeeper'],send)).duplicate,true);
+ assert.deepEqual(sent,['your style report has a new card: gatekeeper score. https://jules.example/report#signin=tok']);
+ assert.match(newCardsText(['match','spectrum','inout'],'L'),/3 new cards: style match, spectrum and in \/ out\. L$/);
+ assert.equal(await sendNewCardText(store,owner,{},['gatekeeper'],send),null,'no site origin, no text');
 });
 
 test('the built report puts real cards first and locked cards after, and locked cards take no line edits',async()=>{
