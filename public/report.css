@@ -49,17 +49,19 @@ body.report-page{background:var(--ink);color:var(--white);min-height:100vh;min-h
    without black bands. On the butter card the controls switch to ink to stay readable. Desktop keeps
    the dark stage (see below). */
 .report-player{--ground:var(--ink);background:var(--ground)}
-.report-player[data-ground="gatekeeper"]{--ground:var(--grape)}
+.report-player[data-ground="gatekeeper"],.report-player[data-ground="spectrum"]{--ground:var(--grape)}
+.report-player[data-ground="emoji"]{--ground:var(--tangerine)}
 .report-player[data-ground="inout"]{--ground:var(--butter)}
 /* Wider phones and tablets: the page around the player takes the same ground. */
-body.report-page:has(.report-player:not([hidden])[data-ground="gatekeeper"]){background:var(--grape)}
+body.report-page:has(.report-player:not([hidden])[data-ground="gatekeeper"]),body.report-page:has(.report-player:not([hidden])[data-ground="spectrum"]){background:var(--grape)}
+body.report-page:has(.report-player:not([hidden])[data-ground="emoji"]){background:var(--tangerine)}
 body.report-page:has(.report-player:not([hidden])[data-ground="inout"]){background:var(--butter)}
-.report-player[data-ground="inout"] .report-top,.report-player[data-ground="inout"] .report-controls{color:var(--ink)}
-.report-player[data-ground="inout"] .report-icon-button,.report-player[data-ground="inout"] .report-pill-button{border-color:var(--ink);color:var(--ink)}
-.report-player[data-ground="inout"] .report-icon-button[aria-pressed="true"]{background:var(--ink);color:var(--butter);border-color:var(--ink)}
-.report-player[data-ground="inout"] .report-close{color:var(--ink)}
-.report-player[data-ground="inout"] .report-progress span{background:#17120f40}
-.report-player[data-ground="inout"] .report-progress span.done,.report-player[data-ground="inout"] .report-progress span.current{background:var(--ink)}
+.report-player[data-ground="inout"] .report-top,.report-player[data-ground="inout"] .report-controls,.report-player[data-ground="emoji"] .report-top,.report-player[data-ground="emoji"] .report-controls{color:var(--ink)}
+.report-player[data-ground="inout"] .report-icon-button,.report-player[data-ground="inout"] .report-pill-button,.report-player[data-ground="emoji"] .report-icon-button,.report-player[data-ground="emoji"] .report-pill-button{border-color:var(--ink);color:var(--ink)}
+.report-player[data-ground="inout"] .report-icon-button[aria-pressed="true"],.report-player[data-ground="emoji"] .report-icon-button[aria-pressed="true"]{background:var(--ink);color:var(--butter);border-color:var(--ink)}
+.report-player[data-ground="inout"] .report-close,.report-player[data-ground="emoji"] .report-close{color:var(--ink)}
+.report-player[data-ground="inout"] .report-progress span,.report-player[data-ground="emoji"] .report-progress span{background:#17120f40}
+.report-player[data-ground="inout"] .report-progress span.done,.report-player[data-ground="inout"] .report-progress span.current,.report-player[data-ground="emoji"] .report-progress span.done,.report-player[data-ground="emoji"] .report-progress span.current{background:var(--ink)}
 .report-tap{position:absolute;top:56px;bottom:96px;border:0;background:transparent;cursor:pointer;z-index:2}
 .report-tap-prev{left:0;width:30%}.report-tap-next{right:0;width:70%}
 .report-icon-button:focus-visible,.report-pill-button:focus-visible,.report-cta:focus-visible,.report-tap:focus-visible,.report-link:focus-visible{outline:3px solid var(--grape);outline-offset:3px}
