@@ -44,6 +44,11 @@
       "permanent": false
     },
     {
+      "source": "/report-jokes.html",
+      "destination": "/admin/jokes",
+      "permanent": false
+    },
+    {
       "source": "/admin.html",
       "destination": "/admin",
       "permanent": false
@@ -117,6 +122,10 @@
     {
       "source": "/admin/costs",
       "destination": "/costs.html"
+    },
+    {
+      "source": "/admin/jokes",
+      "destination": "/report-jokes.html"
     },
     {
       "source": "/wishlist",
