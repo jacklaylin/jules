@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {receiptLines,validTotal,writeTotal,buildReport,updateReport,reportView,handleReport,FALLBACK_TOTAL} from '../lib/style-report.js';
+import {receiptLines,validTotal,writeTotal,buildReport,updateReport,reportView,handleReport,FALLBACK_TOTAL,gatekeeper,nicheBrand,validGateLine,writeGateLine} from '../lib/style-report.js';
 import {tagFingerprint} from '../lib/item-tags.js';
 import {purchaseEvidence,projectReceiptEvidence} from '../lib/receipt-extraction.js';
 import {signInLinks} from '../lib/onboarding.js';
@@ -108,7 +108,7 @@ test('building saves the receipt on the history row, and a rebuild keeps feedbac
 test('feedback and line edits are validated and change nothing when invalid',async()=>{
  const store=fixture();await buildReport(store,owner,{},{interpret:writer});
  const before=structuredClone(store.row.data.style_report);
- for(const input of [{action:'report-feedback',card:'receipt',vote:'meh'},{action:'report-feedback',card:'receipt',vote:'up',reason:'wrong'},{action:'report-feedback',card:'gatekeeper',vote:'up'},
+ for(const input of [{action:'report-feedback',card:'receipt',vote:'meh'},{action:'report-feedback',card:'receipt',vote:'up',reason:'wrong'},{action:'report-feedback',card:'starter',vote:'up'},
   {action:'report-lines',card:'receipt',hidden:['returns'],show_returns:false},{action:'report-lines',card:'receipt',hidden:['nope'],show_returns:false},{action:'report-lines',card:'receipt',hidden:[]},{action:'delete',card:'receipt'}])
   await assert.rejects(updateReport(store,owner,input),e=>e.status===400,JSON.stringify(input));
  assert.deepEqual(store.row.data.style_report,before);
@@ -124,7 +124,7 @@ test('the page view hides hidden lines and shows returns only when turned on',as
  view=reportView(store.row.data.style_report);
  assert.equal(view.cards[0].lines.find(l=>l.key==='returns').hidden,false);assert.equal(view.cards[0].lines.find(l=>l.key==='colour:black').hidden,true);
  await updateReport(store,owner,{action:'report-feedback',card:'receipt',vote:'up'});
- assert.deepEqual(reportView(store.row.data.style_report).votes,{receipt:'up'});
+ assert.deepEqual(reportView(store.row.data.style_report).votes,{receipt:'up',gatekeeper:null});
 });
 
 const response=()=>({headers:{},setHeader(k,v){this.headers[k]=v;},end(body){this.body=JSON.parse(body);}});
@@ -174,4 +174,60 @@ test('the owner can open any tester’s report read-only from admin',async()=>{
  const denied=response();
  await createAdminHandler({auth:async()=>401,storeFactory:()=>store})({method:'GET',url:`/api/admin?view=report&conversation=${owner}`,headers:{}},denied);
  assert.equal(denied.statusCode,401);assert.equal(denied.body.report,undefined);
+});
+
+test('Gatekeeper scores brands from the approved list, weighting repeat orders, and needs three brands covering half the orders',()=>{
+ seq=0;
+ const rows=[
+  ...Array.from({length:4},(_,k)=>buy({product:'Tee '+k,merchant:'Uniqlo',brand:'Uniqlo',order_reference:'U'+k})).flat(),
+  ...buy({product:'Coat',merchant:'SSENSE',brand:'Our Legacy',order_reference:'S1'}),
+  // The item's brand wins over the multi-brand store it came from.
+  ...buy({product:'Trousers',merchant:'SSENSE',brand:'Auralee',order_reference:'S2'}),
+  // No brand on the receipt: the store's own row is used.
+  ...buy({product:'Scarf',merchant:'SSENSE',order_reference:'S3'}),
+  // Not on the list: left out, never guessed.
+  ...buy({product:'Mystery',merchant:'Tiny Label Nobody Knows',brand:'Tiny Label Nobody Knows',order_reference:'T1'}),
+  // Returned: not counted.
+  ...buy({product:'Jacket',merchant:'Lemaire',brand:'Lemaire',order_reference:'L1'},{returned:true}),
+ ];
+ const g=gatekeeper(projectReceiptEvidence(owner,rows).state);
+ assert.equal(g.eligible,true);
+ assert.deepEqual(g.brands.map(b=>b.name),['Auralee','Our Legacy','SSENSE','Uniqlo']);
+ // Uniqlo (5) has four orders, so it weighs twice as much as each one-order brand: (78+64+40+5*2)/5.
+ assert.equal(g.score,Math.round((78+64+40+5*2)/5));
+ assert.equal(g.verdict,'Early-ish adopter');
+ // Two brands are not enough.
+ seq=0;
+ const thin=[...buy({product:'Tee',merchant:'Uniqlo',brand:'Uniqlo',order_reference:'U1'}),...buy({product:'Coat',merchant:'SSENSE',brand:'Our Legacy',order_reference:'S1'})];
+ assert.equal(gatekeeper(projectReceiptEvidence(owner,thin).state).eligible,false);
+ // Three brands, but most orders are from labels not on the list: not enough to say anything.
+ seq=0;
+ const unknown=[...thin,...buy({product:'Trousers',merchant:'Auralee',brand:'Auralee',order_reference:'A1'}),
+  ...Array.from({length:5},(_,k)=>buy({product:'Thing '+k,merchant:'Unknown Shop',brand:'Unknown Shop',order_reference:'X'+k})).flat()];
+ assert.equal(gatekeeper(projectReceiptEvidence(owner,unknown).state).eligible,false);
+});
+
+test('Gatekeeper matches the ways receipts write a label without over-matching',()=>{
+ for(const [written,name] of [['lululemon athletica','Lululemon'],['ON RUNNING','On'],['Suit Supply B.V.','Suitsupply'],['MM6 MAISON MARGIELA','Maison Margiela'],['OUR LEGACY Slack','Our Legacy'],['thombrowne.com','Thom Browne'],['LOFT','Ann Taylor']])
+  assert.equal(nicheBrand(written)?.name,name,written);
+ for(const written of ['Gapper','Coachella merch','Tiny Label Nobody Knows'])assert.equal(nicheBrand(written),null,written);
+});
+
+test('the Gatekeeper line names only the person’s own brands and falls back when the writer misses',async()=>{
+ const gate={score:62,verdict:'Cult member',brands:[{name:'Auralee'},{name:'Our Legacy'},{name:'COS'}]};
+ assert.equal(validGateLine('You knew Auralee before your barista did.',gate),'you knew Auralee before your barista did');
+ for(const bad of ['you knew Lemaire before your barista did','you and your 12 coats','your favourite label is Auralee','x'.repeat(81)])assert.equal(validGateLine(bad,gate),null,bad);
+ const fallback=await writeGateLine(gate,async()=>({line:'you shop at Zara too'}));
+ assert.equal(fallback.written,false);assert.ok(fallback.line.length>0);
+});
+
+test('the report adds a Gatekeeper card after the receipt, and its lines cannot be edited',async()=>{
+ const store=fixture();
+ const built=await buildReport(store,owner,{},{interpret:async request=>request.schema.properties.line?{line:'you got to Our Legacy early'}:{total:'one colour and a crop top habit'}});
+ const card=built.report.cards[1];
+ assert.equal(card.type,'gatekeeper');assert.equal(card.line,'you got to Our Legacy early');assert.ok(card.score>=0&&card.score<=100);
+ assert.equal(reportView(built.report).cards[1].type,'gatekeeper');
+ await assert.rejects(updateReport(store,owner,{action:'report-lines',card:'gatekeeper',hidden:[],show_returns:false}),/no lines/);
+ await updateReport(store,owner,{action:'report-feedback',card:'gatekeeper',vote:'up'});
+ assert.equal(reportView(store.row.data.style_report).votes.gatekeeper,'up');
 });
