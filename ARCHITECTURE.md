@@ -181,6 +181,8 @@ Pre-evidence data: the migration backfills existing beliefs and `/style` observa
 - **Model-written vs fixed template**: `search_result.composed_by` when recorded. Otherwise it is inferred from the chosen tool in `usage_events.action`: model-written tools are listed in `MODEL_WRITTEN_TOOLS`, and saves and fallbacks count as template text.
 - **First-try find rate**: a named-product search (`search_plan.named_model` or `mode: identify`, not a continuation) counts as found on the first try when the item the user then selected or saved was in the first result set. The alternatives are after a retry, or supplied by the user.
 
+The People page compares the last 7 days with the 7 before (`metricsTrend`). Each metric is judged on its own sample (timed replies, replies with recorded authorship, named searches that ended in a pick); under 5 in either week is "too few to tell", a figure with nothing the week before is "no earlier data", and a week with nothing is "no data" with a dash. Each cell shows the week before's value and its sample, and "What these numbers mean" under the strip explains each one.
+
 `scripts/replay-gate.js` is the pre-deploy check on the same behavior: see `REPLAY-SUITE.md`.
 
 ## Known gaps and existing debt (honest list)

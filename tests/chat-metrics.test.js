@@ -52,6 +52,7 @@ test('composition comes from the recorded field, else the chosen tool; saves and
   assert.equal(composedBy({ operation_id: 'ai:a', search_result: { user_confirmed: true } }, actions), 'template');
   assert.equal(composedBy({ operation_id: 'ai:a', source: 'ai_fallback' }, actions), 'template');
   assert.equal(composedBy({ operation_id: 'ai:c' }, actions), 'unknown');
+  assert.equal(composedBy({ operation_id: 'ai:d' }, new Map([['ai:d', 'agent_reply']])), 'model', 'the agent loop writes its own message');
 });
 
 test('named-product episodes: first try, after a retry, user supplied, and no pick', () => {
@@ -95,7 +96,7 @@ test('summary, per-day and per-conversation numbers', () => {
 });
 
 test('comparison says better, worse, or too few to tell', () => {
-  const base = { turns: 10, timed_turns: 10, named_accepted: 6, first_message_s: { median: 40 }, final_result_s: { median: 60, p90: 100 }, failure_rate: 0.2, model_written_share: 0.3, first_try_rate: 0.5 };
+  const base = { turns: 10, timed_turns: 10, first_timed: 10, composed_known: 10, named_accepted: 6, first_message_s: { median: 40 }, final_result_s: { median: 60, p90: 100 }, failure_rate: 0.2, model_written_share: 0.3, first_try_rate: 0.5 };
   const after = { ...base, first_message_s: { median: 4 }, final_result_s: { median: 70, p90: 100 }, model_written_share: 0.6, named_accepted: 2, first_try_rate: 1 };
   const moved = Object.fromEntries(compareMetrics(base, after).map(m => [m.metric, m.verdict]));
   assert.deepEqual(moved, { 'first_message_s.median': 'better', 'final_result_s.median': 'worse', 'final_result_s.p90': 'unchanged',
@@ -138,4 +139,35 @@ test('reply diagnostics: recorded outcomes and composition win, and a watchdog-r
   ];
   const turns = turnsFrom(rows, { actions: new Map([['ai:r2', 'find_products']]) });
   assert.deepEqual(turns.map(t => [t.stuck, t.fallback, t.composed_by]), [[true, false, 'template'], [false, false, 'model'], [false, true, 'template']]);
+});
+
+test('each metric is judged on its own sample, and a figure with nothing before it is never called "no data"', () => {
+  const week = (over = {}) => ({ turns: 50, timed_turns: 30, first_timed: 32, composed_known: 40, named_accepted: 6, named_searches: 10,
+    first_message_s: { median: 15 }, final_result_s: { median: 40, p90: 80 }, failure_rate: 0.1, model_written_share: 0.5, first_try_rate: 0.5, ...over });
+  const verdicts = (before, after) => Object.fromEntries(compareMetrics(before, after).map(m => [m.metric, m]));
+  // Authorship known for only 3 replies the week before: too few to call the rise better, however many messages there were.
+  let moved = verdicts(week({ composed_known: 3, model_written_share: 0 }), week());
+  assert.equal(moved.model_written_share.verdict, 'too few to tell');
+  assert.deepEqual([moved.model_written_share.before_n, moved.model_written_share.after_n], [3, 40]);
+  assert.deepEqual([moved['first_message_s.median'].after_n, moved['final_result_s.p90'].after_n, moved.failure_rate.after_n], [32, 30, 50]);
+  // 2 picks this week, none the week before: too few to tell (the screenshot's "100%, No data").
+  moved = verdicts(week({ named_accepted: 0, first_try_rate: null }), week({ named_accepted: 2, first_try_rate: 1 }));
+  assert.deepEqual([moved.first_try_rate.after, moved.first_try_rate.verdict], [1, 'too few to tell']);
+  // Enough this week and nothing before: "no earlier data". Nothing this week: "no data".
+  moved = verdicts(week({ named_accepted: 0, first_try_rate: null }), week({ named_accepted: 8, first_try_rate: 0.75 }));
+  assert.equal(moved.first_try_rate.verdict, 'no earlier data');
+  moved = verdicts(week(), week({ named_accepted: 0, first_try_rate: null }));
+  assert.deepEqual([moved.first_try_rate.after, moved.first_try_rate.verdict, moved.first_try_rate.after_n], [null, 'no data', 0]);
+  // Lower waits and failures are better; more model-written replies and first-try finds are better.
+  moved = verdicts(week(), week({ first_message_s: { median: 20 }, failure_rate: 0.05, model_written_share: 0.4, first_try_rate: 0.6 }));
+  assert.deepEqual(['first_message_s.median', 'failure_rate', 'model_written_share', 'first_try_rate'].map(k => moved[k].verdict), ['worse', 'better', 'worse', 'better']);
+});
+
+test('the summary counts the replies behind each figure', () => {
+  const rows = [
+    inbound('n1', 0), reply('ack', 'n1', 2), reply('ai', 'n1', 0, { status: 'generating' }), // acknowledged, result still running
+    inbound('n2', 10), reply('ai', 'n2', 10, { sent_at: at(20), reply_diagnostics: { outcome: 'sent', composed_by: 'model' } }),
+  ];
+  const s = chatMetrics(rows, { now: Date.parse(at(60)) }).summary;
+  assert.deepEqual([s.turns, s.first_timed, s.timed_turns, s.composed_known], [2, 2, 1, 1]);
 });

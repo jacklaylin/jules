@@ -33,8 +33,11 @@ async function load() {
 async function loadMetrics() {
   try {
     const trend = await adminJson('/api/admin?view=metrics');
-    $('chat-metrics').replaceChildren($('chat-metrics').firstElementChild, ...metricCells(trend).map(cell =>
-      el('div', { className: 'dv-metric', title: cell.was }, el('span', { textContent: cell.label }), el('strong', { textContent: cell.value }), el('span', { className: `badge ${cell.tone}`, textContent: cell.verdict }))));
+    const cells = metricCells(trend);
+    $('chat-metrics-strip').replaceChildren($('chat-metrics-strip').firstElementChild, ...cells.map(cell =>
+      el('div', { className: 'dv-metric' }, el('span', { textContent: cell.label }), el('strong', { textContent: cell.value }),
+        el('span', { className: `badge ${cell.tone}`, textContent: cell.verdict }), el('span', { className: 'dv-metric-was', textContent: `${cell.was} · ${cell.sample}` }))));
+    $('chat-metrics-help').replaceChildren(...cells.flatMap(cell => [el('dt', { textContent: cell.label }), el('dd', { textContent: `${cell.explain} ${cell.better}` })]));
     $('metrics-note').textContent = metricsNote(trend.current);
     $('chat-metrics').hidden = false;
   } catch { /* Keep the list usable. */ }

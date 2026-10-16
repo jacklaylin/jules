@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {receiptLines,validTotal,writeTotal,buildReport,updateReport,reportView,handleReport,FALLBACK_TOTAL,gatekeeper,nicheBrand,validGateLine,writeGateLine,reportWriter,REPORT_MODEL,thenVsNow,validThenVerdict,lockedCards,MIN_CARDS,sharedView,handleSharedReport} from '../lib/style-report.js';
+import {receiptLines,validTotal,writeTotal,buildReport,updateReport,reportView,handleReport,FALLBACK_TOTAL,gatekeeper,nicheBrand,validGateLine,writeGateLine,reportWriter,REPORT_MODEL,inOut,validInOutLine,writeInOutLine,lockedCards,MIN_CARDS,sharedView,handleSharedReport} from '../lib/style-report.js';
 import {tagFingerprint} from '../lib/item-tags.js';
 import {purchaseEvidence,projectReceiptEvidence} from '../lib/receipt-extraction.js';
 import {signInLinks} from '../lib/onboarding.js';
@@ -244,49 +244,74 @@ test('the report copy has its own model setting, separate from receipt reading a
 });
 
 const yearOf=(year,k)=>Date.UTC(year,k%12,1+k);
-test('Then vs now compares the earliest and latest years with six or more orders, counted from purchases and tags',()=>{
+// A history shaped like Jack's: a tailoring year, then a summer one, with a brand that never left
+// and one that disappeared.
+function inOutHistory(){
  seq=0;
+ const many=(n,values,year,returned=false)=>Array.from({length:n},(_,k)=>buy({...values(k),order_reference:values(k).order_reference},{at:yearOf(year,k),returned})).flat();
  const rows=[
-  ...Array.from({length:6},(_,k)=>buy({product:'Crew '+k,merchant:'UNIQLO',brand:'UNIQLO',order_reference:'A'+k},{at:yearOf(2021,k)})).flat(),
-  // Too few orders in 2023 to be a side.
-  ...Array.from({length:3},(_,k)=>buy({product:'Shirt '+k,merchant:'COS',brand:'COS',order_reference:'B'+k},{at:yearOf(2023,k)})).flat(),
-  ...Array.from({length:6},(_,k)=>buy({product:'Tee '+k,merchant:'SSENSE',brand:k<4?'Auralee':'Our Legacy',order_reference:'C'+k},{at:yearOf(2026,k)})).flat(),
-  // Returned: not counted.
-  ...buy({product:'Coat',merchant:'Zara',brand:'Zara',order_reference:'D1'},{at:yearOf(2026,9),returned:true}),
+  ...many(5,k=>({product:'JE Tee '+k,merchant:'John Elliott',brand:'John Elliott',order_reference:'JE'+k}),2023),
+  ...many(6,k=>({product:'Custom Shirt '+k,merchant:'Suitsupply',brand:'Suitsupply',order_reference:'SS'+k}),2024),
+  ...many(3,k=>({product:'Lulu Short '+k,merchant:'lululemon athletica',brand:'lululemon athletica',order_reference:'L'+k}),2024),
+  ...buy({product:'Sunglasses Old',merchant:'Ray-Ban',brand:'Ray-Ban',order_reference:'RB1'},{at:yearOf(2024,8)}),
+  ...many(3,k=>({product:'Lulu Tank '+k,merchant:'Lululemon',brand:'Lululemon',order_reference:'L2'+k}),2026),
+  ...many(2,k=>({product:'Swim Brief '+k,merchant:'Todd Snyder',brand:'Todd Snyder',order_reference:'TS'+k}),2026),
+  ...many(4,k=>({product:'Sunglasses '+k,merchant:'Oakley',brand:'Oakley',order_reference:'OK'+k}),2026),
+  // Returned: never counted.
+  ...many(3,k=>({product:'Returned Coat '+k,merchant:'Zara',brand:'Zara',order_reference:'Z'+k}),2026,true),
  ];
  const state=projectReceiptEvidence(owner,rows).state;
- const tags=tagsFor(state,i=>/Crew/.test(i.product)?{item_type:'crewneck sweatshirt',group:'knitwear',color_family:'grey',resale:false}:{item_type:'black tee',group:'tops',color_family:'black',resale:false});
- const t=thenVsNow(state,tags);
- assert.equal(t.eligible,true);
- assert.equal(t.then.year,2021);assert.equal(t.now.year,2026);
- // Names use the brand list's spelling, not the receipt's capitals.
- assert.deepEqual(t.then.brands,['Uniqlo']);assert.deepEqual(t.now.brands,['Auralee','Our Legacy']);
- assert.equal(t.then.colour.name,'Grey');assert.equal(t.now.item,'Black tees');
+ const tags=tagsFor(state,i=>/Shirt/.test(i.product)?{item_type:'custom made shirt',group:'shirts',color_family:'white',resale:false}
+  :/Swim/.test(i.product)?{item_type:'swim brief',group:'swimwear',color_family:'black',resale:false}
+  :/Sunglasses/.test(i.product)?{item_type:'sunglasses',group:'eyewear',color_family:'black',resale:false}
+  :/Lulu/.test(i.product)?{item_type:'running short',group:'activewear',color_family:'black',resale:false}
+  :/Coat/.test(i.product)?{item_type:'coat',group:'outerwear',color_family:'black',resale:false}
+  :{item_type:'tee',group:'tops',color_family:'brown',resale:false});
+ return {state,tags};
+}
+test('In / Out picks what changed most between the earliest and latest busy years, all counted from purchases',()=>{
+ const {state,tags}=inOutHistory(),c=inOut(state,tags);
+ assert.equal(c.eligible,true);assert.equal(c.then,2024);assert.equal(c.now,2026);
+ const said=list=>Object.fromEntries(list.map(x=>[x.text,x.fact]));
+ // IN: a first-ever category, and a category whose share of the year jumped.
+ assert.equal(said(c.in)['swim briefs'],'first ever');
+ assert.equal(said(c.in)['sunglasses'],'1 → 4');
+ // OUT: the "then" category that vanished, named by the item that was most of it.
+ assert.equal(said(c.out)['custom made shirts'],'6 → 0');
+ // STILL: the brand bought in both years (receipts' spellings merged) and the colour leading both.
+ assert.ok(c.still.includes('Lululemon'));
+ // The breakup: the brand bought most before (Suitsupply's 6 beat John Elliott's 5), none in the
+ // latest year. It isn't repeated under OUT.
+ assert.deepEqual(c.stats.find(s=>s.label==='breakup of the era'),{label:'breakup of the era',value:'Suitsupply 6 → 0'});
+ assert.ok(!c.out.some(o=>o.text==='Suitsupply'));
+ // Returns never count, so the returned coats don't appear anywhere.
+ assert.ok(!JSON.stringify(c).includes('Zara')&&!JSON.stringify(c).includes('coat'));
+ assert.ok(c.in.length<=4&&c.out.length<=3&&c.stats.length<=2);
  // One busy year is not enough.
  seq=0;
  const one=Array.from({length:8},(_,k)=>buy({product:'Tee '+k,merchant:'COS',brand:'COS',order_reference:'E'+k},{at:yearOf(2026,k)})).flat();
- assert.equal(thenVsNow(projectReceiptEvidence(owner,one).state,{}).eligible,false);
+ assert.equal(inOut(projectReceiptEvidence(owner,one).state,{}).eligible,false);
 });
 
-test('the Then vs now verdict uses only the card’s brands and years, with a fallback',async()=>{
- const card={then:{year:2021,brands:['Uniqlo']},now:{year:2026,brands:['Auralee','Our Legacy']}};
- assert.equal(validThenVerdict('From Uniqlo in 2021 to Auralee in 2026, you grew up.',card,['Uniqlo','Auralee','Zara']),'from Uniqlo in 2021 to Auralee in 2026, you grew up');
- for(const bad of ['you left Zara behind for Auralee','five years and 40 tees later','you stayed loyal to black','y'.repeat(91)])assert.equal(validThenVerdict(bad,card,['Zara','Auralee','Uniqlo']),null,bad);
- const fallback=await writeThenVerdictFor(card);
- assert.equal(fallback.written,false);assert.ok(fallback.verdict);
+test('the In / Out closing line uses only the card’s facts, with a fallback',async()=>{
+ const card={then:2024,now:2026,in:[{text:'swim briefs',fact:'first ever'},{text:'sunglasses',fact:'1 → 4'}],out:[{text:'Suitsupply',fact:'6 → 0'}],still:['Lululemon','black'],stats:[{label:'breakup of the era',value:'John Elliott 5 → 0'}]};
+ const names=['Suitsupply','Lululemon','John Elliott','Zara'];
+ assert.equal(validInOutLine('Suitsupply out, swim briefs in, and Lululemon never left.',card,names),'Suitsupply out, swim briefs in, and Lululemon never left');
+ for(const bad of ['you traded Zara for swim briefs','12 pairs of sunglasses later','you stayed loyal to black','y'.repeat(91)])assert.equal(validInOutLine(bad,card,names),null,bad);
+ const fallback=await writeInOutLine(card,async()=>({verdict:'you shop at Zara now',shared:'Jack shops at Zara now'}),names,'Jack');
+ assert.equal(fallback.written,false);assert.ok(fallback.verdict);assert.ok(!/\byou(r)?\b/i.test(fallback.shared));
 });
-async function writeThenVerdictFor(card){const {writeThenVerdict}=await import('../lib/style-report.js');return writeThenVerdict(card,async()=>({verdict:'you shop at Zara now'}),['Zara']);}
 
 test('a report always has at least three cards: missing built cards are shown locked with what unlocks them',()=>{
  const gate={matched:1},then={eligible:false};
  const locked=lockedCards(['receipt'],{gate,then});
  assert.equal(1+locked.length,MIN_CARDS);
- assert.deepEqual(locked.map(c=>[c.type,c.card]),[['locked','gatekeeper'],['locked','thennow']]);
+ assert.deepEqual(locked.map(c=>[c.type,c.card]),[['locked','gatekeeper'],['locked','inout']]);
  assert.ok(locked.every(c=>c.why&&c.title));
  // Enough real cards: nothing locked.
- assert.deepEqual(lockedCards(['receipt','gatekeeper','thennow'],{gate,then}),[]);
+ assert.deepEqual(lockedCards(['receipt','gatekeeper','inout'],{gate,then}),[]);
  // Two real cards: one locked card fills the gap.
- assert.deepEqual(lockedCards(['receipt','gatekeeper'],{gate,then}).map(c=>c.card),['thennow']);
+ assert.deepEqual(lockedCards(['receipt','gatekeeper'],{gate,then}).map(c=>c.card),['inout']);
 });
 
 test('the built report puts real cards first and locked cards after, and locked cards take no line edits',async()=>{
