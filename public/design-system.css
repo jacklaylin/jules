@@ -309,6 +309,15 @@ button.small{min-height:32px;padding:0 14px;font-size:13px}
 .dv-metric:last-child{border-right:0}.dv-metric>strong{font-size:16px;font-weight:600;color:var(--ink)}
 .dv-metric-label>strong{font-size:13px}.dv-metric .badge{font-size:11px;padding:3px 8px 3px 5px}.dv-metric .badge::before{width:13px;height:13px}
 .dv-toolbar-note{font-size:12px;color:var(--text-2)}
+/* Title with a figure beside it (a day's total) and one quiet line of what the figure is. */
+.dv-heading{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 16px;margin:0 0 14px}.dv-heading .dv-title{margin:0}
+.dv-heading-note{font-size:12px;color:var(--text-2)}
+/* A labelled input in the toolbar (a day picker), the same height as .dv-search. */
+.dv-field{display:inline-flex;align-items:center;gap:8px;white-space:nowrap;min-height:34px;box-sizing:border-box;padding:0 6px 0 14px;border-radius:var(--r-pill);background:var(--fog);font-size:13px;color:var(--text-2)}
+.dv-field:focus-within{outline:3px solid var(--grape);outline-offset:3px}
+.dv-field input:not([type=checkbox]):not([type=radio]){width:auto;min-height:32px;margin:0;padding:0 6px;border:0;border-radius:0;background:transparent;box-shadow:none;font-size:13px;color:var(--ink);outline:none}
+.dv-note{margin:10px 0 0;font-size:12px;line-height:1.5;color:var(--text-2);max-width:820px}
+.dv-subhead{margin:24px 0 8px;font-size:22px}
 .dv-empty{margin:0;padding:14px 10px;font-size:13px;color:var(--text-2)}
 .dv-toolbar{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center;margin:14px 0 8px}.dv-toolbar .spacer{flex:1}
 .dv-toolbar button.small{min-height:34px}
@@ -371,7 +380,7 @@ button.quiet{border-color:transparent;box-shadow:none;background:transparent;col
 .dv-tool{border:1px solid var(--line);border-radius:16px;padding:14px 16px;margin:0 0 12px}
 .dv-tool-head{display:flex;align-items:center;gap:10px;margin-bottom:6px}.dv-tool-head h2{margin:0;font-size:22px}.dv-tool-head button{margin-left:auto}
 @media(max-width:800px){
- .dv-toolbar button.small,.dv-search,.dv-views button,.seg button{min-height:44px}.dv-search{width:100%}.dv-keys,.dv-divider{display:none}
+ .dv-toolbar button.small,.dv-search,.dv-views button,.seg button{min-height:44px}.dv-search{width:100%}.dv-keys,.dv-divider{display:none}.dv-field{min-height:44px}
  .dv-metrics{display:grid;grid-template-columns:1fr 1fr}.dv-metric{border-right:0;border-top:1px solid var(--line)}.dv-metric-label~.dv-metric:nth-child(even){border-right:1px solid var(--line)}
  .dv-metric-label{grid-column:1/-1;border-top:0}
  .dv-split.open{display:block;border:0;border-radius:0;overflow:visible}.dv-split.open>.dv-list{display:none}.dv-split.open>.dv-detail{padding:0}

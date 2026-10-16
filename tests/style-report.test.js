@@ -176,7 +176,7 @@ test('the owner can open any tester’s report read-only from admin',async()=>{
  assert.equal(denied.statusCode,401);assert.equal(denied.body.report,undefined);
 });
 
-test('Gatekeeper scores brands from the approved list, weighting repeat orders, and needs three brands covering half the orders',()=>{
+test('Gatekeeper scores brands from the approved list, scored on their most niche brands, and needs three brands covering half the orders',()=>{
  seq=0;
  const rows=[
   ...Array.from({length:4},(_,k)=>buy({product:'Tee '+k,merchant:'Uniqlo',brand:'Uniqlo',order_reference:'U'+k})).flat(),
@@ -193,9 +193,9 @@ test('Gatekeeper scores brands from the approved list, weighting repeat orders, 
  const g=gatekeeper(projectReceiptEvidence(owner,rows).state);
  assert.equal(g.eligible,true);
  assert.deepEqual(g.brands.map(b=>b.name),['Auralee','Our Legacy','SSENSE','Uniqlo']);
- // Uniqlo (5) has four orders, so it weighs twice as much as each one-order brand: (78+64+40+5*2)/5.
- assert.equal(g.score,Math.round((78+64+40+5*2)/5));
- assert.equal(g.verdict,'Early-ish adopter');
+ // The most niche quarter of brands (at least three), each counted once: Uniqlo's four orders don't drag it down.
+ assert.equal(g.score,Math.round((78+64+40)/3));
+ assert.equal(g.verdict,'Cult member');
  // Two brands are not enough.
  seq=0;
  const thin=[...buy({product:'Tee',merchant:'Uniqlo',brand:'Uniqlo',order_reference:'U1'}),...buy({product:'Coat',merchant:'SSENSE',brand:'Our Legacy',order_reference:'S1'})];

@@ -1,1 +1,56 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Jules admin · Costs</title><link rel="stylesheet" href="/design-system.css"><link rel="stylesheet" href="/costs.css"><script src="/costs.js" type="module"></script><link rel="modulepreload" href="/admin-console.js"><link rel="modulepreload" href="/design-system.js"><link rel="modulepreload" href="/brand-ui.js"><link rel="modulepreload" href="/activity.js"><link rel="modulepreload" href="/wishlist-session.js"><link rel="modulepreload" href="/admin-session.js"><link rel="icon" href="/brand/icon.svg" type="image/svg+xml"></head><body class="admin-console"><main><h1>Costs</h1><p>What Jules costs per service: the selected day, the month so far, and where the month is heading. All amounts are USD and days are UTC.</p><label>Day (UTC) <input id="date" type="date" required></label><button id="refresh">Refresh</button><p id="notice" role="status"></p><section class="summary"><div class="totals"><div><span>Day</span><h2 id="total-today">—</h2></div><div><span>Month to date</span><h2 id="total-month">—</h2></div><div><span>Projected month end</span><h2 id="total-projected">—</h2></div></div><p id="coverage"></p><p id="budget-status"></p></section><div class="scroll"><table><thead><tr><th>Service</th><th>Day</th><th>Month to date</th><th>Projected month end</th><th>How it’s known</th><th>Last updated</th></tr></thead><tbody id="rows"></tbody></table></div><p><strong>Billed</strong> = the provider’s own reported dollars. <strong>Estimate</strong> = Jules’ own count of its calls at list prices, used only where billing isn’t available yet. <strong>Manual</strong> = entered below. Plan fees are spread evenly over the month. The projection adds the month’s fees to the average daily usage so far; it is a forecast, not a bill. Missing entries are unknown, not free. Provider reporting can lag by a day or two.</p><section id="metered"><h2>What each feature costs</h2><p id="metered-status"></p><div class="scroll"><table><thead><tr><th>Feature</th><th>AI calls (month)</th><th>Searches (month)</th><th>Day</th><th>Month to date</th></tr></thead><tbody id="metered-rows"></tbody></table></div><p>Estimates from every OpenAI and SerpApi call Jules makes, including eval test runs. OpenAI calls are priced from their token counts at list prices; SerpApi searches as a share of the plan price (plan price ÷ monthly searches). Billed totals above are the source of truth.</p></section><section><h2>Update an amount</h2><p>For services without a billing connection. Each save replaces that service’s amount for the selected day or month. Check provider billing before recording a value.</p><form id="entry"><label>Service <select id="service"></select></label><label>Amount type <select id="kind"><option value="usage">Daily usage total</option><option value="subscription">Monthly subscription for this month</option><option value="budget">Daily warning budget for this month (all services)</option></select></label><label>USD <input id="amount" type="number" min="0" max="1000000" step="any" required></label><label>Note <input id="note" maxlength="300" placeholder="e.g. Pro plan"></label><button id="save">Save amount</button></form></section><details><summary>How to avoid counting costs twice</summary><p>Record variable charges in daily usage and fixed plan fees in monthly subscription, once per service per month. Where a provider is connected and reports its own plan fee (SerpApi, Vercel), the page uses the provider’s figure and ignores a manual subscription. Where OpenAI reports a day, its billed figure replaces any manual or estimated amount for that day.</p><p>Subscriptions here are an allocation of the monthly fee, not the cash-payment date. Taxes, refunds, annual plans and shared accounts need manual adjustments. ChatGPT / Codex is a development expense; the OpenAI API is recorded separately. Set a provider spending limit wherever available; this page cannot enforce one.</p></details></main></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Jules admin · Costs</title><link rel="stylesheet" href="/design-system.css"><link rel="stylesheet" href="/costs.css">
+  <script src="/costs.js" type="module"></script><link rel="modulepreload" href="/admin-console.js"><link rel="modulepreload" href="/design-system.js"><link rel="modulepreload" href="/brand-ui.js"><link rel="modulepreload" href="/activity.js"><link rel="modulepreload" href="/wishlist-session.js"><link rel="modulepreload" href="/admin-session.js"><link rel="modulepreload" href="/costs-view.js">
+<link rel="icon" href="/brand/icon.svg" type="image/svg+xml"></head>
+<body class="admin-console">
+  <main>
+    <div class="dv-heading"><h1 class="dv-title">Costs</h1><span id="total" class="dv-title">—</span><span id="total-label" class="dv-heading-note"></span></div>
+    <div class="dv-toolbar">
+      <div id="cost-views" class="dv-views" role="group" aria-label="Cost views">
+        <button type="button" data-view="">By service</button>
+        <button type="button" data-view="features">By feature</button>
+        <button type="button" data-view="evals">Evals</button>
+      </div>
+      <span class="dv-divider"></span>
+      <label class="dv-field">Day (UTC)<input id="date" type="date" required></label>
+      <span class="spacer"></span>
+      <button class="small quiet" type="button" popovertarget="costs-more">More ⋯</button>
+      <button id="entry-open" class="btn--butter small" type="button" aria-expanded="false" aria-controls="tool-entry">Update an amount</button>
+    </div>
+    <div id="costs-more" class="dv-pop dv-menu" popover aria-label="More actions">
+      <button id="refresh" type="button">Refresh <span class="hint">re-reads connected billing</span></button>
+    </div>
+    <div class="dv-status"><span id="loader" class="dv-loader" aria-hidden="true" hidden></span><span id="refreshed"></span><span id="coverage"></span><span id="budget-status"></span><span id="view-summary"></span><span id="notice" role="status" aria-live="polite"></span></div>
+
+    <section id="tool-entry" class="dv-tool" aria-labelledby="tool-entry-title" hidden>
+      <div class="dv-tool-head"><h2 id="tool-entry-title">Update an amount</h2><button id="entry-close" class="small" type="button">Close ×</button></div>
+      <p class="muted">Each save replaces that service’s amount for the selected day or month. Check provider billing before recording a value. Missing entries are unknown, not free; enter 0 to confirm no charge.</p>
+      <form id="entry" class="entry-fields">
+        <label>Service<select id="service"></select></label>
+        <label>Amount type<select id="kind"><option value="usage">Daily usage total</option><option value="subscription">Monthly subscription for this month</option><option value="budget">Daily warning budget for this month (all services)</option></select></label>
+        <label>USD<input id="amount" type="number" min="0" max="1000000" step="any" required></label>
+        <label class="entry-note">Note / credits used<input id="note" maxlength="300" placeholder="e.g. 35 of 250 searches used; included in subscription"></label>
+        <button id="save" class="btn--butter" type="submit">Save amount</button>
+      </form>
+      <p id="entry-error" class="error" role="alert" hidden></p>
+      <details class="entry-help"><summary>How to avoid counting costs twice</summary><p>Record variable charges in daily usage. Record fixed plan fees in monthly subscription, once per service per month. Where a connected provider reports its own plan fee (SerpApi, Vercel), the page uses that and ignores a manual subscription; where OpenAI reports a day, its billed figure replaces any manual or estimated amount. Don’t record a credit top-up and the consumption of those same credits as two expenses. Include credit consumption in daily usage only when it is not already covered by your subscription; otherwise record $0 and put the credit count in the note. Credit notes are informational and are not converted to dollars.</p><p>Subscriptions here are an allocation of the monthly fee, not the cash payment date. Taxes, refunds, annual plans, and shared accounts need manual adjustments to the monthly amount. Include only the portion you want assigned to Jules. Set a provider spending limit wherever available; this dashboard cannot enforce one.</p><p>ChatGPT / Codex is a development expense. The OpenAI API is recorded separately. GitHub includes any paid repository tools. </p></details>
+    </section>
+
+    <section data-view-panel="" aria-label="By service">
+      <div class="dv-table-wrap"><table class="dv-table costs-table"><thead><tr><th>Service</th><th class="end">Day</th><th class="end">Month to date</th><th class="end">Projected month end</th><th>How it’s known</th><th>Last updated</th></tr></thead><tbody id="rows"></tbody></table></div>
+      <p class="dv-note"><strong>Billed</strong> = the provider’s own reported dollars. <strong>Estimate</strong> = Jules’ own count of its calls at list prices, used only where billing isn’t available yet. <strong>Manual</strong> = entered with Update an amount. Plan fees are spread evenly over the month. The projection adds the month’s fees to the average daily usage so far; it is a forecast, not a bill. Missing entries are unknown, not free. Provider reporting can lag by a day or two; this page cannot enforce spending caps.</p>
+    </section>
+    <section data-view-panel="features" aria-label="By feature" hidden>
+      <div class="dv-table-wrap"><table class="dv-table costs-table costs-narrow"><thead><tr><th>Feature</th><th class="end">AI calls (month)</th><th class="end">Searches (month)</th><th class="end">Day</th><th class="end">Month to date</th></tr></thead><tbody id="feature-rows"></tbody></table></div>
+      <p class="dv-note">Estimates from every OpenAI and SerpApi call Jules makes. OpenAI calls are priced from their token counts at list prices; SerpApi searches as a share of the plan price. Eval test runs are under Evals. Billed totals (By service) are the source of truth.</p>
+    </section>
+    <section data-view-panel="evals" aria-label="Evals" hidden>
+      <div class="dv-table-wrap"><table class="dv-table costs-table costs-narrow"><thead><tr><th>Eval</th><th class="end">AI calls (month)</th><th class="end">Searches (month)</th><th class="end">Day</th><th class="end">Month to date</th></tr></thead><tbody id="eval-rows"></tbody></table></div>
+      <p class="dv-note">Owner test runs from the replay gate and the Replays &amp; evals page, estimated the same way. They are not user activity.</p>
+    </section>
+  </main>
+</body>
+</html>

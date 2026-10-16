@@ -1,1 +1,23 @@
-main section{margin:28px 0;padding:22px;background:white;border:1px solid var(--line);border-radius:var(--r-card)}.summary h2{font-size:32px;margin:4px 0 0}.totals{display:flex;flex-wrap:wrap;gap:28px}.totals span{font-size:13px;color:var(--text-2)}.badge{display:inline-block;font-size:12px;padding:2px 8px;border-radius:999px;border:1px solid var(--line);white-space:nowrap}.badge.billed{background:#e8f3ea}.badge.estimate{background:#fbf1dc}.badge.manual{background:#eef0f5}.badge.unknown{background:#f6e3df}.scroll{overflow:auto}table{border-collapse:collapse;width:100%;background:white}th,td{text-align:left;padding:15px;border-bottom:1px solid var(--line)}th{font-size:13px}td small{display:block;max-width:300px;margin-top:6px;color:var(--text-2)}main form{display:grid;gap:14px}main form label{display:grid}details{margin:24px 0}#notice{color:#8d3825}
+/* Admin › Costs composition. The data view pieces (toolbar, status line, dense tables, tool panel) live in design-system.css. */
+.dv-status>span:not(:empty)~span:not(:empty):not(.dv-loader)::before{content:"· ";color:var(--text-2)}
+.costs-table .num{font:400 12px var(--font-mono);white-space:nowrap}
+.costs-table .service-name{font-weight:600;color:var(--ink);text-decoration:none}.costs-table .service-name:hover{color:var(--grape)}
+.costs-table small{display:block;max-width:320px;font-size:12px;line-height:1.4;color:var(--text-2);white-space:normal}
+.costs-table td .badge{font-size:11px;padding:3px 8px 3px 5px}.costs-table td .badge::before{width:13px;height:13px}
+.costs-table .muted{color:var(--text-2)}.costs-narrow{max-width:900px}.costs-table td .badge+small{margin-top:4px}
+.costs-providers{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:6px 16px;margin:0;font-size:13px;line-height:1.5;max-width:980px}
+.costs-providers dt{font-weight:600}.costs-providers dd{margin:0;color:var(--text-2);overflow-wrap:anywhere}
+.entry-fields{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin:12px 0 0}.entry-fields label{display:grid;gap:4px;flex:1 1 180px;min-width:0;font-size:13px}
+.entry-fields .entry-note{flex-basis:300px}.entry-fields select,.entry-fields input:not([type=checkbox]):not([type=radio]){margin:0}.entry-fields button{flex:none}
+#entry-error{margin:10px 0 0;color:var(--danger);font-weight:600;font-size:13px}
+.entry-help{margin:14px 0 0;font-size:13px}.entry-help summary{cursor:pointer;font-weight:600;min-height:32px}.entry-help p{color:var(--text-2);line-height:1.6;max-width:820px}
+@media(max-width:800px){
+ .dv-status>span::before{content:none!important}.dv-heading .dv-title{font-size:30px}.dv-field{width:100%}.dv-field input{flex:1}
+ .costs-providers{grid-template-columns:minmax(0,1fr);gap:0}.costs-providers dd{margin-bottom:10px}
+ .entry-fields button{width:100%}
+ /* Service rows become cards: name, then each amount with its column name, then coverage. */
+ .costs-table,.costs-table tbody,.costs-table tr,.costs-table td{display:block}.costs-table thead{display:none}
+ .costs-table tr{padding:10px 0;border-bottom:1px solid var(--line)}.costs-table td{height:auto;padding:2px 0;border:0;text-align:left}
+ .costs-table td[data-label]{display:flex;justify-content:space-between;gap:12px}.costs-table td[data-label]::before{content:attr(data-label);font:400 13px var(--font-sans);color:var(--text-2)}
+ .costs-table tr:hover td{background:none}
+}
