@@ -76,7 +76,7 @@ test('higher product evidence selects identity before an official retailer for a
 test('a specific identity survives without a recommended merchant, while contradictions still reject it',async()=>{
  const deps={plan:async()=>({scope:'item',items:[target],omitted:[]}),verifyListing:async url=>({status:'verified',url,checked_at:'2026-10-06T00:00:00Z',price_snapshot:null}),crop:async()=>({}),retrieve:async()=>[candidates[2]],compare:async()=>({candidates:[{...assessment('3'),is_product_listing:false}]})};
  const result=await visualSearchProducts('Find this jacket',[{}],{},null,deps);
- assert.equal(result.status,'identified_no_store');assert.equal(result.products[0].sourcing_status,'store_not_found');assert.deepEqual(result.products[0].merchant_options,[]);assert.match(formatSearch(result),/identification source/);
+ assert.equal(result.status,'identified_no_store');assert.equal(result.products[0].sourcing_status,'store_not_found');assert.deepEqual(result.products[0].merchant_options,[]);assert.ok(formatSearch(result).includes(result.products[0].identity_sources[0].url));
  assert.equal(assessCandidates(candidates,{candidates:[{...assessment('3'),is_product_listing:false,contradictions:['wrong closure']}]},false,true).length,0);
 });
 
