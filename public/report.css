@@ -273,6 +273,25 @@ body.report-page:has(.report-player:not([hidden])[data-ground="inout"]){backgrou
 .report-toggle[aria-pressed="true"] .report-switch{background:var(--butter)}
 .report-toggle[aria-pressed="true"] .report-switch::after{left:20px}
 .report-sheet-actions{display:flex;justify-content:space-between;align-items:center}
+/* Share sheet: a title with a close button, then the end screen's quiet rows with a note under each. */
+.report-sheet-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}
+.report-sheet-head h2{margin:0}
+.report-sheet-close{width:44px;height:44px;flex-shrink:0;padding:0;border:1px solid var(--line);border-radius:50%;background:var(--white);box-shadow:none;color:var(--ink);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.report-sheet-close::after{display:none}
+@media (hover:hover) and (pointer:fine){.report-sheet-close:hover{transform:none}}
+.report-share-row{min-height:64px;padding:8px 4px}
+.report-share-text{flex:1;display:flex;flex-direction:column;gap:2px;min-width:0}
+.report-share-note{font:400 13px/1.35 var(--font-sans);color:var(--text-2)}
+.report-share-url{font:500 12px var(--font-mono);word-break:break-all}
+.report-share-row[aria-disabled="true"]{cursor:progress}
+.report-share-row[aria-disabled="true"]>svg,.report-share-row[aria-disabled="true"] .report-share-text>span:first-child{opacity:.55}
+/* Export mode (/r/<link>?export=<card>): just the finished card, filling a 360×640 window, for the
+   server to screenshot as a Story image. */
+.report-exporting body{overflow:hidden}
+.report-exporting .report-top,.report-exporting .report-controls,.report-exporting .report-tap,.report-exporting .report-arrow,.report-exporting .report-keys{display:none!important}
+.report-exporting .report-card{position:fixed!important;left:0!important;top:0!important;width:360px!important;height:640px!important;margin:0!important;transform:none!important;z-index:100}
+.report-exporting .report-card .story-card{border-radius:0!important}
+.report-exporting .story-foot .report-wordmark{display:inline!important}
 .report-toast{position:fixed;left:50%;bottom:112px;transform:translateX(-50%);width:min(400px,calc(100% - 28px));box-sizing:border-box;background:var(--white);color:var(--ink);border-radius:24px;padding:14px 16px;box-shadow:0 6px 30px #17120f40;font-size:14px;z-index:10}
 
 @keyframes report-spin{to{transform:rotate(360deg)}}

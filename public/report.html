@@ -94,6 +94,19 @@
     <div class="report-sheet-actions"><button type="button" class="report-link" data-close>Cancel</button><button id="lines-save" type="button" class="report-cta report-cta-small">Done</button></div>
   </dialog>
 
+  <!-- One share sheet for a card and for the whole report (founder, 16 Oct): Story first, then the link. -->
+  <dialog id="sheet-share" class="report-sheet report-share-sheet" aria-labelledby="share-title">
+    <div class="report-sheet-head">
+      <h2 id="share-title" class="display">Share this card</h2>
+      <button type="button" class="report-sheet-close" data-close aria-label="Close"><svg width="16" height="16" viewBox="0 0 18 18" aria-hidden="true"><path d="M3 3 L15 15 M15 3 L3 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+    </div>
+    <div class="report-end-rows">
+      <button id="share-story" class="report-end-row report-share-row" type="button" aria-disabled="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h10a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4zM12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM17.5 6.5v.01"/></svg><span class="report-share-text"><span id="share-story-title">Instagram Story</span><span id="share-story-note" class="report-share-note">Making your image…</span></span></button>
+      <button id="share-copy" class="report-end-row report-share-row" type="button"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg><span class="report-share-text"><span>Copy report link</span><span id="share-copy-note" class="report-share-note report-share-url">Making your link…</span></span></button>
+      <button id="share-more" class="report-end-row report-share-row" type="button"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5M5 13v7h14v-7"/></svg><span class="report-share-text"><span>More…</span><span class="report-share-note">Messages, WhatsApp, anywhere else</span></span></button>
+    </div>
+  </dialog>
+
   <div id="toast" class="report-toast" role="status" aria-live="polite" hidden></div>
 </main>
 </body></html>
