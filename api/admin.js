@@ -7,7 +7,7 @@ import { marketEnvironment } from '../lib/shopping-market.js';
 import { metricsTrend } from '../lib/chat-metrics.js';
 import { deleteImportedHistory } from '../lib/gmail-import.js';
 import { tagPurchaseHistory } from '../lib/item-tags.js';
-import { buildReport, sendReportLink, reportView, withReadPhoto } from '../lib/style-report.js';
+import { buildReport, sendReportLink, sendNewCardText, reportView, withReadPhoto } from '../lib/style-report.js';
 import { firstName } from '../lib/memory.js';
 import { copyWeek } from '../lib/report-copy.js';
 
@@ -32,7 +32,9 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
           const built = await buildReport(store, input.conversation, env);
           if (built.status === 'busy') throw Object.assign(new Error('Purchase history is busy (an import or another edit is running). Try again in a moment.'), { status: 409 });
           if (built.status !== 'built') throw Object.assign(new Error(built.status === 'no_history' ? 'This person has no imported purchase history yet.' : `Not enough data for a receipt yet (${built.lines} of 3 lines).`), { status: 409 });
-          return json(res, 200, { ...await purchaseReview(store, input.conversation), report: reportView(built.report) });
+          // A card this rebuild unlocked is texted once, as after an import.
+          const newCard = await sendNewCardText(store, input.conversation, env, built.unlocked).catch(() => null);
+          return json(res, 200, { ...await purchaseReview(store, input.conversation), report: reportView(built.report), new_card_text: newCard?.status ?? null });
         }
         if (input.action === 'send-report') {
           const sent = await sendReportLink(store, input.conversation, env);
