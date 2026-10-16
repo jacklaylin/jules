@@ -144,7 +144,7 @@ function renderFacts() {
     const save = el('button', { type: 'button', className: 'small btn--butter', textContent: 'Save', hidden: !dirty.has(keyId) });
     const remove = el('button', { type: 'button', className: 'small quiet', textContent: 'Remove' });
     const row = el('tr', { className: dirty.has(keyId) ? 'dirty' : '' },
-      el('td', { className: 'mono-label', textContent: TYPES[fact.field] ?? fact.field }), el('td', { className: 'fact-key', textContent: fact.key }),
+      el('td', { className: 'fact-type', textContent: TYPES[fact.field] ?? fact.field }), el('td', { className: 'fact-key', textContent: fact.key }),
       el('td', {}, input), el('td', { className: 'fact-evidence', textContent: evidenceText(fact), title: evidenceText(fact) }), el('td', { className: 'fact-actions' }, save, remove));
     input.oninput = () => {
       if (input.value === fact.value) dirty.delete(keyId); else dirty.set(keyId, input.value);
