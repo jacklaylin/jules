@@ -139,17 +139,21 @@ function fitChips(){
 }
 addEventListener('resize',fitChips);
 // Four emojis (canvas card): four slot-machine reels spin through decoys and land on the person's
-// emojis one after another; each caption is the fact that earned it.
+// emojis one after another; each caption is the persona with the fact that earned it as an aside.
 const DECOYS=['🛍️','👠','🧢','🕶️','🧥','👜','🎒','🧦','🥿','👗','🧶','👟'];
 function emojiCard(card,animate){
  const reels=card.picks.map((pick,i)=>{
   const strip=el('div',{className:'emoji-strip'},...Array.from({length:9},(_,k)=>el('span',{textContent:DECOYS[(k*5+i*3)%DECOYS.length],'aria-hidden':'true'})),el('span',{textContent:pick.emoji}));
   const delay=0.3+i*0.25,dur=1.3+i*0.25;
   strip.style.animationDelay=`${delay}s`;strip.style.animationDuration=`${dur}s`;
-  // The joke written from the fact (it still states it); older reports and shared views carry the fact.
-  const caption=el('p',{className:'emoji-fact',textContent:pick.caption??pick.fact});caption.style.animationDelay=`${(delay+dur).toFixed(2)}s`;
+  // The aside written from the fact (it still states it); shared views carry the fact. Reports from
+  // before personas (October 16) show their caption alone.
+  const text=pick.caption??pick.fact;
+  const caption=pick.persona?el('p',{className:'emoji-fact'},el('strong',{className:'emoji-persona',textContent:pick.persona}),el('span',{className:'emoji-aside',textContent:`(${text})`}))
+   :el('p',{className:'emoji-fact',textContent:text});
+  caption.style.animationDelay=`${(delay+dur).toFixed(2)}s`;
   const window_=el('div',{className:'emoji-window'},strip);window_.style.animationDelay=`${(delay+dur).toFixed(2)}s`;
-  return el('li',{className:'emoji-reel','aria-label':`${pick.emoji} ${pick.fact}`},window_,caption);
+  return el('li',{className:'emoji-reel','aria-label':pick.persona?`${pick.emoji} ${pick.persona} (${text})`:`${pick.emoji} ${pick.fact}`},window_,caption);
  });
  return el('article',{className:'story-card story-emoji','aria-label':`${Theirs()} style in four emojis`},
   el('h2',{className:'story-title emoji-title',textContent:`${Theirs()} style in four emojis`}),
@@ -295,7 +299,7 @@ function lockedCard(card){
  const teasers={
   read:()=>el('div',{className:'locked-teaser locked-read','aria-hidden':'true'},el('span',{className:'locked-sticker',textContent:'?????? ??? ????'}),el('span',{className:'locked-sticker',textContent:'???? ?? ???'}),lock),
   inout:()=>el('div',{className:'locked-teaser locked-note','aria-hidden':'true'},el('span',{textContent:'in: ??????'}),el('span',{textContent:'out: ??????'}),lock),
-  emoji:()=>el('div',{className:'locked-teaser locked-emoji','aria-hidden':'true'},...['👟','🖤','🧶','🔁'].map(e=>el('span',{textContent:e})),lock),
+  emoji:()=>el('div',{className:'locked-teaser locked-emoji','aria-hidden':'true'},...['🏋️','🦇','🐑','😎'].map(e=>el('span',{textContent:e})),lock),
   match:()=>el('div',{className:'locked-teaser locked-dial locked-match','aria-hidden':'true'},el('span',{className:'locked-score',textContent:'??%'}),lock),
   spectrum:()=>el('div',{className:'locked-teaser locked-spectrum','aria-hidden':'true'},...[30,72,48].map(x=>{const dot=el('i');dot.style.left=`${x}%`;return el('span',{},dot);}),lock),
  };

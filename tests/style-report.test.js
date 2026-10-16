@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {receiptLines,validTotal,writeTotal,buildReport,updateReport,reportView,handleReport,FALLBACK_TOTAL,gatekeeper,nicheBrand,validGateLine,writeGateLine,reportWriter,REPORT_MODEL,inOut,validInOutLine,writeInOutLine,validEntry,copyLines,lockedCards,MIN_CARDS,sharedView,handleSharedReport,sharePreview,handleSharePage,fourEmojis,spectrum,validEmojiCaption,writeEmojiCaptions,styleMatch,validMatchLine,writeMatchLine,sendNewCardText,sendReportLink,newCardsText,missingSources} from '../lib/style-report.js';
+import {receiptLines,validTotal,writeTotal,buildReport,updateReport,reportView,handleReport,FALLBACK_TOTAL,gatekeeper,nicheBrand,validGateLine,writeGateLine,reportWriter,REPORT_MODEL,inOut,validInOutLine,writeInOutLine,validEntry,copyLines,lockedCards,MIN_CARDS,sharedView,handleSharedReport,sharePreview,handleSharePage,fourEmojis,EMOJI_PERSONAS,emojiPersona,spectrum,validEmojiCaption,writeEmojiCaptions,styleMatch,validMatchLine,writeMatchLine,sendNewCardText,sendReportLink,newCardsText,missingSources} from '../lib/style-report.js';
 import {tagFingerprint} from '../lib/item-tags.js';
 import {purchaseEvidence,projectReceiptEvidence} from '../lib/receipt-extraction.js';
 import {signInLinks} from '../lib/onboarding.js';
@@ -610,15 +610,19 @@ test('four emojis: each is earned by a counted fact, the four strongest win, and
  const tags=tagsFor(state,i=>/Tee/.test(i.product)?{item_type:'t-shirt',group:'tops',color_family:'black',resale:false}
   :/Jersey/.test(i.product)?{item_type:'race jersey',group:'activewear',color_family:'black',resale:false}
   :{item_type:'sneakers',group:'shoes',color_family:'white',resale:false});
- const e=fourEmojis(state,tags,{gateScore:80});
+ const e=fourEmojis(state,tags,{gateScore:80,seed:'person-1'});
  assert.equal(e.eligible,true);assert.equal(e.picks.length,4);
- const emojis=e.picks.map(p=>p.emoji);
+ const emojis=e.picks.map(p=>p.signal);
+ // The card shows each signal's persona emoji and an approved persona name.
+ for(const p of e.picks){assert.equal(p.emoji,EMOJI_PERSONAS[p.signal][0]);assert.ok(p.persona);}
+ // The same person always gets the same persona.
+ assert.deepEqual(fourEmojis(state,tags,{gateScore:80,seed:'person-1'}).picks,e.picks);
  // Never both of a pair, never two colours.
  assert.ok(!(emojis.includes('🔁')&&emojis.includes('📦')));
  assert.ok(emojis.filter(x=>['🖤','🤍','🩶','💙','🤎','🩷','🫒','🌈'].includes(x)).length<=1);
  // Every caption is a fact from the purchases, never an amount.
  assert.ok(e.picks.every(p=>p.fact&&!/[$€£]/.test(p.fact)));
- const fact=Object.fromEntries(e.picks.map(p=>[p.emoji,p.fact]));
+ const fact=Object.fromEntries(e.picks.map(p=>[p.signal,p.fact]));
  if(fact['🗝️'])assert.equal(fact['🗝️'],'niche score 80');
  if(fact['🚲'])assert.equal(fact['🚲'],'4 pieces of cycling kit');
  // Too little to earn four: no card, no filler.
@@ -627,9 +631,22 @@ test('four emojis: each is earned by a counted fact, the four strongest win, and
  assert.equal(fourEmojis(projectReceiptEvidence(owner,thin).state,{}).eligible,false);
 });
 
+test('every emoji signal has an approved persona, and no two personas share an emoji',()=>{
+ const signals=['🖤','🤍','🩶','💙','🤎','🩷','🫒','🌈','🔁','📦','🛍️','💎','♻️','🗝️','🏬','🔍','🚲','🏃','🧘','🏔️','🩱','👟','👢','👠','👖','🧶','🧥','👔','👕','🧢','👜','💍','🕶️','👗','🧦','👯','🎨','🎄','⚡','🐢'];
+ assert.deepEqual(Object.keys(EMOJI_PERSONAS).sort(),[...signals].sort());
+ const shown=Object.values(EMOJI_PERSONAS).map(([e])=>e);assert.equal(new Set(shown).size,shown.length);
+ assert.deepEqual(emojiPersona('🛍️'),{emoji:'🏋️',persona:'olympic shopper'});
+ assert.equal(emojiPersona('🔁',{store:'SSENSE'}).persona,'married to SSENSE');
+ // Two options: a person's seed picks one, and different people can get different ones.
+ const both=new Set(Array.from({length:20},(_,k)=>emojiPersona('🚲',{},'p'+k).persona));
+ assert.deepEqual([...both].sort(),['coffee ride regular','kit before watts']);
+});
+
 test('the emoji card is shared as just its emojis and facts',()=>{
  const report={id:'r',built_at:'2026-10-16T00:00:00Z',hidden:{},feedback:[],cards:[{type:'emoji',picks:[{emoji:'🖤',fact:'82% black',secret:'x'}]}]};
  assert.deepEqual(sharedView(report,'Jack').cards,[{type:'emoji',picks:[{emoji:'🖤',fact:'82% black'}]}]);
+ const personas={...report,cards:[{type:'emoji',picks:[{emoji:'🦇',signal:'🖤',persona:'vampire hours',fact:'82% black',caption:'82% black, lights off',shared:'82% black, lights off',secret:'x'}]}]};
+ assert.deepEqual(sharedView(personas,'Jack').cards,[{type:'emoji',picks:[{emoji:'🦇',persona:'vampire hours',fact:'82% black, lights off'}]}]);
 });
 
 test('Spectrum computes sliders from purchases and the brand list, then names the approved type that fits best',()=>{
@@ -675,14 +692,19 @@ test('In / Out: one order of several colourways is not a habit that went out, an
  assert.ok(c.out.some(o=>o.plain==='leather accessories'),'accessory → accessories');
 });
 
-test('emoji captions are jokes that still state the fact, and fall back to the fact when they don’t',async()=>{
+test('emoji asides still state the fact, and fall back to the fact when they don’t',async()=>{
  const names=['MAAP','Lululemon','SSENSE'];
- assert.equal(validEmojiCaption('15 pieces of cycling kit, tour de drawer.','15 pieces of cycling kit',names),'15 pieces of cycling kit, tour de drawer');
- for(const bad of ['cycling kit, tour de drawer','15 pieces of cycling kit, 0 races','15 pieces of cycling kit from Lululemon','15 pieces of cycling kit, obsessed','x15 '+'y'.repeat(40)])
+ assert.equal(validEmojiCaption('15 pieces, bike pending.','15 pieces of cycling kit',names),'15 pieces, bike pending');
+ // The card adds the brackets.
+ assert.equal(validEmojiCaption('(45 stores, still training)','45 different stores',names),'45 stores, still training');
+ for(const bad of ['cycling kit, tour de drawer','15 pieces, 0 races','15 pieces from Lululemon','15 pieces, obsessed','15 '+'y'.repeat(30)])
   assert.equal(validEmojiCaption(bad,'15 pieces of cycling kit',names),null,bad);
- const picks=[{emoji:'🚲',fact:'15 pieces of cycling kit'},{emoji:'🛍️',fact:'44 different stores'}];
- const out=await writeEmojiCaptions(picks,async()=>({captions:[{emoji:'🚲',caption:'15 pieces of cycling kit, tour de drawer',shared:'Jack: 15 pieces of cycling kit, tour de drawer'},{emoji:'🛍️',caption:'so many stores',shared:'you shop a lot'}]}),names,'Jack');
- assert.equal(out[0].caption,'15 pieces of cycling kit, tour de drawer');assert.equal(out[0].shared,'Jack: 15 pieces of cycling kit, tour de drawer');
+ const picks=[{emoji:'🚴',signal:'🚲',persona:'kit before watts',fact:'15 pieces of cycling kit'},{emoji:'🏋️',signal:'🛍️',persona:'olympic shopper',fact:'44 different stores'}];
+ let context=null;
+ const out=await writeEmojiCaptions(picks,async r=>{context=r.context;return {captions:[{emoji:'🚴',caption:'15 pieces, bike pending',shared:'15 pieces, Jack’s bike pending'},{emoji:'🏋️',caption:'so many stores',shared:'they shop a lot'}]};},names,'Jack');
+ // The writer sees each persona, so the aside can play off it.
+ assert.deepEqual(context.emojis.map(e=>e.persona),['kit before watts','olympic shopper']);
+ assert.equal(out[0].caption,'15 pieces, bike pending');assert.equal(out[0].shared,'15 pieces, Jack’s bike pending');assert.equal(out[0].persona,'kit before watts');
  // The second dropped its number, so the plain fact stays.
  assert.equal(out[1].caption,'44 different stores');assert.equal(out[1].shared,'44 different stores');
  // A writer that fails keeps every fact.
