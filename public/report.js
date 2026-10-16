@@ -297,6 +297,8 @@ function renderCard(animate=true){
  const vote=report.votes?.[card.type];
  $('vote-up').setAttribute('aria-pressed',String(vote==='up'));$('vote-down').setAttribute('aria-pressed',String(vote==='down'));
  $('edit-lines').hidden=card.type!=='receipt'||readOnly;
+ // Shuffling re-reads another of the person's outfit photos; only on their own report, with 2+ photos.
+ $('read-shuffle').hidden=card.type!=='read'||readOnly||!(report.read_photos>1);
  $('share').hidden=readOnly;
  // An admin preview records nothing: no thumbs, no line edits.
  // A locked card takes no thumbs either: there's nothing to judge yet.
@@ -311,7 +313,7 @@ function renderCard(animate=true){
 function go(i){if(i<0){show('view-intro');return;}if(i>=report.cards.length){show('view-end');return;}index=i;renderCard();}
 
 async function save(body,done){
- try{const result=await api('POST',{card:report.cards[index].type,...body});report={...result.report,name:report.name,text_url:report.text_url,cards:result.report.cards.filter(c=>RENDER[c.type])};renderCard(false);if(done)toast(done);}
+ try{const result=await api('POST',{card:report.cards[index].type,...body});report={...result.report,name:report.name,text_url:report.text_url,read_photos:result.read_photos??report.read_photos,cards:result.report.cards.filter(c=>RENDER[c.type])};renderCard(false);if(done)toast(done);}
  catch(error){toast(error.message);}
 }
 $('intro-start').onclick=()=>go(0);
@@ -351,7 +353,7 @@ $('restart').onclick=()=>go(0);
 const shareUrl=()=>`${location.origin}/r/${report.share.token}`;
 async function shareReport(){
  try{
-  if(!report.share){const result=await api('POST',{action:'report-share'});report={...result.report,name:report.name,text_url:report.text_url};shareStatus();}
+  if(!report.share){const result=await api('POST',{action:'report-share'});report={...result.report,name:report.name,text_url:report.text_url,read_photos:report.read_photos};shareStatus();}
   const url=shareUrl();
   if(navigator.share){try{await navigator.share({title:'My style report',text:'Jules went through my orders. What would yours say?',url});return;}catch(error){if(error?.name==='AbortError')return;}}
   try{await navigator.clipboard.writeText(url);toast('Link copied. Anyone with it can see your shared cards.');}
@@ -364,8 +366,16 @@ function shareStatus(){
 }
 $('share').onclick=shareReport;$('end-share').onclick=shareReport;
 $('unshare').onclick=async()=>{
- try{const result=await api('POST',{action:'report-unshare'});report={...result.report,name:report.name,text_url:report.text_url};shareStatus();toast('Link turned off. Nobody can open it now.');}
+ try{const result=await api('POST',{action:'report-unshare'});report={...result.report,name:report.name,text_url:report.text_url,read_photos:report.read_photos};shareStatus();toast('Link turned off. Nobody can open it now.');}
  catch(error){toast(error.message);}
+};
+// A fresh read of another photo takes a few seconds; the card replays its entrance when it lands.
+$('read-shuffle').onclick=async()=>{
+ const button=$('read-shuffle');button.disabled=true;button.textContent='Judging…';
+ try{const result=await api('POST',{action:'read-shuffle',card:'read'});report={...result.report,name:report.name,text_url:report.text_url,read_photos:result.read_photos??report.read_photos,cards:result.report.cards.filter(c=>RENDER[c.type])};
+  index=Math.max(0,report.cards.findIndex(c=>c.type==='read'));renderCard(true);}
+ catch(error){toast(error.message);}
+ finally{button.disabled=false;button.textContent='Shuffle';}
 };
 $('vote-up').onclick=()=>save({action:'report-feedback',vote:'up'},'Noted. More like this.');
 // 👎 asks which line missed when the card has more than one; skipping still counts, half as much.
@@ -410,7 +420,7 @@ async function signInFromLink(token){
 }
 const READ_AGAIN_MS=15000;
 function opened(result){
- clearInterval(stepTimer);report={...result.report,text_url:result.text_url??null};
+ clearInterval(stepTimer);report={...result.report,text_url:result.text_url??null,read_photos:result.read_photos??0};
  // A card this page doesn't draw (for example from an older report) is skipped, never shown broken.
  report={...report,cards:report.cards.filter(c=>RENDER[c.type])};
  if(report.shared){

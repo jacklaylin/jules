@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import sharp from 'sharp';
 import {cropFrame,placeStickers,stickerHeight,validReadLine,readFit,READ_CATEGORIES,READ_BANDS,FRAME,readPhoto,askJudges,pickLine,READ_EXAMPLES,READ_PROMPT} from '../lib/fit-read.js';
-import {buildReport,sharedView,withReadPhoto,readAfterOutfits,sendReportLink,reportView,READ_ASK,updateReport,COPY_CARDS} from '../lib/style-report.js';
+import {buildReport,sharedView,withReadPhoto,readAfterOutfits,sendReportLink,reportView,READ_ASK,shuffleRead,updateReport,COPY_CARDS} from '../lib/style-report.js';
 import {lineVotes,cardLessons,shownLine,promptVersion,RETIRE_PEOPLE} from '../lib/report-copy.js';
 import {tagFingerprint} from '../lib/item-tags.js';
 import {purchaseEvidence,projectReceiptEvidence} from '../lib/receipt-extraction.js';
@@ -309,4 +309,23 @@ test('only one callout leans on a purchase count; the others take an option abou
  const {card}=await readFit({photos,facts:[{item:'shirts',n:12}],name:'Jack',interpret:allOk,env:{},judges:async()=>counts});
  assert.deepEqual(card.callouts.map(c=>c.text),['one of your 12 shirts, picnic blanket with buttons','shorts for a tennis club without the tennis','one of your 12 pairs of ribbed socks, gym class deluxe'],
   'a later point with only a count option keeps it rather than losing the callout');
+});
+
+test('“Try another photo” reads the next outfit photo, skips one that can’t be read, and keeps the read when none can',async()=>{
+ const store=await fixture({photos:['o1','o2','o3']});
+ const {buildRead}=await import('../lib/style-report.js');
+ const asked=[];
+ const reading=(ok)=>(s,o,e,options)=>{asked.push(options.photoIds[0]);return buildRead(s,o,e,{...options,interpret:writer,judges:async()=>ok(options.photoIds[0])?answer({photo_id:options.photoIds[0]}):answer({photo_id:null,problem:'several_people'})});};
+ await buildReport(store,owner,{SITE_ORIGIN:'https://jules.example'},{interpret:writer});
+ await readAfterOutfits(store,owner,env,{photoIds:['o3'],send:async()=>({id:'x'}),build:reading(()=>true)});
+ const read=()=>store.row.data.style_report.cards.find(c=>c.type==='read');
+ const first=read().source_id;asked.length=0;
+ // Newest first, wrapping round: from o3 the next is o2; o2 can't be read, so o1.
+ await shuffleRead(store,owner,env,{build:reading(id=>id!=='o2')});
+ assert.equal(first,'o3');assert.deepEqual(asked,['o2','o1']);assert.equal(read().source_id,'o1');
+ assert.equal(store.row.data.style_report.cards.filter(c=>c.type==='read').length,1,'one Read card');
+ await assert.rejects(shuffleRead(store,owner,env,{build:reading(()=>false)}),e=>e.status===422);
+ assert.equal(read().source_id,'o1','the current read stays when nothing else can be read');
+ const one=await fixture({photos:['o1']});
+ await assert.rejects(shuffleRead(one,owner,env),e=>e.status===409);
 });
