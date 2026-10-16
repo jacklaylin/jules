@@ -56,6 +56,8 @@ body.report-page{background:var(--ink);color:var(--white);min-height:100vh;min-h
 .story-card{position:absolute;left:0;top:0;width:360px;height:640px;box-sizing:border-box;transform-origin:0 0;display:flex;flex-direction:column;gap:14px;padding:16px 22px 0;color:var(--white);overflow:hidden}
 .story-title{margin:0;font-size:34px;line-height:1}
 .story-foot{display:flex;justify-content:flex-end;padding-bottom:4px}
+/* Shared cards ask the friend reading them: "What about you?" beside the wordmark. */
+.story-ask{margin-right:auto;align-self:center;font:500 10px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;opacity:.75}
 .report-wordmark{font:400 24px/1 var(--font-serif);letter-spacing:-.04em;white-space:nowrap}
 .report-j{position:relative;display:inline-block}
 .report-dot{position:absolute;left:.07em;top:.02em;width:.24em;height:.24em;border-radius:50%;background:radial-gradient(circle at 30% 30%,var(--butter),var(--tangerine,#FF7A2F) 55%,var(--grape))}
@@ -149,6 +151,12 @@ body.report-page{background:var(--ink);color:var(--white);min-height:100vh;min-h
 .report-end .label{color:var(--text-2)}
 .report-end-actions{display:flex;flex-direction:column;gap:12px}
 .report-end .report-cta{background:var(--grape);color:var(--white)}
+/* Sharing from the end screen; the wishlist link steps back to a quieter style beside it. */
+.report-end .report-cta-share{background:var(--grape);color:var(--white);width:100%}
+.report-end .report-cta-share:not([hidden])~.report-cta{background:var(--white);color:var(--ink)}
+.report-share-status{font-size:14px!important}
+.report-share-status .report-link{min-height:0;font-size:14px}
+.report-share-link{color:inherit;font-family:var(--font-mono);font-size:12px;word-break:break-all}
 
 /* Sheets */
 .report-sheet{border:0;border-radius:24px 24px 0 0;margin:auto auto 0;width:100%;max-width:440px;box-sizing:border-box;padding:24px 22px 34px;color:var(--ink);background:var(--white)}
