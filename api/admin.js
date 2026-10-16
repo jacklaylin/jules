@@ -7,7 +7,7 @@ import { marketEnvironment } from '../lib/shopping-market.js';
 import { metricsTrend } from '../lib/chat-metrics.js';
 import { deleteImportedHistory } from '../lib/gmail-import.js';
 import { tagPurchaseHistory } from '../lib/item-tags.js';
-import { buildReport, sendReportLink, sendNewCardText, reportView } from '../lib/style-report.js';
+import { buildReport, sendReportLink, sendNewCardText, reportView, withReadPhoto } from '../lib/style-report.js';
 import { firstName } from '../lib/memory.js';
 import { copyWeek } from '../lib/report-copy.js';
 
@@ -66,7 +66,7 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
       // Read-only view of a tester's style report for /report?person=<id>.
       if (query.get('view') === 'report') {
         const [row, name] = await Promise.all([store.gmailImport(id), firstName(store, id)]);
-        return json(res, 200, { report: reportView(row?.data?.style_report, name ?? null), status: row?.data?.style_report ? 'built' : 'not_built' });
+        return json(res, 200, { report: await withReadPhoto(reportView(row?.data?.style_report, name ?? null), row?.data?.style_report, store, id), status: row?.data?.style_report ? 'built' : 'not_built' });
       }
       if (query.get('view') === 'wishlist') return json(res, 200, await personWishlist(store, id, env));
       let before;

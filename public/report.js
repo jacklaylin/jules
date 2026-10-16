@@ -126,7 +126,7 @@ function fitCard(){
  card.style.height=`${height}px`;
  card.style.transform=`translate(${(box.clientWidth-CARD_W*scale)/2}px,${(box.clientHeight-height*scale)/2}px) scale(${scale})`;
 }
-addEventListener('resize',fitCard);
+addEventListener('resize',()=>{fitCard();fitRead();});
 // Brand chips show whole rows only: chips that don't fit the card's height are dropped, never cut off.
 function fitChips(){
  const list=$('card').querySelector('.gate-chips');if(!list)return;
@@ -203,13 +203,52 @@ function inOutCard(card){
    el('p',{className:'note-line',textContent:card.verdict}),
    foot('story-foot note-foot')));
 }
+// The Read (canvas "The Read"): the person's outfit photo marked up. Lines draw out to sticker callouts
+// one by one, the closer fades in, then the photo dims and four judges raise their scorecards. Code on
+// the server placed every dot and sticker in card pixels (photo frame at 22,66, 316×420); the stage
+// here is that 360×420 band, scaled down on short screens so nothing moves relative to the photo.
+const STAGE_TOP=66,PADDLE_TILT=['-11deg','-4deg','5deg','10deg'],PADDLE_STICK=[136,150,200,124];
+function readCard(card){
+ const stage=el('div',{className:'read-stage'},el('img',{className:'read-photo',src:card.photo,alt:report.shared?'Their outfit photo':'Your outfit photo'}));
+ const lines=svg('svg',{class:'read-lines',viewBox:`0 0 360 420`,width:360,height:420,'aria-hidden':'true'});
+ card.callouts.forEach((c,k)=>{
+  const delay=`${(0.5+k*0.35).toFixed(2)}s`,y=c.y-STAGE_TOP,ly=c.ly-STAGE_TOP;
+  // The line runs 10px into its sticker (drawn underneath), so it joins even though the sticker tilts.
+  const path=svg('path',{d:`M${c.x} ${y} L${c.lx<180?c.lx+108:c.lx+10} ${ly+20}`,class:'read-line'});path.style.animationDelay=delay;
+  const dot=svg('circle',{cx:c.x,cy:y,r:6,class:'read-dot'});dot.style.animationDelay=delay;
+  lines.append(path,dot);
+ });
+ stage.append(lines,...card.callouts.map((c,k)=>{
+  const sticker=el('p',{className:'read-sticker',textContent:c.text});
+  Object.assign(sticker.style,{left:`${c.lx}px`,top:`${c.ly-STAGE_TOP}px`,animationDelay:`${(0.75+k*0.35).toFixed(2)}s`});sticker.style.setProperty('--r',c.rot);
+  return sticker;
+ }));
+ const paddles=el('div',{className:'read-paddles'},...card.scores.map((s,k)=>{
+  const paddle=el('div',{className:'read-paddle'},el('div',{className:'read-score'},el('b',{textContent:String(s.n)}),el('span',{textContent:s.label})),el('span',{className:'read-stick'}));
+  paddle.style.setProperty('--r',PADDLE_TILT[k]);paddle.querySelector('.read-stick').style.height=`${PADDLE_STICK[k]}px`;paddle.style.animationDelay=`${(3.6+k*0.18).toFixed(2)}s`;
+  return paddle;
+ }));
+ return el('article',{className:'story-card story-read','aria-label':`${report.shared?'Their':'Your'} fit, read: ${card.verdict}. Scores ${card.scores.map(s=>`${s.label} ${s.n}`).join(', ')}`},
+  el('h2',{className:'read-title',textContent:report.shared?(report.name?`Now, for ${report.name}’s fit check`:'Now, for their fit check'):'Now, for a fit check'}),
+  el('div',{className:'read-band'},stage),
+  el('p',{className:'read-closer',textContent:card.closer}),
+  el('div',{className:'read-finale','aria-hidden':'true'},el('p',{className:'read-verdict',textContent:card.verdict}),paddles),
+  foot('story-foot read-foot'));
+}
+// Fits the 360×420 photo band into whatever height the card leaves it.
+function fitRead(){
+ const band=$('card').querySelector('.read-band');if(!band)return;
+ band.style.setProperty('--read-scale',String(Math.min(1,band.clientHeight/420)));
+}
 // A locked card: a real card the person can't have yet, saying from real counts what unlocks it.
 // Never shared, no thumbs.
 const LOCK_ICON='M6 11 L18 11 L18 21 L6 21 Z M8.5 11 L8.5 7.5 C8.5 3.5 15.5 3.5 15.5 7.5 L15.5 11';
 function lockedCard(card){
  const lock=el('span',{className:'locked-icon','aria-hidden':'true'},svg('svg',{viewBox:'0 0 24 24',width:24,height:24},svg('path',{d:LOCK_ICON})));
+ const read=card.card==='read';
  // A blurred hint of the card it will become.
  const teasers={
+  read:()=>el('div',{className:'locked-teaser locked-read','aria-hidden':'true'},el('span',{className:'locked-sticker',textContent:'?????? ??? ????'}),el('span',{className:'locked-sticker',textContent:'???? ?? ???'}),lock),
   inout:()=>el('div',{className:'locked-teaser locked-note','aria-hidden':'true'},el('span',{textContent:'in: ??????'}),el('span',{textContent:'out: ??????'}),lock),
   emoji:()=>el('div',{className:'locked-teaser locked-emoji','aria-hidden':'true'},...['👟','🖤','🧶','🔁'].map(e=>el('span',{textContent:e})),lock),
   match:()=>el('div',{className:'locked-teaser locked-dial locked-match','aria-hidden':'true'},el('span',{className:'locked-score',textContent:'??%'}),lock),
@@ -223,12 +262,16 @@ function lockedCard(card){
   el('p',{className:'locked-why',textContent:card.why}),
   // Reports built before October 16 have only the why.
   card.unlock&&el('p',{className:'locked-unlock'},el('span',{textContent:'To unlock: '}),el('b',{textContent:card.unlock})),
-  el('div',{className:'locked-actions'},
+  // The Read unlocks with a photo texted to Jules; the others with more orders.
+  read?el('div',{className:'locked-actions'},
+   report.text_url&&!readOnly&&el('a',{className:'report-cta report-cta-small locked-cta',href:report.text_url,textContent:'Text Jules a photo'}),
+   el('p',{className:'locked-hint',textContent:'Mirror pics are perfect.'}))
+  :el('div',{className:'locked-actions'},
    el('a',{className:'report-cta report-cta-small locked-cta',href:'/account',textContent:'Connect more orders'}),
    el('p',{className:'locked-hint',textContent:'Or text Jules a photo of an old receipt.'})),
   foot());
 }
-const RENDER={receipt:receiptCard,gatekeeper:gatekeeperCard,emoji:emojiCard,inout:inOutCard,match:matchCard,spectrum:spectrumCard,locked:lockedCard};
+const RENDER={receipt:receiptCard,gatekeeper:gatekeeperCard,emoji:emojiCard,inout:inOutCard,match:matchCard,read:readCard,spectrum:spectrumCard,locked:lockedCard};
 
 function renderCard(animate=true){
  const card=report.cards[index];
@@ -250,13 +293,13 @@ function renderCard(animate=true){
  if($('controls-label'))$('controls-label').hidden=quiet;
  show('view-card');
  // Measured once the card is on screen.
- fitCard();fitChips();
+ fitCard();fitChips();fitRead();
 }
 // Back from the first card returns to the welcome screen; forward from the last opens the end.
 function go(i){if(i<0){show('view-intro');return;}if(i>=report.cards.length){show('view-end');return;}index=i;renderCard();}
 
 async function save(body,done){
- try{const result=await api('POST',{card:report.cards[index].type,...body});report={...result.report,name:report.name};renderCard(false);if(done)toast(done);}
+ try{const result=await api('POST',{card:report.cards[index].type,...body});report={...result.report,name:report.name,text_url:report.text_url,cards:result.report.cards.filter(c=>RENDER[c.type])};renderCard(false);if(done)toast(done);}
  catch(error){toast(error.message);}
 }
 $('intro-start').onclick=()=>go(0);
@@ -296,7 +339,7 @@ $('restart').onclick=()=>go(0);
 const shareUrl=()=>`${location.origin}/r/${report.share.token}`;
 async function shareReport(){
  try{
-  if(!report.share){const result=await api('POST',{action:'report-share'});report={...result.report,name:report.name};shareStatus();}
+  if(!report.share){const result=await api('POST',{action:'report-share'});report={...result.report,name:report.name,text_url:report.text_url};shareStatus();}
   const url=shareUrl();
   if(navigator.share){try{await navigator.share({title:'My style report',text:'Jules went through my orders. What would yours say?',url});return;}catch(error){if(error?.name==='AbortError')return;}}
   try{await navigator.clipboard.writeText(url);toast('Link copied. Anyone with it can see your shared cards.');}
@@ -309,7 +352,7 @@ function shareStatus(){
 }
 $('share').onclick=shareReport;$('end-share').onclick=shareReport;
 $('unshare').onclick=async()=>{
- try{const result=await api('POST',{action:'report-unshare'});report={...result.report,name:report.name};shareStatus();toast('Link turned off. Nobody can open it now.');}
+ try{const result=await api('POST',{action:'report-unshare'});report={...result.report,name:report.name,text_url:report.text_url};shareStatus();toast('Link turned off. Nobody can open it now.');}
  catch(error){toast(error.message);}
 };
 $('vote-up').onclick=()=>save({action:'report-feedback',vote:'up'},'Noted. More like this.');
@@ -355,7 +398,7 @@ async function signInFromLink(token){
 }
 const READ_AGAIN_MS=15000;
 function opened(result){
- clearInterval(stepTimer);report=result.report;
+ clearInterval(stepTimer);report={...result.report,text_url:result.text_url??null};
  // A card this page doesn't draw (for example from an older report) is skipped, never shown broken.
  report={...report,cards:report.cards.filter(c=>RENDER[c.type])};
  if(report.shared){
