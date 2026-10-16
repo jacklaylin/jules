@@ -76,7 +76,7 @@ body.report-page{background:var(--ink);color:var(--white);min-height:100vh;min-h
 /* Gatekeeper (design canvas, card 3): grape ground, a dial, the score and ranked brand chips. */
 .story-gatekeeper{background:var(--grape);margin:0 10px;border-radius:18px;padding:20px 20px 12px;gap:10px;overflow:hidden}
 .story-gatekeeper .story-title{font-size:30px}
-.gate-scale span{white-space:nowrap}
+.gate-scale span{max-width:42%;line-height:1.4}.gate-scale span:last-child{text-align:right}
 .gate-dial{position:relative;max-width:300px;width:100%;align-self:center;padding-bottom:16px}
 .gate-dial svg{display:block;overflow:visible}
 .gate-track,.gate-fill{fill:none;stroke-width:18;stroke-linecap:round}
@@ -94,6 +94,7 @@ body.report-page{background:var(--ink);color:var(--white);min-height:100vh;min-h
 .gate-label{font:500 9px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:#ffffffcc}
 .gate-chips{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
 .gate-chip{display:inline-flex;gap:6px;align-items:center;border-radius:999px;padding:5px 10px;font:600 12px var(--font-sans);border:1.5px solid var(--white);animation:gate-pop .4s ease-out both}
+.gate-chip[hidden]{display:none}
 .gate-chip.is-top{background:var(--butter);color:var(--ink);border-color:var(--butter)}
 .gate-rank{font:500 9px var(--font-mono)}
 @keyframes gate-fill{from{stroke-dashoffset:var(--len)}}
@@ -153,9 +154,9 @@ body.report-page{background:var(--ink);color:var(--white);min-height:100vh;min-h
 .report-progress-wrap{flex:1;display:flex;flex-direction:column}
 .report-chrome{display:none}
 @media (min-width:900px) and (min-height:600px){
- .report-stage{--card-h:min(736px,100dvh - 170px);--card-w:calc(var(--card-h)*9/16);isolation:isolate}
+ .report-stage{--card-h:calc(100dvh - 128px);--card-w:calc(var(--card-h)*9/16);isolation:isolate}
  /* The intro and end screens are card-sized too, on the same glow, so the story doesn't change size. */
- .report-intro,.report-end{width:var(--card-w);height:var(--card-h);max-width:none;max-height:none;margin:0;border-radius:22px;box-shadow:0 30px 80px #00000080}
+ .report-intro,.report-end{width:var(--card-w);height:var(--card-h);max-width:none;max-height:none;margin:40px 0 0;border-radius:22px;box-shadow:0 30px 80px #00000080}
  .report-stage:has(.report-intro:not([hidden])),.report-stage:has(.report-end:not([hidden])){background:radial-gradient(ellipse calc(var(--card-w)*0.9) calc(var(--card-h)*0.6) at 50% 54%,#ff7a2f73,#ff7a2f00)}
  .report-player{max-width:none;max-height:none;height:100dvh;margin:0;border-radius:0;isolation:isolate}
  .report-player::before{content:"";position:absolute;z-index:-1;left:50%;top:50%;width:calc(var(--card-w) * 1.3);height:calc(var(--card-h) * .9);transform:translate(-50%,-46%);border-radius:50%;background:radial-gradient(circle,var(--tangerine) 0,#ff7a2f00 70%);filter:blur(50px);opacity:.45;pointer-events:none}
@@ -165,7 +166,10 @@ body.report-page{background:var(--ink);color:var(--white);min-height:100vh;min-h
  .report-progress{padding-top:0}
  .report-progress-label{display:block;margin:0;text-align:center;color:#ffffffb3}
  .report-close{margin:0 0 0 auto;width:48px;height:48px;border:1.5px solid #ffffff59}
- .report-card{position:absolute;left:50%;top:max(96px,50% - var(--card-h)/2 + 20px);transform:translateX(-50%);width:var(--card-w);height:var(--card-h);padding:20px 0 16px;box-sizing:border-box;border-radius:22px;background:var(--ink);border:1px solid #ffffff1f;box-shadow:0 30px 80px #00000080;overflow:hidden}
+ /* The card itself fills the window's height: no phone frame around it. */
+ .report-card{position:absolute;left:50%;top:88px;transform:translateX(-50%);width:var(--card-w);height:var(--card-h);padding:0;box-sizing:border-box}
+ .report-card .story-card{border-radius:22px}
+ .report-card .story-gatekeeper{margin:0;box-shadow:0 30px 80px #00000080;padding:28px 28px 16px}
  .report-tap{display:none}
  .report-arrow{display:flex;position:absolute;top:50%;transform:translateY(-50%);width:56px;height:56px;border-radius:50%;border:1.5px solid #ffffff59;background:#ffffff0d;color:var(--white);align-items:center;justify-content:center;padding:0;cursor:pointer;box-shadow:none;z-index:2}
  .report-arrow::after{display:none}

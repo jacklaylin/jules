@@ -91,17 +91,24 @@ function gatekeeperCard(card,animate){
   el('div',{className:'gate-result'},number,el('span',{className:'gate-verdict',textContent:card.verdict})),
   el('p',{className:'gate-line',textContent:card.line}),
   el('div',{className:'gate-brands'},
-   el('span',{className:'gate-label',textContent:'Your brands, most niche first'}),
+   el('span',{className:'gate-label',textContent:'Your niche interests'}),
    el('ol',{className:'gate-chips'},...card.brands.map((b,i)=>{const chip=el('li',{className:i===0?'gate-chip is-top':'gate-chip'},el('span',{className:'gate-rank',textContent:String(i+1).padStart(2,'0')}),b.name);chip.style.animationDelay=`${(0.9+i*0.06).toFixed(2)}s`;return chip;}))),
   el('footer',{className:'story-foot'},wordmark()));
 }
+// Brand chips show whole rows only: chips that don't fit the card's height are dropped, never cut off.
+function fitChips(){
+ const list=$('card').querySelector('.gate-chips');if(!list)return;
+ for(const chip of list.children)chip.hidden=false;
+ const room=list.parentElement.offsetTop+list.parentElement.clientHeight;
+ for(const chip of list.children)if(chip.offsetTop+chip.offsetHeight>room)chip.hidden=true;
+}
+addEventListener('resize',fitChips);
 const RENDER={receipt:receiptCard,gatekeeper:gatekeeperCard};
-const CARD_NAMES={receipt:'Receipt',gatekeeper:'Gatekeeper'};
 
 function renderCard(animate=true){
  const card=report.cards[index];
  $('progress').replaceChildren(...report.cards.map((_,i)=>el('span',{className:i<index?'done':i===index?'current':''})));
- $('progress-label').textContent=`Card ${index+1} of ${report.cards.length} · ${CARD_NAMES[card.type]??''}`;
+ $('progress-label').textContent=`${index+1}/${report.cards.length}`;
  $('arrow-prev').disabled=index===0;
  $('card').replaceChildren(RENDER[card.type](card,animate));
  // Saving a vote or hidden lines redraws the card in place without replaying its entrance.
@@ -112,6 +119,8 @@ function renderCard(animate=true){
  // An admin preview records nothing: no thumbs, no line edits.
  $('vote-up').hidden=$('vote-down').hidden=Boolean(person);
  show('view-card');
+ // Measured once the card is on screen.
+ fitChips();
 }
 function go(i){if(i<0)return;if(i>=report.cards.length){show('view-end');return;}index=i;renderCard();}
 
