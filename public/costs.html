@@ -15,7 +15,8 @@
         <button type="button" data-view="evals">Evals</button>
       </div>
       <span class="dv-divider"></span>
-      <label class="dv-field">Day (UTC)<input id="date" type="date" required></label>
+      <div id="cost-period" class="seg" role="group" aria-label="Period"><button type="button" data-period="month">Month</button><button type="button" data-period="day">Day</button></div>
+      <label class="dv-field"><span id="date-label">Month (UTC)</span><input id="date" type="month" placeholder="YYYY-MM" pattern="\d{4}-\d{2}(-\d{2})?" required></label>
       <span class="spacer"></span>
       <button class="small quiet" type="button" popovertarget="costs-more">More ⋯</button>
       <button id="entry-open" class="btn--butter small" type="button" aria-expanded="false" aria-controls="tool-entry">Update an amount</button>
@@ -31,6 +32,7 @@
       <form id="entry" class="entry-fields">
         <label>Service<select id="service"></select></label>
         <label>Amount type<select id="kind"><option value="usage">Daily usage total</option><option value="subscription">Monthly subscription for this month</option><option value="budget">Daily warning budget for this month (all services)</option></select></label>
+        <label id="entry-day">Day (UTC)<input id="entry-date" type="date" required></label>
         <label>USD<input id="amount" type="number" min="0" max="1000000" step="any" required></label>
         <label class="entry-note">Note / credits used<input id="note" maxlength="300" placeholder="e.g. 35 of 250 searches used; included in subscription"></label>
         <button id="save" class="btn--butter" type="submit">Save amount</button>
@@ -40,15 +42,15 @@
     </section>
 
     <section data-view-panel="" aria-label="By service">
-      <div class="dv-table-wrap"><table class="dv-table costs-table"><thead><tr><th>Service</th><th class="end">Day</th><th class="end">Month to date</th><th class="end">Projected month end</th><th>How it’s known</th><th>Last updated</th></tr></thead><tbody id="rows"></tbody></table></div>
+      <div class="dv-table-wrap"><table class="dv-table costs-table"><thead><tr id="service-head"></tr></thead><tbody id="rows"></tbody></table></div>
       <p class="dv-note"><strong>Billed</strong> = the provider’s own reported dollars. <strong>Estimate</strong> = Jules’ own count of its calls at list prices, used only where billing isn’t available yet. <strong>Manual</strong> = entered with Update an amount. Plan fees are spread evenly over the month. The projection adds the month’s fees to the average daily usage so far; it is a forecast, not a bill. Missing entries are unknown, not free. Provider reporting can lag by a day or two; this page cannot enforce spending caps.</p>
     </section>
     <section data-view-panel="features" aria-label="By feature" hidden>
-      <div class="dv-table-wrap"><table class="dv-table costs-table costs-narrow"><thead><tr><th>Feature</th><th class="end">AI calls (month)</th><th class="end">Searches (month)</th><th class="end">Day</th><th class="end">Month to date</th></tr></thead><tbody id="feature-rows"></tbody></table></div>
+      <div class="dv-table-wrap"><table class="dv-table costs-table costs-narrow"><thead><tr id="feature-head"></tr></thead><tbody id="feature-rows"></tbody></table></div>
       <p class="dv-note">Estimates from every OpenAI and SerpApi call Jules makes. OpenAI calls are priced from their token counts at list prices; SerpApi searches as a share of the plan price. Eval test runs are under Evals. Billed totals (By service) are the source of truth.</p>
     </section>
     <section data-view-panel="evals" aria-label="Evals" hidden>
-      <div class="dv-table-wrap"><table class="dv-table costs-table costs-narrow"><thead><tr><th>Eval</th><th class="end">AI calls (month)</th><th class="end">Searches (month)</th><th class="end">Day</th><th class="end">Month to date</th></tr></thead><tbody id="eval-rows"></tbody></table></div>
+      <div class="dv-table-wrap"><table class="dv-table costs-table costs-narrow"><thead><tr id="eval-head"></tr></thead><tbody id="eval-rows"></tbody></table></div>
       <p class="dv-note">Owner test runs from the replay gate and the Replays &amp; evals page, estimated the same way. They are not user activity.</p>
     </section>
   </main>
