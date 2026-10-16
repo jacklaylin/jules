@@ -1,1 +1,58 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Jules admin · Costs</title><link rel="stylesheet" href="/design-system.css"><link rel="stylesheet" href="/costs.css"><script src="/costs.js" type="module"></script><link rel="modulepreload" href="/admin-console.js"><link rel="modulepreload" href="/design-system.js"><link rel="modulepreload" href="/brand-ui.js"><link rel="modulepreload" href="/activity.js"><link rel="modulepreload" href="/wishlist-session.js"><link rel="modulepreload" href="/admin-session.js"><link rel="icon" href="/brand/icon.svg" type="image/svg+xml"></head><body class="admin-console"><main><h1>Daily costs</h1><p>Provider billing where connected, manual entries elsewhere. All amounts are USD.</p><label>Day (UTC) <input id="date" type="date" required></label><button id="refresh">Refresh</button><p id="notice" role="status"></p><section class="summary"><h2 id="total">—</h2><p id="coverage"></p><p id="budget-status"></p></section><p>Recorded total = usage + monthly subscriptions divided by days in this month. Missing entries are unknown, not free. Enter 0 to confirm no charge. Connected billing refreshes automatically when this page opens and when you click Refresh. Provider reporting can lag; this page cannot enforce spending caps.</p><section id="providers"><h2>Automatic billing</h2><p id="openai-status"></p><p id="serpapi-status"></p><p id="github-status"></p><p id="vercel-status"></p></section><div class="scroll"><table><thead><tr><th>Service / billing</th><th>Usage today</th><th>Subscription / day</th><th>Recorded total</th><th>Source / coverage</th></tr></thead><tbody id="rows"></tbody></table></div><section id="metered"><h2>Where the money went</h2><p id="metered-status"></p><div class="scroll"><table><thead><tr><th>Feature</th><th>Calls</th><th>Estimated cost</th></tr></thead><tbody id="metered-rows"></tbody></table></div><p>Estimated from list prices for each OpenAI and SerpApi call Jules makes, including eval test runs. Provider billing above is the source of truth.</p></section><section><h2>Update an amount</h2><p>Each save replaces that service’s amount for the selected day or month. Check provider billing before recording a value.</p><form id="entry"><label>Service <select id="service"></select></label><label>Amount type <select id="kind"><option value="usage">Daily usage total</option><option value="subscription">Monthly subscription for this month</option><option value="budget">Daily warning budget for this month (all services)</option></select></label><label>USD <input id="amount" type="number" min="0" max="1000000" step="any" required></label><label>Note / credits used <input id="note" maxlength="300" placeholder="e.g. 35 of 250 searches used; included in subscription"></label><button id="save">Save amount</button></form></section><details><summary>How to avoid counting costs twice</summary><p>Record variable charges in daily usage. Record fixed plan fees in monthly subscription, once per service per month. Don’t record a credit top-up and the consumption of those same credits as two expenses. Include credit consumption in daily usage only when it is not already covered by your subscription; otherwise record $0 and put the credit count in the note. Credit notes are informational and are not converted to dollars.</p><p>Subscriptions here are an allocation of the monthly fee, not the cash payment date. Taxes, refunds, annual plans, and shared accounts need manual adjustments to the monthly amount. Include only the portion you want assigned to Jules. Set a provider spending limit wherever available; this dashboard cannot enforce one.</p><p>ChatGPT / Codex is a development expense. The OpenAI API is recorded separately. GitHub includes any paid repository tools. No billing credentials are needed for this ledger.</p></details></main></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Jules admin · Costs</title><link rel="stylesheet" href="/design-system.css"><link rel="stylesheet" href="/costs.css">
+  <script src="/costs.js" type="module"></script><link rel="modulepreload" href="/admin-console.js"><link rel="modulepreload" href="/design-system.js"><link rel="modulepreload" href="/brand-ui.js"><link rel="modulepreload" href="/activity.js"><link rel="modulepreload" href="/wishlist-session.js"><link rel="modulepreload" href="/admin-session.js"><link rel="modulepreload" href="/costs-view.js">
+<link rel="icon" href="/brand/icon.svg" type="image/svg+xml"></head>
+<body class="admin-console">
+  <main>
+    <div class="dv-heading"><h1 class="dv-title">Daily costs</h1><span id="total" class="dv-title">—</span><span id="total-label" class="dv-heading-note"></span></div>
+    <div class="dv-toolbar">
+      <div id="cost-views" class="dv-views" role="group" aria-label="Cost views">
+        <button type="button" data-view="">By service</button>
+        <button type="button" data-view="features">By feature</button>
+        <button type="button" data-view="evals">Evals</button>
+      </div>
+      <span class="dv-divider"></span>
+      <label class="dv-field">Day (UTC)<input id="date" type="date" required></label>
+      <span class="spacer"></span>
+      <button class="small quiet" type="button" popovertarget="costs-more">More ⋯</button>
+      <button id="entry-open" class="btn--butter small" type="button" aria-expanded="false" aria-controls="tool-entry">Update an amount</button>
+    </div>
+    <div id="costs-more" class="dv-pop dv-menu" popover aria-label="More actions">
+      <button id="refresh" type="button">Refresh <span class="hint">re-reads connected billing</span></button>
+    </div>
+    <div class="dv-status"><span id="loader" class="dv-loader" aria-hidden="true" hidden></span><span id="refreshed"></span><span id="coverage"></span><span id="budget-status"></span><span id="view-summary"></span><span id="notice" role="status" aria-live="polite"></span></div>
+
+    <section id="tool-entry" class="dv-tool" aria-labelledby="tool-entry-title" hidden>
+      <div class="dv-tool-head"><h2 id="tool-entry-title">Update an amount</h2><button id="entry-close" class="small" type="button">Close ×</button></div>
+      <p class="muted">Each save replaces that service’s amount for the selected day or month. Check provider billing before recording a value. Missing entries are unknown, not free; enter 0 to confirm no charge.</p>
+      <form id="entry" class="entry-fields">
+        <label>Service<select id="service"></select></label>
+        <label>Amount type<select id="kind"><option value="usage">Daily usage total</option><option value="subscription">Monthly subscription for this month</option><option value="budget">Daily warning budget for this month (all services)</option></select></label>
+        <label>USD<input id="amount" type="number" min="0" max="1000000" step="any" required></label>
+        <label class="entry-note">Note / credits used<input id="note" maxlength="300" placeholder="e.g. 35 of 250 searches used; included in subscription"></label>
+        <button id="save" class="btn--butter" type="submit">Save amount</button>
+      </form>
+      <p id="entry-error" class="error" role="alert" hidden></p>
+      <details class="entry-help"><summary>How to avoid counting costs twice</summary><p>Record variable charges in daily usage. Record fixed plan fees in monthly subscription, once per service per month. Don’t record a credit top-up and the consumption of those same credits as two expenses. Include credit consumption in daily usage only when it is not already covered by your subscription; otherwise record $0 and put the credit count in the note. Credit notes are informational and are not converted to dollars.</p><p>Subscriptions here are an allocation of the monthly fee, not the cash payment date. Taxes, refunds, annual plans, and shared accounts need manual adjustments to the monthly amount. Include only the portion you want assigned to Jules. Set a provider spending limit wherever available; this dashboard cannot enforce one.</p><p>ChatGPT / Codex is a development expense. The OpenAI API is recorded separately. GitHub includes any paid repository tools. No billing credentials are needed for this ledger.</p></details>
+    </section>
+
+    <section data-view-panel="" aria-label="By service">
+      <div class="dv-table-wrap"><table class="dv-table costs-table"><thead><tr><th>Service / billing</th><th class="end">Usage today</th><th class="end">Subscription / day</th><th class="end">Recorded total</th><th>Source / coverage</th></tr></thead><tbody id="rows"></tbody></table></div>
+      <p class="dv-note">Recorded total = usage + monthly subscriptions divided by days in this month. Missing entries are unknown, not free. Connected billing refreshes when this page opens and when you choose Refresh. Provider reporting can lag; this page cannot enforce spending caps.</p>
+      <h2 class="dv-subhead">Automatic billing</h2>
+      <dl id="providers" class="costs-providers"></dl>
+    </section>
+    <section data-view-panel="features" aria-label="By feature" hidden>
+      <div class="dv-table-wrap"><table class="dv-table costs-table costs-narrow"><thead><tr><th>Feature</th><th class="end">Calls</th><th class="end">Estimated cost</th></tr></thead><tbody id="feature-rows"></tbody></table></div>
+      <p class="dv-note">Estimated from list prices for each OpenAI and SerpApi call Jules makes. Eval test runs are under Evals. Provider billing (By service) is the source of truth.</p>
+    </section>
+    <section data-view-panel="evals" aria-label="Evals" hidden>
+      <div class="dv-table-wrap"><table class="dv-table costs-table costs-narrow"><thead><tr><th>Eval</th><th class="end">Calls</th><th class="end">Estimated cost</th></tr></thead><tbody id="eval-rows"></tbody></table></div>
+      <p class="dv-note">Owner test runs from the replay gate and the Replays &amp; evals page, estimated from list prices. They are not user activity.</p>
+    </section>
+  </main>
+</body>
+</html>
