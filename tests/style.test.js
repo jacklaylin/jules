@@ -332,3 +332,8 @@ test('deletion during caption checking prevents a stale report from being restor
  const h=handler(store,{caption:async r=>{started();await gate;return r;}}),r=res(),running=h(req({revision:1,action:'captions',report:rpt.id}),r);await ready;
  const deleted=res();await h(req({revision:2,action:'delete'}),deleted);assert.equal(deleted.statusCode,200);release();await running;assert.equal(r.statusCode,409);assert.equal((await store.styleSession(owner)).data.report,null);
 });
+
+test('confirmed style-report preferences use the same keys as chat facts, so a stated preference is not saved twice', () => {
+ const report = { id: 'r1', analysis: { observations: [{ id: 'o1' }] }, cards: [{ accepted: true, preferences: [{ accepted: true, field: 'brand', key: ' Prada ', value: 'favorite brand', observation_id: 'o1' }] }] };
+ assert.deepEqual(reportFacts(report, '2026-10-15').map(f => [f.field, f.key, f.source]), [['brand', 'prada', 'style_report']]);
+});
