@@ -234,13 +234,16 @@ body.report-page:has(.report-player:not([hidden])[data-ground="inout"]){backgrou
 .report-end p{margin:0;font-size:16px;line-height:1.45;color:var(--text-2)}
 .report-end .label{color:var(--text-2)}
 .report-end-actions{display:flex;flex-direction:column;gap:12px}
-.report-end .report-cta{background:var(--grape);color:var(--white)}
-/* Sharing from the end screen; the wishlist link steps back to a quieter style beside it. */
-.report-end .report-cta-share{background:var(--grape);color:var(--white);width:100%}
-.report-end .report-cta-share:not([hidden])~.report-cta{background:var(--white);color:var(--ink)}
-.report-share-status{font-size:14px!important}
-.report-share-status .report-link{min-height:0;font-size:14px}
-.report-share-link{color:inherit;font-family:var(--font-mono);font-size:12px;word-break:break-all}
+/* One grape primary (connect when a source is missing, otherwise share); the rest step back to white. */
+.report-end .report-cta{background:var(--white);color:var(--ink)}
+.report-end .report-end-actions>.report-cta:not([hidden]){background:var(--grape);color:var(--white)}
+.report-end .report-end-actions>.report-cta:not([hidden])~.report-cta{background:var(--white);color:var(--ink)}
+.report-end-pair{display:flex;gap:10px}
+.report-end-pair .report-cta{flex:1 1 0;min-width:0;font-size:15px;padding:0 8px;white-space:nowrap}
+@media (max-width:360px){.report-end-pair .report-cta{font-size:14px}}
+.report-copy-field{position:fixed;opacity:0;pointer-events:none}
+.report-end-links{display:flex;justify-content:center;align-items:center;gap:28px}
+.report-end-links .report-link{display:inline-flex;align-items:center;font-size:15px;color:var(--ink)}
 
 /* Sheets */
 .report-sheet{border:0;border-radius:24px 24px 0 0;margin:auto auto 0;width:100%;max-width:440px;box-sizing:border-box;padding:24px 22px 34px;color:var(--ink);background:var(--white)}

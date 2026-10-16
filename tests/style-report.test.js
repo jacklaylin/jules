@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {receiptLines,validTotal,writeTotal,buildReport,updateReport,reportView,handleReport,FALLBACK_TOTAL,gatekeeper,nicheBrand,validGateLine,writeGateLine,reportWriter,REPORT_MODEL,inOut,validInOutLine,writeInOutLine,lockedCards,MIN_CARDS,sharedView,handleSharedReport,sharePreview,handleSharePage,fourEmojis,spectrum,validEmojiCaption,writeEmojiCaptions,styleMatch,validMatchLine,writeMatchLine,sendNewCardText,sendReportLink,newCardsText} from '../lib/style-report.js';
+import {receiptLines,validTotal,writeTotal,buildReport,updateReport,reportView,handleReport,FALLBACK_TOTAL,gatekeeper,nicheBrand,validGateLine,writeGateLine,reportWriter,REPORT_MODEL,inOut,validInOutLine,writeInOutLine,lockedCards,MIN_CARDS,sharedView,handleSharedReport,sharePreview,handleSharePage,fourEmojis,spectrum,validEmojiCaption,writeEmojiCaptions,styleMatch,validMatchLine,writeMatchLine,sendNewCardText,sendReportLink,newCardsText,missingSources} from '../lib/style-report.js';
 import {tagFingerprint} from '../lib/item-tags.js';
 import {purchaseEvidence,projectReceiptEvidence} from '../lib/receipt-extraction.js';
 import {signInLinks} from '../lib/onboarding.js';
@@ -162,6 +162,17 @@ test('opening Your style builds the report on the first visit, but not while an 
  await handleReport(get,res,{store,env:{OPENAI_API_KEY:'k'},auth,fetcher:fetch,build});
  assert.equal(res.body.report,null);assert.equal(res.body.status,'reading');assert.equal(built,1);
  assert.deepEqual(res.body.progress,{read:1,total:4},'the page can show how far the import has got');
+});
+
+test('the end card offers only the order sources this deployment supports and the person hasn’t linked',async()=>{
+ const both={GMAIL_IMPORT_ENABLED:'true',SHOP_ORDERS_ENABLED:'true'};
+ assert.deepEqual(missingSources({token_ciphertext:'sealed',data:{connections:{shop:{credential:'sealed'}}}},both),[]);
+ assert.deepEqual(missingSources({token_ciphertext:'sealed',data:{}},both),['shop']);
+ assert.deepEqual(missingSources({token_ciphertext:null,data:{connections:{shop:{credential:'sealed'}}}},both),['gmail']);
+ assert.deepEqual(missingSources({data:{}},{}),[],'a source that isn’t turned on is never offered');
+ const store=fixture(),res=response();await buildReport(store,owner,{},{interpret:writer});
+ await handleReport({method:'GET',headers:{authorization:'Bearer t'}},res,{store,env:both,auth:async()=>({status:200,conversation:owner}),fetcher:fetch});
+ assert.deepEqual(res.body.missing_sources,['shop']);
 });
 
 test('the owner can open any tester’s report read-only from admin',async()=>{

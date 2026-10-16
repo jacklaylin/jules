@@ -46,13 +46,17 @@
   <section id="view-end" class="report-frame report-end" hidden>
     <div class="report-end-copy">
       <h1 class="display" id="end-title">That’s your report.</h1>
-      <p id="end-body">More cards are on the way as Jules gets to know you. Hidden lines stay hidden.</p>
-      <p id="share-status" class="report-share-status" hidden>Shared · anyone with this link can see your shared cards: <a id="share-link" class="report-share-link"></a> <button id="unshare" class="report-link" type="button">Stop sharing</button></p>
+      <p id="end-body">Jules gets to know you through your orders, outfits and chats, and texts you when more readings are ready. Until then:</p>
     </div>
     <div class="report-end-actions">
+      <a id="end-connect" class="report-cta" href="/account" hidden></a>
       <button id="end-share" class="report-cta report-cta-share" type="button">Share your report ↗</button>
-      <a id="end-cta" class="report-cta" href="/wishlist">See your wishlist</a>
-      <button id="restart" class="report-link" type="button">Watch again</button>
+      <div id="end-pair" class="report-end-pair">
+        <button id="end-copy" class="report-cta report-cta-quiet" type="button">Copy report link</button>
+        <a id="end-chat" class="report-cta report-cta-quiet" hidden>Chat with Jules</a>
+      </div>
+      <a id="end-cta" class="report-cta" href="/signup" hidden>Get your own report ↗</a>
+      <p class="report-end-links"><button id="restart" class="report-link" type="button">Watch again</button><button id="unshare" class="report-link" type="button" hidden>Stop sharing</button><a id="end-exit" class="report-link" href="/wishlist">Exit</a></p>
     </div>
   </section>
 
