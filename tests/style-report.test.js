@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {receiptLines,validTotal,writeTotal,buildReport,updateReport,reportView,handleReport,FALLBACK_TOTAL,gatekeeper,nicheBrand,validGateLine,writeGateLine,reportWriter,REPORT_MODEL} from '../lib/style-report.js';
+import {receiptLines,validTotal,writeTotal,buildReport,updateReport,reportView,handleReport,FALLBACK_TOTAL,gatekeeper,nicheBrand,validGateLine,writeGateLine,reportWriter,REPORT_MODEL,thenVsNow,validThenVerdict,lockedCards,MIN_CARDS} from '../lib/style-report.js';
 import {tagFingerprint} from '../lib/item-tags.js';
 import {purchaseEvidence,projectReceiptEvidence} from '../lib/receipt-extraction.js';
 import {signInLinks} from '../lib/onboarding.js';
@@ -124,7 +124,7 @@ test('the page view hides hidden lines and shows returns only when turned on',as
  view=reportView(store.row.data.style_report);
  assert.equal(view.cards[0].lines.find(l=>l.key==='returns').hidden,false);assert.equal(view.cards[0].lines.find(l=>l.key==='colour:black').hidden,true);
  await updateReport(store,owner,{action:'report-feedback',card:'receipt',vote:'up'});
- assert.deepEqual(reportView(store.row.data.style_report).votes,{receipt:'up',gatekeeper:null});
+ assert.equal(reportView(store.row.data.style_report).votes.receipt,'up');
 });
 
 const response=()=>({headers:{},setHeader(k,v){this.headers[k]=v;},end(body){this.body=JSON.parse(body);}});
@@ -240,4 +240,60 @@ test('the report copy has its own model setting, separate from receipt reading a
  assert.deepEqual(sent[0].reasoning,{effort:'low'});assert.equal(sent[0].temperature,undefined);
  await reportWriter({OPENAI_API_KEY:'k',OPENAI_MODEL:'gpt-4.1-mini',STYLE_REPORT_MODEL:'gpt-5.4-mini'},fetcher)({schema:{},instructions:'i',context:{}});
  assert.equal(sent[1].model,'gpt-5.4-mini');
+});
+
+const yearOf=(year,k)=>Date.UTC(year,k%12,1+k);
+test('Then vs now compares the earliest and latest years with six or more orders, counted from purchases and tags',()=>{
+ seq=0;
+ const rows=[
+  ...Array.from({length:6},(_,k)=>buy({product:'Crew '+k,merchant:'UNIQLO',brand:'UNIQLO',order_reference:'A'+k},{at:yearOf(2021,k)})).flat(),
+  // Too few orders in 2023 to be a side.
+  ...Array.from({length:3},(_,k)=>buy({product:'Shirt '+k,merchant:'COS',brand:'COS',order_reference:'B'+k},{at:yearOf(2023,k)})).flat(),
+  ...Array.from({length:6},(_,k)=>buy({product:'Tee '+k,merchant:'SSENSE',brand:k<4?'Auralee':'Our Legacy',order_reference:'C'+k},{at:yearOf(2026,k)})).flat(),
+  // Returned: not counted.
+  ...buy({product:'Coat',merchant:'Zara',brand:'Zara',order_reference:'D1'},{at:yearOf(2026,9),returned:true}),
+ ];
+ const state=projectReceiptEvidence(owner,rows).state;
+ const tags=tagsFor(state,i=>/Crew/.test(i.product)?{item_type:'crewneck sweatshirt',group:'knitwear',color_family:'grey',resale:false}:{item_type:'black tee',group:'tops',color_family:'black',resale:false});
+ const t=thenVsNow(state,tags);
+ assert.equal(t.eligible,true);
+ assert.equal(t.then.year,2021);assert.equal(t.now.year,2026);
+ // Names use the brand list's spelling, not the receipt's capitals.
+ assert.deepEqual(t.then.brands,['Uniqlo']);assert.deepEqual(t.now.brands,['Auralee','Our Legacy']);
+ assert.equal(t.then.colour.name,'Grey');assert.equal(t.now.item,'Black tees');
+ // One busy year is not enough.
+ seq=0;
+ const one=Array.from({length:8},(_,k)=>buy({product:'Tee '+k,merchant:'COS',brand:'COS',order_reference:'E'+k},{at:yearOf(2026,k)})).flat();
+ assert.equal(thenVsNow(projectReceiptEvidence(owner,one).state,{}).eligible,false);
+});
+
+test('the Then vs now verdict uses only the card’s brands and years, with a fallback',async()=>{
+ const card={then:{year:2021,brands:['Uniqlo']},now:{year:2026,brands:['Auralee','Our Legacy']}};
+ assert.equal(validThenVerdict('From Uniqlo in 2021 to Auralee in 2026, you grew up.',card,['Uniqlo','Auralee','Zara']),'from Uniqlo in 2021 to Auralee in 2026, you grew up');
+ for(const bad of ['you left Zara behind for Auralee','five years and 40 tees later','you stayed loyal to black','y'.repeat(91)])assert.equal(validThenVerdict(bad,card,['Zara','Auralee','Uniqlo']),null,bad);
+ const fallback=await writeThenVerdictFor(card);
+ assert.equal(fallback.written,false);assert.ok(fallback.verdict);
+});
+async function writeThenVerdictFor(card){const {writeThenVerdict}=await import('../lib/style-report.js');return writeThenVerdict(card,async()=>({verdict:'you shop at Zara now'}),['Zara']);}
+
+test('a report always has at least three cards: missing built cards are shown locked with what unlocks them',()=>{
+ const gate={matched:1},then={eligible:false};
+ const locked=lockedCards(['receipt'],{gate,then});
+ assert.equal(1+locked.length,MIN_CARDS);
+ assert.deepEqual(locked.map(c=>[c.type,c.card]),[['locked','gatekeeper'],['locked','thennow']]);
+ assert.ok(locked.every(c=>c.why&&c.title));
+ // Enough real cards: nothing locked.
+ assert.deepEqual(lockedCards(['receipt','gatekeeper','thennow'],{gate,then}),[]);
+ // Two real cards: one locked card fills the gap.
+ assert.deepEqual(lockedCards(['receipt','gatekeeper'],{gate,then}).map(c=>c.card),['thennow']);
+});
+
+test('the built report puts real cards first and locked cards after, and locked cards take no line edits',async()=>{
+ const store=fixture();
+ const built=await buildReport(store,owner,{},{interpret:async request=>request.schema.properties.line?{line:'you got to Our Legacy early'}:request.schema.properties.verdict?{verdict:'new year, same black'}:{total:'one colour and a crop top habit'}});
+ const types=built.report.cards.map(c=>c.type);
+ assert.ok(types.length>=MIN_CARDS);assert.equal(types[0],'receipt');
+ assert.ok(types.indexOf('locked')===-1||types.slice(types.indexOf('locked')).every(t=>t==='locked'));
+ const locked=built.report.cards.find(c=>c.type==='locked');
+ if(locked)await assert.rejects(updateReport(store,owner,{action:'report-lines',card:'locked',hidden:[],show_returns:false}),/no lines/);
 });
