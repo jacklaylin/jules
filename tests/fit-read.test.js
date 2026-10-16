@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import sharp from 'sharp';
-import {cropFrame,placeStickers,stickerHeight,validReadLine,readFit,READ_CATEGORIES,READ_BANDS,FRAME,readPhoto} from '../lib/fit-read.js';
-import {buildReport,sharedView,withReadPhoto,readAfterOutfits,sendReportLink,reportView,READ_ASK} from '../lib/style-report.js';
+import {cropFrame,placeStickers,stickerHeight,validReadLine,readFit,READ_CATEGORIES,READ_BANDS,FRAME,readPhoto,askJudges,pickLine,READ_EXAMPLES,READ_PROMPT} from '../lib/fit-read.js';
+import {buildReport,sharedView,withReadPhoto,readAfterOutfits,sendReportLink,reportView,READ_ASK,updateReport,COPY_CARDS} from '../lib/style-report.js';
+import {lineVotes,cardLessons,shownLine,promptVersion,RETIRE_PEOPLE} from '../lib/report-copy.js';
 import {tagFingerprint} from '../lib/item-tags.js';
 import {purchaseEvidence,projectReceiptEvidence} from '../lib/receipt-extraction.js';
 
@@ -188,4 +189,113 @@ test('sending the report link also asks for a fit photo once, while the Read is 
  assert.equal(texts.length,2);assert.equal(texts[1],READ_ASK);
  await sendReportLink(store,owner,env,send);
  assert.equal(texts.length,2,'asked once');
+});
+
+// The Read in the thumbs loop (COPY_CARDS.read, lib/report-copy.js): each callout, the closer and the
+// verdict is logged as its own line; votes on callouts and closers teach READ_PROMPT, and votes on the
+// pre-written verdicts and closers weight and retire the bank.
+test('every Read line is logged on its own: callouts and a written closer as generated, the verdict as pre-written',async()=>{
+ const store=await fixture({photos:['o2']});
+ const {buildRead}=await import('../lib/style-report.js');
+ store.row.data.style_report={cards:[(await buildRead(store,owner,env,{interpret:writer,judges})).card],feedback:[],hidden:{}};
+ await buildReport(store,owner,env,{interpret:writer});
+ const report=store.row.data.style_report,card=report.cards.find(c=>c.type==='read');
+ const lines=report.copy_log.filter(l=>l.card==='read'&&l.report_id===report.id);
+ assert.deepEqual(lines.map(l=>l.slot),[...card.callouts.map((c,k)=>`callout${k+1}`),'closer','verdict']);
+ assert.deepEqual(lines.map(l=>l.source),[...card.callouts.map(()=>'generated'),'generated','prewritten']);
+ assert.deepEqual(lines.slice(0,card.callouts.length).map(l=>l.fact),card.callouts.map(c=>c.item),'a callout states the item it reads');
+ assert.match(lines.at(-1).fact,/^strong fit, scored \w/);
+ assert.ok(lines.every(l=>l.prompt===promptVersion(READ_PROMPT)));
+ // 👎 can name the verdict alone ("which one missed?"), and only it counts as missed.
+ const verdict=lines.at(-1);
+ assert.deepEqual(reportView(report).copy.read.map(l=>l.text),lines.map(l=>l.text));
+ await updateReport(store,owner,{action:'report-feedback',card:'read',vote:'down',reason:'not_funny',lines:[verdict.id]});
+ const after=store.row.data.style_report,votes=lineVotes([{conversation_id:owner,copy:after.copy_log,feedback:after.feedback}]);
+ assert.equal([...votes.values()].find(a=>a.text===verdict.text).downs,1);
+ assert.ok([...votes.values()].filter(a=>a.card==='read'&&a.text!==verdict.text).every(a=>a.downs===0));
+ // A fallback closer is logged as pre-written.
+ const fallback=COPY_CARDS.read.lines({...card,closer:'great idea, wrong decade',written:false,closer_source:undefined});
+ assert.equal(fallback.find(l=>l.slot==='closer').source,'prewritten');
+});
+
+// Read lines shown to several people, and their votes, as the store returns them.
+const AT='2026-10-16T10:00:00.000Z';
+function readRows(shown,votes){
+ return Object.entries(votes).map(([person,v])=>{
+  const copy=shown.map(([slot,text,source])=>shownLine({report_id:'r-'+person,card:'read',slot,text,source,fact:slot.startsWith('callout')?'track jacket':'strong fit',check:{counts:[]},at:AT}));
+  const named=(v.lines??[]).map(t=>copy.find(l=>l.text===t).id);
+  return {conversation_id:person,copy,feedback:[{report_id:'r-'+person,card:'read',vote:v.vote,at:AT,...(named.length?{lines:named}:{})}]};
+ });
+}
+const lessonsFor=(rows,person=null)=>cardLessons(lineVotes(rows),'read',{person,recheck:COPY_CARDS.read.recheck,teaches:COPY_CARDS.read.teaches});
+const askWith=async lessons=>{
+ let instructions=null;
+ await askJudges({photos:[],categories:['Rizz','Nerve','Class','Aura'],facts:[],name:'Jack',lessons},{OPENAI_API_KEY:'test'},async(url,init)=>{instructions=JSON.parse(init.body).instructions;
+  return {ok:true,json:async()=>({status:'completed',output:[{content:[{type:'output_text',text:'{}'}]}]})};});
+ return instructions;
+};
+
+test('liked callouts and closers join READ_PROMPT after the ★ examples, misses go in as "don’t write like this", verdicts never do',async()=>{
+ const shown=[['callout1','track jacket that has never once seen a track','generated'],['callout2','the jacket is doing the heavy lifting','generated'],
+  ['closer','great idea, wrong decade','prewritten'],['verdict','Strong showing','prewritten']];
+ const liked=readRows(shown,{a:{vote:'up'},b:{vote:'up'}});
+ const prompt=await askWith(lessonsFor(liked));
+ assert.ok(prompt.startsWith(READ_PROMPT),'the base prompt, with every founder example, always comes first');
+ for(const line of READ_EXAMPLES)assert.ok(prompt.includes(line),line);
+ assert.match(prompt,/Lines people liked on this card[^]*"track jacket" → "track jacket that has never once seen a track"/);
+ assert.match(prompt,/Lines people liked[^]*"great idea, wrong decade"/,'a liked pre-written closer teaches the model’s closer');
+ assert.ok(!prompt.slice(READ_PROMPT.length).includes('heavy lifting'),'a liked line that fails the Read checks is left out');
+ assert.ok(!prompt.includes('Strong showing'),'verdicts are never the model’s to write');
+ // A third person names the closer and the verdict as misses.
+ const missed=[...liked,...readRows(shown,{c:{vote:'down',lines:['great idea, wrong decade','Strong showing']}})];
+ const after=await askWith(lessonsFor(missed));
+ assert.match(after,/Don't write like this:\n- "strong fit" → "great idea, wrong decade"/);
+ assert.ok(!/Lines people liked[^]*great idea/.test(after.split("Don't write like this")[0]),'a missed line is no longer an example');
+ assert.ok(!after.includes('Strong showing'));
+ for(const line of READ_EXAMPLES)assert.ok(after.includes(line));
+ // Without votes the prompt is the base prompt, unchanged.
+ assert.equal(await askWith(lessonsFor([])),READ_PROMPT);
+});
+
+test('a callout the person voted down is never shown to them again, and the judges get the lessons',async()=>{
+ const cap='patch cap: merch from a dive bar you’ve never been to';
+ const lessons=lessonsFor(readRows([['callout1',cap,'generated']],{c:{vote:'down',lines:[cap]}}),'c');
+ let asked=null;
+ const result=await readFit({photos:[{id:'p2',data:await photo()}],facts:[{item:'cream jeans',n:12}],name:'Jack',lessons,interpret:allOk,env:{},judges:async input=>{asked=input;return answer();}});
+ assert.equal(asked.lessons,lessons);
+ assert.ok(!result.card.callouts.some(c=>c.text===cap));
+ assert.equal(result.card.callouts.length,2);
+});
+
+const strong=READ_BANDS.find(b=>b.band==='strong'),draw=(list,lessons,seen=[])=>Array.from({length:200},(_,k)=>pickLine(list,'verdict:p'+k,seen,'Jack',lessons)?.line);
+test('pre-written verdicts and closers are weighted by votes and retired when people keep voting them down',()=>{
+ const base=draw(strong.verdicts,lessonsFor([]));
+ assert.ok(strong.verdicts.every(v=>base.includes(v)),'without votes every verdict can come up');
+ // 👍 from several people: drawn much more often.
+ const ups=Object.fromEntries(['a','b','c','d','e','f','g'].map(p=>[p,{vote:'up'}]));
+ const liked=draw(strong.verdicts,lessonsFor(readRows([['verdict','Solid eights','prewritten']],ups)));
+ assert.ok(liked.filter(v=>v==='Solid eights').length>base.filter(v=>v==='Solid eights').length*2,'a liked verdict is drawn more often');
+ // Named 👎 from RETIRE_PEOPLE people, more 👎 than 👍: retired for everyone.
+ const downs=text=>Object.fromEntries(Array.from({length:RETIRE_PEOPLE},(_,k)=>['p'+k,{vote:'down',lines:[text]}]));
+ const retired=draw(strong.verdicts,lessonsFor([...readRows([['verdict','Minor notes','prewritten']],downs('Minor notes')),...readRows([['verdict','Minor notes','prewritten']],{u:{vote:'up'}})],'someone-else'));
+ assert.ok(!retired.includes('Minor notes'));
+ // One person's 👎 doesn't retire it for others, but that person never gets it again.
+ const one=readRows([['verdict','Minor notes','prewritten']],{a:{vote:'down',lines:['Minor notes']}});
+ assert.ok(draw(strong.verdicts,lessonsFor(one,'b')).includes('Minor notes'));
+ assert.ok(!draw(strong.verdicts,lessonsFor(one,'a')).includes('Minor notes'));
+ // Closers learn the same way.
+ const closer=strong.closers[0][0];
+ assert.ok(!draw(strong.closers,lessonsFor(readRows([['closer',closer,'prewritten']],downs(closer)))).includes(closer));
+});
+
+test('when the whole bank is retired, the card states the score plainly and logs it as a fact',async()=>{
+ const shown=[...strong.verdicts.map(v=>['verdict',v,'prewritten']),...strong.closers.map(([c])=>['closer',c,'prewritten'])];
+ const all=shown.map(([,t])=>t),downs=Object.fromEntries(Array.from({length:RETIRE_PEOPLE},(_,k)=>['p'+k,{vote:'down',lines:all}]));
+ const lessons=lessonsFor(readRows(shown,downs));
+ const {card}=await readFit({photos:[{id:'p2',data:await photo()}],facts:[{item:'cream jeans',n:12}],name:'Jack',lessons,interpret:allOk,env:{},
+  judges:async()=>answer({closer:{line:'the vibes are elevated',shared:'the vibes are elevated'}})});
+ assert.equal(card.band,'strong');
+ assert.equal(card.verdict,'Averaged 8');assert.equal(card.closer,'four judges, 8 on average');
+ const logged=COPY_CARDS.read.lines(card);
+ assert.equal(logged.find(l=>l.slot==='verdict').source,'fact');assert.equal(logged.find(l=>l.slot==='closer').source,'fact');
 });
