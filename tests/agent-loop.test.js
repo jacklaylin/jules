@@ -204,7 +204,7 @@ test('inbox: a save approved in the loop is committed before the message, which 
     saveConfirmedWishlist:async () => { events.push('persist'); saved = true; }, wishlistReplyId:async () => 'reply', recordEvidence:async () => {},
     prepareAI:async () => events.push('prepare'), finish:async (_op, status) => events.push(status), saveWishlist:async () => assert.fail('Saved before sending') };
   const { fetcher } = model([[tool('save_to_wishlist', { option_indices:[0] })], (options) => {
-    const done = toolOutputs(options)[0]; assert.equal(done.outcome.saved_now, true); assert.match(done.result, /saved to your wishlist/);
+    const done = toolOutputs(options)[0]; assert.equal(done.outcome.saved_now, true); assert.match(done.result, /saved .+ to your wishlist/);
     return [reply('added the Peyter pants to your wishlist. i couldn’t see a price or sizes on that page yet.', { saved_now:true })];
   }]);
   const delivery = { space:{ phone:'line' }, message:{ id:'message', sender:{ id:'person' }, content:{ text:'add them to my wishlist' } } };
@@ -230,4 +230,26 @@ test('a search and an alert asked together with nothing pending: the search runs
   // The search ran first; the alert on nothing was refused with a reason, then ran on the result.
   assert.equal(shop.searches, 1); assert.equal(first.find(o => o.status === 'not_run').error.includes('Search first'), true);
   assert.equal(shop.commits, 1); assert.equal(shop.recorded.alert_requests[0].url, cheaper.url); assert.match(body, /price alert/);
+});
+
+// October 15: a turn saved one item, then its search ran past the turn deadline. The fallback said only
+// "couldn't prepare a reply", so the user never learned the save happened. A committed save is
+// completed work: the fallback reports it, then asks for the rest again.
+test('inbox: a save committed before the turn deadline is reported by the fallback', async () => {
+  let saved = false, payload; const sends = [];
+  const store = { receive:async () => 'conversation', claimAI:async () => true,
+    context:async () => [{ direction:'inbound', body:'save the black one, is it at any other stores?', status:'received' }],
+    textWishlistState:async () => ({ stage:'choice', options:[{ ...peyter, merchant_options:[] }] }),
+    wishlistEntries:async () => saved ? payload.map((p, i) => ({ reply_id:'reply', item_id:'item-' + i, text_origin:true, name:p.name, brand:p.brand, links:p.links, messages:{ created_at:'2026-10-15' } })) : [],
+    priceAlerts:async () => [], searchResult:async () => {}, wishlistPayload:async (_op, p) => { payload = p; },
+    saveConfirmedWishlist:async () => { saved = true; }, wishlistReplyId:async () => 'reply', recordEvidence:async () => {},
+    prepareAI:async () => {}, finish:async () => {}, saveWishlist:async () => assert.fail('Saved twice') };
+  // The second round (after the save) never answers, as a search past the deadline.
+  const { fetcher } = model([[tool('save_to_wishlist', { option_indices:[0] })], () => new Promise(() => {})]);
+  const delivery = { space:{ phone:'line' }, message:{ id:'message', sender:{ id:'person' }, content:{ text:'save the black one, is it at any other stores?' } } };
+  await receiveInInbox(delivery, { ...env, AI_ENABLED:'true', WISHLIST_ENABLED:'true', PRICE_ALERTS_ENABLED:'false' }, { store, progress:async () => async () => {}, turnDeadlineMs:200,
+    alert:async () => false, generate:(m, e, _f, memory) => generateReply(m, e, fetcher, memory), send:async (_d, body) => { sends.push(body); }, compose:async ({ draft }) => ({ body:draft, captions:[], composed:false }) });
+  assert.equal(saved, true); assert.equal(sends.length, 1);
+  assert.match(sends[0], /saved Dries Van Noten Peyter Pants to your wishlist/);
+  assert.match(sends[0], /send that part again/);
 });
