@@ -139,3 +139,24 @@ test('costs API: report with features; a missing usage view never takes the page
  const broken=await respond({costEntries:async()=>[],meteredMonth:async()=>{throw Error('missing view');}});
  assert.equal(broken.statusCode,200);assert.equal(broken.body.features,null);assert.ok(broken.body.featureNotice.includes('031'));assert.equal(broken.body.rows.length,7);
 });
+
+test('a monthly fee and budget carry forward until a later month replaces them',()=>{
+ const entries=[{service:'photon',kind:'subscription',date:'2026-08-01',amount:250},{service:'photon',kind:'subscription',date:'2026-06-01',amount:99},
+  {service:'supabase',kind:'subscription',date:'2026-09-01',amount:25},{service:'supabase',kind:'subscription',date:'2026-10-01',amount:0},
+  {service:'codex',kind:'subscription',date:'2026-11-01',amount:20},{service:'openai',kind:'budget',date:'2026-09-01',amount:5}];
+ const report=buildReport({date:'2026-10-10',entries,providers:noBilling,metered:[]});
+ const photon=row(report,'photon'), supabase=row(report,'supabase'), codex=row(report,'codex');
+ close(photon.projected,250);assert.equal(photon.complete,true);assert.ok(photon.notes.some(n=>n.includes('carried forward from August 2026')));
+ assert.equal(supabase.projected,0);assert.ok(!supabase.notes.some(n=>n.includes('carried')));
+ assert.equal(codex.projected,null);assert.equal(codex.complete,false); // a later month's fee never applies backwards
+ assert.equal(report.budget,5);
+ // A provider-reported plan price replaces a carried manual fee, without the carried note.
+ const serpapi={status:'connected',planName:'Developer',monthlyPrice:75,allowance:5000,used:1,remaining:4999,renewalDate:null,checkedAt:'t'};
+ const s=row(buildReport({date:'2026-10-10',entries:[{service:'serpapi',kind:'subscription',date:'2026-08-01',amount:50}],providers:{...noBilling,serpapi},metered:[]}),'serpapi');
+ close(s.projected,75);assert.ok(!s.notes.some(n=>n.includes('carried')));
+});
+
+test('a billing connection that is not set up says what to add',()=>{
+ const report=buildReport({date:'2026-10-10',entries:[],providers:{...noBilling,vercel:{status:'not_connected',message:'Add VERCEL_BILLING_TOKEN and VERCEL_BILLING_TEAM_SLUG in Vercel to read Vercel billing.'}},metered:[]});
+ assert.ok(row(report,'vercel').notes[0].includes('VERCEL_BILLING_TOKEN'));
+});

@@ -126,34 +126,30 @@ function fitChips(){
  for(const chip of list.children)if(chip.offsetTop+chip.offsetHeight>room)chip.hidden=true;
 }
 addEventListener('resize',fitChips);
-// Then vs now (canvas card 4): "then" slides down from the top, "now" up from the bottom, and the
-// verdict stamps across the middle.
-function thenNowSide(side,label,className){
- const row=(name,...value)=>el('div',{className:'then-row'},el('span',{className:'then-key',textContent:name}),...value);
- const swatch=side.colour&&el('span',{className:'then-swatch','aria-hidden':'true'});
- if(swatch)swatch.style.background=side.colour.hex;
- return el('section',{className:className},
-  el('p',{className:'then-label',textContent:label}),
-  el('p',{className:'then-year',textContent:String(side.year)}),
-  el('div',{className:'then-rows'},
-   row('Brands',el('b',{textContent:side.brands.join(', ')})),
-   side.colour&&row('Colour',swatch,el('b',{textContent:side.colour.name})),
-   side.item&&row('Mostly',el('b',{textContent:side.item}))));
-}
-function thenNowCard(card){
- return el('article',{className:'story-card story-thennow','aria-label':`Then ${card.then.year}, now ${card.now.year}`},
-  thenNowSide(card.then,'Then','then-half then-then'),
-  thenNowSide(card.now,'Now','then-half then-now'),
-  el('p',{className:'then-verdict',textContent:card.verdict}),
-  foot('story-foot then-foot'));
+// In / Out (canvas card 4): the "in / out" meme as a notes-app list on a butter ground. IN lines slide
+// in, then OUT lines (struck through), then the closing line. Every fact is counted by code.
+function inOutCard(card){
+ const line=(item,className)=>{const row=el('li',{className},el('span',{className:'note-text',textContent:item.text}),' ',el('span',{className:'note-fact',textContent:item.fact}));return row;};
+ const stagger=(rows,from)=>{rows.forEach((row,k)=>{row.style.animationDelay=`${(from+k*0.12).toFixed(2)}s`;});return rows;};
+ return el('article',{className:'story-card story-inout','aria-label':`In and out for ${card.now}`},
+  el('div',{className:'note'},
+   el('p',{className:'note-meta'},el('span',{textContent:day(report.built_at)}),el('span',{textContent:report.shared?`${report.name?report.name+'’s':'their'} notes`:'notes'})),
+   el('h2',{className:'note-head',textContent:`in for ${card.now}:`}),
+   el('ul',{className:'note-list'},...stagger(card.in.map(i=>line(i,'note-in')),0.35),
+    card.still.length&&el('li',{className:'note-in note-still'},'still: ',el('b',{textContent:card.still.join(', ')}))),
+   card.out.length&&el('h2',{className:'note-head',textContent:'out:'}),
+   card.out.length&&el('ul',{className:'note-list'},...stagger(card.out.map(o=>line(o,'note-out')),0.8)),
+   card.stats.length&&el('ul',{className:'note-stats'},...card.stats.map(st=>el('li',{},`${st.label}: `,el('b',{textContent:st.value})))),
+   el('p',{className:'note-line',textContent:card.verdict}),
+   foot('story-foot note-foot')));
 }
 // A locked card: a real card the person can't have yet, saying from real counts what unlocks it.
 // Never shared, no thumbs.
 const LOCK_ICON='M6 11 L18 11 L18 21 L6 21 Z M8.5 11 L8.5 7.5 C8.5 3.5 15.5 3.5 15.5 7.5 L15.5 11';
 function lockedCard(card){
  const lock=el('span',{className:'locked-icon','aria-hidden':'true'},svg('svg',{viewBox:'0 0 24 24',width:24,height:24},svg('path',{d:LOCK_ICON})));
- const teaser=card.card==='thennow'
-  ?el('div',{className:'locked-teaser locked-split','aria-hidden':'true'},el('span',{className:'locked-then',textContent:'20??'}),el('span',{className:'locked-now',textContent:String(new Date(report.built_at).getUTCFullYear())}),lock)
+ const teaser=card.card==='inout'
+  ?el('div',{className:'locked-teaser locked-note','aria-hidden':'true'},el('span',{textContent:'in: ??????'}),el('span',{textContent:'out: ??????'}),lock)
   :el('div',{className:'locked-teaser locked-dial','aria-hidden':'true'},el('span',{className:'locked-score',textContent:'??'}),lock);
  return el('article',{className:'story-card story-locked','aria-label':`Locked: ${card.title}`},
   teaser,
@@ -165,7 +161,7 @@ function lockedCard(card){
    el('p',{className:'locked-hint',textContent:'Or text Jules a photo of an old receipt.'})),
   foot());
 }
-const RENDER={receipt:receiptCard,gatekeeper:gatekeeperCard,thennow:thenNowCard,locked:lockedCard};
+const RENDER={receipt:receiptCard,gatekeeper:gatekeeperCard,inout:inOutCard,locked:lockedCard};
 
 function renderCard(animate=true){
  const card=report.cards[index];
@@ -277,6 +273,8 @@ async function signInFromLink(token){
 const READ_AGAIN_MS=15000;
 function opened(result){
  clearInterval(stepTimer);report=result.report;
+ // A card this page doesn't draw (for example from an older report) is skipped, never shown broken.
+ report={...report,cards:report.cards.filter(c=>RENDER[c.type])};
  if(report.shared){
   // A friend's view: about the person, ending with an invitation to get their own.
   $('intro-eyebrow').textContent=[report.name?`${report.name}’s style report`:'A style report',report.built_at&&day(report.built_at)].filter(Boolean).join(' · ');

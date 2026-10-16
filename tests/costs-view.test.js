@@ -41,7 +41,7 @@ test('columns follow the period: a running month projects, a finished month does
 test('the title shows the month by default, the day as an option; unknown is never $0',()=>{
  const line=totalLine(report());
  assert.equal(line.amount,'$3.00');
- assert.match(line.label,/^October 2026 to date, through 2026-10-15 \(UTC\) · projected month end \$31\.00 · known part only$/);
+ assert.match(line.label,/^October 2026 to date, through 2026-10-15 \(UTC\) · projected month end \$31\.00 \(calculated\) · known part only$/);
  assert.match(totalLine(report({date:'2026-09-30'})).label,/^September 2026 \(UTC\), whole month/);
  const day=totalLine(report(),'day');
  assert.equal(day.amount,'$1.25');assert.match(day.label,/^2026-10-15 \(UTC\) · month to date \$3\.00 · known part only$/);
