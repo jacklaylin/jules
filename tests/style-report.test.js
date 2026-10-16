@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {receiptLines,validTotal,writeTotal,buildReport,updateReport,reportView,handleReport,FALLBACK_TOTAL,gatekeeper,nicheBrand,validGateLine,writeGateLine,reportWriter,REPORT_MODEL,inOut,validInOutLine,writeInOutLine,lockedCards,MIN_CARDS,sharedView,handleSharedReport,sharePreview,handleSharePage,fourEmojis,spectrum,validEmojiCaption,writeEmojiCaptions,styleMatch,validMatchLine,writeMatchLine} from '../lib/style-report.js';
+import {receiptLines,validTotal,writeTotal,buildReport,updateReport,reportView,handleReport,FALLBACK_TOTAL,gatekeeper,nicheBrand,validGateLine,writeGateLine,reportWriter,REPORT_MODEL,inOut,validInOutLine,writeInOutLine,lockedCards,MIN_CARDS,sharedView,handleSharedReport,sharePreview,handleSharePage,fourEmojis,spectrum,validEmojiCaption,writeEmojiCaptions,styleMatch,validMatchLine,writeMatchLine,unlockedCards,newCardsText,sendNewCards} from '../lib/style-report.js';
 import {tagFingerprint} from '../lib/item-tags.js';
 import {purchaseEvidence,projectReceiptEvidence} from '../lib/receipt-extraction.js';
 import {signInLinks} from '../lib/onboarding.js';
@@ -306,12 +306,42 @@ test('a report always has at least three cards: missing built cards are shown lo
  const gate={matched:1},then={eligible:false};
  const locked=lockedCards(['receipt'],{gate,then});
  assert.equal(1+locked.length,MIN_CARDS);
- assert.deepEqual(locked.map(c=>[c.type,c.card]),[['locked','gatekeeper'],['locked','inout']]);
+ assert.deepEqual(locked.map(c=>[c.type,c.card]),[['locked','gatekeeper'],['locked','emoji']]);
  assert.ok(locked.every(c=>c.why&&c.title));
  // Enough real cards: nothing locked.
  assert.deepEqual(lockedCards(['receipt','gatekeeper','inout'],{gate,then}),[]);
  // Two real cards: one locked card fills the gap.
- assert.deepEqual(lockedCards(['receipt','gatekeeper'],{gate,then}).map(c=>c.card),['inout']);
+ assert.deepEqual(lockedCards(['receipt','gatekeeper'],{gate,then}).map(c=>c.card),['emoji']);
+});
+
+test('every built card can be locked, and the ones closest to unlocking come first, with real counts',()=>{
+ const facts={gate:{matched:0,orders:4,covered:0},emoji:{earned:1},then:{busy_years:[2025]},match:{items:9,brands:4},closer:{visible:2}};
+ const locked=lockedCards(['receipt'],facts);
+ // Style match is 90% there, Spectrum two thirds, In / Out half; Four emojis and Gatekeeper are further off.
+ assert.deepEqual(locked.map(c=>c.card),['match','spectrum']);
+ assert.match(locked[0].why,/9 pieces from 4 brands/);
+ assert.match(locked[1].why,/place 2 so far/);
+ const all=lockedCards([],facts);
+ assert.deepEqual(all.map(c=>c.card),['match','spectrum','inout']);
+ assert.match(all[2].why,/Only 2025/);
+ // With nothing known, ties keep deck order.
+ assert.deepEqual(lockedCards(['receipt']).map(c=>c.card),['gatekeeper','emoji']);
+ for(const c of lockedCards([],{}))assert.ok(c.title&&c.why&&!/undefined|NaN/.test(c.why),c.card);
+});
+
+test('a rebuild that unlocks a card texts the person once, only after they have their report link',async()=>{
+ assert.deepEqual(unlockedCards(null,[{type:'receipt'},{type:'match'}]),[],'a first build unlocks nothing');
+ const before={cards:[{type:'receipt'},{type:'locked',card:'match'},{type:'locked',card:'spectrum'}]};
+ assert.deepEqual(unlockedCards(before,[{type:'receipt'},{type:'match'},{type:'spectrum'},{type:'locked',card:'inout'}]),['match','spectrum']);
+ assert.deepEqual(unlockedCards({cards:[{type:'receipt'},{type:'match'}]},[{type:'receipt'},{type:'match'}]),[]);
+ assert.equal(newCardsText(['match'],'https://x.test/'),'your style report has a new card: style match. https://x.test/report');
+ assert.match(newCardsText(['match','spectrum','inout'],'https://x.test'),/3 new cards: style match, spectrum and in \/ out\./);
+ const sent=[],env={SITE_ORIGIN:'https://x.test'};
+ const store={conversation:async()=>({id:owner}),reserve:async()=>true,operation:async()=>null,recentMessages:async()=>[],completeOperation:async()=>{},markSent:async()=>{}};
+ const send=async(target,text)=>{sent.push(text);return {status:'sent'};};
+ assert.equal(await sendNewCards(store,owner,env,{report:{id:'r1'},unlocked:['match']},send),null,'not texted their report yet');
+ assert.equal(await sendNewCards(store,owner,env,{report:{id:'r1',linked:true},unlocked:[]},send),null);
+ assert.deepEqual(sent,[]);
 });
 
 test('the built report puts real cards first and locked cards after, and locked cards take no line edits',async()=>{

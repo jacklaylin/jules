@@ -133,8 +133,8 @@ test('queued chat answers are applied with the lease, cleared, and followed by t
 });
 
 test('once an import has finished, the chain tags purchases and builds the style report after announcing',async()=>{const store=fixture(),calls=[];
- await runGmailStep('owner',store,{},{},{step:async row=>({...row,data:{...row.data,job:{...row.data.job,status:'ready'}}}),announce:async()=>calls.push('announce'),tag:async(s,o)=>{assert.equal(o,'owner');calls.push('tag');return {tagged:0};},build:async(s,o)=>{assert.equal(o,'owner');calls.push('build');return {status:'built'};},schedule:()=>{}});
- assert.deepEqual(calls,['announce','tag','build'],'the report is ready before the person opens it');
+ await runGmailStep('owner',store,{},{},{step:async row=>({...row,data:{...row.data,job:{...row.data.job,status:'ready'}}}),announce:async()=>calls.push('announce'),tag:async(s,o)=>{assert.equal(o,'owner');calls.push('tag');return {tagged:0};},build:async(s,o)=>{assert.equal(o,'owner');calls.push('build');return {status:'built',unlocked:['match']};},cards:async(s,o,e,result)=>{assert.deepEqual(result.unlocked,['match']);calls.push('cards');},schedule:()=>{}});
+ assert.deepEqual(calls,['announce','tag','build','cards'],'the report is ready before the person opens it');
  // With nothing left to read, only a missing report is built: an existing one is not rewritten on every wake.
  const idle=fixture(),built=[];idle.row.data.job.status='ready';idle.row.data.style_report={id:'r1'};
  await runGmailStep('owner',idle,{},{},{tag:async()=>({tagged:0}),build:async()=>{built.push('build');return {status:'built'};},schedule:()=>{}});assert.deepEqual(built,[]);

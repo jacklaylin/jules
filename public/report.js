@@ -209,9 +209,13 @@ function inOutCard(card){
 const LOCK_ICON='M6 11 L18 11 L18 21 L6 21 Z M8.5 11 L8.5 7.5 C8.5 3.5 15.5 3.5 15.5 7.5 L15.5 11';
 function lockedCard(card){
  const lock=el('span',{className:'locked-icon','aria-hidden':'true'},svg('svg',{viewBox:'0 0 24 24',width:24,height:24},svg('path',{d:LOCK_ICON})));
- const teaser=card.card==='inout'
-  ?el('div',{className:'locked-teaser locked-note','aria-hidden':'true'},el('span',{textContent:'in: ??????'}),el('span',{textContent:'out: ??????'}),lock)
-  :el('div',{className:'locked-teaser locked-dial','aria-hidden':'true'},el('span',{className:'locked-score',textContent:'??'}),lock);
+ const teasers={
+  inout:()=>el('div',{className:'locked-teaser locked-note','aria-hidden':'true'},el('span',{textContent:'in: ??????'}),el('span',{textContent:'out: ??????'}),lock),
+  emoji:()=>el('div',{className:'locked-teaser locked-tiles','aria-hidden':'true'},...[0,1,2,3].map(()=>el('span',{className:'locked-tile',textContent:'?'})),lock),
+  match:()=>el('div',{className:'locked-teaser locked-dial locked-match','aria-hidden':'true'},el('span',{className:'locked-score',textContent:'??%'}),lock),
+  spectrum:()=>el('div',{className:'locked-teaser locked-sliders','aria-hidden':'true'},...[30,72,48].map(x=>{const dot=el('i');dot.style.left=`${x}%`;return el('span',{className:'locked-slider'},dot);}),lock),
+ };
+ const teaser=(teasers[card.card]??(()=>el('div',{className:'locked-teaser locked-dial','aria-hidden':'true'},el('span',{className:'locked-score',textContent:'??'}),lock)))();
  return el('article',{className:'story-card story-locked','aria-label':`Locked: ${card.title}`},
   teaser,
   el('p',{className:'label locked-label',textContent:'Locked'}),
