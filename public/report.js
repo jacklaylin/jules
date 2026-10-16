@@ -181,23 +181,24 @@ async function save(body,done){
 $('intro-start').onclick=()=>go(0);
 $('tap-next').onclick=()=>go(index+1);
 $('tap-prev').onclick=()=>go(index-1);
-$('close').onclick=()=>show('view-end');
 $('arrow-next').onclick=()=>go(index+1);
 $('arrow-prev').onclick=()=>go(index-1);
 $('home').append(wordmark());$('chrome-home').append(wordmark());
 const exit=person?'/admin':'/wishlist';
+// × leaves the whole report (not just the card): back to the wishlist, or to admin for a preview.
+$('close').onclick=()=>{location.href=exit;};
 $('chrome-close').href=exit;
 $('chrome-next').onclick=()=>go(0);
 $('chrome-prev').onclick=()=>go(report.cards.length-1);
-// Desktop keyboard, while no sheet is open. Cards: arrows move, Escape ends the story. Intro: → starts.
-// End: ← goes back to the last card. On the intro and end, Escape leaves the report.
+// Desktop keyboard, while no sheet is open. Cards: arrows move. Intro: → starts.
+// End: ← goes back to the last card. Escape always leaves the report.
 document.addEventListener('keydown',event=>{
  if(!report||document.querySelector('dialog[open]')||event.altKey||event.ctrlKey||event.metaKey)return;
  const key=event.key;
  if(!$('view-card').hidden){
   if(key==='ArrowRight'){event.preventDefault();go(index+1);}
   else if(key==='ArrowLeft'){event.preventDefault();go(index-1);}
-  else if(key==='Escape')show('view-end');
+  else if(key==='Escape')location.href=exit;
  }else if(!$('view-intro').hidden){
   if(key==='ArrowRight'){event.preventDefault();go(0);}
   else if(key==='Escape')location.href=exit;
