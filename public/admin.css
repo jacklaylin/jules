@@ -6,6 +6,11 @@ p{line-height:1.65}.login-card{max-width:490px;margin:7vh auto}.login-card>p{col
 
 /* People list */
 .people-list{--dv-cols:minmax(0,2fr) minmax(0,1fr) 80px}
+/* Chat quality strip and its explanations (shared .dv-metrics and .fold) */
+.chat-metrics .dv-metric-was{color:var(--text-2);white-space:nowrap}
+.metrics-help{margin:8px 0 4px}.metrics-help>summary{font-size:13px;color:var(--text-2)}
+.metrics-help dl{display:grid;grid-template-columns:max-content 1fr;gap:8px 16px;margin:0;font-size:13px;line-height:1.5}.metrics-help dt{font-weight:600}.metrics-help dd{margin:0;color:var(--text-2)}
+@media(max-width:800px){.metrics-help dl{grid-template-columns:1fr;gap:2px}.metrics-help dd{margin-bottom:8px}}
 @media(max-width:800px){.people-list{--dv-cols:minmax(0,1fr) auto 64px}.people-list .dv-row{min-height:48px}}
 
 /* Person page */

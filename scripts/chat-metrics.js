@@ -36,4 +36,4 @@ console.log(`Named-product searches: ${s.named_searches}; accepted ${s.named_acc
 table('day', metrics.by_day.map(d => [d.day, ...row(d)]));
 table('conversation', metrics.by_conversation.map(c => [c.conversation, ...row(c)]));
 console.log(`Last ${days} days vs the ${days} before:`);
-for (const m of trend.moved) console.log(`  ${m.metric.padEnd(24)} ${String(m.before ?? '—').padStart(6)} → ${String(m.after ?? '—').padEnd(6)} ${m.verdict}`);
+for (const m of trend.moved) console.log(`  ${m.metric.padEnd(24)} ${String(m.before ?? '—').padStart(6)} (n=${m.before_n}) → ${String(m.after ?? '—').padEnd(6)} (n=${m.after_n})  ${m.verdict}`);
