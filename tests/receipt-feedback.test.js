@@ -104,6 +104,22 @@ test('details questions are withheld for items that were not kept; other topics 
  const requested=createReceiptFeedback('person',[{...item('q','s7'),source_events:[{id:'e',kind:'return_requested',source_id:'s7'}]}]);
  assert.equal(addReceiptQuestions(requested,[{item_ids:['q'],topic:'details',fields:['size_system'],question:'Which size system?',reason:'Unclear.',evidence_ids:['s7']}]).questions.length,1);
 });
+test('ended items get no field questions under any topic and no return question once receipts show it',()=>{
+ const ended=(id,source,kind)=>({...item(id,source),source_events:[{id:'p'+id,kind:'purchased',source_id:source},{id:'e'+id,kind,source_id:source}]});
+ const s=createReceiptFeedback('person',[ended('r','s9','returned'),ended('f','s7','refunded'),item('k','s8')]);
+ const ask=(ids,topic,fields=[])=>({item_ids:ids,topic,fields,question:'Which sizes were these?',reason:'Sizes are unclear.',evidence_ids:ids.map(id=>({r:'s9',f:'s7',k:'s8'}[id]))});
+ // A size question about returned items is withheld whatever topic the model files it under, alone or grouped.
+ for(const topic of ['return','purchase','recipient','duplicate','details'])for(const ids of [['r'],['f'],['r','f'],['r','k']])
+  assert.equal(addReceiptQuestions(s,[ask(ids,topic,['size_label'])]).questions.length,0,topic+' '+ids);
+ // Whether they were returned is already known from the receipts.
+ assert.equal(addReceiptQuestions(s,[ask(['r','f'],'return')]).questions.length,0);
+ // Field-free recipient and purchase questions still apply to ended items; kept items still get field questions.
+ for(const topic of ['recipient','purchase'])assert.equal(addReceiptQuestions(s,[ask(['r'],topic)]).questions.length,1);
+ for(const topic of ['details','return'])assert.equal(addReceiptQuestions(s,[ask(['k'],topic,topic==='details'?['size_label']:[])]).questions.length,1);
+ // A requested (not completed) return still qualifies for a return question.
+ const requested=createReceiptFeedback('person',[{...item('q','s6'),source_events:[{id:'e',kind:'return_requested',source_id:'s6'}]}]);
+ assert.equal(addReceiptQuestions(requested,[{...ask(['q'],'return'),evidence_ids:['s6']}]).questions.length,1);
+});
 test('a chat answer keeps its clear updates when another part names no valid item',()=>{
  const set=ids=>({action:'set_recipient',item_ids:ids,recipient:'self',recipient_label:null,corrections:[],target_item_id:null,question_id:null});
  const unclear=[{action:'report_return',item_ids:[],recipient:null,recipient_label:null,corrections:[],target_item_id:null,question_id:null},

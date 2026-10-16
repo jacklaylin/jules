@@ -172,3 +172,14 @@ test('an unreadable page is found in the index by a site search for its name or 
  const none=[];await lookupIndexedProduct(url,null,{env:{SERPAPI_API_KEY:'site-fixture-2'},fetcher:async u=>{none.push(u);return new Response('{}');}});
  assert.ok(!none.some(u=>new URL(u).searchParams.get('q')?.startsWith('site:')),'site search only when the store page could not be read');
 });
+
+test('suppressed stores in search results are set aside unread; the real store is offered',async()=>{
+ const urls={lyst:'https://www.lyst.com/clothing/our-legacy-still-chino-trousers-1/',temu:'https://www.temu.com/still-chino-g-1.html',rakuten:'https://www.rakuten.com/shop/our-legacy-still-chino',store:'https://www.ssense.com/en-us/men/product/our-legacy/beige-still-chino-trousers/19426491'};
+ const organic=Object.values(urls).map(link=>({link,title:'Our Legacy Still Chino Trousers'})),read=[];
+ const result=await exactSearch('Our Legacy Still Chino Trousers',env,serp({organic,shopping:[{link:urls.lyst,title:'Our Legacy Still Chino Trousers'}]}),{},async url=>{read.push(url);return page(url,'Still Chino Trousers','Our Legacy');},{judge:async(b,c)=>c.map(()=>({match:'exact',brand:'Our Legacy'}))});
+ assert.deepEqual(read,[urls.store]);
+ assert.deepEqual(result.products.map(p=>p.url),[urls.store]);
+ assert.deepEqual(result.products[0].merchant_options,[]);
+ const suppressed=result.rejections.filter(r=>r.reason==='suppressed_store').map(r=>r.url);
+ for(const url of [urls.lyst,urls.temu,urls.rakuten])assert.ok(suppressed.includes(url),url);
+});
