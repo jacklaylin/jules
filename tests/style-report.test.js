@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {receiptLines,validTotal,writeTotal,buildReport,updateReport,reportView,handleReport,FALLBACK_TOTAL,gatekeeper,nicheBrand,validGateLine,writeGateLine} from '../lib/style-report.js';
+import {receiptLines,validTotal,writeTotal,buildReport,updateReport,reportView,handleReport,FALLBACK_TOTAL,gatekeeper,nicheBrand,validGateLine,writeGateLine,reportWriter,REPORT_MODEL} from '../lib/style-report.js';
 import {tagFingerprint} from '../lib/item-tags.js';
 import {purchaseEvidence,projectReceiptEvidence} from '../lib/receipt-extraction.js';
 import {signInLinks} from '../lib/onboarding.js';
@@ -230,4 +230,14 @@ test('the report adds a Gatekeeper card after the receipt, and its lines cannot 
  await assert.rejects(updateReport(store,owner,{action:'report-lines',card:'gatekeeper',hidden:[],show_returns:false}),/no lines/);
  await updateReport(store,owner,{action:'report-feedback',card:'gatekeeper',vote:'up'});
  assert.equal(reportView(store.row.data.style_report).votes.gatekeeper,'up');
+});
+
+test('the report copy has its own model setting, separate from receipt reading and chat',async()=>{
+ const sent=[];
+ const fetcher=async(url,options)=>{sent.push(JSON.parse(options.body));return {ok:true,json:async()=>({status:'completed',output:[{content:[{type:'output_text',text:'{"total":"x"}'}]}]})};};
+ await reportWriter({OPENAI_API_KEY:'k',OPENAI_MODEL:'gpt-4.1-mini'},fetcher)({schema:{},instructions:'i',context:{}});
+ assert.equal(sent[0].model,REPORT_MODEL);assert.equal(REPORT_MODEL,'gpt-5.5');
+ assert.deepEqual(sent[0].reasoning,{effort:'low'});assert.equal(sent[0].temperature,undefined);
+ await reportWriter({OPENAI_API_KEY:'k',OPENAI_MODEL:'gpt-4.1-mini',STYLE_REPORT_MODEL:'gpt-5.4-mini'},fetcher)({schema:{},instructions:'i',context:{}});
+ assert.equal(sent[1].model,'gpt-5.4-mini');
 });
