@@ -1,0 +1,992 @@
+{
+ "version": 1,
+ "source": "design/style-icons-draft.md (approved October 15, 2026)",
+ "icons": [
+  {
+   "key": "moira-rose",
+   "name": "Moira Rose",
+   "kind": "character",
+   "source": "Schitt's Creek",
+   "vibe": "Theatrical monochrome",
+   "traits": [
+    "Monochrome drama",
+    "Statement coats",
+    "Never underdressed"
+   ],
+   "brands": [
+    "Rick Owens",
+    "Givenchy",
+    "Alexander McQueen",
+    "Comme des Garçons"
+   ],
+   "palette": "black",
+   "price": [
+    "luxury"
+   ],
+   "signals": [
+    "statement"
+   ],
+   "photo": null
+  },
+  {
+   "key": "paris-hilton",
+   "name": "Paris Hilton",
+   "kind": "real",
+   "source": null,
+   "vibe": "Y2K pink",
+   "traits": [
+    "Pink, always",
+    "Velour forever",
+    "That's hot"
+   ],
+   "brands": [
+    "Juicy Couture",
+    "Von Dutch",
+    "Skims",
+    "Miu Miu"
+   ],
+   "palette": "pink/pastel",
+   "price": [
+    "mid",
+    "premium"
+   ],
+   "signals": [
+    "statement"
+   ],
+   "photo": null
+  },
+  {
+   "key": "jacob-elordi",
+   "name": "Jacob Elordi",
+   "kind": "real",
+   "source": null,
+   "vibe": "Off-duty heartthrob",
+   "traits": [
+    "Big coat",
+    "Old loafers",
+    "Effortless on purpose"
+   ],
+   "brands": [
+    "Bottega Veneta",
+    "Our Legacy",
+    "Levi's",
+    "Loewe"
+   ],
+   "palette": "neutrals",
+   "price": [
+    "premium",
+    "luxury"
+   ],
+   "signals": [],
+   "photo": null
+  },
+  {
+   "key": "carolyn-bessette-kennedy",
+   "name": "Carolyn Bessette-Kennedy",
+   "kind": "real",
+   "source": null,
+   "vibe": "90s minimalism",
+   "traits": [
+    "Clean lines",
+    "Black and camel",
+    "Nothing extra"
+   ],
+   "brands": [
+    "Calvin Klein",
+    "Prada",
+    "Jil Sander",
+    "The Row"
+   ],
+   "palette": "neutrals",
+   "price": [
+    "luxury"
+   ],
+   "signals": [],
+   "photo": null
+  },
+  {
+   "key": "harry-styles",
+   "name": "Harry Styles",
+   "kind": "real",
+   "source": null,
+   "vibe": "Joyful dandy",
+   "traits": [
+    "Flares",
+    "Pearls",
+    "Pattern on pattern"
+   ],
+   "brands": [
+    "Gucci",
+    "S.S. Daley",
+    "Marni",
+    "JW Anderson"
+   ],
+   "palette": "color",
+   "price": [
+    "luxury"
+   ],
+   "signals": [
+    "statement"
+   ],
+   "photo": null
+  },
+  {
+   "key": "rihanna",
+   "name": "Rihanna",
+   "kind": "real",
+   "source": null,
+   "vibe": "Fearless mix",
+   "traits": [
+    "Oversized everything",
+    "High-low",
+    "Rules optional"
+   ],
+   "brands": [
+    "Fenty",
+    "Balenciaga",
+    "Miu Miu",
+    "Nike"
+   ],
+   "palette": "mixed",
+   "price": [
+    "luxury"
+   ],
+   "signals": [
+    "statement"
+   ],
+   "photo": null
+  },
+  {
+   "key": "iris-apfel",
+   "name": "Iris Apfel",
+   "kind": "real",
+   "source": null,
+   "vibe": "Maximalist",
+   "traits": [
+    "More is more",
+    "Color on color",
+    "Accessories first"
+   ],
+   "brands": [
+    "Etro",
+    "Dries Van Noten",
+    "vintage"
+   ],
+   "palette": "color",
+   "price": [
+    "premium"
+   ],
+   "signals": [
+    "statement",
+    "resale"
+   ],
+   "photo": null
+  },
+  {
+   "key": "diane-keaton",
+   "name": "Diane Keaton",
+   "kind": "real",
+   "source": null,
+   "vibe": "Menswear chic",
+   "traits": [
+    "Wide-leg everything",
+    "Turtleneck season",
+    "Hat on"
+   ],
+   "brands": [
+    "Ralph Lauren",
+    "Thom Browne",
+    "Brooks Brothers"
+   ],
+   "palette": "neutrals",
+   "price": [
+    "premium"
+   ],
+   "signals": [
+    "tailoring"
+   ],
+   "photo": null
+  },
+  {
+   "key": "jeff-goldblum",
+   "name": "Jeff Goldblum",
+   "kind": "real",
+   "source": null,
+   "vibe": "Eccentric uncle",
+   "traits": [
+    "Loud shirts",
+    "Sharp frames",
+    "Charmingly odd"
+   ],
+   "brands": [
+    "Prada",
+    "Saint Laurent",
+    "Moscot"
+   ],
+   "palette": "mixed",
+   "price": [
+    "luxury"
+   ],
+   "signals": [
+    "statement",
+    "tailoring"
+   ],
+   "photo": null
+  },
+  {
+   "key": "steve-jobs",
+   "name": "Steve Jobs",
+   "kind": "real",
+   "source": null,
+   "vibe": "The uniform",
+   "traits": [
+    "Same thing daily",
+    "Black turtleneck",
+    "New Balance"
+   ],
+   "brands": [
+    "Issey Miyake",
+    "Levi's",
+    "New Balance",
+    "Uniqlo"
+   ],
+   "palette": "black",
+   "price": [
+    "mid"
+   ],
+   "signals": [
+    "uniform"
+   ],
+   "photo": null
+  },
+  {
+   "key": "carrie-bradshaw",
+   "name": "Carrie Bradshaw",
+   "kind": "character",
+   "source": "Sex and the City",
+   "vibe": "Shoe-first romantic",
+   "traits": [
+    "Shoes before rent",
+    "Tutu energy",
+    "Mix it up"
+   ],
+   "brands": [
+    "Manolo Blahnik",
+    "Dior",
+    "Fendi",
+    "Vivienne Westwood"
+   ],
+   "palette": "mixed",
+   "price": [
+    "luxury"
+   ],
+   "signals": [
+    "statement"
+   ],
+   "photo": null
+  },
+  {
+   "key": "elle-woods",
+   "name": "Elle Woods",
+   "kind": "character",
+   "source": "Legally Blonde",
+   "vibe": "Pink power",
+   "traits": [
+    "Pink is a neutral",
+    "Polished",
+    "Underestimated"
+   ],
+   "brands": [
+    "Ralph Lauren",
+    "Kate Spade",
+    "Juicy Couture"
+   ],
+   "palette": "pink/pastel",
+   "price": [
+    "mid",
+    "premium"
+   ],
+   "signals": [],
+   "photo": null
+  },
+  {
+   "key": "cher-horowitz",
+   "name": "Cher Horowitz",
+   "kind": "character",
+   "source": "Clueless",
+   "vibe": "90s prep",
+   "traits": [
+    "Matching sets",
+    "Plaid",
+    "Total betty"
+   ],
+   "brands": [
+    "Dolce & Gabbana",
+    "Calvin Klein",
+    "Alaïa"
+   ],
+   "palette": "color",
+   "price": [
+    "premium"
+   ],
+   "signals": [],
+   "photo": null
+  },
+  {
+   "key": "rachel-green",
+   "name": "Rachel Green",
+   "kind": "character",
+   "source": "Friends",
+   "vibe": "90s everyday",
+   "traits": [
+    "Slip dresses",
+    "Knee socks",
+    "The haircut"
+   ],
+   "brands": [
+    "Ralph Lauren",
+    "Gap",
+    "Banana Republic",
+    "Madewell"
+   ],
+   "palette": "neutrals",
+   "price": [
+    "mid"
+   ],
+   "signals": [
+    "denim"
+   ],
+   "photo": null
+  },
+  {
+   "key": "kendall-roy",
+   "name": "Kendall Roy",
+   "kind": "character",
+   "source": "Succession",
+   "vibe": "Stealth wealth",
+   "traits": [
+    "Logo-free",
+    "Cashmere cap",
+    "Quietly expensive"
+   ],
+   "brands": [
+    "Loro Piana",
+    "Brunello Cucinelli",
+    "Tom Ford",
+    "Common Projects"
+   ],
+   "palette": "neutrals",
+   "price": [
+    "luxury"
+   ],
+   "signals": [],
+   "photo": null
+  },
+  {
+   "key": "carmy-berzatto",
+   "name": "Carmy Berzatto",
+   "kind": "character",
+   "source": "The Bear",
+   "vibe": "Workwear uniform",
+   "traits": [
+    "White tee",
+    "Good denim",
+    "Yes, chef"
+   ],
+   "brands": [
+    "Merz b. Schwanen",
+    "Levi's",
+    "Carhartt",
+    "Red Wing"
+   ],
+   "palette": "neutrals",
+   "price": [
+    "mid"
+   ],
+   "signals": [
+    "uniform",
+    "denim"
+   ],
+   "photo": null
+  },
+  {
+   "key": "don-draper",
+   "name": "Don Draper",
+   "kind": "character",
+   "source": "Mad Men",
+   "vibe": "Classic tailoring",
+   "traits": [
+    "Grey suit",
+    "Pocket square",
+    "Old-fashioned"
+   ],
+   "brands": [
+    "Brooks Brothers",
+    "Suitsupply",
+    "Ralph Lauren Purple Label"
+   ],
+   "palette": "neutrals",
+   "price": [
+    "premium"
+   ],
+   "signals": [
+    "tailoring"
+   ],
+   "photo": null
+  },
+  {
+   "key": "miranda-priestly",
+   "name": "Miranda Priestly",
+   "kind": "character",
+   "source": "The Devil Wears Prada",
+   "vibe": "Power luxury",
+   "traits": [
+    "Statement coat",
+    "Cerulean opinions",
+    "That's all"
+   ],
+   "brands": [
+    "Prada",
+    "Valentino",
+    "Chanel",
+    "Hermès"
+   ],
+   "palette": "neutrals",
+   "price": [
+    "luxury"
+   ],
+   "signals": [
+    "statement"
+   ],
+   "photo": null
+  },
+  {
+   "key": "sofia-coppola",
+   "name": "Sofia Coppola",
+   "kind": "real",
+   "source": null,
+   "vibe": "Quiet French-American",
+   "traits": [
+    "Navy and stripes",
+    "Ballet flats",
+    "Understated"
+   ],
+   "brands": [
+    "Celine",
+    "Chanel",
+    "A.P.C.",
+    "Sézane"
+   ],
+   "palette": "neutrals",
+   "price": [
+    "premium"
+   ],
+   "signals": [],
+   "photo": null
+  },
+  {
+   "key": "jane-birkin",
+   "name": "Jane Birkin",
+   "kind": "real",
+   "source": null,
+   "vibe": "Laid-back French",
+   "traits": [
+    "Basket bag",
+    "White tee",
+    "Jeans"
+   ],
+   "brands": [
+    "Levi's",
+    "Saint James",
+    "Hermès"
+   ],
+   "palette": "neutrals",
+   "price": [
+    "mid"
+   ],
+   "signals": [
+    "denim"
+   ],
+   "photo": null
+  },
+  {
+   "key": "a-ap-rocky",
+   "name": "A$AP Rocky",
+   "kind": "real",
+   "source": null,
+   "vibe": "Fashion-forward street",
+   "traits": [
+    "Archive pieces",
+    "Designer layers",
+    "Very online"
+   ],
+   "brands": [
+    "Raf Simons",
+    "Maison Margiela",
+    "Bottega Veneta",
+    "Rick Owens"
+   ],
+   "palette": "black",
+   "price": [
+    "luxury"
+   ],
+   "signals": [
+    "niche",
+    "resale"
+   ],
+   "photo": null
+  },
+  {
+   "key": "bad-bunny",
+   "name": "Bad Bunny",
+   "kind": "real",
+   "source": null,
+   "vibe": "Playful rule-breaker",
+   "traits": [
+    "Bold color",
+    "Painted nails",
+    "Zero fear"
+   ],
+   "brands": [
+    "Jacquemus",
+    "Gucci",
+    "Adidas",
+    "Marni"
+   ],
+   "palette": "color",
+   "price": [
+    "premium",
+    "luxury"
+   ],
+   "signals": [
+    "statement"
+   ],
+   "photo": null
+  },
+  {
+   "key": "timothee-chalamet",
+   "name": "Timothée Chalamet",
+   "kind": "real",
+   "source": null,
+   "vibe": "Red-carpet experiment",
+   "traits": [
+    "Harness era",
+    "Hoodie off-duty",
+    "Takes risks"
+   ],
+   "brands": [
+    "Haider Ackermann",
+    "Stüssy",
+    "Louis Vuitton",
+    "Bode"
+   ],
+   "palette": "mixed",
+   "price": [
+    "luxury"
+   ],
+   "signals": [
+    "statement",
+    "niche"
+   ],
+   "photo": null
+  },
+  {
+   "key": "pharrell",
+   "name": "Pharrell",
+   "kind": "real",
+   "source": null,
+   "vibe": "Colorful creative",
+   "traits": [
+    "Big hats",
+    "Bright colors",
+    "Billionaire boy"
+   ],
+   "brands": [
+    "Louis Vuitton",
+    "Billionaire Boys Club",
+    "Humanrace",
+    "Adidas"
+   ],
+   "palette": "color",
+   "price": [
+    "luxury"
+   ],
+   "signals": [
+    "statement",
+    "sporty"
+   ],
+   "photo": null
+  },
+  {
+   "key": "mary-kate-ashley-olsen",
+   "name": "Mary-Kate & Ashley Olsen",
+   "kind": "real",
+   "source": null,
+   "vibe": "Bag-lady minimalism",
+   "traits": [
+    "Oversized layers",
+    "Black on black",
+    "Big bag"
+   ],
+   "brands": [
+    "The Row",
+    "Khaite",
+    "Toteme"
+   ],
+   "palette": "black",
+   "price": [
+    "luxury"
+   ],
+   "signals": [
+    "niche"
+   ],
+   "photo": null
+  },
+  {
+   "key": "princess-diana",
+   "name": "Princess Diana",
+   "kind": "real",
+   "source": null,
+   "vibe": "Off-duty icon",
+   "traits": [
+    "Sweatshirt + bike shorts",
+    "Blazers",
+    "Revenge dress"
+   ],
+   "brands": [
+    "Ralph Lauren",
+    "Harvard sweatshirt",
+    "Reebok",
+    "Catherine Walker"
+   ],
+   "palette": "mixed",
+   "price": [
+    "premium"
+   ],
+   "signals": [
+    "sporty"
+   ],
+   "photo": null
+  },
+  {
+   "key": "bill-cunningham",
+   "name": "Bill Cunningham",
+   "kind": "real",
+   "source": null,
+   "vibe": "Utilitarian uniform",
+   "traits": [
+    "Blue work jacket",
+    "Same every day",
+    "Always on a bike"
+   ],
+   "brands": [
+    "Le Laboureur",
+    "Uniqlo",
+    "workwear"
+   ],
+   "palette": "neutrals",
+   "price": [
+    "value"
+   ],
+   "signals": [
+    "uniform"
+   ],
+   "photo": null
+  },
+  {
+   "key": "frank-ocean",
+   "name": "Frank Ocean",
+   "kind": "real",
+   "source": null,
+   "vibe": "Cult minimalist",
+   "traits": [
+    "Cult brands",
+    "Clean shapes",
+    "Says little"
+   ],
+   "brands": [
+    "Prada",
+    "Homer",
+    "Our Legacy",
+    "Nike"
+   ],
+   "palette": "neutrals",
+   "price": [
+    "luxury"
+   ],
+   "signals": [
+    "niche"
+   ],
+   "photo": null
+  },
+  {
+   "key": "jerry-seinfeld",
+   "name": "Jerry Seinfeld",
+   "kind": "real",
+   "source": null,
+   "vibe": "Sneaker dad",
+   "traits": [
+    "Jeans and sneakers",
+    "Tucked in",
+    "Nothing to see"
+   ],
+   "brands": [
+    "Nike",
+    "New Balance",
+    "Levi's",
+    "Gap"
+   ],
+   "palette": "neutrals",
+   "price": [
+    "value",
+    "mid"
+   ],
+   "signals": [
+    "sporty",
+    "denim",
+    "uniform"
+   ],
+   "photo": null
+  },
+  {
+   "key": "paul-mescal",
+   "name": "Paul Mescal",
+   "kind": "real",
+   "source": null,
+   "vibe": "Short-shorts summer",
+   "traits": [
+    "Tiny shorts",
+    "Tank top",
+    "Silver chain"
+   ],
+   "brands": [
+    "Gucci",
+    "vintage",
+    "Nike"
+   ],
+   "palette": "neutrals",
+   "price": [
+    "mid"
+   ],
+   "signals": [
+    "sporty",
+    "resale"
+   ],
+   "photo": null
+  },
+  {
+   "key": "sporty-spice",
+   "name": "Sporty Spice",
+   "kind": "real",
+   "source": null,
+   "vibe": "Athleisure original",
+   "traits": [
+    "Tracksuit forever",
+    "Trainers",
+    "High ponytail"
+   ],
+   "brands": [
+    "Adidas",
+    "Nike",
+    "Puma",
+    "Lululemon"
+   ],
+   "palette": "color",
+   "price": [
+    "value",
+    "mid"
+   ],
+   "signals": [
+    "sporty"
+   ],
+   "photo": null
+  },
+  {
+   "key": "wednesday-addams",
+   "name": "Wednesday Addams",
+   "kind": "character",
+   "source": "Wednesday",
+   "vibe": "Gothic minimal",
+   "traits": [
+    "Black only",
+    "White collar",
+    "Unimpressed"
+   ],
+   "brands": [
+    "Comme des Garçons",
+    "Simone Rocha",
+    "Dr. Martens"
+   ],
+   "palette": "black",
+   "price": [
+    "mid",
+    "premium"
+   ],
+   "signals": [
+    "uniform"
+   ],
+   "photo": null
+  },
+  {
+   "key": "john-f-kennedy",
+   "name": "John F. Kennedy",
+   "kind": "real",
+   "source": null,
+   "vibe": "New England prep",
+   "traits": [
+    "Sailing sweaters",
+    "Wayfarers",
+    "Hyannis Port ease"
+   ],
+   "brands": [
+    "Brooks Brothers",
+    "J.Press",
+    "Ray-Ban",
+    "Sperry"
+   ],
+   "palette": "neutrals",
+   "price": [
+    "premium"
+   ],
+   "signals": [
+    "tailoring",
+    "knit"
+   ],
+   "photo": null
+  },
+  {
+   "key": "blair-waldorf",
+   "name": "Blair Waldorf",
+   "kind": "character",
+   "source": "Gossip Girl",
+   "vibe": "Upper East Side prep",
+   "traits": [
+    "Headbands",
+    "Pleated skirts",
+    "Never casual"
+   ],
+   "brands": [
+    "Tory Burch",
+    "Ralph Lauren",
+    "Kate Spade",
+    "Chanel"
+   ],
+   "palette": "color",
+   "price": [
+    "premium",
+    "luxury"
+   ],
+   "signals": [
+    "statement"
+   ],
+   "photo": null
+  },
+  {
+   "key": "ralph-lauren",
+   "name": "Ralph Lauren",
+   "kind": "real",
+   "source": null,
+   "vibe": "Heritage Americana",
+   "traits": [
+    "Polo everything",
+    "Western denim",
+    "Old money, new label"
+   ],
+   "brands": [
+    "Ralph Lauren",
+    "RRL",
+    "Polo",
+    "Brooks Brothers"
+   ],
+   "palette": "neutrals",
+   "price": [
+    "premium"
+   ],
+   "signals": [
+    "denim",
+    "tailoring"
+   ],
+   "photo": null
+  },
+  {
+   "key": "yvon-chouinard",
+   "name": "Yvon Chouinard",
+   "kind": "real",
+   "source": null,
+   "vibe": "Original gorpcore",
+   "traits": [
+    "Fleece first",
+    "Mended gear",
+    "Dirtbag at heart"
+   ],
+   "brands": [
+    "Patagonia",
+    "Arc'teryx",
+    "The North Face",
+    "Black Diamond"
+   ],
+   "palette": "color",
+   "price": [
+    "mid"
+   ],
+   "signals": [
+    "sporty",
+    "uniform"
+   ],
+   "photo": null
+  },
+  {
+   "key": "cheryl-strayed",
+   "name": "Cheryl Strayed",
+   "kind": "real",
+   "source": null,
+   "vibe": "Trail-tested",
+   "traits": [
+    "Hiking boots",
+    "Layers",
+    "One very big pack"
+   ],
+   "brands": [
+    "REI",
+    "Merrell",
+    "Smartwool",
+    "Fjällräven"
+   ],
+   "palette": "neutrals",
+   "price": [
+    "value",
+    "mid"
+   ],
+   "signals": [
+    "sporty"
+   ],
+   "photo": null
+  },
+  {
+   "key": "ron-swanson",
+   "name": "Ron Swanson",
+   "kind": "character",
+   "source": "Parks and Recreation",
+   "vibe": "Lumberjack dad",
+   "traits": [
+    "Flannel",
+    "Polo tucked in",
+    "Wood shop chic"
+   ],
+   "brands": [
+    "L.L.Bean",
+    "Filson",
+    "Carhartt",
+    "Pendleton"
+   ],
+   "palette": "neutrals",
+   "price": [
+    "mid"
+   ],
+   "signals": [
+    "uniform"
+   ],
+   "photo": null
+  }
+ ]
+}
