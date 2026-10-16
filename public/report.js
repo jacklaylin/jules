@@ -159,6 +159,7 @@ function emojiCard(card,animate){
 // Style match (canvas card 5): "It's a style match." over a polaroid of the icon with a heart
 // badge (a swipe-right like), the computed match and why. No free photo yet: an empty frame with the icon's name, which
 // is the intended look, not a broken image.
+// The heart's weight is in its lobes, so the view box lifts it a little above geometric centre to read centred.
 const HEART='M24 40 C10 30 5 23 5 16 a9.5 9.5 0 0 1 19 -3 a9.5 9.5 0 0 1 19 3 c0 7 -5 14 -19 24 z';
 function matchCard(card){
  const photo=card.icon.photo?.url?el('img',{className:'match-photo',src:card.icon.photo.url,alt:card.icon.name}):el('div',{className:'match-photo match-empty','aria-hidden':'true'});
@@ -166,7 +167,7 @@ function matchCard(card){
   el('h2',{className:'match-head',textContent:'It’s a style match.'}),
   el('div',{className:'match-stage'},
    el('figure',{className:'match-polaroid'},photo,el('figcaption',{textContent:card.icon.name})),
-   el('span',{className:'match-badge','aria-hidden':'true'},svg('svg',{viewBox:'0 0 48 48',width:36,height:36},svg('path',{d:HEART})))),
+   el('span',{className:'match-badge','aria-hidden':'true'},svg('svg',{viewBox:'0 3 48 48',width:36,height:36},svg('path',{d:HEART})))),
   el('p',{className:'match-credit',textContent:card.icon.photo?.credit??''}),
   el('p',{className:'match-pct'},el('b',{textContent:`${card.pct}%`}),' match'),
   el('p',{className:'match-line',textContent:card.line}),
