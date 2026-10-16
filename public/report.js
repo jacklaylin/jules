@@ -95,6 +95,14 @@ function gatekeeperCard(card,animate){
    el('ol',{className:'gate-chips'},...card.brands.map((b,i)=>{const chip=el('li',{className:i===0?'gate-chip is-top':'gate-chip'},el('span',{className:'gate-rank',textContent:String(i+1).padStart(2,'0')}),b.name);chip.style.animationDelay=`${(0.9+i*0.06).toFixed(2)}s`;return chip;}))),
   el('footer',{className:'story-foot'},wordmark()));
 }
+// Scales the 360×640 card to the largest size that fits its space, centred: same layout on every screen.
+const CARD_W=360,CARD_H=640;
+function fitCard(){
+ const box=$('card'),card=box.firstElementChild;if(!card||!box.clientWidth)return;
+ const scale=Math.min(box.clientWidth/CARD_W,box.clientHeight/CARD_H);
+ card.style.transform=`translate(${(box.clientWidth-CARD_W*scale)/2}px,${(box.clientHeight-CARD_H*scale)/2}px) scale(${scale})`;
+}
+addEventListener('resize',fitCard);
 // Brand chips show whole rows only: chips that don't fit the card's height are dropped, never cut off.
 function fitChips(){
  const list=$('card').querySelector('.gate-chips');if(!list)return;
@@ -120,7 +128,7 @@ function renderCard(animate=true){
  $('vote-up').hidden=$('vote-down').hidden=Boolean(person);
  show('view-card');
  // Measured once the card is on screen.
- fitChips();
+ fitCard();fitChips();
 }
 function go(i){if(i<0)return;if(i>=report.cards.length){show('view-end');return;}index=i;renderCard();}
 
