@@ -195,6 +195,8 @@ body.report-page:has(.report-player:not([hidden])[data-ground="inout"]){backgrou
 .note-in .note-text{font-weight:800}
 .note-out{color:#6B625B;animation-name:note-out!important}
 .note-out .note-text{text-decoration:line-through}
+.note-aside{font-weight:500;color:#6B625B}
+.note-out .note-aside{text-decoration:none}
 .note-fact{font:500 11px var(--font-mono);color:#A08F6C;white-space:nowrap}
 .note-stats li{font:500 11px var(--font-mono);color:#6B625B}
 .note-stats b{color:var(--ink)}

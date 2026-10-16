@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {receiptLines,validTotal,writeTotal,buildReport,updateReport,reportView,handleReport,FALLBACK_TOTAL,gatekeeper,nicheBrand,validGateLine,writeGateLine,reportWriter,REPORT_MODEL,inOut,validInOutLine,writeInOutLine,lockedCards,MIN_CARDS,sharedView,handleSharedReport,sharePreview,handleSharePage,fourEmojis,spectrum,validEmojiCaption,writeEmojiCaptions,styleMatch,validMatchLine,writeMatchLine,sendNewCardText,sendReportLink,newCardsText,missingSources} from '../lib/style-report.js';
+import {receiptLines,validTotal,writeTotal,buildReport,updateReport,reportView,handleReport,FALLBACK_TOTAL,gatekeeper,nicheBrand,validGateLine,writeGateLine,reportWriter,REPORT_MODEL,inOut,validInOutLine,writeInOutLine,validEntry,copyLines,lockedCards,MIN_CARDS,sharedView,handleSharedReport,sharePreview,handleSharePage,fourEmojis,spectrum,validEmojiCaption,writeEmojiCaptions,styleMatch,validMatchLine,writeMatchLine,sendNewCardText,sendReportLink,newCardsText,missingSources} from '../lib/style-report.js';
 import {tagFingerprint} from '../lib/item-tags.js';
 import {purchaseEvidence,projectReceiptEvidence} from '../lib/receipt-extraction.js';
 import {signInLinks} from '../lib/onboarding.js';
@@ -283,34 +283,140 @@ function inOutHistory(){
 test('In / Out picks what changed most between the earliest and latest busy years, all counted from purchases',()=>{
  const {state,tags}=inOutHistory(),c=inOut(state,tags);
  assert.equal(c.eligible,true);assert.equal(c.then,2024);assert.equal(c.now,2026);
- const said=list=>Object.fromEntries(list.map(x=>[x.text,x.fact]));
- // IN: a first-ever category, and a category whose share of the year jumped.
- assert.equal(said(c.in)['swim briefs'],'first ever');
- assert.equal(said(c.in)['sunglasses'],'1 → 4');
- // OUT: the "then" category that vanished, named by the item that was most of it.
- assert.equal(said(c.out)['custom made shirts'],'6 → 0');
- // STILL: the brand bought in both years (receipts' spellings merged) and the colour leading both.
- assert.ok(c.still.includes('Lululemon'));
- // The breakup: the brand bought most before (Suitsupply's 6 beat John Elliott's 5), none in the
- // latest year. It isn't repeated under OUT.
- assert.deepEqual(c.stats.find(s=>s.label==='breakup of the era'),{label:'breakup of the era',value:'Suitsupply 6 → 0'});
- assert.ok(!c.out.some(o=>o.text==='Suitsupply'));
- // Returns never count, so the returned coats don't appear anywhere.
- assert.ok(!JSON.stringify(c).includes('Zara')&&!JSON.stringify(c).includes('coat'));
- assert.ok(c.in.length<=4&&c.out.length<=3&&c.stats.length<=2);
+ const said=list=>Object.fromEntries(list.map(x=>[x.plain,x]));
+ // IN: a first-ever category, a category whose share jumped, the brand that stayed.
+ assert.equal(said(c.in)['swim briefs'].aside,'first ever');assert.equal(said(c.in)['swim briefs'].fact,'swim briefs: none before 2026, 2 in 2026');
+ assert.equal(said(c.in)['sunglasses'].fact,'sunglasses: 1 in 2024, 4 in 2026');
+ assert.equal(said(c.in)['Lululemon'].aside,'still','receipts’ spellings merged');
+ // The colour took over: "all black" in, "colour" out, from the same counts.
+ assert.equal(said(c.in)['all black'].fact,'black share of items: 40% in 2024, 100% in 2026');assert.ok(said(c.out)['colour']);
+ // OUT: the breakup is the brand bought most before (Suitsupply's 6 beat John Elliott's 5), none now,
+ // and the category that went with it.
+ assert.deepEqual([said(c.out)['Suitsupply'].kind,said(c.out)['Suitsupply'].aside],['breakup','the breakup']);
+ assert.equal(said(c.out)['custom made shirts'].fact,'custom made shirts: 6 in 2024, 0 in 2026');
+ // The returned coats aren't bought items anywhere, but the return rate is a private fact.
+ assert.ok(![...c.in,...c.out].some(f=>/Zara|coat/.test(f.plain+f.fact)));
+ assert.deepEqual([said(c.in)['sending it back'].private,said(c.in)['sending it back'].fact],[true,'items returned: 0 of 10 in 2024, 3 of 12 in 2026']);
+ // Every fact has an id the writer cites, strongest first.
+ assert.deepEqual(c.in.map(f=>f.id).slice(0,3),['in1','in2','in3']);assert.equal(c.out[0].plain,'Suitsupply');
  // One busy year is not enough.
  seq=0;
  const one=Array.from({length:8},(_,k)=>buy({product:'Tee '+k,merchant:'COS',brand:'COS',order_reference:'E'+k},{at:yearOf(2026,k)})).flat();
  assert.equal(inOut(projectReceiptEvidence(owner,one).state,{}).eligible,false);
 });
 
-test('the In / Out closing line uses only the card’s facts, with a fallback',async()=>{
- const card={then:2024,now:2026,in:[{text:'swim briefs',fact:'first ever'},{text:'sunglasses',fact:'1 → 4'}],out:[{text:'Suitsupply',fact:'6 → 0'}],still:['Lululemon','black'],stats:[{label:'breakup of the era',value:'John Elliott 5 → 0'}]};
+// A history with relationships: a breakup, the rebound after it, an ex they went back to, a once-a-year
+// situationship, the same jogger three times, and late-night orders in the latest year.
+function relationshipHistory(){
+ seq=0;
+ const at=(y,m,h=17)=>Date.UTC(y,m,3,h,30);
+ const one=(brand,product,y,m,h)=>buy({product,merchant:brand,brand},{at:at(y,m,h)});
+ const rows=[
+  ...[0,1,2,3,4].flatMap(m=>one('Our Legacy','Shirt '+m,2023,m)),
+  ...one('COS','Knit A',2023,6),...one('COS','Knit B',2023,7),
+  ...one('Lululemon','ABC Jogger',2024,2),...one('Lululemon','Tank',2024,3),...one('Uniqlo','Tee 24',2024,5),...one('Arket','Coat',2024,8),
+  ...one('Uniqlo','Tee 25',2025,5),...one('Lululemon','ABC Jogger',2025,6),
+  // 2026, mostly ordered at 6:30 UTC, which is 1:30am in New York in winter.
+  ...one('Uniqlo','Tee 26',2026,0,6),...one('COS','Knit C',2026,1,6),...one('COS','Knit D',2026,2,6),...one('Lululemon','ABC Jogger',2026,10,6),...one('Lululemon','Tank 2',2026,3),...one('Arket','Scarf',2026,4),
+ ];
+ const state=projectReceiptEvidence(owner,rows).state;
+ return {state,tags:tagsFor(state,i=>/Jogger/.test(i.product)?{item_type:'jogger',group:'trousers',color_family:'black',resale:false}:{})};
+}
+test('In / Out reads brand relationships, the same item on repeat and after-midnight checkouts',()=>{
+ const {state,tags}=relationshipHistory(),c=inOut(state,tags,{timezone:'America/New_York'});
+ assert.equal(c.then,2023);assert.equal(c.now,2026);
+ const kind=(list,k)=>list.find(f=>f.kind===k);
+ assert.deepEqual([kind(c.out,'breakup').plain,kind(c.out,'breakup').fact],['Our Legacy','Our Legacy: 5 items before 2026, none in 2026']);
+ assert.deepEqual([kind(c.in,'rebound').plain,kind(c.in,'rebound').aside,kind(c.in,'rebound').fact],['Lululemon','the rebound','Lululemon: first bought after the last Our Legacy order, 5 items since']);
+ assert.deepEqual([kind(c.in,'ex').plain,kind(c.in,'ex').aside,kind(c.in,'ex').fact],['COS','back together','COS: 2 items in 2023, none in 2024 or 2025, 2 in 2026']);
+ assert.deepEqual([kind(c.in,'situationship').plain,kind(c.in,'situationship').aside],['Uniqlo','once a year since 2024']);
+ assert.deepEqual([kind(c.in,'repeat').plain,kind(c.in,'repeat').aside,kind(c.in,'repeat').fact],['the same jogger','×3','"ABC Jogger" from Lululemon, bought in 3 separate orders']);
+ assert.equal(kind(c.in,'night').plain,'1am checkouts');assert.match(kind(c.in,'night').fact,/0% in 2023, 67% in 2026/);
+ // Each brand tells one story: the rebound isn't also "new" or "still".
+ assert.equal(c.in.filter(f=>f.plain==='Lululemon').length,1);
+ // No time zone from the person's browser, no checkout hours: never guessed.
+ assert.ok(!kind(inOut(state,tags).in,'night'));assert.ok(!kind(inOut(state,tags,{timezone:'Mars/Olympus'}).in,'night'));
+});
+
+test('In / Out reads haul size, buying direct vs multi-brand shops, and returns',()=>{
+ seq=0;
+ const rows=[
+  // 2024: one thing at a time, all through SSENSE, which sells several brands.
+  ...['Our Legacy','Acne Studios','Lemaire','Our Legacy','Acne Studios','Lemaire'].flatMap((brand,k)=>buy({product:'Piece '+k,merchant:'SSENSE',brand,order_reference:'S'+k},{at:Date.UTC(2024,k,1)})),
+  // 2026: three-item orders straight from the brand, plus six items sent back.
+  ...[0,1,2,3,4,5].flatMap(o=>[0,1,2].flatMap(k=>buy({product:`Tee ${o}-${k}`,merchant:'Arket',brand:'Arket',order_reference:'A'+o},{at:Date.UTC(2026,o,1)}))),
+  ...[0,1,2,3,4,5].flatMap(k=>buy({product:'Back '+k,merchant:'Arket',brand:'Arket',order_reference:'R'+k},{at:Date.UTC(2026,k,9),returned:true})),
+ ];
+ const c=inOut(projectReceiptEvidence(owner,rows).state,{});
+ const pairOf=k=>[c.in.find(f=>f.kind===k)?.plain,c.out.find(f=>f.kind===k)?.plain];
+ assert.deepEqual(pairOf('haul'),['the haul','one thing at a time']);
+ assert.equal(c.in.find(f=>f.kind==='haul').fact,'items per order: 1.0 in 2024, 3.0 in 2026');
+ assert.deepEqual(pairOf('shops'),['going straight to the brand','scrolling SSENSE']);
+ const returns=c.in.find(f=>f.kind==='returns');
+ assert.deepEqual([returns.plain,returns.private,returns.fact],['sending it back',true,'items returned: 0 of 6 in 2024, 6 of 24 in 2026']);
+});
+
+test('the In / Out list lines cite their facts and use only those facts’ names and numbers',async()=>{
+ const {state,tags}=inOutHistory(),card=inOut(state,tags);
+ const names=['Suitsupply','Lululemon','John Elliott','Zara','Oakley'];
+ const id=(side,plain)=>card[side].find(f=>f.plain===plain).id;
+ const facts=(side,...plains)=>plains.map(p=>card[side].find(f=>f.plain===p));
+ assert.deepEqual(validEntry({text:'Suitsupply',aside:'(major breakup!)'},facts('out','Suitsupply'),names),{text:'Suitsupply',aside:'major breakup!'});
+ assert.deepEqual(validEntry({text:'Speedos',aside:''},facts('in','swim briefs'),names),{text:'speedos',aside:null});
+ for(const bad of [{text:'Zara',aside:'the breakup'},{text:'suits',aside:'12 of them'},{text:'you in speedos',aside:''},{text:'x'.repeat(31),aside:''},{text:'speedos',aside:'y'.repeat(27)},{text:'speedos',aside:'loyal to the sea'}])
+  assert.equal(validEntry(bad,facts('in','swim briefs'),names),null,JSON.stringify(bad));
+ let seen=null;
+ const out=await writeInOutLine(card,async({context})=>{seen=context;return {
+  in:[{facts:[id('in','swim briefs'),id('in','sunglasses')],text:'speedos and shades',aside:'beach era'},
+   {facts:[id('in','Lululemon')],text:'athleisure',aside:'still'},
+   {facts:[id('out','Suitsupply')],text:'Suitsupply',aside:'wrong side'},
+   {facts:[id('in','sending it back')],text:'returns',aside:''},
+   {facts:[id('in','all black')],text:'all black',aside:'you went dark'},
+   {facts:['in99'],text:'made up',aside:''}],
+  out:[{facts:[id('out','Suitsupply')],text:'Suitsupply',aside:'major breakup!'},
+   {facts:[id('out','custom made shirts'),id('out','Suitsupply')],text:'business casual',aside:''},
+   {facts:[id('out','custom made shirts')],text:'business casual',aside:'Zara era'}],
+  verdict:'Suitsupply out, speedos in, and Lululemon never left',shared:'Jack: Suitsupply out, speedos in'};},names,'Jack');
+ // The writer never sees private facts.
+ assert.ok(!JSON.stringify(seen).includes('returned'));assert.ok(seen.in.every(f=>f.id&&f.fact&&f.plain));
+ assert.deepEqual(out.in.map(e=>[e.text,e.aside,e.source]),[['speedos and shades','beach era','generated'],['athleisure','still','generated'],['sending it back',null,'fact']]);
+ assert.equal(out.in.at(-1).private,true);
+ assert.deepEqual(out.out.map(e=>[e.text,e.aside]),[['Suitsupply','major breakup!']]);
+ assert.equal(out.verdict,'Suitsupply out, speedos in, and Lululemon never left');
+ // A writer that fails shows the strongest facts plain, with code's own asides.
+ const plain=await writeInOutLine(card,async()=>{throw Error('down');},names);
+ assert.equal(plain.written,false);assert.deepEqual(plain.out[0],{text:'Suitsupply',aside:'the breakup',facts:[id('out','Suitsupply')],source:'fact'});
+ assert.ok(plain.in.length<=6&&plain.out.length<=4);
+});
+
+test('the In / Out closing line uses only the card’s facts, with a fallback',()=>{
+ const card={then:2024,now:2026,in:[{id:'in1',plain:'swim briefs',aside:'first ever',fact:'swim briefs: none before 2026, 2 in 2026'},{id:'in2',plain:'Lululemon',aside:'still',fact:'Lululemon: 3 items in 2024, 3 in 2026',names:['Lululemon']},{id:'in3',plain:'sending it back',fact:'items returned: 0 of 10 in 2024, 3 of 12 in 2026',private:true}],
+  out:[{id:'out1',plain:'Suitsupply',aside:'the breakup',fact:'Suitsupply: 6 items before 2026, none in 2026',names:['Suitsupply']}]};
  const names=['Suitsupply','Lululemon','John Elliott','Zara'];
  assert.equal(validInOutLine('Suitsupply out, swim briefs in, and Lululemon never left.',card,names),'Suitsupply out, swim briefs in, and Lululemon never left');
- for(const bad of ['you traded Zara for swim briefs','12 pairs of sunglasses later','you stayed loyal to black','y'.repeat(91)])assert.equal(validInOutLine(bad,card,names),null,bad);
- const fallback=await writeInOutLine(card,async()=>({verdict:'you shop at Zara now',shared:'Jack shops at Zara now'}),names,'Jack');
- assert.equal(fallback.written,false);assert.ok(fallback.verdict);assert.ok(!/\byou(r)?\b/i.test(fallback.shared));
+ // A private fact's numbers can't reach the closing line.
+ for(const bad of ['you traded Zara for swim briefs','12 pairs of sunglasses later','you stayed loyal to black','y'.repeat(91),'12 items, then you sent them back'])assert.equal(validInOutLine(bad,card,names),null,bad);
+});
+
+test('the In / Out returns line stays private, every shown line is logged for votes, and the time zone is saved',async()=>{
+ const facts={in:[{id:'in1',plain:'swim briefs',aside:'first ever',fact:'swim briefs: none before 2026, 2 in 2026',names:[]},{id:'in2',plain:'sending it back',fact:'items returned: 0 of 10 in 2024, 3 of 12 in 2026',private:true,names:[]}],
+  out:[{id:'out1',plain:'Suitsupply',aside:'the breakup',fact:'Suitsupply: 6 items before 2026, none in 2026',names:['Suitsupply']}]};
+ const card={type:'inout',then:2024,now:2026,facts,in:[{text:'speedos',aside:'first ever',facts:['in1'],source:'generated'},{text:'sending it back',aside:null,facts:['in2'],source:'fact',private:true}],
+  out:[{text:'Suitsupply',aside:'major breakup!',facts:['out1'],source:'generated'}],verdict:'suits out, speedos in',shared:'suits out, speedos in for Jack',written:true};
+ const report={id:'r1',built_at:'2026-10-16T00:00:00Z',cards:[card],feedback:[],hidden:{},show_returns:false,share:{token:'t'.repeat(22)}};
+ const mine=reportView(report).cards[0];
+ assert.deepEqual(mine.in.map(e=>e.text),['speedos']);assert.equal(mine.facts,undefined,'counted facts stay on the server');
+ assert.deepEqual(reportView({...report,show_returns:true}).cards[0].in.map(e=>e.text),['speedos','sending it back']);
+ assert.deepEqual(sharedView({...report,show_returns:true}).cards[0].in.map(e=>e.text),['speedos']);
+ const logged=copyLines([card],{report_id:'r1',at:'2026-10-16T00:00:00Z',allNames:['Suitsupply']});
+ assert.deepEqual(logged.map(l=>[l.slot,l.text]),[['in1','speedos (first ever)'],['out1','Suitsupply (major breakup!)'],['verdict','suits out, speedos in']]);
+ assert.ok(!JSON.stringify(logged).includes('returned'));
+ // The browser's time zone, checked before it's saved.
+ const store=fixture();await buildReport(store,owner,{},{interpret:writer});
+ await assert.rejects(updateReport(store,owner,{action:'report-timezone',timezone:'Mars/Olympus'}),/time zone/);
+ await updateReport(store,owner,{action:'report-timezone',timezone:'America/New_York'});
+ assert.equal(store.row.data.style_report.timezone,'America/New_York');assert.equal(reportView(store.row.data.style_report).timezone,'America/New_York');
+ await buildReport(store,owner,{},{interpret:writer});assert.equal(store.row.data.style_report.timezone,'America/New_York','kept across rebuilds');
 });
 
 // Counts for a light history: one busy year, a few known brands, half the emoji habits.
@@ -564,9 +670,9 @@ test('In / Out: one order of several colourways is not a habit that went out, an
  const state=projectReceiptEvidence(owner,rows).state;
  const tags=tagsFor(state,i=>/Tee/.test(i.product)?{item_type:'tee',group:'tops',color_family:'black',resale:false}:{item_type:'leather accessory',group:'accessories',color_family:'brown',resale:false});
  const c=inOut(state,tags);
- assert.ok(!c.out.some(o=>o.text==='Tiger Leather'),'a single order is not an era');
- assert.ok(c.out.some(o=>o.text==='Lemaire'));
- assert.ok(c.out.some(o=>o.text==='leather accessories'),'accessory → accessories');
+ assert.ok(!c.out.some(o=>o.plain==='Tiger Leather'),'a single order is not an era');
+ assert.ok(c.out.some(o=>o.plain==='Lemaire'));
+ assert.ok(c.out.some(o=>o.plain==='leather accessories'),'accessory → accessories');
 });
 
 test('emoji captions are jokes that still state the fact, and fall back to the fact when they don’t',async()=>{
