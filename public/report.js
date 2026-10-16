@@ -211,10 +211,11 @@ function inOutCard(card){
    foot('story-foot note-foot')));
 }
 // The Read (canvas "The Read"): the person's outfit photo marked up. Lines draw out to sticker callouts
-// one by one, the closer fades in, then the photo dims and four judges raise their scorecards. Code on
+// one by one and the closer fades in; nothing covers them after, so every callout can be read (the
+// judges' scorecards are the report's last card, judgesCard). Code on
 // the server placed every dot and sticker in card pixels (photo frame at 22,66, 316×420); the stage
 // here is that 360×420 band, scaled down on short screens so nothing moves relative to the photo.
-const STAGE_TOP=66,PADDLE_TILT=['-9deg','2deg','9deg'],PADDLE_STICK=[150,200,140];
+const STAGE_TOP=66;
 // The photo arrives as a data URL; the site's Content-Security-Policy allows blob: images but not data:,
 // so it is shown through a blob URL (one per photo, reused across redraws).
 let shownPhoto={data:null,url:null};
@@ -241,17 +242,28 @@ function readCard(card){
   Object.assign(sticker.style,{left:`${c.lx}px`,top:`${c.ly-STAGE_TOP}px`,animationDelay:`${(0.75+k*0.35).toFixed(2)}s`});sticker.style.setProperty('--r',c.rot);
   return sticker;
  }));
- const paddles=el('div',{className:'read-paddles'},...card.scores.map((s,k)=>{
-  const paddle=el('div',{className:'read-paddle'},el('div',{className:'read-score'},el('b',{textContent:String(s.n)}),el('span',{textContent:s.label})),el('span',{className:'read-stick'}));
-  paddle.style.setProperty('--r',PADDLE_TILT[k]);paddle.querySelector('.read-stick').style.height=`${PADDLE_STICK[k]}px`;paddle.style.animationDelay=`${(3.6+k*0.18).toFixed(2)}s`;
-  return paddle;
- }));
- return el('article',{className:'story-card story-read','aria-label':`${report.shared?'Their':'Your'} fit, read: ${card.verdict}. Scores ${card.scores.map(s=>`${s.label} ${s.n}`).join(', ')}`},
+ return el('article',{className:'story-card story-read','aria-label':`${report.shared?'Their':'Your'} fit, read: ${card.closer}`},
   el('h2',{className:'read-title',textContent:report.shared?(report.name?`Now, for ${report.name}’s fit check`:'Now, for their fit check'):'Now, for a fit check'}),
   el('div',{className:'read-band'},stage),
   el('p',{className:'read-closer',textContent:card.closer}),
-  el('div',{className:'read-finale','aria-hidden':'true'},el('p',{className:'read-verdict',textContent:card.verdict}),paddles),
   foot('story-foot read-foot'));
+}
+// The judges (canvas "The judges"): the report's last card. Three judges raise scorecards on the
+// person's style as a whole, scored from everything the report counted (not an outfit photo).
+const PADDLE_TILT=['-9deg','2deg','9deg'],PADDLE_STICK=[150,200,140];
+function judgesCard(card){
+ const paddles=el('div',{className:'judges-paddles','aria-hidden':'true'},...card.scores.map((s,k)=>{
+  const paddle=el('div',{className:'judges-paddle'},el('div',{className:'judges-score'},el('b',{textContent:String(s.n)}),el('span',{textContent:s.label})),el('span',{className:'judges-stick'}));
+  paddle.style.setProperty('--r',PADDLE_TILT[k]);paddle.querySelector('.judges-stick').style.height=`${PADDLE_STICK[k]}px`;paddle.style.animationDelay=`${(1.1+k*0.18).toFixed(2)}s`;
+  return paddle;
+ }));
+ return el('article',{className:'story-card story-judges','aria-label':`The judges score ${report.shared?'their':'your'} style: ${card.verdict}. ${card.scores.map(s=>`${s.label} ${s.n}`).join(', ')}`},
+  el('h2',{className:'judges-title',textContent:report.shared?(report.name?`The judges score ${report.name}’s style`:'The judges score their style'):'The judges score your style'}),
+  el('div',{className:'judges-head'},
+   el('p',{className:'judges-verdict',textContent:card.verdict}),
+   el('p',{className:'judges-basis',textContent:report.shared?'scored on everything they’ve bought':'scored on everything you’ve bought'})),
+  paddles,
+  foot());
 }
 // Fits the 360×420 photo band into whatever height the card leaves it.
 function fitRead(){
@@ -289,7 +301,7 @@ function lockedCard(card){
    el('p',{className:'locked-hint',textContent:'Or text Jules a photo of an old receipt.'})),
   foot());
 }
-const RENDER={receipt:receiptCard,gatekeeper:gatekeeperCard,emoji:emojiCard,inout:inOutCard,match:matchCard,read:readCard,spectrum:spectrumCard,locked:lockedCard};
+const RENDER={receipt:receiptCard,gatekeeper:gatekeeperCard,emoji:emojiCard,inout:inOutCard,match:matchCard,read:readCard,spectrum:spectrumCard,judges:judgesCard,locked:lockedCard};
 
 function renderCard(animate=true){
  const card=report.cards[index];

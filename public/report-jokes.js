@@ -4,7 +4,7 @@ import {mountAdminShell,adminJson} from './admin-console.js';
 mountAdminShell('jokes');
 const $=id=>document.getElementById(id);
 const el=(tag,props={},...children)=>{const node=Object.assign(document.createElement(tag),props);node.append(...children.filter(c=>c!=null));return node;};
-const CARD={receipt:'Receipt',gatekeeper:'Gatekeeper',inout:'In / Out',emoji:'Emojis',match:'Style match'};
+const CARD={receipt:'Receipt',gatekeeper:'Gatekeeper',inout:'In / Out',emoji:'Emojis',match:'Style match',read:'The Read',judges:'Judges'};
 const REASON={wrong:'wrong',not_funny:'not funny',wont_share:'wouldn’t share'};
 const SOURCE={generated:'AI',prewritten:'pre-written',fact:'plain fact'};
 const votes=l=>`👍 ${l.ups} · 👎 ${l.downs}`;

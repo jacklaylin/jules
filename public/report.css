@@ -304,8 +304,8 @@ body.report-page:has(.report-player:not([hidden])[data-ground="inout"]){backgrou
 @keyframes report-land{0%{opacity:0;transform:scale(1.3)}60%{opacity:1;transform:scale(.97)}100%{transform:none}}
 @media (prefers-reduced-motion:reduce){.report-page *{animation:none!important;transition:none!important}}
 
-/* The Read (design canvas "The Read"): the outfit photo marked up with sticker callouts, a closer,
-   then the judges' scorecards. The photo band is the canvas's 360×420 frame (photo at 22,0 316×420),
+/* The Read (design canvas "The Read"): the outfit photo marked up with sticker callouts and a closer,
+   left up to be read (the judges' scorecards are their own card, below). The photo band is the canvas's 360×420 frame (photo at 22,0 316×420),
    scaled by report.js (--read-scale) when the card is short; dots and stickers are placed by the server
    in those pixels. */
 .story-read{background:var(--ink);gap:10px;padding:20px 0 0}
@@ -319,14 +319,6 @@ body.report-page:has(.report-player:not([hidden])[data-ground="inout"]){backgrou
 .read-sticker{position:absolute;width:118px;box-sizing:border-box;margin:0;padding:7px 9px;background:var(--butter);color:var(--ink);border:2px solid var(--ink);border-radius:10px;box-shadow:0 6px 16px #00000066;font:700 12.5px/1.15 var(--font-sans);letter-spacing:-.01em;transform:rotate(var(--r));animation:read-sticker .45s ease-out both}
 .read-closer{margin:0 22px;font:400 26px/1.02 var(--font-serif);letter-spacing:-.03em;animation:read-fade .5s ease-out 2.2s both}
 .read-foot{margin-top:auto;padding:0 22px 4px;position:relative;z-index:1}
-.read-finale{position:absolute;inset:0;background:#17120fd9;pointer-events:none;animation:read-fade .4s ease-out 3.4s both}
-.read-verdict{position:absolute;left:22px;right:22px;top:76px;margin:0;text-align:center;font:800 44px/.95 var(--font-sans);letter-spacing:-.05em}
-.read-paddles{position:absolute;left:0;right:0;bottom:44px;height:420px;display:flex;justify-content:center;align-items:flex-end;gap:12px}
-.read-paddle{display:flex;flex-direction:column;align-items:center;transform:rotate(var(--r));animation:read-raise .7s cubic-bezier(.16,1,.3,1) both}
-.read-score{width:98px;height:126px;box-sizing:border-box;background:var(--white);color:var(--ink);border:3px solid var(--ink);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 10px 24px #00000080}
-.read-score b{font:800 70px/.9 var(--font-sans);letter-spacing:-.06em}
-.read-score span{font:500 9.5px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--text-2,#6B625B);text-align:center;padding:0 4px}
-.read-stick{width:10px;margin-bottom:-44px;background:#C9B79C;border-left:2px solid var(--ink);border-right:2px solid var(--ink)}
 .locked-read{display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:16px;padding:0 18px;background:linear-gradient(160deg,#3a312b,#17120f)}
 .locked-sticker{background:var(--butter);color:var(--ink);border:2px solid var(--ink);border-radius:10px;padding:6px 9px;font:700 13px var(--font-sans);filter:blur(3px);transform:rotate(-3deg)}
 .locked-sticker+.locked-sticker{align-self:flex-end;transform:rotate(4deg)}
@@ -334,7 +326,22 @@ body.report-page:has(.report-player:not([hidden])[data-ground="inout"]){backgrou
 @keyframes read-draw{from{stroke-dashoffset:300}to{stroke-dashoffset:0}}
 @keyframes read-dot{from{transform:scale(0)}to{transform:scale(1)}}
 @keyframes read-sticker{0%{opacity:0;transform:scale(.6) rotate(var(--r))}70%{opacity:1;transform:scale(1.06) rotate(var(--r))}100%{opacity:1;transform:rotate(var(--r))}}
-@keyframes read-raise{0%{transform:translateY(240px) rotate(var(--r))}70%{transform:translateY(-10px) rotate(var(--r))}100%{transform:rotate(var(--r))}}
+
+/* The judges (design canvas "The judges"): the report's last card. A verdict over three scorecards
+   on sticks rising from the bottom edge, scoring the person's style as a whole. */
+.story-judges{background:var(--ink);gap:0;padding:22px 22px 0}
+.judges-title{margin:0;font:400 30px/1 var(--font-serif);letter-spacing:-.04em;animation:read-fade .4s ease-out .15s both}
+.judges-head{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;justify-content:center;text-align:center}
+.judges-verdict{margin:0;font:800 44px/.95 var(--font-sans);letter-spacing:-.05em;animation:report-land .6s ease-out .5s both}
+.judges-basis{margin:12px 0 0;font:400 15px/1.2 var(--font-serif);color:#ffffffa6;animation:read-fade .4s ease-out .8s both}
+/* The sticks fade out above the footer, so the scorecards rise from below without crossing it. */
+.judges-paddles{flex:0 1 300px;min-height:180px;margin:0 -22px;display:flex;justify-content:center;align-items:flex-end;gap:14px;overflow:hidden;-webkit-mask-image:linear-gradient(#000 75%,transparent);mask-image:linear-gradient(#000 75%,transparent)}
+.judges-paddle{display:flex;flex-direction:column;align-items:center;transform:rotate(var(--r));animation:read-raise .7s cubic-bezier(.16,1,.3,1) both}
+.judges-score{width:98px;height:126px;flex:none;box-sizing:border-box;background:var(--white);color:var(--ink);border:3px solid var(--ink);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 10px 24px #00000080}
+.judges-score b{font:800 70px/.9 var(--font-sans);letter-spacing:-.06em}
+.judges-score span{font:500 9.5px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--text-2,#6B625B);text-align:center;padding:0 4px}
+.judges-stick{width:10px;flex:none;margin-bottom:-40px;background:#C9B79C;border-left:2px solid var(--ink);border-right:2px solid var(--ink)}
+@keyframes read-raise{0%{transform:translateY(360px) rotate(var(--r))}70%{transform:translateY(-10px) rotate(var(--r))}100%{transform:rotate(var(--r))}}
 
 /* Story controls are not gel pills: no gloss, shadow, hover lift or padding from the shared button style. */
 .report-tap,.report-icon-button,.report-pill-button,.report-toggle,.report-link{box-shadow:none;transform:none}
