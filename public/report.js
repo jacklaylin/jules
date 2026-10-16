@@ -143,6 +143,22 @@ function emojiCard(card,animate){
   el('ul',{className:'emoji-grid'},...reels),
   foot());
 }
+// Spectrum, the closer (canvas card 7): the person's type, its line, and the sliders behind it. Every
+// dot starts in the middle and slides out to its spot.
+function spectrumCard(card){
+ const slider=(x,i)=>{
+  const dot=el('span',{className:'spectrum-dot'});dot.style.left=`${x.value}%`;dot.style.animationDelay=`${(0.5+i*0.12).toFixed(2)}s`;
+  const ends=el('div',{className:'spectrum-ends'},el('span',{className:x.value<=50?'is-near':'',textContent:x.left}),el('span',{className:x.value>50?'is-near':'',textContent:x.right}));
+  return el('li',{className:'spectrum-slider','aria-label':`${x.left} to ${x.right}: ${x.value} of 100`},ends,el('div',{className:'spectrum-track'},el('span',{className:'spectrum-mid'}),dot));
+ };
+ return el('article',{className:'story-card story-spectrum','aria-label':`${report.shared?(report.name?report.name+' is':'They’re'):'You’re'} ${card.name}`},
+  el('div',{className:'spectrum-head'},
+   el('p',{className:'spectrum-is',textContent:report.shared?(report.name?`${report.name} is`:'They’re'):'You’re'}),
+   el('h2',{className:'story-title spectrum-name',textContent:card.name}),
+   el('p',{className:'spectrum-line',textContent:card.line})),
+  el('ul',{className:'spectrum-sliders'},...card.sliders.map(slider)),
+  foot());
+}
 // In / Out (canvas card 4): the "in / out" meme as a notes-app list on a butter ground. IN lines slide
 // in, then OUT lines (struck through), then the closing line. Every fact is counted by code.
 function inOutCard(card){
@@ -178,7 +194,7 @@ function lockedCard(card){
    el('p',{className:'locked-hint',textContent:'Or text Jules a photo of an old receipt.'})),
   foot());
 }
-const RENDER={receipt:receiptCard,gatekeeper:gatekeeperCard,emoji:emojiCard,inout:inOutCard,locked:lockedCard};
+const RENDER={receipt:receiptCard,gatekeeper:gatekeeperCard,emoji:emojiCard,inout:inOutCard,spectrum:spectrumCard,locked:lockedCard};
 
 function renderCard(animate=true){
  const card=report.cards[index];
