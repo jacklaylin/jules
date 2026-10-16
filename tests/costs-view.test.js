@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {viewOf,money,totalLine,coverageText,budgetText,providerLines,serviceRow,featureRows,meteredText,entryBody} from '../public/costs-view.js';
+import {viewOf,periodOf,apiDate,pickerValue,serviceColumns,featureColumn,money,totalLine,coverageText,budgetText,basisLabel,serviceRow,featureRows,meteredText,entryBody} from '../public/costs-view.js';
 
-const rows=[{id:'openai',name:'OpenAI API',url:'u',usage:1.25,daily:0,monthly:0,total:1.25,source:'OpenAI billing',complete:true,note:null},
- {id:'vercel',name:'Vercel',url:'u',usage:0.5,daily:null,monthly:null,total:null,source:'Manual',complete:false,note:'Team plan'}];
+const rows=[{id:'openai',name:'OpenAI API',url:'u',today:1.25,month:3,projected:31,basis:'billed+estimate',source:'OpenAI Costs API',updated:'2026-10-15T12:00:00Z',notes:['Other projects left out.'],complete:true},
+ {id:'vercel',name:'Vercel',url:'u',today:null,month:null,projected:null,basis:'unknown',source:'Manual ledger',updated:null,notes:[],complete:false}];
+const report=(over={})=>({date:'2026-10-15',rows,totals:{today:1.25,month:3,projected:31},incomplete:['Vercel'],budget:null,...over});
 
 test('views are linkable and an unknown view falls back to By service',()=>{
  assert.equal(viewOf('?view=evals'),'evals');
@@ -12,47 +13,78 @@ test('views are linkable and an unknown view falls back to By service',()=>{
  assert.equal(viewOf(''),'');
 });
 
-test('the title total never shows unknown costs as zero, and says when it is only a subtotal',()=>{
- assert.deepEqual(totalLine({total:null,missing:2,rows}),{amount:'Unknown',label:'costs unknown'});
- assert.deepEqual(totalLine({total:1.75,missing:1,rows}),{amount:'$1.75',label:'known subtotal'});
- assert.deepEqual(totalLine({total:1.75,missing:0,rows}),{amount:'$1.75',label:'recorded'});
+test('month is the default period; day is linkable',()=>{
+ assert.equal(periodOf(''),'month');assert.equal(periodOf('?period=day&view=evals'),'day');assert.equal(periodOf('?period=week'),'month');
+});
+
+test('a month reports through today while running and through its last day once over; future days clamp to today',()=>{
+ assert.equal(apiDate('month','2026-10','2026-10-16'),'2026-10-16');
+ assert.equal(apiDate('month','2026-09','2026-10-16'),'2026-09-30');
+ assert.equal(apiDate('month','2024-02','2026-10-16'),'2024-02-29');
+ assert.equal(apiDate('month','2027-01','2026-10-16'),'2026-10-16');
+ assert.equal(apiDate('day','2026-10-03','2026-10-16'),'2026-10-03');
+ assert.equal(apiDate('day','2026-11-01','2026-10-16'),'2026-10-16');
+ // Switching period keeps the month.
+ assert.equal(pickerValue('month','2026-09-05','2026-10-16'),'2026-09');
+ assert.equal(pickerValue('day','2026-09','2026-10-16'),'2026-09-30');
+ assert.equal(pickerValue('day','2026-10','2026-10-16'),'2026-10-16');
+});
+
+test('columns follow the period: a running month projects, a finished month does not, a day shows the day',()=>{
+ assert.deepEqual(serviceColumns('month',report()).map(([k])=>k),['month','projected']);
+ assert.deepEqual(serviceColumns('month',report({date:'2026-09-30'})),[['month','Month']]);
+ assert.deepEqual(serviceColumns('day',report()),[['today','Day']]);
+ assert.deepEqual(featureColumn('month',report()),['month','Month to date']);
+ assert.deepEqual(featureColumn('day',report()),['today','Day']);
+});
+
+test('the title shows the month by default, the day as an option; unknown is never $0',()=>{
+ const line=totalLine(report());
+ assert.equal(line.amount,'$3.00');
+ assert.match(line.label,/^October 2026 to date, through 2026-10-15 \(UTC\) · projected month end \$31\.00 · known part only$/);
+ assert.match(totalLine(report({date:'2026-09-30'})).label,/^September 2026 \(UTC\), whole month/);
+ const day=totalLine(report(),'day');
+ assert.equal(day.amount,'$1.25');assert.match(day.label,/^2026-10-15 \(UTC\) · month to date \$3\.00 · known part only$/);
+ assert.equal(totalLine(report({totals:{today:null,month:null,projected:null}})).amount,'Unknown');
+ assert.doesNotMatch(totalLine(report({incomplete:[]})).label,/known part/);
  assert.equal(totalLine(null).amount,'—');
- assert.equal(money(null),'Unknown');assert.equal(money(0),'$0.00');assert.equal(money(0.01234),'$0.0123');
+ assert.equal(money(null),'Unknown');assert.equal(money(0),'$0.00');assert.equal(money(0.01234),'$0.0123');assert.equal(money(31),'$31.00');
 });
 
-test('coverage and budget go in the status line, with over-budget flagged',()=>{
- assert.match(coverageText({missing:1,rows}),/^1 of 2 services .* incomplete$/);
- assert.match(coverageText({missing:0,rows}),/^All services/);
- assert.deepEqual(budgetText({budget:null,total:3,missing:0}),{text:'No daily warning budget set',over:false});
- assert.deepEqual(budgetText({budget:2,total:3,missing:0}),{text:'Daily warning budget $2.00: over budget',over:true});
- assert.equal(budgetText({budget:5,total:3,missing:1}).text,'Daily warning budget $5.00: coverage incomplete, actual costs may exceed it');
- assert.equal(budgetText({budget:5,total:3,missing:0}).text,'Daily warning budget $5.00: within budget');
- assert.equal(budgetText({budget:5,total:null,missing:2}).over,false);
+test('coverage names incomplete services; the budget is compared with the day',()=>{
+ assert.equal(coverageText(report()),'Incomplete: Vercel, so totals include only what is known');
+ assert.equal(coverageText(report({incomplete:[]})),'Every service is covered');
+ assert.deepEqual(budgetText(report()),{text:'No daily warning budget set',over:false});
+ assert.deepEqual(budgetText(report({budget:1}),'month'),{text:'',over:false});
+ assert.deepEqual(budgetText(report({budget:1,incomplete:[]})),{text:'Daily warning budget $1.00: over budget',over:true});
+ assert.equal(budgetText(report({budget:5})).text,'Daily warning budget $5.00: coverage incomplete, actual costs may exceed it');
+ assert.equal(budgetText(report({budget:5,incomplete:[]})).text,'Daily warning budget $5.00: within budget');
+ assert.equal(budgetText(report({budget:5,totals:{today:null,month:null,projected:null}})).over,false);
 });
 
-test('service rows keep every ledger column',()=>{
- assert.deepEqual(serviceRow(rows[0]),{id:'openai',name:'OpenAI API',url:'u',note:'',usage:'$1.25',subscription:'$0.00 ($0.00/mo)',total:'$1.25',source:'OpenAI billing',complete:true});
- assert.deepEqual([serviceRow(rows[1]).subscription,serviceRow(rows[1]).total,serviceRow(rows[1]).note],['Unknown','Unknown','Team plan']);
+test('service rows say how each number is known and when it was updated',()=>{
+ const openai=serviceRow(rows[0]), vercel=serviceRow(rows[1]);
+ assert.deepEqual([openai.today,openai.month,openai.projected,openai.basis,openai.badge],['$1.25','$3.00','$31.00','Billed + Estimate','']);
+ assert.notEqual(openai.updated,'Never');assert.deepEqual(openai.notes,['Other projects left out.']);
+ assert.deepEqual([vercel.today,vercel.basis,vercel.badge,vercel.updated],['Unknown','Not recorded · incomplete','warn','Never']);
+ assert.equal(serviceRow({...rows[0],basis:'billed'}).badge,'ok');
+ assert.equal(basisLabel('manual'),'Manual');
 });
 
-test('By feature and Evals split the metered estimate',()=>{
- const metered={features:[{label:'Chat replies',calls:40,cost:0.8,eval:false},{label:'Evals · agent routing (test runs)',calls:200,cost:2,eval:true}],total:2.8,evals:2};
- assert.deepEqual(featureRows(metered,false),[{label:'Chat replies',calls:'40',cost:'$0.80'}]);
- assert.deepEqual(featureRows(metered,true).map(f=>f.label),['Evals · agent routing (test runs)']);
- assert.equal(meteredText(metered,false),'$0.80 estimated from people using Jules · $2.80 including evals');
- assert.equal(meteredText(metered,true),'$2.00 estimated from eval test runs');
- assert.equal(meteredText(null,true),'Metered usage is unavailable');
- assert.equal(meteredText({features:[],total:0,evals:0},false),'No metered calls on this day');
+test('By feature and Evals split the metered estimate, with calls, searches and unpriced models',()=>{
+ const features={features:[{label:'Chat replies',aiCalls:40,searches:12,today:.2,month:.8,eval:false,unpriced:false},{label:'Style report',aiCalls:2,searches:0,today:0,month:0,eval:false,unpriced:true},{label:'Evals · agent routing (test runs)',aiCalls:200,searches:0,today:0,month:2,eval:true,unpriced:false}],
+  today:.2,month:2.8,evalsMonth:2,perSearch:{value:.015,basis:'plan'},unpriced:['gpt-5.5']};
+ assert.deepEqual(featureRows(features,false),[{label:'Chat replies',aiCalls:'40',searches:'12',today:'$0.20',month:'$0.80'},{label:'Style report',aiCalls:'2',searches:'0',today:'$0.00',month:'$0.00 + unpriced'}]);
+ assert.deepEqual(featureRows(features,true).map(f=>f.label),['Evals · agent routing (test runs)']);
+ const text=meteredText({features},false);
+ assert.match(text,/^\$0\.80 estimated from people using Jules this month · \$2\.80 including evals/);
+ assert.match(text,/searches at \$0\.015 each \(SerpApi plan price/);assert.match(text,/gpt-5\.5/);
+ assert.match(meteredText({features:{...features,perSearch:null}},false),/search costs unknown/);
+ assert.match(meteredText({features},true),/^\$2\.00 estimated from eval test runs/);
+ assert.match(meteredText({features},false,'day'),/^\$0\.20 estimated from people using Jules on this day · \$0\.20 including evals/);
+ assert.equal(meteredText({features:null,featureNotice:'Run db/031.'},true),'Run db/031.');
+ assert.equal(meteredText({features:{...features,features:[]}},false),'No metered calls this month');
  assert.deepEqual(featureRows(null,false),[]);
-});
-
-test('connected billing reports what each provider returned; a disconnected one says only its message',()=>{
- const lines=providerLines({openai:{status:'connected',message:'Connected.',periodStart:'2026-10-01',periodEnd:'2026-10-15',periodTotal:12.5,checkedAt:0},
-  serpapi:{status:'missing',message:'Add SERPAPI_KEY to connect.'},vercel:{status:'connected',message:'Connected.',daily:0.4,unallocated:1,checkedAt:0}});
- assert.deepEqual(lines.map(([name])=>name),['OpenAI','SerpApi','Vercel']);
- assert.match(lines[0][1],/2026-10-01 through 2026-10-15 \(UTC\): \$12\.50/);
- assert.equal(lines[1][1],'Add SERPAPI_KEY to connect.');
- assert.match(lines[2][1],/Reported daily charges: \$0\.40\. Excluded unallocated team charges: \$1\.00\./);
 });
 
 test('saving an amount: usage is for the day, subscriptions and the budget for that month',()=>{

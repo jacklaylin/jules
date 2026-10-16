@@ -2,7 +2,7 @@ import { billingSnapshot } from '../lib/billing.js';
 import { authorize } from '../lib/auth.js';
 import { createStore } from '../lib/store.js';
 import { json, readJson } from '../lib/http.js';
-import { summarize, validDate, validateEntry, meteredByFeature } from '../lib/costs.js';
+import { buildReport, validDate, validateEntry } from '../lib/costs.js';
 export const config = { api: {bodyParser:false} };
 export function createCostsHandler({auth=authorize, storeFactory=createStore, env=process.env, billing=billingSnapshot}={}) {
   return async (req,res) => {
@@ -13,22 +13,10 @@ export function createCostsHandler({auth=authorize, storeFactory=createStore, en
       if (req.method === 'GET') {
         const date = new URL(req.url,'https://local.invalid').searchParams.get('date');
         if (!validDate(date)) return json(res,400,{error:'Choose a valid date.'});
-        const [entries, providers, usage] = await Promise.all([store.costEntries(date),billing(date,env),Promise.resolve().then(()=>store.meteredUsage(date)).catch(()=>null)]);
-        const report=summarize(date,entries);
-        for(const service of ['openai','github','vercel']) {
-          const provider=providers[service];
-          const row=report.rows.find(r=>r.id===service);
-          if(provider?.status==='connected') {row.usage=provider.daily;row.source=service==='openai'?'OpenAI billing API':`${service} billing API`;}
-          else if(provider?.status==='error') {row.usage=null;row.source='Billing sync failed';}
-        }
-        for(const item of report.rows) {
-          item.total=item.usage===null && item.daily===null ? null : (item.usage??0)+(item.daily??0);
-          item.complete=item.usage!==null && item.monthly!==null;
-          item.source??='Manual ledger';
-        }
-        report.total=report.rows.every(r=>r.total===null)?null:report.rows.reduce((sum,r)=>sum+(r.total??0),0);
-        report.missing=report.rows.filter(r=>!r.complete).length;
-        return json(res,200,{...report,providers,metered:usage?meteredByFeature(usage):null});
+        const [entries, providers, metered] = await Promise.all([store.costEntries(date),billing(date,env),Promise.resolve().then(()=>store.meteredMonth(date)).catch(()=>null)]);
+        const report=buildReport({date,entries,providers,metered,env});
+        if(!metered)report.featureNotice='Feature costs are unavailable. If db/031_cost_dashboard.sql has not been run in Supabase, run it.';
+        return json(res,200,report);
       }
       if (req.method === 'POST') {
         await store.saveCostEntry(validateEntry(await readJson(req)));

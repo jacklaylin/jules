@@ -4,7 +4,7 @@
 .costs-table .service-name{font-weight:600;color:var(--ink);text-decoration:none}.costs-table .service-name:hover{color:var(--grape)}
 .costs-table small{display:block;max-width:320px;font-size:12px;line-height:1.4;color:var(--text-2);white-space:normal}
 .costs-table td .badge{font-size:11px;padding:3px 8px 3px 5px}.costs-table td .badge::before{width:13px;height:13px}
-.costs-table .muted{color:var(--text-2)}.costs-narrow{max-width:720px}
+.costs-table .muted{color:var(--text-2)}.costs-narrow{max-width:900px}.costs-table td .badge+small{margin-top:4px}
 .costs-providers{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:6px 16px;margin:0;font-size:13px;line-height:1.5;max-width:980px}
 .costs-providers dt{font-weight:600}.costs-providers dd{margin:0;color:var(--text-2);overflow-wrap:anywhere}
 .entry-fields{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin:12px 0 0}.entry-fields label{display:grid;gap:4px;flex:1 1 180px;min-width:0;font-size:13px}
