@@ -10,7 +10,14 @@ const person=new URLSearchParams(location.search).get('person');
 const el=(tag,props={},...children)=>{const node=Object.assign(document.createElement(tag),props);node.append(...children.filter(c=>c!=null&&c!==false));return node;};
 let report=null,index=0;
 
-function show(view){for(const id of ['view-message','view-intro','view-card','view-end'])$(id).hidden=id!==view;}
+function show(view){
+ for(const id of ['view-message','view-intro','view-card','view-end'])$(id).hidden=id!==view;
+ // The intro and end screens keep the desktop controls: → starts from the intro, ← goes back from the end.
+ const intro=view==='view-intro',end=view==='view-end';
+ $('stage-chrome').hidden=!(intro||end);
+ $('chrome-prev').hidden=!end;$('chrome-next').hidden=!intro;
+ $('chrome-keys').textContent=intro?'→ to start · Esc to close':'← to go back · Esc to close';
+}
 // progress: null (none), 'waiting' (moving bar, length unknown) or a fraction 0–1.
 let stepTimer;
 function message(title,body,eyebrow='Style report',action=null,{progress=null,steps=[]}={}){
@@ -90,13 +97,27 @@ $('tap-prev').onclick=()=>go(index-1);
 $('close').onclick=()=>show('view-end');
 $('arrow-next').onclick=()=>go(index+1);
 $('arrow-prev').onclick=()=>go(index-1);
-$('home').append(wordmark());
-// Desktop keyboard: arrows move between cards, Escape closes, while a card shows and no sheet is open.
+$('home').append(wordmark());$('chrome-home').append(wordmark());
+const exit=person?'/admin':'/wishlist';
+$('chrome-close').href=exit;
+$('chrome-next').onclick=()=>go(0);
+$('chrome-prev').onclick=()=>go(report.cards.length-1);
+// Desktop keyboard, while no sheet is open. Cards: arrows move, Escape ends the story. Intro: → starts.
+// End: ← goes back to the last card. On the intro and end, Escape leaves the report.
 document.addEventListener('keydown',event=>{
- if($('view-card').hidden||document.querySelector('dialog[open]')||event.altKey||event.ctrlKey||event.metaKey)return;
- if(event.key==='ArrowRight'){event.preventDefault();go(index+1);}
- else if(event.key==='ArrowLeft'){event.preventDefault();go(index-1);}
- else if(event.key==='Escape')show('view-end');
+ if(!report||document.querySelector('dialog[open]')||event.altKey||event.ctrlKey||event.metaKey)return;
+ const key=event.key;
+ if(!$('view-card').hidden){
+  if(key==='ArrowRight'){event.preventDefault();go(index+1);}
+  else if(key==='ArrowLeft'){event.preventDefault();go(index-1);}
+  else if(key==='Escape')show('view-end');
+ }else if(!$('view-intro').hidden){
+  if(key==='ArrowRight'){event.preventDefault();go(0);}
+  else if(key==='Escape')location.href=exit;
+ }else if(!$('view-end').hidden){
+  if(key==='ArrowLeft'){event.preventDefault();go(report.cards.length-1);}
+  else if(key==='Escape')location.href=exit;
+ }
 });
 $('restart').onclick=()=>go(0);
 $('vote-up').onclick=()=>save({action:'report-feedback',vote:'up'},'Noted. More like this.');
