@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {receiptLines,validTotal,writeTotal,buildReport,updateReport,reportView,handleReport,FALLBACK_TOTAL,gatekeeper,nicheBrand,validGateLine,writeGateLine,reportWriter,REPORT_MODEL,thenVsNow,validThenVerdict,lockedCards,MIN_CARDS} from '../lib/style-report.js';
+import {receiptLines,validTotal,writeTotal,buildReport,updateReport,reportView,handleReport,FALLBACK_TOTAL,gatekeeper,nicheBrand,validGateLine,writeGateLine,reportWriter,REPORT_MODEL,thenVsNow,validThenVerdict,lockedCards,MIN_CARDS,sharedView,handleSharedReport} from '../lib/style-report.js';
 import {tagFingerprint} from '../lib/item-tags.js';
 import {purchaseEvidence,projectReceiptEvidence} from '../lib/receipt-extraction.js';
 import {signInLinks} from '../lib/onboarding.js';
@@ -86,6 +86,7 @@ function fixture(){
  let row={conversation_id:owner,revision:1,token_ciphertext:'sealed',data:{job:{status:'ready'},sources:[],questions:[],item_tags:tags}},busy=false;
  return {get row(){return row;},set busy(v){busy=v;},
   gmailImport:async()=>structuredClone(row),evidence:async()=>structuredClone(rows),signupFirstName:async()=>'Jack',
+  reportByShareToken:async token=>row.data.style_report?.share?.token===token?{conversation_id:owner,report:structuredClone(row.data.style_report)}:null,
   claimGmailImport:async()=>{if(busy)return null;busy=true;row.revision++;return structuredClone(row);},
   finishGmailImport:async(o,revision,data,token)=>{if(revision!==row.revision)return false;busy=false;row={...row,data:structuredClone(data),token_ciphertext:token};return true;}};
 }
@@ -296,4 +297,56 @@ test('the built report puts real cards first and locked cards after, and locked 
  assert.ok(types.indexOf('locked')===-1||types.slice(types.indexOf('locked')).every(t=>t==='locked'));
  const locked=built.report.cards.find(c=>c.type==='locked');
  if(locked)await assert.rejects(updateReport(store,owner,{action:'report-lines',card:'locked',hidden:[],show_returns:false}),/no lines/);
+});
+
+// The writer answers each card's schema: in-app copy talks to the person, shared copy about them.
+const sharingWriter=async request=>request.schema.properties.line?{line:'you got to Our Legacy early',shared:'Jack got to Our Legacy early'}
+ :request.schema.properties.verdict?{verdict:'new year, same black',shared:'Jack kept it black'}:{total:'one colour and a crop top habit'};
+
+test('sharing makes an unguessable link the person can turn off, and a rebuild keeps it',async()=>{
+ const store=fixture();await buildReport(store,owner,{},{interpret:sharingWriter});
+ const shared=await updateReport(store,owner,{action:'report-share'});
+ assert.match(shared.share.token,/^[A-Za-z0-9_-]{22}$/);
+ // Sharing again keeps the same link.
+ assert.equal((await updateReport(store,owner,{action:'report-share'})).share.token,shared.share.token);
+ assert.equal(reportView(store.row.data.style_report).share.token,shared.share.token);
+ await buildReport(store,owner,{},{interpret:sharingWriter});
+ assert.equal(store.row.data.style_report.share.token,shared.share.token,'a rebuild keeps the link working');
+ await updateReport(store,owner,{action:'report-unshare'});
+ assert.equal(store.row.data.style_report.share,undefined);
+});
+
+test('a friend opening the link needs no sign-in and sees only what the person chose to share',async()=>{
+ const store=fixture();await buildReport(store,owner,{},{interpret:sharingWriter});
+ // Hide a line, show returns in the app, and mark one card as not for sharing.
+ await updateReport(store,owner,{action:'report-lines',card:'receipt',hidden:['colour:black'],show_returns:true});
+ const {share}=await updateReport(store,owner,{action:'report-share'});
+ const open=async token=>{const res=response();await handleSharedReport({method:'GET',url:`/api/wishlist?shared=${token}`,headers:{}},res,{store});return res;};
+ let res=await open(share.token);
+ assert.equal(res.statusCode,200);
+ const view=res.body.report,text=JSON.stringify(view);
+ assert.equal(view.name,'Jack');assert.equal(view.shared,true);
+ assert.ok(!view.cards.some(c=>c.type==='locked'),'locked cards are never shared');
+ const receipt=view.cards.find(c=>c.type==='receipt');
+ assert.ok(!receipt.lines.some(l=>l.label==='RETURNED'),'returns stay private even when shown in the app');
+ assert.ok(!receipt.lines.some(l=>l.label==='BLACK ANYTHING'),'hidden lines stay hidden');
+ for(const secret of ['feedback','hidden','share','token','conversation','written','key'])assert.ok(!text.includes(`"${secret}":`),secret);
+ const gate=view.cards.find(c=>c.type==='gatekeeper');
+ if(gate)assert.equal(gate.line,'Jack got to Our Legacy early','shared copy is about the person');
+ // "Wouldn't share" leaves that card out of the link.
+ await updateReport(store,owner,{action:'report-feedback',card:'receipt',vote:'down',reason:'wont_share'});
+ res=await open(share.token);assert.ok(!res.body.report.cards.some(c=>c.type==='receipt'));
+ // Wrong, malformed or turned-off links all look the same: not found.
+ for(const token of ['AbCdEfGhIjKlMnOpQrStUv','short','../../etc'])assert.equal((await open(token)).statusCode,404,token);
+ await updateReport(store,owner,{action:'report-unshare'});
+ assert.equal((await open(share.token)).statusCode,404);
+});
+
+test('shared copy must be about the person, never "you", or it falls back',async()=>{
+ const store=fixture();
+ const built=await buildReport(store,owner,{},{interpret:async request=>request.schema.properties.line?{line:'you got to Our Legacy early',shared:'you got to Our Legacy early'}:request.schema.properties.verdict?{verdict:'new year, same black',shared:'your closet stayed black'}:{total:'one colour and a crop top habit'}});
+ for(const card of built.report.cards.filter(c=>c.shared))assert.ok(!/\byou(r)?\b/i.test(card.shared),card.shared);
+ // Older reports without shared copy still share safely.
+ const legacy={...built.report,cards:built.report.cards.map(({shared,...c})=>c)};
+ for(const card of sharedView(legacy,'Jack').cards)assert.ok(!/\byou(r)?\b/i.test(card.line??card.verdict??''),card.type);
 });

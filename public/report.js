@@ -7,6 +7,10 @@ const session=createSession({storage:localStorage,lock:work=>navigator.locks?nav
 const fragment=new URLSearchParams(location.hash.slice(1)),signinToken=fragment.get('signin');
 // Admin preview of a tester's report (/report?person=<id>): read-only, through the owner's admin access.
 const person=new URLSearchParams(location.search).get('person');
+// A friend's view through a share link (/r/<link>): no sign-in, read-only, written about the person.
+const sharedToken=location.pathname.match(/^\/r\/([A-Za-z0-9_-]{22})\/?$/)?.[1]??null;
+// Read-only views record nothing and offer no edits or sharing.
+const readOnly=Boolean(person||sharedToken);
 const el=(tag,props={},...children)=>{const node=Object.assign(document.createElement(tag),props);node.append(...children.filter(c=>c!=null&&c!==false));return node;};
 let report=null,index=0;
 
@@ -35,6 +39,12 @@ let toastTimer;
 function toast(text){$('toast').textContent=text;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>{$('toast').hidden=true;},2600);}
 
 async function api(method,body){
+ if(sharedToken){
+  const response=await fetch(`/api/wishlist?shared=${sharedToken}`,{cache:'no-store'});
+  const result=await response.json().catch(()=>({}));
+  if(!response.ok)throw Object.assign(Error(result.error||'Something went wrong. Try again.'),{status:response.status});
+  return result;
+ }
  const token=await session.token();
  if(!token)throw Object.assign(Error('Log in to continue.'),{status:401});
  const url=person?`/api/admin?view=report&conversation=${encodeURIComponent(person)}`:'/api/wishlist?report=1';
@@ -48,6 +58,11 @@ async function api(method,body){
 const wordmark=()=>el('span',{className:'report-wordmark','aria-label':'Jules'},el('span',{className:'report-j'},'ȷ',el('span',{className:'report-dot'})),'ules');
 const day=at=>new Date(at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}).toUpperCase();
 
+// In a shared view the cards talk about the person ("Jack's receipts"); in the app, to them.
+const theirs=()=>report.shared?(report.name?`${report.name}’s`:'their'):'your';
+const Theirs=()=>{const t=theirs();return t.charAt(0).toUpperCase()+t.slice(1);};
+// Shared cards end with a question back to the friend reading them.
+const foot=(className='story-foot')=>el('footer',{className},report.shared&&el('span',{className:'story-ask',textContent:'What about you?'}),wordmark());
 function receiptCard(card){
  const lines=card.lines.filter(l=>!l.hidden);
  const range=card.range?(card.range.from===card.range.to?`ORDERS ${card.range.from}`:`ORDERS ${card.range.from}–${card.range.to}`):null;
@@ -63,9 +78,9 @@ function receiptCard(card){
   range&&el('p',{className:'receipt-foot',textContent:range}),
   el('div',{className:'receipt-barcode','aria-hidden':'true'}));
  return el('article',{className:'story-card story-receipt','aria-label':'Your receipt'},
-  el('h2',{className:'display story-title',textContent:'We have your receipts (literally)'}),
+  el('h2',{className:'display story-title',textContent:`We have ${theirs()} receipts (literally)`}),
   el('div',{className:'receipt-roll'},paper,el('div',{className:'receipt-zig','aria-hidden':'true'})),
-  el('footer',{className:'story-foot'},wordmark()));
+  foot());
 }
 // Gatekeeper: a dial from 0 (the mall) to 100 (deep cut), the score counting up as the needle sweeps,
 // the verdict, the one-liner, and the person's brands ranked most niche first.
@@ -84,16 +99,16 @@ function gatekeeperCard(card,animate){
   requestAnimationFrame(tick);
  }
  return el('article',{className:'story-card story-gatekeeper','aria-label':`Gatekeeper score ${card.score} out of 100`},
-  el('h2',{className:'display story-title',textContent:'How niche is your taste?'}),
+  el('h2',{className:'display story-title',textContent:`How niche is ${theirs()} taste?`}),
   el('div',{className:'gate-dial'},
    svg('svg',{viewBox:'0 0 260 150',width:'100%','aria-hidden':'true'},svg('path',{d:ARC,class:'gate-track'}),fill,needle,svg('circle',{cx:130,cy:130,r:9,class:'gate-hub'})),
    el('div',{className:'gate-scale'},el('span',{textContent:'0 · Basically the mall'}),el('span',{textContent:'100 · Extremely esoteric'}))),
   el('div',{className:'gate-result'},number,el('span',{className:'gate-verdict',textContent:card.verdict})),
   el('p',{className:'gate-line',textContent:card.line}),
   el('div',{className:'gate-brands'},
-   el('span',{className:'gate-label',textContent:'Your niche interests'}),
+   el('span',{className:'gate-label',textContent:`${Theirs()} niche interests`}),
    el('ol',{className:'gate-chips'},...card.brands.map((b,i)=>{const chip=el('li',{className:i===0?'gate-chip is-top':'gate-chip'},el('span',{className:'gate-rank',textContent:String(i+1).padStart(2,'0')}),b.name);chip.style.animationDelay=`${(0.9+i*0.06).toFixed(2)}s`;return chip;}))),
-  el('footer',{className:'story-foot'},wordmark()));
+  foot());
 }
 // Scales the 360×640 card to the largest size that fits its space, centred: same layout on every screen.
 const CARD_W=360,CARD_H=640;
@@ -130,7 +145,7 @@ function thenNowCard(card){
   thenNowSide(card.then,'Then','then-half then-then'),
   thenNowSide(card.now,'Now','then-half then-now'),
   el('p',{className:'then-verdict',textContent:card.verdict}),
-  el('footer',{className:'story-foot then-foot'},wordmark()));
+  foot('story-foot then-foot'));
 }
 // A locked card: a real card the person can't have yet, saying from real counts what unlocks it.
 // Never shared, no thumbs.
@@ -148,7 +163,7 @@ function lockedCard(card){
   el('div',{className:'locked-actions'},
    el('a',{className:'report-cta report-cta-small locked-cta',href:'/account',textContent:'Connect more orders'}),
    el('p',{className:'locked-hint',textContent:'Or text Jules a photo of an old receipt.'})),
-  el('footer',{className:'story-foot'},wordmark()));
+  foot());
 }
 const RENDER={receipt:receiptCard,gatekeeper:gatekeeperCard,thennow:thenNowCard,locked:lockedCard};
 
@@ -162,10 +177,11 @@ function renderCard(animate=true){
  $('card').classList.toggle('is-still',!animate);
  const vote=report.votes?.[card.type];
  $('vote-up').setAttribute('aria-pressed',String(vote==='up'));$('vote-down').setAttribute('aria-pressed',String(vote==='down'));
- $('edit-lines').hidden=card.type!=='receipt'||Boolean(person);
+ $('edit-lines').hidden=card.type!=='receipt'||readOnly;
+ $('share').hidden=readOnly;
  // An admin preview records nothing: no thumbs, no line edits.
  // A locked card takes no thumbs either: there's nothing to judge yet.
- const quiet=Boolean(person)||card.type==='locked';
+ const quiet=readOnly||card.type==='locked';
  $('vote-up').hidden=$('vote-down').hidden=quiet;
  if($('controls-label'))$('controls-label').hidden=quiet;
  show('view-card');
@@ -184,7 +200,7 @@ $('tap-prev').onclick=()=>go(index-1);
 $('arrow-next').onclick=()=>go(index+1);
 $('arrow-prev').onclick=()=>go(index-1);
 $('home').append(wordmark());$('chrome-home').append(wordmark());
-const exit=person?'/admin':'/wishlist';
+const exit=person?'/admin':sharedToken?'/':'/wishlist';
 // × leaves the whole report (not just the card): back to the wishlist, or to admin for a preview.
 $('close').onclick=()=>{location.href=exit;};
 $('chrome-close').href=exit;
@@ -208,6 +224,27 @@ document.addEventListener('keydown',event=>{
  }
 });
 $('restart').onclick=()=>go(0);
+// Sharing: the person's own choice. The first tap makes an unguessable link; the phone's share sheet
+// opens when there is one, otherwise the link is copied. Stop sharing turns the link off for everyone.
+const shareUrl=()=>`${location.origin}/r/${report.share.token}`;
+async function shareReport(){
+ try{
+  if(!report.share){const result=await api('POST',{action:'report-share'});report={...result.report,name:report.name};shareStatus();}
+  const url=shareUrl();
+  if(navigator.share){try{await navigator.share({title:'My style report',text:'Jules went through my orders. What would yours say?',url});return;}catch(error){if(error?.name==='AbortError')return;}}
+  try{await navigator.clipboard.writeText(url);toast('Link copied. Anyone with it can see your shared cards.');}
+  catch{toast('Here’s your link. Copy it from the end screen.');}
+ }catch(error){toast(error.message||'Couldn’t make a link. Try again.');}
+}
+function shareStatus(){
+ $('share-status').hidden=readOnly||!report?.share;
+ if(report?.share&&!readOnly){$('share-link').href=shareUrl();$('share-link').textContent=shareUrl().replace(/^https?:\/\//,'');}
+}
+$('share').onclick=shareReport;$('end-share').onclick=shareReport;
+$('unshare').onclick=async()=>{
+ try{const result=await api('POST',{action:'report-unshare'});report={...result.report,name:report.name};shareStatus();toast('Link turned off. Nobody can open it now.');}
+ catch(error){toast(error.message);}
+};
 $('vote-up').onclick=()=>save({action:'report-feedback',vote:'up'},'Noted. More like this.');
 $('vote-down').onclick=()=>$('sheet-down').showModal();
 for(const button of $('sheet-down').querySelectorAll('[data-reason]'))button.onclick=()=>{$('sheet-down').close();save({action:'report-feedback',vote:'down',reason:button.dataset.reason},'Thanks. Jules will do better next time.');};
@@ -240,8 +277,21 @@ async function signInFromLink(token){
 const READ_AGAIN_MS=15000;
 function opened(result){
  clearInterval(stepTimer);report=result.report;
- $('intro-eyebrow').textContent=(person?'Admin preview · ':'')+[report.name?`For ${report.name}`:'For you',report.built_at&&day(report.built_at)].filter(Boolean).join(' · ');
- $('end-title').textContent=report.name?`That’s your report, ${report.name}.`:'That’s your report.';
+ if(report.shared){
+  // A friend's view: about the person, ending with an invitation to get their own.
+  $('intro-eyebrow').textContent=[report.name?`${report.name}’s style report`:'A style report',report.built_at&&day(report.built_at)].filter(Boolean).join(' · ');
+  $('intro-title').textContent=report.name?`${report.name}’s style report is in.`:'Someone’s style report is in.';
+  $('end-title').textContent=report.name?`That’s ${report.name}’s report.`:'That’s their report.';
+  $('end-body').textContent='Jules made it from their shopping history. What would yours say?';
+  $('end-cta').textContent='Get your own report ↗';$('end-cta').href='/signup';
+  $('end-share').hidden=true;
+  if(!report.cards.length){message('Nothing shared here yet.','This report has no cards to show right now.','Style report',{label:'Get your own report ↗',href:'/signup'});return;}
+ }else{
+  $('intro-eyebrow').textContent=(person?'Admin preview · ':'')+[report.name?`For ${report.name}`:'For you',report.built_at&&day(report.built_at)].filter(Boolean).join(' · ');
+  $('end-title').textContent=report.name?`That’s your report, ${report.name}.`:'That’s your report.';
+  $('end-share').hidden=readOnly;
+ }
+ shareStatus();
  show('view-intro');
 }
 async function load(){
@@ -263,6 +313,13 @@ async function load(){
 }
 async function start(){
  if(person)$('message-leave').href='/admin';
+ if(sharedToken){
+  $('message-leave').href='/';$('message-leave').textContent='← Jules';
+  message('One moment…','Opening the style report.','Style report',null,{progress:'waiting'});
+  try{await load();}
+  catch(error){message(error.status===404?'This link isn’t working.':'Couldn’t open this report.',error.status===404?'It was turned off, or it was never a report link.':error.message,'Style report',{label:'Get your own report ↗',href:'/signup'});}
+  return;
+ }
  message('One moment…',person?'Opening this tester’s report.':'Getting your style report.','Style report',null,{progress:'waiting',steps:person?[]:['Going through your orders…','Counting what you keep buying…','Writing your receipt…','Nearly there…']});
  if(signinToken){
   // Keep the token out of history and screenshots once it has been used.
