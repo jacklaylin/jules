@@ -11,6 +11,8 @@ const person=new URLSearchParams(location.search).get('person');
 const sharedToken=location.pathname.match(/^\/r\/([A-Za-z0-9_-]{22})\/?$/)?.[1]??null;
 // Read-only views record nothing and offer no edits or sharing.
 const readOnly=Boolean(person||sharedToken);
+// Export mode (/r/<link>?export=<card>): the server screenshots one finished card as a Story image.
+const exportCard=sharedToken?new URLSearchParams(location.search).get('export'):null;
 const el=(tag,props={},...children)=>{const node=Object.assign(document.createElement(tag),props);node.append(...children.filter(c=>c!=null&&c!==false));return node;};
 let report=null,index=0;
 
@@ -349,24 +351,81 @@ document.addEventListener('keydown',event=>{
  }
 });
 $('restart').onclick=()=>go(0);
-// Sharing: the person's own choice. The first tap makes an unguessable link; the phone's share sheet
-// opens when there is one, otherwise the link is copied. The link is permanent and always shows the
-// latest report (founder, 16 Oct: no turning it off).
+// Sharing: the person's own choice, through one sheet on a card and at the end (founder, 16 Oct).
+// The first open makes an unguessable link; it's permanent and always shows the latest report. The
+// sheet offers the Story first: the card as a 1080×1920 image of exactly what a friend sees (from the
+// end screen, the first shared card, normally the receipt), made
+// on the server while the sheet is open, so the tap can hand it straight to the share sheet (phones
+// only allow that right after a tap). The link is copied with it for the Story's link sticker.
 const shareUrl=()=>`${location.origin}/r/${report.share.token}`;
-async function shareReport(){
- try{
-  if(!report.share){const result=await api('POST',{action:'report-share'});report={...result.report,name:report.name,text_url:report.text_url,read_photos:report.read_photos};shareStatus();}
-  const url=shareUrl();
-  if(navigator.share){try{await navigator.share({title:'My style report',text:'Jules went through my orders. What would yours say?',url});return;}catch(error){if(error?.name==='AbortError')return;}}
-  try{await navigator.clipboard.writeText(url);toast('Link copied. Anyone with it can see your shared cards.');}
-  catch{toast('Here’s your link. Copy it from the end screen.');}
- }catch(error){toast(error.message||'Couldn’t make a link. Try again.');}
+const images=new Map();let shareJob=0,storyFiles=null;
+async function ensureLink(){
+ if(!report.share){const result=await api('POST',{action:'report-share'});report={...result.report,name:report.name,text_url:report.text_url,read_photos:report.read_photos,cards:result.report.cards.filter(c=>RENDER[c.type])};shareStatus();}
+ return shareUrl();
 }
+// One card's Story image, or null when the share view leaves that card out.
+async function cardImage(type){
+ const key=`${report.share.token}:${report.built_at}:${type}`;
+ if(!images.has(key))images.set(key,fetch(`/api/image?report=${report.share.token}&card=${type}`).then(async r=>{
+  if(r.status===404)return null;if(!r.ok)throw Error('Couldn’t make the image.');
+  return new File([await r.blob()],`jules-${type}.png`,{type:'image/png'});
+ }).catch(error=>{images.delete(key);throw error;}));
+ return images.get(key);
+}
+const canShareFiles=files=>Boolean(navigator.canShare?.({files}));
+function story(state,note){
+ $('share-story').setAttribute('aria-disabled',String(state!=='ready'));$('share-story').hidden=state==='none';
+ $('share-story-note').textContent=note;
+}
+async function openShare(scope){
+ const job=++shareJob;storyFiles=null;
+ $('share-title').textContent=scope==='end'?'Share your report':'Share this card';
+ $('share-copy-note').textContent='Making your link…';story('busy','Making your image…');
+ $('sheet-share').showModal();
+ let url;
+ try{url=await ensureLink();}catch(error){$('sheet-share').close();toast(error.message||'Couldn’t make a link. Try again.');return;}
+ if(job!==shareJob)return;
+ $('share-copy-note').textContent=url.replace(/^https?:\/\//,'');
+ const shown=report.cards.filter(c=>c.type!=='locked'),card=scope==='end'?shown[0]:shown.includes(report.cards[index])?report.cards[index]:null;
+ if(!card){story('none','');return;}
+ try{
+  const file=await cardImage(card.type);if(job!==shareJob)return;
+  if(!file){story('none','');return;}
+  storyFiles=[file];
+  $('share-story-title').textContent=canShareFiles(storyFiles)?'Instagram Story':'Download image';
+  story('ready',`${scope==='end'?card.type==='receipt'?'Your receipt':'Your first card':'This card'} as a 9:16 image, with your link copied for the sticker`);
+ }catch{if(job===shareJob)story('busy','Couldn’t make the image. Close and try again.');}
+}
+$('share-story').onclick=()=>{
+ if(!storyFiles)return;
+ const files=storyFiles,url=shareUrl();
+ // Not awaited: the share sheet has to open in the same tap.
+ navigator.clipboard?.writeText(url).catch(()=>{});
+ if(canShareFiles(files)){
+  navigator.share({files}).then(()=>{$('sheet-share').close();toast('Link copied for the sticker.');}).catch(error=>{if(error?.name!=='AbortError')toast('Couldn’t open sharing. Try Download instead.');});
+  return;
+ }
+ const a=el('a',{href:URL.createObjectURL(files[0]),download:files[0].name});a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+ $('sheet-share').close();toast('Image downloaded. Your link is copied for the sticker.');
+};
+$('share-copy').onclick=async()=>{
+ if(!report.share)return;
+ try{await navigator.clipboard.writeText(shareUrl());$('sheet-share').close();toast('Link copied. Anyone with it can see your shared cards.');}
+ catch{toast('Couldn’t copy. The link is shown on the end screen.');}
+};
+$('share-more').onclick=async()=>{
+ if(!report.share)return;
+ if(navigator.share){try{await navigator.share({title:'My style report',text:'Jules went through my orders. What would yours say?',url:shareUrl()});$('sheet-share').close();}catch(error){if(error?.name!=='AbortError')toast('Couldn’t open sharing. Copy the link instead.');}return;}
+ $('share-copy').onclick();
+};
 function shareStatus(){
  $('share-status').hidden=readOnly||!report?.share;
  if(report?.share&&!readOnly){$('share-link').href=shareUrl();$('share-link').textContent=shareUrl().replace(/^https?:\/\//,'');}
 }
-$('share').onclick=shareReport;$('end-share').onclick=shareReport;
+$('share').onclick=()=>openShare('card');$('end-share').onclick=()=>openShare('end');
+$('sheet-share').addEventListener('close',()=>{shareJob++;});
+// Every sheet closes on a tap outside it, as well as its own buttons.
+for(const sheet of document.querySelectorAll('dialog.report-sheet'))sheet.addEventListener('click',event=>{if(event.target===sheet){const r=sheet.getBoundingClientRect();if(event.clientY<r.top||event.clientY>r.bottom||event.clientX<r.left||event.clientX>r.right)sheet.close();}});
 // A fresh read of another photo takes a few seconds; the card replays its entrance when it lands.
 $('read-shuffle').onclick=async()=>{
  const button=$('read-shuffle');button.disabled=true;button.textContent='Judging…';
@@ -432,6 +491,7 @@ function opened(result){
   $('end-cta').textContent='Get your own report ↗';$('end-cta').href='/signup';
   $('end-share').hidden=true;
   if(!report.cards.length){message('Nothing shared here yet.','This report has no cards to show right now.','Style report',{label:'Get your own report ↗',href:'/signup'});return;}
+  if(exportCard)return exportOne(exportCard);
  }else{
   $('intro-eyebrow').textContent=(person?'Admin preview · ':'')+[report.name?`For ${report.name}`:'For you',report.built_at&&day(report.built_at)].filter(Boolean).join(' · ');
   $('end-title').textContent=report.name?`That’s your report, ${report.name}.`:'That’s your report.';
@@ -439,6 +499,17 @@ function opened(result){
  }
  shareStatus();
  show('view-intro');
+}
+// Draws one card in its finished state, then says so once its fonts and images have loaded.
+async function exportOne(type){
+ const at=report.cards.findIndex(c=>c.type===type);
+ if(at<0){document.documentElement.dataset.export='missing';return;}
+ document.documentElement.classList.add('report-exporting');
+ index=at;renderCard(false);
+ await document.fonts.ready;
+ await Promise.all([...$('card').querySelectorAll('img')].map(img=>img.complete?null:new Promise(done=>{img.onload=img.onerror=done;})));
+ fitCard();fitChips();fitRead();
+ requestAnimationFrame(()=>requestAnimationFrame(()=>{document.documentElement.dataset.export='ready';}));
 }
 async function load(){
  const result=await api('GET');
