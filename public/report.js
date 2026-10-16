@@ -248,20 +248,35 @@ function readCard(card){
   el('p',{className:'read-closer',textContent:card.closer}),
   foot('story-foot read-foot'));
 }
-// The judges (canvas "The judges"): the report's last card. Three judges raise scorecards on the
-// person's style as a whole, scored from everything the report counted (not an outfit photo).
+// The judges (canvas "The judges"): the report's last card. The verdict goes up in lights on a
+// theatre marquee whose bulbs chase round it, then three judges raise scorecards, each with a camera
+// flash as it lands. They score the person's style as a whole, from everything the report counted
+// (not an outfit photo).
 const PADDLE_TILT=['-9deg','2deg','9deg'],PADDLE_STICK=[150,200,140];
+// Marquee bulbs round the 316×196 frame, 11px in from its edge: every third bulb lights together, so
+// the lights chase; each blinks about once a second (well under the 3-a-second flash limit).
+const MARQUEE={w:316,h:196,inset:11,across:16,down:9};
+function marqueeBulbs(){
+ const {w,h,inset:m,across,down}=MARQUEE,at=[],x=i=>m+i*(w-2*m)/(across-1),y=i=>m+i*(h-2*m)/(down+1);
+ for(let i=0;i<across;i++)at.push([x(i),m]);
+ for(let i=1;i<=down;i++)at.push([w-m,y(i)]);
+ for(let i=across-1;i>=0;i--)at.push([x(i),h-m]);
+ for(let i=down;i>=1;i--)at.push([m,y(i)]);
+ return at.map(([left,top],k)=>{const bulb=el('span',{className:'judges-bulb'});Object.assign(bulb.style,{left:`${left.toFixed(1)}px`,top:`${top.toFixed(1)}px`,animationDelay:`${-(k%3)*0.4}s`});return bulb;});
+}
 function judgesCard(card){
  const paddles=el('div',{className:'judges-paddles','aria-hidden':'true'},...card.scores.map((s,k)=>{
-  const paddle=el('div',{className:'judges-paddle'},el('div',{className:'judges-score'},el('b',{textContent:String(s.n)}),el('span',{textContent:s.label})),el('span',{className:'judges-stick'}));
+  const flash=el('span',{className:'judges-flash'});flash.style.animationDelay=`${(1.55+k*0.5).toFixed(2)}s`;
+  const paddle=el('div',{className:'judges-paddle'},flash,el('div',{className:'judges-score'},el('b',{textContent:String(s.n)}),el('span',{textContent:s.label})),el('span',{className:'judges-stick'}));
   paddle.style.setProperty('--r',PADDLE_TILT[k]);paddle.querySelector('.judges-stick').style.height=`${PADDLE_STICK[k]}px`;paddle.style.animationDelay=`${(1.1+k*0.18).toFixed(2)}s`;
   return paddle;
  }));
  return el('article',{className:'story-card story-judges','aria-label':`The judges score ${report.shared?'their':'your'} style: ${card.verdict}. ${card.scores.map(s=>`${s.label} ${s.n}`).join(', ')}`},
   el('h2',{className:'judges-title',textContent:report.shared?(report.name?`The judges score ${report.name}’s style`:'The judges score their style'):'The judges score your style'}),
-  el('div',{className:'judges-head'},
+  el('div',{className:'judges-head'},el('div',{className:'judges-marquee'},
+   el('div',{className:'judges-bulbs','aria-hidden':'true'},...marqueeBulbs()),
    el('p',{className:'judges-verdict',textContent:card.verdict}),
-   el('p',{className:'judges-basis',textContent:report.shared?'scored on everything they’ve bought':'scored on everything you’ve bought'})),
+   el('p',{className:'judges-basis',textContent:report.shared?'scored on everything they’ve bought':'scored on everything you’ve bought'}))),
   paddles,
   foot());
 }

@@ -327,20 +327,28 @@ body.report-page:has(.report-player:not([hidden])[data-ground="inout"]){backgrou
 @keyframes read-dot{from{transform:scale(0)}to{transform:scale(1)}}
 @keyframes read-sticker{0%{opacity:0;transform:scale(.6) rotate(var(--r))}70%{opacity:1;transform:scale(1.06) rotate(var(--r))}100%{opacity:1;transform:rotate(var(--r))}}
 
-/* The judges (design canvas "The judges"): the report's last card. A verdict over three scorecards
-   on sticks rising from the bottom edge, scoring the person's style as a whole. */
+/* The judges (design canvas "The judges"): the report's last card. The verdict in lights on a marquee
+   with chasing bulbs, over three scorecards on sticks rising from the bottom edge, each popping a
+   camera flash as it lands. Still (export, reduced motion): every bulb lit, no flashes. */
 .story-judges{background:var(--ink);gap:0;padding:22px 22px 0}
 .judges-title{margin:0;font:400 30px/1 var(--font-serif);letter-spacing:-.04em;animation:read-fade .4s ease-out .15s both}
-.judges-head{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;justify-content:center;text-align:center}
-.judges-verdict{margin:0;font:800 44px/.95 var(--font-sans);letter-spacing:-.05em;animation:report-land .6s ease-out .5s both}
-.judges-basis{margin:12px 0 0;font:400 15px/1.2 var(--font-serif);color:#ffffffa6;animation:read-fade .4s ease-out .8s both}
+.judges-head{flex:1 1 auto;min-height:0;padding:14px 0 4px;display:flex;flex-direction:column;justify-content:center}
+.judges-marquee{position:relative;height:196px;flex:none;box-sizing:border-box;padding:22px 20px;border-radius:16px;background:#2A1F14;border:3px solid var(--butter);box-shadow:inset 0 0 0 3px var(--ink),0 0 40px #FFC93C33;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;animation:judges-on .5s ease-out .25s both}
+.judges-bulbs{position:absolute;inset:-3px;pointer-events:none}
+.judges-bulb{position:absolute;width:9px;height:9px;margin:-4.5px 0 0 -4.5px;border-radius:50%;background:#FFF4C9;box-shadow:0 0 6px 2px var(--butter);animation:judges-bulb 1.2s ease-in-out infinite}
+.judges-verdict{position:relative;margin:0;font:800 42px/.95 var(--font-sans);letter-spacing:-.05em;color:#FFF4C9;text-shadow:0 0 18px #FFC93C99;animation:report-land .6s ease-out .6s both}
+.judges-basis{position:relative;margin:0;font:400 15px/1.2 var(--font-serif);color:#ffffffb3;animation:read-fade .4s ease-out .9s both}
 /* The sticks fade out above the footer, so the scorecards rise from below without crossing it. */
 .judges-paddles{flex:0 1 300px;min-height:180px;margin:0 -22px;display:flex;justify-content:center;align-items:flex-end;gap:14px;overflow:hidden;-webkit-mask-image:linear-gradient(#000 75%,transparent);mask-image:linear-gradient(#000 75%,transparent)}
-.judges-paddle{display:flex;flex-direction:column;align-items:center;transform:rotate(var(--r));animation:read-raise .7s cubic-bezier(.16,1,.3,1) both}
-.judges-score{width:98px;height:126px;flex:none;box-sizing:border-box;background:var(--white);color:var(--ink);border:3px solid var(--ink);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 10px 24px #00000080}
+.judges-paddle{position:relative;display:flex;flex-direction:column;align-items:center;transform:rotate(var(--r));animation:read-raise .7s cubic-bezier(.16,1,.3,1) both}
+.judges-flash{position:absolute;left:50%;top:-12px;width:140px;height:140px;margin-left:-70px;border-radius:50%;background:radial-gradient(circle,#fff 0,#FFF4C9cc 18%,#FFC93C33 45%,transparent 70%);opacity:0;pointer-events:none;animation:judges-flash 4.5s ease-out infinite}
+.judges-score{position:relative;width:98px;height:126px;flex:none;box-sizing:border-box;background:var(--white);color:var(--ink);border:3px solid var(--ink);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 10px 24px #00000080}
 .judges-score b{font:800 70px/.9 var(--font-sans);letter-spacing:-.06em}
 .judges-score span{font:500 9.5px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--text-2,#6B625B);text-align:center;padding:0 4px}
 .judges-stick{width:10px;flex:none;margin-bottom:-40px;background:#C9B79C;border-left:2px solid var(--ink);border-right:2px solid var(--ink)}
+@keyframes judges-on{0%{opacity:0;transform:scale(.92)}60%{opacity:1;transform:scale(1.03)}100%{opacity:1;transform:none}}
+@keyframes judges-bulb{0%,100%{background:#7A5A1E;box-shadow:none}50%{background:#FFF4C9;box-shadow:0 0 6px 2px var(--butter),0 0 14px 4px #FFC93C80}}
+@keyframes judges-flash{0%,100%{opacity:0;transform:scale(.4)}12%{opacity:1;transform:scale(1)}40%{opacity:0;transform:scale(1.2)}}
 @keyframes read-raise{0%{transform:translateY(360px) rotate(var(--r))}70%{transform:translateY(-10px) rotate(var(--r))}100%{transform:rotate(var(--r))}}
 
 /* Story controls are not gel pills: no gloss, shadow, hover lift or padding from the shared button style. */
