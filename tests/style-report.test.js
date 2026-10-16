@@ -402,7 +402,7 @@ test('the built report puts real cards first and locked cards after, and locked 
 const sharingWriter=async request=>request.schema.properties.line?{line:'you got to Our Legacy early',shared:'Jack got to Our Legacy early'}
  :request.schema.properties.verdict?{verdict:'new year, same black',shared:'Jack kept it black'}:{total:'one colour and a crop top habit'};
 
-test('sharing makes an unguessable link the person can turn off, and a rebuild keeps it',async()=>{
+test('sharing makes one permanent unguessable link, and a rebuild keeps it',async()=>{
  const store=fixture();await buildReport(store,owner,{},{interpret:sharingWriter});
  const shared=await updateReport(store,owner,{action:'report-share'});
  assert.match(shared.share.token,/^[A-Za-z0-9_-]{22}$/);
@@ -411,8 +411,9 @@ test('sharing makes an unguessable link the person can turn off, and a rebuild k
  assert.equal(reportView(store.row.data.style_report).share.token,shared.share.token);
  await buildReport(store,owner,{},{interpret:sharingWriter});
  assert.equal(store.row.data.style_report.share.token,shared.share.token,'a rebuild keeps the link working');
- await updateReport(store,owner,{action:'report-unshare'});
- assert.equal(store.row.data.style_report.share,undefined);
+ // There is no turning the link off.
+ await assert.rejects(updateReport(store,owner,{action:'report-unshare'}));
+ assert.equal(store.row.data.style_report.share.token,shared.share.token);
 });
 
 test('a friend opening the link needs no sign-in and sees only what the person chose to share',async()=>{
@@ -435,10 +436,8 @@ test('a friend opening the link needs no sign-in and sees only what the person c
  // "Wouldn't share" leaves that card out of the link.
  await updateReport(store,owner,{action:'report-feedback',card:'receipt',vote:'down',reason:'wont_share'});
  res=await open(share.token);assert.ok(!res.body.report.cards.some(c=>c.type==='receipt'));
- // Wrong, malformed or turned-off links all look the same: not found.
+ // Wrong or malformed links look the same: not found.
  for(const token of ['AbCdEfGhIjKlMnOpQrStUv','short','../../etc'])assert.equal((await open(token)).statusCode,404,token);
- await updateReport(store,owner,{action:'report-unshare'});
- assert.equal((await open(share.token)).statusCode,404);
 });
 
 test('shared copy must be about the person, never "you", or it falls back',async()=>{
