@@ -31,11 +31,16 @@ export function fromIntent(intent){
 export const isConsentCheck=options=>JSON.parse(options?.body??'{}').text?.format?.name==='consent';
 export const consentResponse=authorizes=>({ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({authorizes})}]}]})});
 export const withConsent=(fetcher,authorizes=true)=>restating(async(url,options)=>isConsentCheck(options)?consentResponse(typeof authorizes==='function'?authorizes(options):authorizes):fetcher(url,options));
+// The independent claim audit (lib/compose.js): a small model call that reads what a reply says happened.
+export const isClaimAudit=options=>JSON.parse(options?.body??'{}').text?.format?.name==='claim_audit';
+export const auditResponse=(audit={})=>({ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({saved_now:false,alerts_turned_on:false,alerts_turned_off:false,names_other_saved_item:false,...audit})}]}]})});
 // The tool outputs the agent loop has sent back to the model this turn.
 export const toolOutputs=options=>{const input=JSON.parse(options?.body??'{}').input??[];return input.filter(i=>i.type==='function_call_output').map(i=>JSON.parse(i.output));};
 // A model that, once its tools have run, restates their results as its message (conversation_reply),
 // claiming exactly what the results report. Turns whose tools produced no result go to fetcher.
+// Unless a test scripts it, the claim audit is unavailable here, so the declared claims stand.
 export const restating=fetcher=>async(url,options)=>{
+  if(isClaimAudit(options))return {ok:false};
   if(!isAgentRequest(options))return fetcher(url,options);
   const outputs=toolOutputs(options),done=outputs.filter(o=>o.status==='done'&&typeof o.result==='string'&&o.result.trim());
   if(!done.length)return fetcher(url,options);

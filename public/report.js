@@ -10,7 +10,14 @@ const person=new URLSearchParams(location.search).get('person');
 const el=(tag,props={},...children)=>{const node=Object.assign(document.createElement(tag),props);node.append(...children.filter(c=>c!=null&&c!==false));return node;};
 let report=null,index=0;
 
-function show(view){for(const id of ['view-message','view-intro','view-card','view-end'])$(id).hidden=id!==view;}
+function show(view){
+ for(const id of ['view-message','view-intro','view-card','view-end'])$(id).hidden=id!==view;
+ // The intro and end screens keep the desktop controls: → starts from the intro, ← goes back from the end.
+ const intro=view==='view-intro',end=view==='view-end';
+ $('stage-chrome').hidden=!(intro||end);
+ $('chrome-prev').hidden=!end;$('chrome-next').hidden=!intro;
+ $('chrome-keys').textContent=intro?'→ to start · Esc to close':'← to go back · Esc to close';
+}
 // progress: null (none), 'waiting' (moving bar, length unknown) or a fraction 0–1.
 let stepTimer;
 function message(title,body,eyebrow='Style report',action=null,{progress=null,steps=[]}={}){
@@ -60,15 +67,43 @@ function receiptCard(card){
   el('div',{className:'receipt-roll'},paper,el('div',{className:'receipt-zig','aria-hidden':'true'})),
   el('footer',{className:'story-foot'},wordmark()));
 }
-const RENDER={receipt:receiptCard};
-const CARD_NAMES={receipt:'Receipt'};
+// Gatekeeper: a dial from 0 (the mall) to 100 (deep cut), the score counting up as the needle sweeps,
+// the verdict, the one-liner, and the person's brands ranked most niche first.
+const svg=(tag,attrs={},...children)=>{const node=document.createElementNS('http://www.w3.org/2000/svg',tag);for(const [k,v] of Object.entries(attrs))node.setAttribute(k,v);node.append(...children);return node;};
+const ARC='M 20 130 A 110 110 0 0 1 240 130',ARC_LENGTH=Math.PI*110;
+function gatekeeperCard(card,animate){
+ const fill=svg('path',{d:ARC,class:'gate-fill','stroke-dasharray':`${(ARC_LENGTH*card.score/100).toFixed(1)} 999`});
+ fill.style.setProperty('--len',`${(ARC_LENGTH*card.score/100).toFixed(1)}px`);
+ const needle=svg('g',{class:'gate-needle'},svg('line',{x1:130,y1:130,x2:130,y2:42}));
+ needle.style.setProperty('--angle',`${(-90+180*card.score/100).toFixed(1)}deg`);
+ const number=el('span',{className:'gate-score',textContent:String(card.score)});
+ if(animate&&!matchMedia('(prefers-reduced-motion: reduce)').matches){
+  // Count up with the needle: same delay and easing.
+  number.textContent='0';const start=performance.now();
+  const tick=now=>{const k=Math.min(1,Math.max(0,(now-start-300)/1300));number.textContent=String(Math.round(card.score*(1-Math.pow(1-k,3))));if(k<1&&number.isConnected!==false)requestAnimationFrame(tick);};
+  requestAnimationFrame(tick);
+ }
+ return el('article',{className:'story-card story-gatekeeper','aria-label':`Gatekeeper score ${card.score} out of 100`},
+  el('h2',{className:'display story-title',textContent:'How niche is your taste?'}),
+  el('div',{className:'gate-dial'},
+   svg('svg',{viewBox:'0 0 260 150',width:'100%','aria-hidden':'true'},svg('path',{d:ARC,class:'gate-track'}),fill,needle,svg('circle',{cx:130,cy:130,r:9,class:'gate-hub'})),
+   el('div',{className:'gate-scale'},el('span',{textContent:'0 · Basically the mall'}),el('span',{textContent:'100 · Extremely esoteric'}))),
+  el('div',{className:'gate-result'},number,el('span',{className:'gate-verdict',textContent:card.verdict})),
+  el('p',{className:'gate-line',textContent:card.line}),
+  el('div',{className:'gate-brands'},
+   el('span',{className:'gate-label',textContent:'Your brands, most niche first'}),
+   el('ol',{className:'gate-chips'},...card.brands.map((b,i)=>{const chip=el('li',{className:i===0?'gate-chip is-top':'gate-chip'},el('span',{className:'gate-rank',textContent:String(i+1).padStart(2,'0')}),b.name);chip.style.animationDelay=`${(0.9+i*0.06).toFixed(2)}s`;return chip;}))),
+  el('footer',{className:'story-foot'},wordmark()));
+}
+const RENDER={receipt:receiptCard,gatekeeper:gatekeeperCard};
+const CARD_NAMES={receipt:'Receipt',gatekeeper:'Gatekeeper'};
 
 function renderCard(animate=true){
  const card=report.cards[index];
  $('progress').replaceChildren(...report.cards.map((_,i)=>el('span',{className:i<index?'done':i===index?'current':''})));
  $('progress-label').textContent=`Card ${index+1} of ${report.cards.length} · ${CARD_NAMES[card.type]??''}`;
  $('arrow-prev').disabled=index===0;
- $('card').replaceChildren(RENDER[card.type](card));
+ $('card').replaceChildren(RENDER[card.type](card,animate));
  // Saving a vote or hidden lines redraws the card in place without replaying its entrance.
  $('card').classList.toggle('is-still',!animate);
  const vote=report.votes?.[card.type];
@@ -90,13 +125,27 @@ $('tap-prev').onclick=()=>go(index-1);
 $('close').onclick=()=>show('view-end');
 $('arrow-next').onclick=()=>go(index+1);
 $('arrow-prev').onclick=()=>go(index-1);
-$('home').append(wordmark());
-// Desktop keyboard: arrows move between cards, Escape closes, while a card shows and no sheet is open.
+$('home').append(wordmark());$('chrome-home').append(wordmark());
+const exit=person?'/admin':'/wishlist';
+$('chrome-close').href=exit;
+$('chrome-next').onclick=()=>go(0);
+$('chrome-prev').onclick=()=>go(report.cards.length-1);
+// Desktop keyboard, while no sheet is open. Cards: arrows move, Escape ends the story. Intro: → starts.
+// End: ← goes back to the last card. On the intro and end, Escape leaves the report.
 document.addEventListener('keydown',event=>{
- if($('view-card').hidden||document.querySelector('dialog[open]')||event.altKey||event.ctrlKey||event.metaKey)return;
- if(event.key==='ArrowRight'){event.preventDefault();go(index+1);}
- else if(event.key==='ArrowLeft'){event.preventDefault();go(index-1);}
- else if(event.key==='Escape')show('view-end');
+ if(!report||document.querySelector('dialog[open]')||event.altKey||event.ctrlKey||event.metaKey)return;
+ const key=event.key;
+ if(!$('view-card').hidden){
+  if(key==='ArrowRight'){event.preventDefault();go(index+1);}
+  else if(key==='ArrowLeft'){event.preventDefault();go(index-1);}
+  else if(key==='Escape')show('view-end');
+ }else if(!$('view-intro').hidden){
+  if(key==='ArrowRight'){event.preventDefault();go(0);}
+  else if(key==='Escape')location.href=exit;
+ }else if(!$('view-end').hidden){
+  if(key==='ArrowLeft'){event.preventDefault();go(report.cards.length-1);}
+  else if(key==='Escape')location.href=exit;
+ }
 });
 $('restart').onclick=()=>go(0);
 $('vote-up').onclick=()=>save({action:'report-feedback',vote:'up'},'Noted. More like this.');

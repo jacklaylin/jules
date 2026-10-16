@@ -14,9 +14,9 @@ p{line-height:1.65}.login-card{max-width:490px;margin:7vh auto}.login-card>p{col
 .person-stats{margin:0;font-size:13px;color:var(--text-2)}.person-stats strong{font-weight:400;color:var(--text-2)}
 [data-panel]{padding-top:4px}
 .memory-table .fact-key{font:400 13px var(--font-mono);overflow-wrap:anywhere;min-width:130px}.memory-table .fact-evidence{font-size:13px;color:var(--text-2);min-width:220px}
-.memory-table .fact-actions{white-space:nowrap}.memory-table .fact-actions button{margin:2px}
+.memory-table .fact-key{font-size:12px}.memory-table .fact-type{color:var(--text-2);text-transform:capitalize}.memory-table .fact-evidence{font-size:12px;max-width:380px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.memory-table .fact-actions{white-space:nowrap;text-align:right}.memory-table .fact-actions button{margin:0 0 0 4px}
 .memory-table .source-row td{background:var(--fog);font-size:13px}.memory-table .source-row button{margin-left:12px}
-.add-fact{margin-top:24px}.add-fact h3{font-size:26px;margin-bottom:10px}
 .add-fact-fields{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}.add-fact-fields label{flex:1 1 180px;min-width:0}
 .add-fact-fields button{flex:none}
 
@@ -76,8 +76,8 @@ p{line-height:1.65}.login-card{max-width:490px;margin:7vh auto}.login-card>p{col
  .stats{display:grid;grid-template-columns:1fr 1fr;gap:12px}
  /* Memory facts become record cards */
  .memory-table,.memory-table tbody,.memory-table tr,.memory-table td{display:block}.memory-table thead{display:none}
- .memory-table tr{padding:12px;border-bottom:1px solid var(--line)}.memory-table td{border:0;padding:4px 0}
- .memory-table .fact-actions{white-space:normal}.memory-table .fact-actions button{min-height:44px}
+ .memory-table tr{padding:12px 0;border-bottom:1px solid var(--line)}.memory-table td{border:0;padding:2px 0;height:auto}.dv-table.memory-table input:not([type=checkbox]):not([type=radio]){border-color:var(--line-strong);min-height:44px}
+ .memory-table .fact-actions{white-space:normal;text-align:left}.memory-table .fact-actions button{min-height:44px}.memory-table .fact-evidence{white-space:normal;max-width:none}
  .message{max-width:92%}
  /* Purchases: rows show the item and one facts line; the item review takes the screen */
  .purchase-table .dv-head{display:none}.purchase-table .dv-row{grid-template-columns:minmax(0,1fr) auto;min-height:56px;padding:6px 0}

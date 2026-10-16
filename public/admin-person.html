@@ -10,8 +10,11 @@
     <div class="person-title"><a class="breadcrumb" href="/admin">People /</a><h1 id="person-name">Loading…</h1><div id="person-badges" class="badges"></div><span class="spacer"></span>
       <p class="person-stats">Active <strong id="stat-active">—</strong> · <strong id="stat-messages">—</strong> messages · <strong id="stat-facts">—</strong> facts</p>
       <button class="small quiet" type="button" popovertarget="person-more">More ⋯</button></div>
-    <!-- One menu of actions for this person, the same on every tab. Purchase actions open Purchase history first. -->
+    <!-- One menu of actions for this person, the same on every tab. Memory and purchase actions open their tab first. -->
     <div id="person-more" class="dv-pop dv-menu" popover aria-label="More actions">
+      <span class="mono-label">Personal memory</span>
+      <button id="profile-import" type="button" data-opens-tab="memory">Learn from existing messages <span class="hint">last 100 texts</span></button>
+      <hr>
       <span class="mono-label">Purchase history</span>
       <button id="purchases-reload" type="button" data-opens-tab="purchases">Reload purchases</button>
       <button id="tags-run" type="button" data-opens-tab="purchases" hidden>Tag purchases</button>
@@ -31,12 +34,18 @@
     <p id="notice" role="status" aria-live="polite" class="muted"></p>
 
     <section id="tab-memory" data-panel="memory" hidden>
-      <div class="toolbar"><button id="profile-reload" class="small" type="button">Reload profile</button><button id="profile-import" class="small" type="button">Learn from existing messages</button><span id="memory-dirty" class="badge warn" hidden></span></div>
+      <div class="dv-toolbar">
+        <div id="memory-types" class="seg" role="group" aria-label="Filter by type"></div>
+        <label class="dv-search"><span class="sr-only">Search memory</span><input id="memory-search" type="search" maxlength="100" placeholder="Key, value or evidence"><span class="kbd" aria-hidden="true">/</span></label>
+        <span class="spacer"></span>
+        <span id="memory-dirty" class="badge warn" hidden></span>
+        <button id="memory-add-open" class="btn--butter small" type="button" aria-expanded="false" aria-controls="tool-add-fact">+ Add preference</button>
+      </div>
+      <div class="dv-status"><span id="profile-notice" role="status" aria-live="polite"></span></div>
       <div id="memory-conflict" class="notice-bar" hidden><span>This profile changed since you loaded it. Reload to see the latest; your unsaved values stay in their rows.</span><button id="conflict-reload" class="small" type="button">Reload profile</button></div>
-      <details class="fold"><summary>Summary</summary><p id="profile-summary" class="muted"></p></details>
-      <div class="table-scroll"><table class="data-table memory-table"><thead><tr><th>Type</th><th>Key</th><th>Value</th><th>Evidence</th><th>Actions</th></tr></thead><tbody id="profile-facts"></tbody></table></div>
-      <form id="profile-add" class="add-fact"><h3>Add a preference</h3><div class="add-fact-fields"><label>Type<select id="fact-field"><option value="gender">Gender identity</option><option value="shopping_range">Clothing range</option><option value="size">Size</option><option value="brand">Brand</option><option value="category">Category</option><option value="style">Style attribute</option><option value="budget">Usual budget</option></select></label><label>Key<input id="fact-key" maxlength="100" required placeholder="e.g. shoes/us_men or lemaire"></label><label>Value<input id="fact-value" maxlength="500" required placeholder="e.g. 10 or prefers relaxed tailoring"></label><button type="submit" class="btn--butter">Add preference</button></div></form>
-      <p id="profile-notice" role="status" aria-live="polite" class="muted"></p>
+      <section id="tool-add-fact" class="dv-tool" aria-labelledby="tool-add-fact-title" hidden><div class="dv-tool-head"><h2 id="tool-add-fact-title">Add a preference</h2><button id="memory-add-close" class="small" type="button">Close ×</button></div>
+        <form id="profile-add" class="add-fact-fields"><label>Type<select id="fact-field"><option value="gender">Gender identity</option><option value="shopping_range">Clothing range</option><option value="size">Size</option><option value="brand">Brand</option><option value="category">Category</option><option value="style">Style attribute</option><option value="budget">Usual budget</option></select></label><label>Key<input id="fact-key" maxlength="100" required placeholder="e.g. shoes/us_men or lemaire"></label><label>Value<input id="fact-value" maxlength="500" required placeholder="e.g. 10 or prefers relaxed tailoring"></label><button type="submit" class="btn--butter">Add preference</button></form></section>
+      <div class="dv-table-wrap"><table class="dv-table memory-table"><thead><tr><th>Type</th><th>Key</th><th>Value</th><th>Evidence</th><th class="end">Actions</th></tr></thead><tbody id="profile-facts"></tbody></table></div>
     </section>
 
     <section id="tab-conversation" data-panel="conversation" hidden>
