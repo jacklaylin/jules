@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {receiptLines,validTotal,writeTotal,buildReport,updateReport,reportView,handleReport,FALLBACK_TOTAL,gatekeeper,nicheBrand,validGateLine,writeGateLine,reportWriter,REPORT_MODEL,inOut,validInOutLine,writeInOutLine,lockedCards,MIN_CARDS,sharedView,handleSharedReport} from '../lib/style-report.js';
+import {receiptLines,validTotal,writeTotal,buildReport,updateReport,reportView,handleReport,FALLBACK_TOTAL,gatekeeper,nicheBrand,validGateLine,writeGateLine,reportWriter,REPORT_MODEL,inOut,validInOutLine,writeInOutLine,lockedCards,MIN_CARDS,sharedView,handleSharedReport,sharePreview,handleSharePage} from '../lib/style-report.js';
 import {tagFingerprint} from '../lib/item-tags.js';
 import {purchaseEvidence,projectReceiptEvidence} from '../lib/receipt-extraction.js';
 import {signInLinks} from '../lib/onboarding.js';
@@ -374,4 +374,28 @@ test('shared copy must be about the person, never "you", or it falls back',async
  // Older reports without shared copy still share safely.
  const legacy={...built.report,cards:built.report.cards.map(({shared,...c})=>c)};
  for(const card of sharedView(legacy,'Jack').cards)assert.ok(!/\byou(r)?\b/i.test(card.line??card.verdict??''),card.type);
+});
+
+test('a share link serves the page with a preview built only from what was shared',async()=>{
+ const store=fixture();await buildReport(store,owner,{},{interpret:sharingWriter});
+ const {share}=await updateReport(store,owner,{action:'report-share'});
+ const page='<!doctype html><html><head><title>Your style report · Jules</title></head><body>page</body></html>';
+ const open=async token=>{const res=response();res.end=function(body){this.body=body;};await handleSharePage({method:'GET',url:`/api/wishlist?share_page=${token}`,headers:{host:'jules.test'}},res,{store,env:{},readPage:async()=>page});return res;};
+ let res=await open(share.token);
+ assert.equal(res.statusCode,200);
+ assert.match(res.body,/<title>Jack’s style report · Jules<\/title>/);
+ assert.match(res.body,/property="og:title" content="Jack’s style report · Jules"/);
+ assert.match(res.body,/property="og:image" content="https:\/\/jules\.test\/brand\/previews\/report-v1\.png"/);
+ assert.ok(!res.body.includes('Your style report · Jules'),'the generic title is replaced, not repeated');
+ assert.ok(res.body.includes('<body>page</body>'),'the page itself is unchanged');
+ // Nothing private reaches the preview: a hidden returns line or feedback never appears.
+ assert.ok(!/RETURNED|feedback|wont_share/.test(res.body));
+ // A wrong or turned-off link gets the generic preview, with no name.
+ for(const token of ['AbCdEfGhIjKlMnOpQrStUv','nope']){res=await open(token);assert.match(res.body,/<title>A style report · Jules<\/title>/);assert.ok(!res.body.includes('Jack'));}
+});
+
+test('the preview description comes from the best shared card',()=>{
+ assert.equal(sharePreview({name:'Jack',cards:[{type:'receipt',lines:[{label:'BLACK ANYTHING',n:22}]},{type:'gatekeeper',score:71,verdict:'Cult member'}]}).description,'Niche score 71, cult member. How niche are you?');
+ assert.equal(sharePreview({name:'Jack',cards:[{type:'receipt',lines:[{label:'BLACK ANYTHING',n:22}]}]}).description,'Black anything ×22. What would yours say?');
+ assert.equal(sharePreview({name:null,cards:[]}).title,'A style report · Jules');
 });
