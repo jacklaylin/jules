@@ -4,7 +4,7 @@ import {REASONS,STATUSES,reviewed,statusOf,matches,neighbour,position,filterLabe
 // carries a "what was wrong" label; the server records it as correction evidence.
 // Laid out as a data view: views (?view=), one toolbar row, one status line, dense rows. Opening a row shows the
 // item review beside the list (?tab=purchases&item=<id>): the email evidence beside the correction form, with
-// J/K, 1–7 and ⌘/Ctrl+Enter so a reviewer can work through a filter by keyboard.
+// J/K, 1–8 and ⌘/Ctrl+Enter so a reviewer can work through a filter by keyboard.
 const $ = id => document.getElementById(id);
 const el = (tag, props = {}, ...children) => { const node = Object.assign(document.createElement(tag), props); node.append(...children.filter(c => c != null)); return node; };
 const day = at => at ? new Date(at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : 'date unknown';
@@ -160,7 +160,7 @@ const facts = item => [item.merchant, item.size_label && `size ${item.size_label
 // Defaults stay blank (calm admin: show exceptions, not defaults): "For them" and a single source say nothing.
 const recipientNote = item => item.recipient.value === 'self' ? null : RECIPIENTS[item.recipient.value] + (item.recipient.basis === 'receipt_evidence' ? ' (receipt)' : '');
 const noteText = item => [OUTCOMES[item.outcome], recipientNote(item), item.sources.length > 1 && `Found by ${item.sources.map(sourceName).join(' + ')}`,
-  item.removed && !item.duplicate_of && 'Removed', item.duplicate_of && 'Duplicate', item.confirmed_fields.length && 'Edited', reviewed(item) && 'Reviewed'].filter(Boolean).join(' · ');
+  item.removed && !item.duplicate_of && 'Removed', item.duplicate_of && 'Duplicate', item.part_of && 'Part of another item', item.confirmed_fields.length && 'Edited', reviewed(item) && 'Reviewed'].filter(Boolean).join(' · ');
 
 // One dense row. Cells clip with the full text on hover; with an item open (or on a phone) the row
 // shrinks to the item and one facts line.
@@ -219,7 +219,7 @@ function renderReview(id) {
     el('span', { className: 'review-steps' }, step('‹ Previous', -1, 'K'), step('Next ›', 1, 'J'), back),
     el('span', { id: 'review-state', role: 'status', ariaLive: 'polite' }));
   // The facts line already carries outcome and recipient; the corner shows only the item's review state.
-  const status = [item.sources.length > 1 && `Found by ${item.sources.map(sourceName).join(' + ')}`, item.removed && !item.duplicate_of && 'Removed', item.duplicate_of && 'Duplicate', item.confirmed_fields.length && 'Edited'].filter(Boolean).join(' · ');
+  const status = [item.sources.length > 1 && `Found by ${item.sources.map(sourceName).join(' + ')}`, item.removed && !item.duplicate_of && 'Removed', item.duplicate_of && 'Duplicate', item.part_of && 'Part of another item', item.confirmed_fields.length && 'Edited'].filter(Boolean).join(' · ');
   const head = el('div', { className: 'review-head' },
     el('div', {}, el('h2', { id: 'review-title', tabIndex: -1, textContent: title(item) }), el('p', { className: 'muted', textContent: facts(item).join(' · ') }),
       item.tags ? el('p', { className: 'meta', textContent: tagText(item.tags) }) : null),
@@ -304,6 +304,14 @@ function reviewForm(item) {
     if (link) link.onclick = event => { event.preventDefault(); openItem(target.id, true); };
     return el('p', { className: 'review-duplicate' }, `Duplicate of ${target ? title(target) : 'another item'}. `, link ?? 'Correct that item instead.');
   }
+  if (item.part_of) {
+    const target = data.items.find(i => i.id === item.part_of);
+    const link = target ? el('a', { href: itemHref(target.id).search, textContent: `Open ${title(target)} →` }) : null;
+    if (link) link.onclick = event => { event.preventDefault(); openItem(target.id, true); };
+    const separate = el('button', { type: 'button', className: 'quiet', textContent: 'Make it its own item' });
+    separate.onclick = () => { if (!busy) send({ action: 'review', item_ids: [item.id], reason: 'part_of_item', target_item_id: null, note: null }, 'Separating…'); };
+    return el('div', { className: 'review-duplicate' }, el('p', {}, `Part of ${target ? title(target) : 'another item'}. `, link ?? ''), separate);
+  }
   const name = `reason-${item.id}`, form = el('form', { className: 'review-form' });
   const chips = el('fieldset', {}, el('legend', {}, 'What’s wrong?'), ...REASONS.map(([value, label], n) =>
     el('label', { className: 'chip' }, el('input', { type: 'radio', name, value, required: true }), el('span', { className: 'digit', textContent: String(n + 1) }), label)));
@@ -326,6 +334,7 @@ function reviewForm(item) {
       for (const [field] of FIELDS) { const input = form.elements[`field-${field}`]; const value = input.value.trim(); if (value !== String(item[field] ?? '')) body.values[field] = value || null; }
       if (!Object.keys(body.values).length) { reviewState('error', 'Change at least one detail first.'); form.elements['field-brand'].focus(); return; }
     } else if (reason === 'duplicate') body.target_item_id = form.elements.duplicate.value;
+    else if (reason === 'part_of_item') body.target_item_id = form.elements.part_of.value;
     else if (reason === 'recipient') { body.recipient = form.elements.recipient.value; body.recipient_label = form.elements.recipient_label?.value || null; }
     // "Save and open next" follows the filter as it stood before saving: the saved item usually
     // leaves "To review", so the next item is found from its old place in the list.
@@ -344,8 +353,13 @@ function extraFields(item, reason) {
   if (reason === 'wrong_details') return FIELDS.map(([field, label]) => el('label', {}, label,
     el('input', { name: `field-${field}`, value: item[field] ?? '', maxLength: 300, inputMode: field === 'quantity' ? 'numeric' : 'text' })));
   if (reason === 'duplicate') {
-    const others = data.items.filter(i => i.id !== item.id && !i.duplicate_of && !i.removed);
+    const others = data.items.filter(i => i.id !== item.id && !i.duplicate_of && !i.part_of && !i.removed);
     return [el('label', {}, 'Same purchase as', el('select', { name: 'duplicate', required: true }, ...others.map(i => el('option', { value: i.id, textContent: `${title(i)} · ${i.merchant ?? ''} · ${i.size_label ?? ''}` }))))];
+  }
+  // Parts of one configured product (a bag builder's strap and carabiners) fold into that product.
+  if (reason === 'part_of_item') {
+    const others = data.items.filter(i => i.id !== item.id && !i.duplicate_of && !i.part_of && !i.removed);
+    return [el('label', {}, 'Part of', el('select', { name: 'part_of', required: true }, ...others.map(i => el('option', { value: i.id, textContent: `${title(i)} · ${i.merchant ?? ''}${i.price ? ` · ${i.price.text}` : ''}` }))))];
   }
   if (reason === 'recipient') return [
     el('label', {}, 'Who it was for', el('select', { name: 'recipient', required: true }, ...Object.entries(RECIPIENTS).map(([value, label]) => el('option', { value, textContent: label, selected: item.recipient.value === value })))),
@@ -354,7 +368,7 @@ function extraFields(item, reason) {
 }
 
 // Re-check: one request per labelled item (each re-reads up to a few emails), two at a time.
-const REASON_SHORT = { missed_order: 'Skipped order', not_order: 'Skipped, not an order', correct: 'Looks right', not_a_purchase: 'Not a purchase', not_apparel: 'Not clothing', wrong_details: 'Wrong details', duplicate: 'Duplicate', recipient: 'Recipient', returned: 'Returned' };
+const REASON_SHORT = { missed_order: 'Skipped order', not_order: 'Skipped, not an order', correct: 'Looks right', not_a_purchase: 'Not a purchase', not_apparel: 'Not clothing', wrong_details: 'Wrong details', duplicate: 'Duplicate', part_of_item: 'Part of item', recipient: 'Recipient', returned: 'Returned' };
 async function recheck() {
   if (!data || busy) return;
   const labelled = [...data.items.filter(i => i.reviews.some(r => r.source === 'operator_review')),

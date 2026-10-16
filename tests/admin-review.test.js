@@ -54,7 +54,7 @@ test('shortcuts work only on an open item review and never while typing',()=>{
  assert.deepEqual(reviewKey(key('J'),{open:true}),{type:'next'});
  assert.deepEqual(reviewKey(key('k'),{open:true}),{type:'previous'});
  assert.deepEqual(REASONS.map((_,n)=>reviewKey(key(String(n+1)),{open:true}).reason),REASONS.map(([value])=>value));
- assert.equal(reviewKey(key('8'),{open:true}),null);
+ assert.equal(reviewKey(key('9'),{open:true}),null);
  for(const target of [{tagName:'INPUT',type:'text'},{tagName:'TEXTAREA'},{tagName:'SELECT'},{tagName:'DIV',isContentEditable:true}]){
   assert.equal(reviewKey(key('j',{target}),{open:true}),null);
   assert.equal(reviewKey(key('4',{target}),{open:true}),null);

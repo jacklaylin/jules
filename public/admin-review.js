@@ -2,11 +2,11 @@
 // key press does. Pure functions so the keyboard flow is testable without a browser.
 export const REASONS = [
   ['correct', 'Looks right'], ['not_a_purchase', 'Not a purchase'], ['not_apparel', 'Not clothing or accessories'],
-  ['wrong_details', 'Wrong details'], ['duplicate', 'Duplicate'], ['recipient', 'Who it was for'], ['returned', 'Returned']
+  ['wrong_details', 'Wrong details'], ['duplicate', 'Duplicate'], ['recipient', 'Who it was for'], ['returned', 'Returned'], ['part_of_item', 'Part of another item']
 ];
-export const STATUSES = [['', 'All'], ['review', 'To review'], ['reviewed', 'Reviewed'], ['removed', 'Removed'], ['duplicate', 'Duplicates']];
+export const STATUSES = [['', 'All'], ['review', 'To review'], ['reviewed', 'Reviewed'], ['removed', 'Removed'], ['duplicate', 'Duplicates and parts']];
 export const reviewed = item => item.reviews.some(r => r.source === 'operator_review');
-export const statusOf = item => item.duplicate_of ? 'duplicate' : item.removed ? 'removed' : reviewed(item) || item.confirmed ? 'reviewed' : 'review';
+export const statusOf = item => item.duplicate_of || item.part_of ? 'duplicate' : item.removed ? 'removed' : reviewed(item) || item.confirmed ? 'reviewed' : 'review';
 
 // filter: { status, store, source, query } as chosen in the Purchases toolbar.
 export function matches(item, { status = '', store = '', source = '', query = '' } = {}) {
@@ -65,6 +65,6 @@ export function reviewKey(event, { open, busy = false, form = true, dialog = fal
   const key = event.key.toLowerCase();
   if (key === 'j') return { type: 'next' };
   if (key === 'k') return { type: 'previous' };
-  if (form && /^[1-7]$/.test(event.key)) return { type: 'label', reason: REASONS[Number(event.key) - 1][0] };
+  if (form && /^[1-8]$/.test(event.key)) return { type: 'label', reason: REASONS[Number(event.key) - 1][0] };
   return null;
 }
