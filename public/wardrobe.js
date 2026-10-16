@@ -77,7 +77,7 @@ async function api(method='GET',body){
  if(!response.ok)throw Object.assign(Error(data.error||'Something went wrong. Try again.'),{status:response.status});
  return data;
 }
-function login(){view=null;token=null;session.clear();sessionStorage.removeItem('jules_wishlist_token');enableAdminLink(null);$('login').hidden=false;$('wardrobe').hidden=true;$('logout').hidden=true;}
+function login(){view=null;token=null;session.clear();sessionStorage.removeItem('jules_wishlist_token');enableAdminLink(null);$('login').hidden=false;$('wardrobe').hidden=true;}
 
 function toast(text,action=null){
  clearTimeout(toastTimer);undo=action;
@@ -121,7 +121,7 @@ function renderCategories(){
 
 function render(){
  if(!view)return;
- $('login').hidden=true;$('wardrobe').hidden=false;$('logout').hidden=false;
+ $('login').hidden=true;$('wardrobe').hidden=false;
  const count=view.items.length,reading=['listing','extracting','questions'].includes(view.status);
  $('count').textContent=count?`${count} ${count===1?'ITEM':'ITEMS'}`:'';
  $('reading').hidden=!reading;
@@ -182,15 +182,10 @@ function renderRemoved(){
 }
 for(const dialog of document.querySelectorAll('dialog'))for(const close of dialog.querySelectorAll('[data-close]'))close.onclick=()=>dialog.close();
 
-$('logout').onclick=async()=>{
- $('logout').disabled=true;
- try{if(token)await fetch('/api/wishlist',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify({action:'logout'})});}catch{}
- session.clear();login();message('Logged out.');$('logout').disabled=false;
-};
 
 // While signed in, the page shows the collection with placeholder cards straight away, as the wishlist does.
 function loading(){
- $('login').hidden=true;$('wardrobe').hidden=false;$('logout').hidden=false;$('count').textContent='';
+ $('login').hidden=true;$('wardrobe').hidden=false;$('count').textContent='';
  for(const id of ['reading','questions','toolbar','empty','removed-open'])$(id).hidden=true;
  $('grid').setAttribute('aria-busy','true');
  $('grid').replaceChildren(...Array.from({length:4},()=>{const tile=el('div',{className:'tile'},el('div',{className:'skeleton photo'}),el('div',{className:'skeleton skeleton-card-title'}),el('div',{className:'skeleton skeleton-price'}));tile.setAttribute('aria-hidden','true');return tile;}));

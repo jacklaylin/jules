@@ -17,7 +17,7 @@ let noticeTimer,analysisPoll;const notice=text=>{clearTimeout(noticeTimer);$('no
 function node(tag,text,cls){const el=document.createElement(tag);if(text)el.textContent=text;if(cls)el.className=cls;return el;}
 function button(text,work){const el=node('button',text);el.type='button';el.onclick=work;return el;}
 function clear(){generation++;exportVersion++;urls.forEach(URL.revokeObjectURL);urls.clear();photos.clear();$('sources').replaceChildren();$('cards').replaceChildren();$('export-preview').replaceChildren();$('export-dialog').close();exportBlob=null;exporting=null;state=null;}
-function login(){clearTimeout(analysisPoll);document.body.classList.remove('story-mode');clear();token=null;enableAdminLink(null);session.clear();sessionStorage.removeItem('jules_wishlist_token');$('workspace').hidden=true;$('login').hidden=false;$('logout').hidden=true;}
+function login(){clearTimeout(analysisPoll);document.body.classList.remove('story-mode');clear();token=null;enableAdminLink(null);session.clear();sessionStorage.removeItem('jules_wishlist_token');$('workspace').hidden=true;$('login').hidden=false;}
 async function authFetch(url,options={}) {
   try{token=await session.token()||token;}catch(error){if(!session.read())login();throw error;}
   const send=()=>fetch(url,{...options,headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{})},cache:'no-store'});
@@ -135,7 +135,7 @@ function renderCards() {
 }
 function render() {
   generation++;exportVersion++;urls.forEach(URL.revokeObjectURL);urls.clear();photos.clear();
-  $('login').hidden=true;$('workspace').hidden=false;$('logout').hidden=false;
+  $('login').hidden=true;$('workspace').hidden=false;
   void enableAdminLink(token);
   $('context').value=state.data.notes??'';
   for(const r of document.querySelectorAll('input[name=tone]'))r.checked=r.value===state.data.tone;
@@ -147,9 +147,6 @@ function render() {
 }
 async function load(){clearTimeout(analysisPoll);state=await api();render();if(Date.parse(state.data.busy_until)>Date.now()){clearTimeout(noticeTimer);analysisPoll=setTimeout(()=>work(load,'Checking your style analysis'),3000);}else {notice('');if(state.data.consent_at&&state.data.report?.analysis.crops.some(c=>!c.full_caption||c.caption_version!==1)){state=await withActivity('Checking the clothing in your photos',()=>api({action:'captions',report:state.data.report.id}));render();}}}
 
-$('logout').onclick=()=>work(async()=>{
-  const response=await authFetch('/api/wishlist',{method:'POST',body:JSON.stringify({action:'logout'})});if(!response.ok)throw new Error('Could not end the session. Try again.');login();notice('Signed out.');
-});
 async function encodeFile(file) {
   if(['image/heic','image/heif'].includes(file.type)||/\.hei[cf]$/i.test(file.name)){
     if(file.size>3*1024*1024)throw new Error('HEIC files must be under 3 MB.');
