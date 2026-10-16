@@ -350,7 +350,8 @@ document.addEventListener('keydown',event=>{
 });
 $('restart').onclick=()=>go(0);
 // Sharing: the person's own choice. The first tap makes an unguessable link; the phone's share sheet
-// opens when there is one, otherwise the link is copied. Stop sharing turns the link off for everyone.
+// opens when there is one, otherwise the link is copied. The link is permanent and always shows the
+// latest report (founder, 16 Oct: no turning it off).
 const shareUrl=()=>`${location.origin}/r/${report.share.token}`;
 async function shareReport(){
  try{
@@ -366,10 +367,6 @@ function shareStatus(){
  if(report?.share&&!readOnly){$('share-link').href=shareUrl();$('share-link').textContent=shareUrl().replace(/^https?:\/\//,'');}
 }
 $('share').onclick=shareReport;$('end-share').onclick=shareReport;
-$('unshare').onclick=async()=>{
- try{const result=await api('POST',{action:'report-unshare'});report={...result.report,name:report.name,text_url:report.text_url,read_photos:report.read_photos};shareStatus();toast('Link turned off. Nobody can open it now.');}
- catch(error){toast(error.message);}
-};
 // A fresh read of another photo takes a few seconds; the card replays its entrance when it lands.
 $('read-shuffle').onclick=async()=>{
  const button=$('read-shuffle');button.disabled=true;button.textContent='Judging…';
