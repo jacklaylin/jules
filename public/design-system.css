@@ -319,7 +319,7 @@ button.small{min-height:32px;padding:0 14px;font-size:13px}
 .dv-count{font:500 10px/1 var(--font-mono);background:var(--ink);color:var(--white);border-radius:var(--r-pill);padding:3px 6px}
 .dv-pop{margin:0;inset:auto;padding:6px;border:1px solid var(--line);border-radius:16px;background:var(--white);color:var(--ink);box-shadow:var(--shadow-panel);min-width:240px;max-width:calc(100vw - 32px)}
 .dv-menu{display:none;flex-direction:column}.dv-menu:popover-open{display:flex}
-.dv-menu button{justify-content:flex-start;gap:10px;width:100%;min-height:36px;padding:0 10px;border:0;border-radius:10px;background:transparent;box-shadow:none;font-size:13px;text-align:left}
+.dv-menu button{display:flex;align-items:center;justify-content:flex-start;gap:10px;width:100%;min-height:36px;padding:0 10px;border:0;border-radius:10px;background:transparent;box-shadow:none;font-size:13px;text-align:left}
 .dv-menu button:hover,.dv-menu button:focus-visible{background:var(--fog)}.dv-menu .hint{margin-left:auto;font-weight:400;font-size:12px;color:var(--text-2)}
 .dv-menu .mono-label{padding:8px 10px 2px}.dv-menu hr{border:0;border-top:1px solid var(--line);margin:4px 6px}
 .dv-filters{padding:14px}.dv-filters:popover-open{display:grid;gap:12px}.dv-filters label{display:grid;gap:6px;font-size:13px}.dv-filters select{margin:0}
@@ -347,6 +347,17 @@ button.small{min-height:32px;padding:0 14px;font-size:13px}
 .dv-split.open{display:grid;grid-template-columns:minmax(280px,360px) minmax(0,1fr);align-items:start;border:1px solid var(--line);border-radius:var(--r-card);overflow:hidden}
 .dv-split.open>.dv-list{border-top:0;border-right:1px solid var(--line);position:sticky;top:var(--admin-sticky,64px);max-height:calc(100dvh - var(--admin-sticky,64px));overflow:auto}
 .dv-split.open>.dv-detail{padding:14px 20px 24px;min-width:0}
+/* Editable tables (inputs and actions in cells) use a real table with the same dense look as .dv-list. */
+.dv-table-wrap{overflow-x:auto;border-top:1px solid var(--line)}
+.dv-table{width:100%;border-collapse:collapse;font-size:13px}
+.dv-table th{height:32px;padding:0 10px;text-align:left;font:500 10px/1.2 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--text-2);border-bottom:1px solid var(--line);white-space:nowrap}
+.dv-table td{height:40px;padding:3px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+.dv-table .end{text-align:right}.dv-table tr:hover td{background:#FAF9F7}
+.dv-table input:not([type=checkbox]):not([type=radio]){margin:0;min-height:30px;padding:0 10px;border-color:transparent;border-radius:8px;background:transparent;font-size:13px}
+.dv-table input:not([type=checkbox]):not([type=radio]):hover{border-color:var(--line-strong)}.dv-table input:focus{background:var(--white);border-color:var(--line-strong)}
+.dv-table tr.dirty td{background:var(--grape-tint)}.dv-table tr.dirty input:not([type=checkbox]):not([type=radio]){border:2px solid var(--grape);background:var(--white)}
+.dv-table button.small{min-height:28px;padding:0 10px;font-size:12px}
+button.quiet{border-color:transparent;box-shadow:none;background:transparent;color:var(--text-2)}button.quiet::after{display:none}button.quiet:hover{color:var(--ink);transform:none}
 .dv-tool{border:1px solid var(--line);border-radius:16px;padding:14px 16px;margin:0 0 12px}
 .dv-tool-head{display:flex;align-items:center;gap:10px;margin-bottom:6px}.dv-tool-head h2{margin:0;font-size:22px}.dv-tool-head button{margin-left:auto}
 @media(max-width:800px){
@@ -359,8 +370,7 @@ button.small{min-height:32px;padding:0 14px;font-size:13px}
 
 /* Collection pages (wishlist, wardrobe): large serif title with the item count opposite; on phones the count sits beneath. */
 .collection-heading{align-items:baseline;margin-bottom:48px}.collection-heading h1{font-size:clamp(72px,7.5vw,112px)}
-.heading-mobile{display:none}
-@media(max-width:800px){.collection-heading{display:block;margin-bottom:28px}.collection-heading h1{font-size:clamp(50px,16vw,68px);margin-bottom:12px;text-transform:none}.heading-mobile{display:inline}.heading-desktop{display:none}}
+@media(max-width:800px){.collection-heading{display:block;margin-bottom:28px}.collection-heading h1{font-size:clamp(50px,16vw,68px);margin-bottom:12px;text-transform:none}}
 
 /* Product cards: equal-height tiles with a portrait photo, bold name and one mono line. Shared by every collection grid. */
 .product-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(max(min(100%,280px),calc((100% - 90px)/4)),1fr));gap:42px 30px}

@@ -5,7 +5,7 @@ import {generateReply as agentReply} from '../lib/ai.js';
 import {withConsent} from './helpers/agent.js';
 // These tests cover tool routing; the consent check approves (its own tests are in agent.test.js).
 const generateReply=(messages,env,fetcher,memory)=>agentReply(messages,env,withConsent(fetcher),memory);
-import { agentTurn, tool } from './helpers/agent.js';
+import { agentTurn, tool, isClaimAudit } from './helpers/agent.js';
 import { textWishlistAction } from '../lib/text-wishlist.js';
 import { wishlistProducts } from '../lib/wishlist.js';
 import { verifyWishlistRows } from '../lib/listings.js';
@@ -46,6 +46,7 @@ test('varied save follow-ups route interpreted existing references to save witho
     const state=stateFromSearch({identification_policy:'visual_comparison',products});
     const body=await generateReply([{direction:'outbound',status:'sent',body:'Previous product findings'},
       {direction:'inbound',body:message}],env,async(_url,request)=>{
+      if(isClaimAudit(request))return {ok:false};
       calls++;const input=JSON.parse(request.body);
       assert.equal(input.tool_choice,'required');assert.equal(input.input.at(-1).content,message);
       return agentTurn(tool('save_to_wishlist',{option_indices:indices,consent_context:'explicit_request'}));
