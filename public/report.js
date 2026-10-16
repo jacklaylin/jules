@@ -122,10 +122,28 @@ addEventListener('resize',fitCard);
 function fitChips(){
  const list=$('card').querySelector('.gate-chips');if(!list)return;
  for(const chip of list.children)chip.hidden=false;
- const room=list.parentElement.offsetTop+list.parentElement.clientHeight;
+ // The bottom of the space the chips may use (inside the list's bounce room).
+ const box=list.parentElement,room=box.offsetTop+box.clientHeight-parseFloat(getComputedStyle(box).paddingBottom);
  for(const chip of list.children)if(chip.offsetTop+chip.offsetHeight>room)chip.hidden=true;
 }
 addEventListener('resize',fitChips);
+// Four emojis (canvas card): four slot-machine reels spin through decoys and land on the person's
+// emojis one after another; each caption is the fact that earned it.
+const DECOYS=['🛍️','👠','🧢','🕶️','🧥','👜','🎒','🧦','🥿','👗','🧶','👟'];
+function emojiCard(card,animate){
+ const reels=card.picks.map((pick,i)=>{
+  const strip=el('div',{className:'emoji-strip'},...Array.from({length:9},(_,k)=>el('span',{textContent:DECOYS[(k*5+i*3)%DECOYS.length],'aria-hidden':'true'})),el('span',{textContent:pick.emoji}));
+  const delay=0.3+i*0.25,dur=1.3+i*0.25;
+  strip.style.animationDelay=`${delay}s`;strip.style.animationDuration=`${dur}s`;
+  const caption=el('p',{className:'emoji-fact',textContent:pick.fact});caption.style.animationDelay=`${(delay+dur).toFixed(2)}s`;
+  const window_=el('div',{className:'emoji-window'},strip);window_.style.animationDelay=`${(delay+dur).toFixed(2)}s`;
+  return el('li',{className:'emoji-reel','aria-label':`${pick.emoji} ${pick.fact}`},window_,caption);
+ });
+ return el('article',{className:'story-card story-emoji','aria-label':`${Theirs()} style in four emojis`},
+  el('h2',{className:'story-title emoji-title',textContent:`${Theirs()} style in four emojis`}),
+  el('ul',{className:'emoji-grid'},...reels),
+  foot());
+}
 // In / Out (canvas card 4): the "in / out" meme as a notes-app list on a butter ground. IN lines slide
 // in, then OUT lines (struck through), then the closing line. Every fact is counted by code.
 function inOutCard(card){
@@ -161,13 +179,14 @@ function lockedCard(card){
    el('p',{className:'locked-hint',textContent:'Or text Jules a photo of an old receipt.'})),
   foot());
 }
-const RENDER={receipt:receiptCard,gatekeeper:gatekeeperCard,inout:inOutCard,locked:lockedCard};
+const RENDER={receipt:receiptCard,gatekeeper:gatekeeperCard,emoji:emojiCard,inout:inOutCard,locked:lockedCard};
 
 function renderCard(animate=true){
  const card=report.cards[index];
  $('progress').replaceChildren(...report.cards.map((_,i)=>el('span',{className:i<index?'done':i===index?'current':''})));
  $('progress-label').textContent=`${index+1}/${report.cards.length}`;
- $('arrow-prev').disabled=index===0;
+ // On a phone the space around the 9:16 card takes the card's own ground, so it reads full screen.
+ $('view-card').dataset.ground=card.type;
  $('card').replaceChildren(RENDER[card.type](card,animate));
  // Saving a vote or hidden lines redraws the card in place without replaying its entrance.
  $('card').classList.toggle('is-still',!animate);
@@ -184,7 +203,8 @@ function renderCard(animate=true){
  // Measured once the card is on screen.
  fitCard();fitChips();
 }
-function go(i){if(i<0)return;if(i>=report.cards.length){show('view-end');return;}index=i;renderCard();}
+// Back from the first card returns to the welcome screen; forward from the last opens the end.
+function go(i){if(i<0){show('view-intro');return;}if(i>=report.cards.length){show('view-end');return;}index=i;renderCard();}
 
 async function save(body,done){
  try{const result=await api('POST',{card:report.cards[index].type,...body});report={...result.report,name:report.name};renderCard(false);if(done)toast(done);}
