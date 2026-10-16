@@ -248,26 +248,26 @@ fieldset label input[type=radio]{accent-color:var(--grape)}
 @media(max-width:800px){.app-header>.header-actions{display:none}.menu-toggle{display:block}.app-header .wordmark{font-size:48px}.app-header.compact .wordmark{font-size:40px}.menu-header .wordmark{font-size:48px}}
 @media(prefers-reduced-motion:reduce){.mobile-menu[open]{animation:none}}
 
-/* Owner admin console: the standard header above, and a tool menu that stays in view below the compact header. */
+/* Owner admin console: the standard header above, then one slim strip of tool links that stays under the compact header. */
 /* Pages keep the same width whether or not they scroll, so switching tools never shifts content sideways. */
 html{scrollbar-gutter:stable}
-/* Before the shell script runs, main already sits where the layout will put it (left menu, or the phone strip). */
-body.admin-console>main{padding:var(--page-top) var(--page-gutter) 80px calc(var(--page-gutter) + 270px)}
-body.admin-console{--admin-sticky:64px}
-.admin-layout{display:grid;grid-template-columns:230px minmax(0,1fr);padding:var(--page-top) var(--page-gutter) 0}
-.admin-nav{position:sticky;top:var(--admin-sticky);align-self:start;max-height:calc(100dvh - var(--admin-sticky));overflow:auto;padding:4px 24px 28px 0;border-right:1px solid var(--line);display:grid;gap:24px}
-.admin-nav h2{font:500 11px/1.6 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--text-2);margin:0 0 6px 12px}
-.admin-nav a{display:block;min-height:44px;padding:9px 12px;border-radius:14px;text-decoration:none;color:var(--ink);font-size:15px;line-height:1.3}
-.admin-nav a small{display:block;font-size:11px;color:var(--text-2);margin-top:2px}
-.admin-nav a:hover{background:var(--fog);color:var(--ink)}.admin-nav a[aria-current=page]{background:var(--fog);box-shadow:inset 3px 0 var(--grape)}
-.admin-layout>main,.admin-gate{min-width:0;padding:0 0 80px 40px}
+/* --admin-sticky: where sticky content (a data-view list column) stops, below the compact header and the strip. */
+body.admin-console{--admin-sticky:105px}
+/* Before the shell script runs, main already leaves room for the strip, so nothing jumps when it appears. */
+body.admin-console>main{padding-top:calc(var(--page-top) + 41px)}
+body.admin-console>.admin-nav~main,.admin-gate{padding-top:var(--page-top)}
+.admin-nav{position:sticky;top:64px;z-index:9;display:flex;align-items:stretch;gap:22px;height:40px;padding:0 var(--page-gutter);background:var(--white);border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+.admin-nav::-webkit-scrollbar{display:none}
+.admin-nav a{flex:none;display:flex;align-items:center;white-space:nowrap;text-decoration:none;font-size:13px;font-weight:600;color:var(--text-2);border-bottom:2px solid transparent;margin-bottom:-1px}
+.admin-nav a:hover{color:var(--ink)}.admin-nav a[aria-current=page]{color:var(--ink);border-bottom-color:var(--ink)}
+.admin-nav a:focus-visible{outline:3px solid var(--grape);outline-offset:-3px}
+.admin-gate{padding-left:var(--page-gutter);padding-right:var(--page-gutter);padding-bottom:80px}
 .admin-gate form{max-width:440px;margin-top:24px}.admin-gate form button{justify-self:start}.admin-gate h1{margin:12px 0 16px}.admin-gate-notice{font-size:14px;color:var(--text-2)}
 @media(max-width:800px){
- .admin-layout{grid-template-columns:minmax(0,1fr)}
- .admin-nav{z-index:9;background:var(--white);max-height:none;display:flex;gap:6px;overflow-x:auto;padding:8px 0;margin-top:calc(var(--page-top)*-1);border-right:0;border-bottom:1px solid var(--line);scrollbar-width:none}
- .admin-nav-group{display:contents}.admin-nav h2,.admin-nav a small{display:none}.admin-nav a{flex:none;white-space:nowrap;display:flex;align-items:center;font-size:14px}
- .admin-layout>main,.admin-gate{padding:24px 0 60px}
- body.admin-console>main{padding:85px var(--page-gutter) 60px}}
+ body.admin-console{--admin-sticky:109px}
+ body.admin-console>main{padding-top:calc(var(--page-top) + 45px)}
+ .admin-nav{height:44px;gap:20px}.admin-nav a{font-size:14px}
+}
 
 /* Admin data components (from the admin design handoff). Status is never colour alone: each badge has a glyph and a word. */
 :root{--ok-bg:#E3F2EA;--ok-text:#14573A;--warn-bg:#FFF0C2;--warn-text:#6B4A00;--fail-bg:#FBE3E0;--fail-text:#9B1C14;--info-text:#4A433E;--grape-tint:#F7F3FF}
