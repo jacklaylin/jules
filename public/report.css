@@ -214,9 +214,16 @@ body.report-page:has(.report-player:not([hidden])[data-ground="inout"]){backgrou
 .locked-score{font:800 96px/.85 var(--font-sans);letter-spacing:-.06em;filter:blur(6px)}
 .locked-icon{position:absolute;left:50%;top:50%;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;background:var(--ink);display:flex;align-items:center;justify-content:center}
 .locked-icon path{fill:none;stroke:var(--butter);stroke-width:2;stroke-linejoin:round}
+.locked-emoji{display:grid;grid-template-columns:repeat(2,1fr);place-items:center;background:#FFFDF7;font-size:52px}
+.locked-emoji span{filter:blur(6px)}
+.locked-spectrum{display:flex;flex-direction:column;justify-content:center;gap:28px;padding:0 28px;background:var(--grape)}
+.locked-spectrum span{position:relative;height:4px;border-radius:2px;background:#ffffff66;filter:blur(3px)}
+.locked-spectrum i{position:absolute;top:-8px;width:20px;height:20px;margin-left:-10px;border-radius:50%;background:var(--butter)}
 .locked-label{color:var(--butter)}
 .story-locked .story-title{font-size:34px}
 .locked-why{font-size:15px;line-height:1.45;color:#ffffffcc}
+.locked-unlock{font-size:15px;line-height:1.4;color:var(--white)}
+.locked-unlock b{color:var(--butter)}
 .locked-actions{margin-top:auto;display:flex;flex-direction:column;gap:8px}
 .locked-cta{text-decoration:none}
 .locked-hint{font-size:13px;color:#ffffffb3;text-align:center}

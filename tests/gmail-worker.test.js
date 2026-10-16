@@ -143,3 +143,16 @@ test('once an import has finished, the chain tags purchases and builds the style
  // A failed tagging run never fails the import.
  const failing=fixture();failing.row.data.job.status='ready';
  await runGmailStep('owner',failing,{},{},{tag:async()=>{throw Error('model down');},build:async()=>{throw Error('model down');},schedule:()=>{}});assert.equal(failing.row.data.job.status,'ready');});
+
+test('a rebuild that unlocked a card texts once after the import is announced; a rebuild with nothing new stays quiet',async()=>{
+ for(const [unlocked,want] of [[['gatekeeper'],['announce','build','new card: gatekeeper']],[[],['announce','build']],[undefined,['announce','build']]]){
+  const store=fixture(),calls=[];
+  await runGmailStep('owner',store,{},{},{step:async row=>({...row,data:{...row.data,job:{...row.data.job,status:'ready'}}}),announce:async()=>calls.push('announce'),tag:async()=>({tagged:0}),
+   build:async()=>{calls.push('build');return {status:'built',unlocked};},newCard:async(s,o,e,cards)=>{assert.equal(o,'owner');calls.push('new card: '+cards.join());},schedule:()=>{}});
+  assert.deepEqual(calls,want);
+ }
+ // A failed text never fails the import.
+ const store=fixture();
+ await runGmailStep('owner',store,{},{},{step:async row=>({...row,data:{...row.data,job:{...row.data.job,status:'ready'}}}),announce:async()=>{},tag:async()=>({tagged:0}),build:async()=>({status:'built',unlocked:['emoji']}),newCard:async()=>{throw Error('photon down');},schedule:()=>{}});
+ assert.equal(store.row.data.job.status,'ready');
+});
