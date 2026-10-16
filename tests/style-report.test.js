@@ -399,3 +399,9 @@ test('the preview description comes from the best shared card',()=>{
  assert.equal(sharePreview({name:'Jack',cards:[{type:'receipt',lines:[{label:'BLACK ANYTHING',n:22}]}]}).description,'Black anything ×22. What would yours say?');
  assert.equal(sharePreview({name:null,cards:[]}).title,'A style report · Jules');
 });
+
+test('a line that starts with the person’s name keeps the name’s capital, even if the writer lowercased it',()=>{
+ const gate={score:71,verdict:'Cult member',brands:[{name:'Mfpen'},{name:'Eckhaus Latta'}]};
+ assert.equal(validGateLine('jack found Mfpen before the group chat',gate,'Jack'),'Jack found Mfpen before the group chat');
+ assert.equal(validGateLine('You found Mfpen before the group chat',gate,'Jack'),'you found Mfpen before the group chat');
+});

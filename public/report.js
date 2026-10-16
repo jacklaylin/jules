@@ -122,7 +122,8 @@ addEventListener('resize',fitCard);
 function fitChips(){
  const list=$('card').querySelector('.gate-chips');if(!list)return;
  for(const chip of list.children)chip.hidden=false;
- const room=list.parentElement.offsetTop+list.parentElement.clientHeight;
+ // The bottom of the space the chips may use (inside the list's bounce room).
+ const box=list.parentElement,room=box.offsetTop+box.clientHeight-parseFloat(getComputedStyle(box).paddingBottom);
  for(const chip of list.children)if(chip.offsetTop+chip.offsetHeight>room)chip.hidden=true;
 }
 addEventListener('resize',fitChips);
@@ -167,7 +168,8 @@ function renderCard(animate=true){
  const card=report.cards[index];
  $('progress').replaceChildren(...report.cards.map((_,i)=>el('span',{className:i<index?'done':i===index?'current':''})));
  $('progress-label').textContent=`${index+1}/${report.cards.length}`;
- $('arrow-prev').disabled=index===0;
+ // On a phone the space around the 9:16 card takes the card's own ground, so it reads full screen.
+ $('view-card').dataset.ground=card.type;
  $('card').replaceChildren(RENDER[card.type](card,animate));
  // Saving a vote or hidden lines redraws the card in place without replaying its entrance.
  $('card').classList.toggle('is-still',!animate);
@@ -184,7 +186,8 @@ function renderCard(animate=true){
  // Measured once the card is on screen.
  fitCard();fitChips();
 }
-function go(i){if(i<0)return;if(i>=report.cards.length){show('view-end');return;}index=i;renderCard();}
+// Back from the first card returns to the welcome screen; forward from the last opens the end.
+function go(i){if(i<0){show('view-intro');return;}if(i>=report.cards.length){show('view-end');return;}index=i;renderCard();}
 
 async function save(body,done){
  try{const result=await api('POST',{card:report.cards[index].type,...body});report={...result.report,name:report.name};renderCard(false);if(done)toast(done);}
