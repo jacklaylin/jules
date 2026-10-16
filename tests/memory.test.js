@@ -115,3 +115,14 @@ test('a first name the person states is remembered, checked as a name, and used 
  const forgot=await updateProfile(store,id,{...said,id:'00000000-0000-4000-8000-000000000002',created_at:'2026-10-06T10:00:00Z',body:'forget my name'},{changes:[{action:'forget',field:'name',key:'first',value:'',quote:'forget my name'}],acknowledgment:''});
  assert.equal(profileFirstName(forgot.facts),null);
 });
+
+test('size and budget keys keep their shape: a store name alone is not a size key, and a legacy bad key can still be forgotten', () => {
+ const message = { id: '00000000-0000-4000-8000-000000000009', direction: 'inbound', body: 'Size 31 is also fine. I usually spend $300 on jeans.', created_at: '2026-10-15T10:00:00Z' };
+ const one = change => { try { return validateChanges([{ action: 'set', source_id: message.id, ...change }], [message]); } catch { return []; } };
+ assert.equal(one({ field: 'size', key: 'mfpen retail aps', value: '31', evidence: 'Size 31 is also fine' }).length, 0);
+ assert.equal(one({ field: 'size', key: 'trousers/waist', value: '31', evidence: 'Size 31 is also fine' }).length, 1);
+ assert.equal(one({ field: 'size', key: 'trousers/unknown/a.p.c.', value: '31', evidence: 'Size 31 is also fine' }).length, 1);
+ assert.equal(one({ field: 'budget', key: 'jeans', value: '$300', evidence: 'I usually spend $300 on jeans.' }).length, 0);
+ assert.equal(one({ field: 'budget', key: 'jeans/usd', value: '$300', evidence: 'I usually spend $300 on jeans.' }).length, 1);
+ assert.equal(one({ field: 'size', key: 'mfpen retail aps', value: '', action: 'remove', evidence: 'Size 31 is also fine' }).length, 1);
+});

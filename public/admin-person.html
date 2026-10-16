@@ -7,11 +7,14 @@
 <link rel="icon" href="/brand/icon.svg" type="image/svg+xml"></head>
 <body class="admin-console">
   <main>
-    <div class="person-title"><a class="breadcrumb" href="/admin">← People</a><h1 id="person-name">Loading…</h1><div id="person-badges" class="badges"></div><span class="spacer"></span>
-      <p class="person-stats mono-label">Last active <strong id="stat-active">—</strong> · <strong id="stat-messages">—</strong> messages · <strong id="stat-facts">—</strong> facts</p>
-      <button class="small" type="button" popovertarget="person-more">More ⋯</button></div>
-    <!-- One menu of actions for this person, the same on every tab. Purchase actions open Purchase history first. -->
+    <div class="person-title"><a class="breadcrumb" href="/admin">People /</a><h1 id="person-name">Loading…</h1><div id="person-badges" class="badges"></div><span class="spacer"></span>
+      <p class="person-stats">Active <strong id="stat-active">—</strong> · <strong id="stat-messages">—</strong> messages · <strong id="stat-facts">—</strong> facts</p>
+      <button class="small quiet" type="button" popovertarget="person-more">More ⋯</button></div>
+    <!-- One menu of actions for this person, the same on every tab. Memory and purchase actions open their tab first. -->
     <div id="person-more" class="dv-pop dv-menu" popover aria-label="More actions">
+      <span class="mono-label">Personal memory</span>
+      <button id="profile-import" type="button" data-opens-tab="memory">Learn from existing messages <span class="hint">last 100 texts</span></button>
+      <hr>
       <span class="mono-label">Purchase history</span>
       <button id="purchases-reload" type="button" data-opens-tab="purchases">Reload purchases</button>
       <button id="tags-run" type="button" data-opens-tab="purchases" hidden>Tag purchases</button>
@@ -31,12 +34,18 @@
     <p id="notice" role="status" aria-live="polite" class="muted"></p>
 
     <section id="tab-memory" data-panel="memory" hidden>
-      <div class="toolbar"><button id="profile-reload" class="small" type="button">Reload profile</button><button id="profile-import" class="small" type="button">Learn from existing messages</button><span id="memory-dirty" class="badge warn" hidden></span></div>
+      <div class="dv-toolbar">
+        <div id="memory-types" class="seg" role="group" aria-label="Filter by type"></div>
+        <label class="dv-search"><span class="sr-only">Search memory</span><input id="memory-search" type="search" maxlength="100" placeholder="Key, value or evidence"><span class="kbd" aria-hidden="true">/</span></label>
+        <span class="spacer"></span>
+        <span id="memory-dirty" class="badge warn" hidden></span>
+        <button id="memory-add-open" class="btn--butter small" type="button" aria-expanded="false" aria-controls="tool-add-fact">+ Add preference</button>
+      </div>
+      <div class="dv-status"><span id="profile-notice" role="status" aria-live="polite"></span></div>
       <div id="memory-conflict" class="notice-bar" hidden><span>This profile changed since you loaded it. Reload to see the latest; your unsaved values stay in their rows.</span><button id="conflict-reload" class="small" type="button">Reload profile</button></div>
-      <details class="fold"><summary>Summary</summary><p id="profile-summary" class="muted"></p></details>
-      <div class="table-scroll"><table class="data-table memory-table"><thead><tr><th>Type</th><th>Key</th><th>Value</th><th>Evidence</th><th>Actions</th></tr></thead><tbody id="profile-facts"></tbody></table></div>
-      <form id="profile-add" class="add-fact"><h3>Add a preference</h3><div class="add-fact-fields"><label>Type<select id="fact-field"><option value="gender">Gender identity</option><option value="shopping_range">Clothing range</option><option value="size">Size</option><option value="brand">Brand</option><option value="category">Category</option><option value="style">Style attribute</option><option value="budget">Usual budget</option></select></label><label>Key<input id="fact-key" maxlength="100" required placeholder="e.g. shoes/us_men or lemaire"></label><label>Value<input id="fact-value" maxlength="500" required placeholder="e.g. 10 or prefers relaxed tailoring"></label><button type="submit" class="btn--butter">Add preference</button></div></form>
-      <p id="profile-notice" role="status" aria-live="polite" class="muted"></p>
+      <section id="tool-add-fact" class="dv-tool" aria-labelledby="tool-add-fact-title" hidden><div class="dv-tool-head"><h2 id="tool-add-fact-title">Add a preference</h2><button id="memory-add-close" class="small" type="button">Close ×</button></div>
+        <form id="profile-add" class="add-fact-fields"><label>Type<select id="fact-field"><option value="gender">Gender identity</option><option value="shopping_range">Clothing range</option><option value="size">Size</option><option value="brand">Brand</option><option value="category">Category</option><option value="style">Style attribute</option><option value="budget">Usual budget</option></select></label><label>Key<input id="fact-key" maxlength="100" required placeholder="e.g. shoes/us_men or lemaire"></label><label>Value<input id="fact-value" maxlength="500" required placeholder="e.g. 10 or prefers relaxed tailoring"></label><button type="submit" class="btn--butter">Add preference</button></form></section>
+      <div class="dv-table-wrap"><table class="dv-table memory-table"><thead><tr><th>Type</th><th>Key</th><th>Value</th><th>Evidence</th><th class="end">Actions</th></tr></thead><tbody id="profile-facts"></tbody></table></div>
     </section>
 
     <section id="tab-conversation" data-panel="conversation" hidden>
@@ -55,7 +64,7 @@
         <span class="dv-divider" data-list-only></span>
         <div id="purchases-chips" class="seg" role="group" aria-label="Filter by status" data-list-only></div>
         <label class="dv-search" data-list-only><span class="sr-only">Search purchases</span><input id="purchases-search" type="search" maxlength="100" placeholder="Brand, product, store, size"><span class="kbd" aria-hidden="true">/</span></label>
-        <button class="small" type="button" popovertarget="purchases-filters" data-list-only>Filters <span id="purchases-filter-count" class="dv-count" hidden></span></button>
+        <button class="small quiet" type="button" popovertarget="purchases-filters" data-list-only>Filters <span id="purchases-filter-count" class="dv-count" hidden></span></button>
         <span class="spacer"></span>
         <button id="purchases-start" class="btn--butter small" type="button" hidden>Start reviewing →</button>
       </div>
@@ -64,8 +73,7 @@
         <label>Found by<select id="purchases-source"><option value="">Any source</option><option value="gmail">Gmail</option><option value="shop">Shop</option><option value="screenshot">Chat screenshot</option><option value="multiple">More than one source</option></select></label>
         <div class="dv-pop-actions"><button id="purchases-clear" class="small" type="button">Clear</button><button class="small btn--butter" type="button" popovertarget="purchases-filters" popovertargetaction="hide">Done</button></div>
       </div>
-      <div class="dv-status"><span id="purchases-tokens" class="badges"></span><span id="purchases-loader" class="dv-loader" aria-hidden="true" hidden></span><span id="purchases-summary"></span><span id="tags-status"></span><span id="purchases-notice" role="status" aria-live="polite"></span>
-        <span class="dv-keys" aria-hidden="true"><span class="kbd">/</span> search <span class="kbd">J</span><span class="kbd">K</span> move <span class="kbd">↵</span> open <span class="kbd">Esc</span> close</span></div>
+      <div class="dv-status"><span id="purchases-tokens" class="badges"></span><span id="purchases-loader" class="dv-loader" aria-hidden="true" hidden></span><span id="purchases-summary"></span><span id="tags-status"></span><span id="purchases-notice" role="status" aria-live="polite"></span></div>
 
       <section id="tool-recheck" class="dv-tool" aria-labelledby="tool-recheck-title" hidden><div class="dv-tool-head"><h2 id="tool-recheck-title">Re-check labelled emails</h2><button class="small" type="button" data-close-tool>Close ×</button></div><p class="muted">Re-reads the emails behind every item you labelled, using the current reading rules, and reports how many labels it now agrees with. Nothing is saved. Takes a few seconds per item.</p><button id="recheck-run" class="small" type="button">Run re-check</button><p id="recheck-status" role="status" aria-live="polite" class="muted"></p><div id="recheck-results"></div></section>
       <section id="tool-report" class="dv-tool" aria-labelledby="tool-report-title" hidden><div class="dv-tool-head"><h2 id="tool-report-title">Style report</h2><button class="small" type="button" data-close-tool>Close ×</button></div><p class="muted">Builds the person’s private style report from their purchases and tags (Receipt card for now). Texting sends them a signed link to /report; each built report is texted once.</p><p id="report-status" class="muted"></p><pre id="report-preview" class="report-preview" hidden></pre><button id="report-build" class="small" type="button">Build report</button> <button id="report-send" class="small" type="button" hidden>Text them the link</button> <a id="report-open" class="small" target="_blank" rel="noopener" hidden>Open report ↗</a></section>

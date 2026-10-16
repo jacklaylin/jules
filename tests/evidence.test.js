@@ -81,7 +81,7 @@ test('style readings are evidence; saved reports keep references; confirmed beli
  // Evidence removed (inputs changed) means the reading no longer shows it.
  assert.equal(hydrateReport(stored,[]).analysis.observations.length,1);
  const facts=reportFacts(backed,'2026-10-12');
- assert.deepEqual(facts[0].evidence_ids,['style:r1:o1','confirmation:r1:style/style-pack/navy knitwear']);assert.equal(facts[0].basis,'confirmed');
+ assert.deepEqual(facts[0].evidence_ids,['style:r1:o1','confirmation:r1:style/navy knitwear']);assert.equal(facts[0].basis,'confirmed');
  assert.deepEqual(confirmationEvidence(backed,facts).map(e=>e.id),[facts[0].evidence_ids[1]]);
 });
 
