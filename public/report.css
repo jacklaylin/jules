@@ -49,17 +49,19 @@ body.report-page{background:var(--ink);color:var(--white);min-height:100vh;min-h
    without black bands. On the butter card the controls switch to ink to stay readable. Desktop keeps
    the dark stage (see below). */
 .report-player{--ground:var(--ink);background:var(--ground)}
-.report-player[data-ground="gatekeeper"]{--ground:var(--grape)}
+.report-player[data-ground="gatekeeper"],.report-player[data-ground="spectrum"]{--ground:var(--grape)}
+.report-player[data-ground="emoji"]{--ground:var(--tangerine)}
 .report-player[data-ground="inout"]{--ground:var(--butter)}
 /* Wider phones and tablets: the page around the player takes the same ground. */
-body.report-page:has(.report-player:not([hidden])[data-ground="gatekeeper"]){background:var(--grape)}
+body.report-page:has(.report-player:not([hidden])[data-ground="gatekeeper"]),body.report-page:has(.report-player:not([hidden])[data-ground="spectrum"]){background:var(--grape)}
+body.report-page:has(.report-player:not([hidden])[data-ground="emoji"]){background:var(--tangerine)}
 body.report-page:has(.report-player:not([hidden])[data-ground="inout"]){background:var(--butter)}
-.report-player[data-ground="inout"] .report-top,.report-player[data-ground="inout"] .report-controls{color:var(--ink)}
-.report-player[data-ground="inout"] .report-icon-button,.report-player[data-ground="inout"] .report-pill-button{border-color:var(--ink);color:var(--ink)}
-.report-player[data-ground="inout"] .report-icon-button[aria-pressed="true"]{background:var(--ink);color:var(--butter);border-color:var(--ink)}
-.report-player[data-ground="inout"] .report-close{color:var(--ink)}
-.report-player[data-ground="inout"] .report-progress span{background:#17120f40}
-.report-player[data-ground="inout"] .report-progress span.done,.report-player[data-ground="inout"] .report-progress span.current{background:var(--ink)}
+.report-player[data-ground="inout"] .report-top,.report-player[data-ground="inout"] .report-controls,.report-player[data-ground="emoji"] .report-top,.report-player[data-ground="emoji"] .report-controls{color:var(--ink)}
+.report-player[data-ground="inout"] .report-icon-button,.report-player[data-ground="inout"] .report-pill-button,.report-player[data-ground="emoji"] .report-icon-button,.report-player[data-ground="emoji"] .report-pill-button{border-color:var(--ink);color:var(--ink)}
+.report-player[data-ground="inout"] .report-icon-button[aria-pressed="true"],.report-player[data-ground="emoji"] .report-icon-button[aria-pressed="true"]{background:var(--ink);color:var(--butter);border-color:var(--ink)}
+.report-player[data-ground="inout"] .report-close,.report-player[data-ground="emoji"] .report-close{color:var(--ink)}
+.report-player[data-ground="inout"] .report-progress span,.report-player[data-ground="emoji"] .report-progress span{background:#17120f40}
+.report-player[data-ground="inout"] .report-progress span.done,.report-player[data-ground="inout"] .report-progress span.current,.report-player[data-ground="emoji"] .report-progress span.done,.report-player[data-ground="emoji"] .report-progress span.current{background:var(--ink)}
 .report-tap{position:absolute;top:56px;bottom:96px;border:0;background:transparent;cursor:pointer;z-index:2}
 .report-tap-prev{left:0;width:30%}.report-tap-next{right:0;width:70%}
 .report-icon-button:focus-visible,.report-pill-button:focus-visible,.report-cta:focus-visible,.report-tap:focus-visible,.report-link:focus-visible{outline:3px solid var(--grape);outline-offset:3px}
@@ -134,6 +136,23 @@ body.report-page:has(.report-player:not([hidden])[data-ground="inout"]){backgrou
 @keyframes emoji-spin{from{transform:translateY(0)}to{transform:translateY(-1008px)}}
 @keyframes emoji-thunk{0%{transform:scale(1)}40%{transform:scale(1.08)}100%{transform:scale(1)}}
 @keyframes emoji-rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+
+/* Spectrum (design canvas, card 7, the closer): grape ground, the type in serif, sliders below. */
+.story-spectrum{background:var(--grape);color:var(--white);padding:24px 22px 18px;gap:14px}
+.spectrum-head{display:flex;flex-direction:column;gap:6px;animation:report-rise .7s cubic-bezier(.16,1,.3,1) both}
+.spectrum-head p{margin:0}
+.spectrum-is{font-size:15px;font-weight:600}
+.spectrum-name{margin:0;font:400 50px/.95 var(--font-serif);letter-spacing:-.04em}
+.spectrum-line{margin-top:4px!important;font-size:15px;line-height:1.3}
+.spectrum-sliders{list-style:none;margin:0;padding:0;flex:1;display:flex;flex-direction:column;justify-content:center;gap:15px}
+.spectrum-slider{display:flex;flex-direction:column;gap:6px}
+.spectrum-ends{display:flex;justify-content:space-between;font:500 10px var(--font-mono);letter-spacing:.06em;text-transform:uppercase}
+.spectrum-ends span{opacity:.75}.spectrum-ends .is-near{opacity:1}
+.spectrum-track{position:relative;height:14px}
+.spectrum-track::before{content:"";position:absolute;left:0;right:0;top:6px;height:2px;border-radius:2px;background:#ffffff59}
+.spectrum-mid{position:absolute;left:50%;top:3px;width:2px;height:8px;background:#ffffff59}
+.spectrum-dot{position:absolute;top:0;width:14px;height:14px;margin-left:-7px;border-radius:50%;border:2px solid var(--white);box-sizing:border-box;background:var(--butter);animation:spectrum-slide 1s cubic-bezier(.16,1,.3,1) both}
+@keyframes spectrum-slide{from{left:50%}}
 
 /* In / Out (design canvas, card 4): a notes-app list on butter, tilted like a screenshot. */
 .story-inout{background:var(--butter);padding:18px;gap:0}

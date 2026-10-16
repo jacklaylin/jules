@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {receiptLines,validTotal,writeTotal,buildReport,updateReport,reportView,handleReport,FALLBACK_TOTAL,gatekeeper,nicheBrand,validGateLine,writeGateLine,reportWriter,REPORT_MODEL,inOut,validInOutLine,writeInOutLine,lockedCards,MIN_CARDS,sharedView,handleSharedReport,sharePreview,handleSharePage,fourEmojis} from '../lib/style-report.js';
+import {receiptLines,validTotal,writeTotal,buildReport,updateReport,reportView,handleReport,FALLBACK_TOTAL,gatekeeper,nicheBrand,validGateLine,writeGateLine,reportWriter,REPORT_MODEL,inOut,validInOutLine,writeInOutLine,lockedCards,MIN_CARDS,sharedView,handleSharedReport,sharePreview,handleSharePage,fourEmojis,spectrum} from '../lib/style-report.js';
 import {tagFingerprint} from '../lib/item-tags.js';
 import {purchaseEvidence,projectReceiptEvidence} from '../lib/receipt-extraction.js';
 import {signInLinks} from '../lib/onboarding.js';
@@ -440,4 +440,28 @@ test('four emojis: each is earned by a counted fact, the four strongest win, and
 test('the emoji card is shared as just its emojis and facts',()=>{
  const report={id:'r',built_at:'2026-10-16T00:00:00Z',hidden:{},feedback:[],cards:[{type:'emoji',picks:[{emoji:'🖤',fact:'82% black',secret:'x'}]}]};
  assert.deepEqual(sharedView(report,'Jack').cards,[{type:'emoji',picks:[{emoji:'🖤',fact:'82% black'}]}]);
+});
+
+test('Spectrum computes sliders from purchases and the brand list, then names the approved type that fits best',()=>{
+ seq=0;
+ // Twelve black J.Crew tees from one store over two years: uniform, classic, one store, mall.
+ const rows=Array.from({length:12},(_,k)=>buy({product:'Tee '+k,merchant:'J.Crew',brand:'J.Crew',order_reference:'J'+k},{at:Date.UTC(k<6?2023:2024,k%6,1)})).flat();
+ const state=projectReceiptEvidence(owner,rows).state;
+ const tags=tagsFor(state,()=>({item_type:'t-shirt',group:'tops',color_family:'black',resale:false}));
+ const s=spectrum(state,tags,{gateScore:10});
+ assert.equal(s.eligible,true);
+ const v=Object.fromEntries(s.sliders.map(x=>[x.key,x.value]));
+ assert.ok(v.variety<=33,'one kind of thing, one colour, one brand is uniform');
+ assert.ok(v.era>=67,'a classic brand bought steadily is classic');
+ assert.ok(v.stores<=33,'one store');
+ assert.equal(v.niche,10);
+ // Three matches (Era R, Variety L, Niche L) beat two-match types like The Uniform and The Creature of Habit,
+ // and more extreme sliders beat The Comfort Zone's three.
+ assert.equal(s.type,'The Steady Classicist');
+ assert.ok(s.line.length>0);
+ // There is no Sale slider until receipts carry a sale flag, so sale types never appear.
+ assert.ok(!s.sliders.some(x=>x.key==='sale'));
+ // Too little data: fewer than three sliders, so no card.
+ seq=0;
+ assert.equal(spectrum(projectReceiptEvidence(owner,buy({product:'Tee',merchant:'COS',brand:'COS',order_reference:'C1'})).state,{}).eligible,false);
 });

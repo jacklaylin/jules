@@ -1,0 +1,402 @@
+{
+ "version": 1,
+ "source": "design/spectrum-types-draft.md (approved October 15, 2026)",
+ "types": [
+  {
+   "id": 1,
+   "name": "The Quiet Gatekeeper",
+   "required": [
+    {
+     "slider": "niche",
+     "pos": "R"
+    },
+    {
+     "slider": "variety",
+     "pos": "L"
+    },
+    {
+     "slider": "era",
+     "pos": "R"
+    }
+   ],
+   "line": "Labels nobody at the party can name, bought on repeat and never once explained"
+  },
+  {
+   "id": 2,
+   "name": "The Sale Romantic",
+   "required": [
+    {
+     "slider": "sale",
+     "pos": "L"
+    },
+    {
+     "slider": "variety",
+     "pos": "R"
+    },
+    {
+     "slider": "stores",
+     "pos": "R"
+    }
+   ],
+   "line": "Falls hard for whatever just got marked down, anywhere on the internet, and somehow it all works out"
+  },
+  {
+   "id": 3,
+   "name": "The Creature of Habit",
+   "required": [
+    {
+     "slider": "stores",
+     "pos": "L"
+    },
+    {
+     "slider": "variety",
+     "pos": "L"
+    }
+   ],
+   "line": "Same store, same kind of thing, every time, and honestly the system is undefeated"
+  },
+  {
+   "id": 4,
+   "name": "The Archive Diver",
+   "required": [
+    {
+     "slider": "price",
+     "pos": "L"
+    },
+    {
+     "slider": "niche",
+     "pos": "R"
+    }
+   ],
+   "line": "Cult labels at friendly prices, found three pages deep in a search most people would have abandoned"
+  },
+  {
+   "id": 5,
+   "name": "The Full-Price Purist",
+   "required": [
+    {
+     "slider": "sale",
+     "pos": "R"
+    },
+    {
+     "slider": "price",
+     "pos": "R"
+    },
+    {
+     "slider": "era",
+     "pos": "R"
+    }
+   ],
+   "line": "Classic labels at full price with no waiting around for a sale that was never part of the plan"
+  },
+  {
+   "id": 6,
+   "name": "The Store Hopper",
+   "required": [
+    {
+     "slider": "stores",
+     "pos": "R"
+    },
+    {
+     "slider": "variety",
+     "pos": "R"
+    }
+   ],
+   "line": "A different checkout every time, and the order history reads like a travel diary"
+  },
+  {
+   "id": 7,
+   "name": "The Uniform",
+   "required": [
+    {
+     "slider": "variety",
+     "pos": "L"
+    },
+    {
+     "slider": "era",
+     "pos": "R"
+    }
+   ],
+   "line": "Found the formula a long time ago and has been quietly restocking it ever since"
+  },
+  {
+   "id": 8,
+   "name": "The Trend Sprinter",
+   "required": [
+    {
+     "slider": "era",
+     "pos": "L"
+    },
+    {
+     "slider": "stores",
+     "pos": "R"
+    },
+    {
+     "slider": "variety",
+     "pos": "R"
+    }
+   ],
+   "line": "Always on this season's thing and already halfway to next season's"
+  },
+  {
+   "id": 9,
+   "name": "The Heritage Head",
+   "required": [
+    {
+     "slider": "era",
+     "pos": "R"
+    },
+    {
+     "slider": "niche",
+     "pos": "L"
+    },
+    {
+     "slider": "price",
+     "pos": "R"
+    }
+   ],
+   "line": "Sticks to the classics so firmly that trends just bounce off"
+  },
+  {
+   "id": 10,
+   "name": "The Bargain Bloodhound",
+   "required": [
+    {
+     "slider": "sale",
+     "pos": "L"
+    },
+    {
+     "slider": "price",
+     "pos": "L"
+    },
+    {
+     "slider": "niche",
+     "pos": "L"
+    }
+   ],
+   "line": "Can smell a markdown from three tabs away"
+  },
+  {
+   "id": 11,
+   "name": "The Luxury Loyalist",
+   "required": [
+    {
+     "slider": "price",
+     "pos": "R"
+    },
+    {
+     "slider": "stores",
+     "pos": "L"
+    },
+    {
+     "slider": "sale",
+     "pos": "R"
+    }
+   ],
+   "line": "One very nice store, full price, every time, no notes"
+  },
+  {
+   "id": 12,
+   "name": "The Esoteric Explorer",
+   "required": [
+    {
+     "slider": "niche",
+     "pos": "R"
+    },
+    {
+     "slider": "stores",
+     "pos": "R"
+    },
+    {
+     "slider": "variety",
+     "pos": "R"
+    }
+   ],
+   "line": "Twelve labels deep and each one harder to pronounce than the last"
+  },
+  {
+   "id": 13,
+   "name": "The Chaos Collector",
+   "required": [
+    {
+     "slider": "variety",
+     "pos": "R"
+    },
+    {
+     "slider": "era",
+     "pos": "L"
+    }
+   ],
+   "line": "No two orders look like they came from the same closet, which is exactly the charm"
+  },
+  {
+   "id": 14,
+   "name": "The Steady Classicist",
+   "required": [
+    {
+     "slider": "era",
+     "pos": "R"
+    },
+    {
+     "slider": "variety",
+     "pos": "L"
+    },
+    {
+     "slider": "niche",
+     "pos": "L"
+    }
+   ],
+   "line": "Knows exactly what works and sees no reason to discuss it further"
+  },
+  {
+   "id": 15,
+   "name": "The Sale-Rack Scholar",
+   "required": [
+    {
+     "slider": "sale",
+     "pos": "L"
+    },
+    {
+     "slider": "niche",
+     "pos": "R"
+    }
+   ],
+   "line": "Knows the cult labels and also knows exactly when they go on sale"
+  },
+  {
+   "id": 16,
+   "name": "The Investment Piece",
+   "required": [
+    {
+     "slider": "price",
+     "pos": "R"
+    },
+    {
+     "slider": "sale",
+     "pos": "R"
+    }
+   ],
+   "line": "Nicer labels at full price, every single time, zero haggling"
+  },
+  {
+   "id": 17,
+   "name": "The Mall Marathoner",
+   "required": [
+    {
+     "slider": "niche",
+     "pos": "L"
+    },
+    {
+     "slider": "era",
+     "pos": "L"
+    },
+    {
+     "slider": "stores",
+     "pos": "R"
+    }
+   ],
+   "line": "Has done a lap of the whole mall and checked out at most of it"
+  },
+  {
+   "id": 18,
+   "name": "The Comfort Zone",
+   "required": [
+    {
+     "slider": "stores",
+     "pos": "L"
+    },
+    {
+     "slider": "niche",
+     "pos": "L"
+    },
+    {
+     "slider": "price",
+     "pos": "L"
+    }
+   ],
+   "line": "Found the good basics store early and saw no reason to leave"
+  },
+  {
+   "id": 19,
+   "name": "The Wildcard",
+   "required": [
+    {
+     "slider": "variety",
+     "pos": "R"
+    },
+    {
+     "slider": "sale",
+     "pos": "L"
+    },
+    {
+     "slider": "era",
+     "pos": "L"
+    }
+   ],
+   "line": "Every order is a plot twist, and the plot is mostly markdowns"
+  },
+  {
+   "id": 20,
+   "name": "The Curator",
+   "required": [
+    {
+     "slider": "niche",
+     "pos": "R"
+    },
+    {
+     "slider": "price",
+     "pos": "R"
+    },
+    {
+     "slider": "stores",
+     "pos": "L"
+    }
+   ],
+   "line": "One very curated store doing a lot of heavy lifting for a very particular closet"
+  },
+  {
+   "id": 21,
+   "name": "The Classic With a Secret",
+   "required": [
+    {
+     "slider": "era",
+     "pos": "R"
+    },
+    {
+     "slider": "niche",
+     "pos": "R"
+    }
+   ],
+   "line": "Classic everything until the labels come out and nobody has heard of any of them"
+  },
+  {
+   "id": 22,
+   "name": "The Sale Strategist",
+   "required": [
+    {
+     "slider": "sale",
+     "pos": "L"
+    },
+    {
+     "slider": "stores",
+     "pos": "L"
+    }
+   ],
+   "line": "Knows exactly when one particular store marks things down and is ready at the refresh"
+  },
+  {
+   "id": 23,
+   "name": "The Middle Path",
+   "required": [],
+   "line": "Perfectly balanced on every slider, which is either very zen or very suspicious",
+   "fallback": "balanced"
+  },
+  {
+   "id": 24,
+   "name": "The Blank Canvas",
+   "required": [],
+   "line": "Not enough receipts to read yet, which is its own kind of mystery",
+   "fallback": "sparse"
+  }
+ ]
+}
