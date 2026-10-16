@@ -1,56 +1,82 @@
-// Admin › Costs data view: the words and rows the page shows for one day's /api/costs report.
-// Pure functions so the wording (what is known, unknown or incomplete) is testable without a browser.
+// Admin › Costs data view: the words and rows the page shows for one /api/costs report. The page shows a
+// month by default (to date, or the whole month once it is over) with a projection; Day is an option. Pure functions so the wording (billed, estimated, manual or
+// unknown) is testable without a browser.
 
 export const VIEWS = [['', 'By service'], ['features', 'By feature'], ['evals', 'Evals']];
 export const viewOf = search => { const view = new URLSearchParams(search).get('view') ?? ''; return VIEWS.some(([v]) => v === view) ? view : ''; };
 
-export const money = value => value === null || value === undefined ? 'Unknown' : new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 4 }).format(value);
-const checked = at => new Date(at).toLocaleString();
+export const PERIODS = [['month', 'Month'], ['day', 'Day']];
+export const periodOf = search => new URLSearchParams(search).get('period') === 'day' ? 'day' : 'month';
+const lastDay = month => new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0)).toISOString().slice(0, 10);
+// The day the API reports through: the chosen day, or for a month its last day (today while it is running).
+export function apiDate(period, value, today) {
+  if (period === 'day') return value > today ? today : value;
+  const month = value.slice(0, 7);
+  return month >= today.slice(0, 7) ? today : lastDay(month);
+}
+// The picker value when switching period: a day keeps its month; a month opens on its reported day.
+export const pickerValue = (period, value, today) => period === 'month' ? value.slice(0, 7) : apiDate('month', value, today);
+const monthName = date => new Date(`${date.slice(0, 7)}-01T00:00:00Z`).toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+const fullMonth = date => date === lastDay(date.slice(0, 7));
 
-// Beside the title: the amount and what kind of total it is. Unknown is never shown as $0.
-export function totalLine(data) {
+export const money = value => value === null || value === undefined ? 'Unknown' : new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: value !== 0 && Math.abs(value) < 1 ? 4 : 2 }).format(value);
+const when = at => { const d = new Date(at); return at && Number.isFinite(d.getTime()) ? d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'Never'; };
+
+// Beside the title: the month (to date, with its projection) or the day. Unknown is never $0.
+export function totalLine(data, period = 'month') {
   if (!data) return { amount: '—', label: '' };
-  if (data.total === null) return { amount: 'Unknown', label: 'costs unknown' };
-  return { amount: money(data.total), label: data.missing ? 'known subtotal' : 'recorded' };
+  const { today, month, projected } = data.totals;
+  const partial = data.incomplete.length ? ' · known part only' : '';
+  if (period === 'day') return { amount: money(today), label: `${data.date} (UTC) · month to date ${money(month)}${today === null ? '' : partial}` };
+  const label = fullMonth(data.date) ? `${monthName(data.date)} (UTC), whole month` : `${monthName(data.date)} to date, through ${data.date} (UTC) · projected month end ${money(projected)}`;
+  return { amount: money(month), label: label + (month === null ? '' : partial) };
 }
 
-// The status line: coverage, then the budget. over = recorded spend is above the warning budget.
+// The status line: coverage, then the budget. over = the day's known spend is above the warning budget.
 export function coverageText(data) {
-  return data.missing ? `${data.missing} of ${data.rows.length} services have missing usage or subscription amounts, so the total is incomplete` : 'All services have recorded usage and subscription amounts';
+  return data.incomplete.length ? `Incomplete: ${data.incomplete.join(', ')}, so totals include only what is known` : 'Every service is covered';
 }
-export function budgetText(data) {
+// The warning budget is per day, so it is compared only in Day.
+export function budgetText(data, period = 'day') {
+  if (period !== 'day') return { text: '', over: false };
   if (data.budget === null) return { text: 'No daily warning budget set', over: false };
-  const over = data.total !== null && data.total > data.budget;
-  return { over, text: `Daily warning budget ${money(data.budget)}: ${over ? 'over budget' : data.missing ? 'coverage incomplete, actual costs may exceed it' : 'within budget'}` };
+  const today = data.totals.today, over = today !== null && today > data.budget;
+  return { over, text: `Daily warning budget ${money(data.budget)}: ${over ? 'over budget' : data.incomplete.length ? 'coverage incomplete, actual costs may exceed it' : 'within budget'}` };
 }
 
-// One line per connected billing source, as the providers report it.
-export function providerLines(providers = {}) {
-  const lines = [], { openai, serpapi } = providers;
-  if (openai) lines.push(['OpenAI', `${openai.message}${openai.status === 'connected' ? ` Total reported ${openai.periodStart} through ${openai.periodEnd} (UTC): ${money(openai.periodTotal)}. Checked ${checked(openai.checkedAt)}.` : ''}`]);
-  if (serpapi) lines.push(['SerpApi', `${serpapi.message}${serpapi.status === 'connected' ? ` ${serpapi.used} searches used this billing month; ${serpapi.remaining} credits left; allowance ${serpapi.allowance}. Checked ${checked(serpapi.checkedAt)}.` : ''}`]);
-  for (const [name, label] of [['github', 'GitHub'], ['vercel', 'Vercel']]) {
-    const p = providers[name]; if (!p) continue;
-    lines.push([label, `${p.message}${p.status === 'connected' ? ` Reported daily charges: ${money(p.daily)}. ${name === 'vercel' ? `Excluded unallocated team charges: ${money(p.unallocated)}. ` : ''}Checked ${checked(p.checkedAt)}.` : ''}`]);
-  }
-  return lines;
-}
+// How a service's dollars are known: billed (provider's own report), estimate (Jules' metered calls at
+// list prices), manual (entered here), or not recorded.
+export const basisLabel = basis => basis === 'unknown' ? 'Not recorded' : basis.split('+').map(b => b[0].toUpperCase() + b.slice(1)).join(' + ');
+const badgeClass = row => !row.complete ? 'warn' : row.basis === 'billed' ? 'ok' : '';
 
-// By service: every column the ledger has.
+// The amount columns for the period: [field, heading]. A finished month needs no projection.
+export function serviceColumns(period, data) {
+  if (period === 'day') return [['today', 'Day']];
+  return data && fullMonth(data.date) ? [['month', 'Month']] : [['month', 'Month to date'], ['projected', 'Projected month end']];
+}
+export const featureColumn = (period, data) => period === 'day' ? ['today', 'Day'] : ['month', data && fullMonth(data.date) ? 'Month' : 'Month to date'];
+
+// By service: one row per service with the day, month to date, projection, basis and last update.
 export const serviceRow = row => ({
-  id: row.id, name: row.name, url: row.url, note: row.note ?? '', usage: money(row.usage),
-  subscription: row.daily === null ? 'Unknown' : `${money(row.daily)} (${money(row.monthly)}/mo)`,
-  total: money(row.total), source: row.source, complete: row.complete,
+  id: row.id, name: row.name, url: row.url, notes: row.notes ?? [],
+  today: money(row.today), month: money(row.month), projected: money(row.projected),
+  basis: basisLabel(row.basis) + (row.complete ? '' : ' · incomplete'), badge: badgeClass(row), source: row.source, updated: when(row.updated),
 });
 
 // By feature and Evals split the metered estimate: owner test runs are not user activity.
-export function featureRows(metered, evals) {
-  return (metered?.features ?? []).filter(f => !!f.eval === evals).map(f => ({ label: f.label, calls: String(f.calls), cost: money(f.cost) }));
+export function featureRows(features, evals) {
+  return (features?.features ?? []).filter(f => !!f.eval === evals).map(f => ({ label: f.label, aiCalls: String(f.aiCalls), searches: String(f.searches), today: money(f.today), month: money(f.month) + (f.unpriced ? ' + unpriced' : '') }));
 }
-export function meteredText(metered, evals) {
-  if (!metered) return 'Metered usage is unavailable';
-  if (!metered.features.length) return 'No metered calls on this day';
-  return evals ? `${money(metered.evals)} estimated from eval test runs` : `${money(metered.total - metered.evals)} estimated from people using Jules · ${money(metered.total)} including evals`;
+export function meteredText(data, evals, period = 'month') {
+  const f = data?.features;
+  if (!f) return data?.featureNotice ?? 'Feature costs are unavailable';
+  if (!f.features.length) return 'No metered calls this month';
+  const key = period === 'day' ? 'today' : 'month', when = period === 'day' ? 'on this day' : 'this month';
+  const total = list => list.reduce((s, x) => s + x[key], 0), evalCost = total(f.features.filter(x => x.eval));
+  const lines = [evals ? `${money(evalCost)} estimated from eval test runs ${when}` : `${money(total(f.features) - evalCost)} estimated from people using Jules ${when} · ${money(total(f.features))} including evals`];
+  if (!evals) lines.push(f.perSearch ? `searches at ${money(f.perSearch.value)} each (${f.perSearch.basis === 'plan' ? 'SerpApi plan price ÷ monthly searches' : 'SERPAPI_COST_PER_SEARCH setting'})` : 'search costs unknown until SerpApi reports a plan price');
+  if (f.unpriced.length) lines.push(`no list price for ${f.unpriced.join(', ')}, so those calls are counted but not priced`);
+  return lines.join(' · ');
 }
 
 // The amount form saves usage for the chosen day; subscriptions and the budget apply to that day's month.
