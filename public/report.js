@@ -144,7 +144,8 @@ function emojiCard(card,animate){
   const strip=el('div',{className:'emoji-strip'},...Array.from({length:9},(_,k)=>el('span',{textContent:DECOYS[(k*5+i*3)%DECOYS.length],'aria-hidden':'true'})),el('span',{textContent:pick.emoji}));
   const delay=0.3+i*0.25,dur=1.3+i*0.25;
   strip.style.animationDelay=`${delay}s`;strip.style.animationDuration=`${dur}s`;
-  const caption=el('p',{className:'emoji-fact',textContent:pick.fact});caption.style.animationDelay=`${(delay+dur).toFixed(2)}s`;
+  // The joke written from the fact (it still states it); older reports and shared views carry the fact.
+  const caption=el('p',{className:'emoji-fact',textContent:pick.caption??pick.fact});caption.style.animationDelay=`${(delay+dur).toFixed(2)}s`;
   const window_=el('div',{className:'emoji-window'},strip);window_.style.animationDelay=`${(delay+dur).toFixed(2)}s`;
   return el('li',{className:'emoji-reel','aria-label':`${pick.emoji} ${pick.fact}`},window_,caption);
  });

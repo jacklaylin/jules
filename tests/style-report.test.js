@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {receiptLines,validTotal,writeTotal,buildReport,updateReport,reportView,handleReport,FALLBACK_TOTAL,gatekeeper,nicheBrand,validGateLine,writeGateLine,reportWriter,REPORT_MODEL,inOut,validInOutLine,writeInOutLine,lockedCards,MIN_CARDS,sharedView,handleSharedReport,sharePreview,handleSharePage,fourEmojis,spectrum} from '../lib/style-report.js';
+import {receiptLines,validTotal,writeTotal,buildReport,updateReport,reportView,handleReport,FALLBACK_TOTAL,gatekeeper,nicheBrand,validGateLine,writeGateLine,reportWriter,REPORT_MODEL,inOut,validInOutLine,writeInOutLine,lockedCards,MIN_CARDS,sharedView,handleSharedReport,sharePreview,handleSharePage,fourEmojis,spectrum,validEmojiCaption,writeEmojiCaptions} from '../lib/style-report.js';
 import {tagFingerprint} from '../lib/item-tags.js';
 import {purchaseEvidence,projectReceiptEvidence} from '../lib/receipt-extraction.js';
 import {signInLinks} from '../lib/onboarding.js';
@@ -483,6 +483,20 @@ test('In / Out: one order of several colourways is not a habit that went out, an
  assert.ok(!c.out.some(o=>o.text==='Tiger Leather'),'a single order is not an era');
  assert.ok(c.out.some(o=>o.text==='Lemaire'));
  assert.ok(c.out.some(o=>o.text==='leather accessories'),'accessory → accessories');
+});
+
+test('emoji captions are jokes that still state the fact, and fall back to the fact when they don’t',async()=>{
+ const names=['MAAP','Lululemon','SSENSE'];
+ assert.equal(validEmojiCaption('15 pieces of cycling kit, tour de drawer.','15 pieces of cycling kit',names),'15 pieces of cycling kit, tour de drawer');
+ for(const bad of ['cycling kit, tour de drawer','15 pieces of cycling kit, 0 races','15 pieces of cycling kit from Lululemon','15 pieces of cycling kit, obsessed','x15 '+'y'.repeat(40)])
+  assert.equal(validEmojiCaption(bad,'15 pieces of cycling kit',names),null,bad);
+ const picks=[{emoji:'🚲',fact:'15 pieces of cycling kit'},{emoji:'🛍️',fact:'44 different stores'}];
+ const out=await writeEmojiCaptions(picks,async()=>({captions:[{emoji:'🚲',caption:'15 pieces of cycling kit, tour de drawer',shared:'Jack: 15 pieces of cycling kit, tour de drawer'},{emoji:'🛍️',caption:'so many stores',shared:'you shop a lot'}]}),names,'Jack');
+ assert.equal(out[0].caption,'15 pieces of cycling kit, tour de drawer');assert.equal(out[0].shared,'Jack: 15 pieces of cycling kit, tour de drawer');
+ // The second dropped its number, so the plain fact stays.
+ assert.equal(out[1].caption,'44 different stores');assert.equal(out[1].shared,'44 different stores');
+ // A writer that fails keeps every fact.
+ assert.deepEqual((await writeEmojiCaptions(picks,async()=>{throw Error('down');},names)).map(p=>p.caption),['15 pieces of cycling kit','44 different stores']);
 });
 
 test('Spectrum price counts each brand once and leans on the most premium brands, so restocks do not drown them out',()=>{
