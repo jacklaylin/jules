@@ -183,6 +183,7 @@ const outsideDetail=e=>{const r=$('detail').getBoundingClientRect();return e.cli
 $('detail').addEventListener('pointerdown',e=>{backdropPress=outsideDetail(e);});
 $('detail').addEventListener('click',e=>{if(backdropPress&&outsideDetail(e))closeDetail();backdropPress=false;});
 $('detail').addEventListener('close',()=>{document.body.classList.remove('detail-open');});
-if(token)load().catch(e=>message(e.message));
+// The sign-in section starts hidden so signed-in visits never flash it; show it only when signed out.
+if(token)load().catch(e=>message(e.message));else $('login').hidden=false;
 if(fragment.get('error_description'))message('This sign-in link has expired. Request a new one.');
 window.addEventListener('storage',event=>{if(event.key==='jules_wishlist_session'&&!event.newValue)login();});
