@@ -299,3 +299,14 @@ test('when the whole bank is retired, the card states the score plainly and logs
  const logged=COPY_CARDS.read.lines(card);
  assert.equal(logged.find(l=>l.slot==='verdict').source,'fact');assert.equal(logged.find(l=>l.slot==='closer').source,'fact');
 });
+
+test('only one callout leans on a purchase count; the others take an option about the photo',async()=>{
+ const photos=[{id:'p2',data:await photo()}];
+ const counts=answer({callouts:[
+  {item:'shirt',kind:'clothing',x:500,y:350,options:[{line:'one of your 12 shirts, picnic blanket with buttons',shared:'one of Jack’s 12 shirts, picnic blanket with buttons'}]},
+  {item:'shorts',kind:'clothing',x:500,y:600,options:[{line:'one of your 12 shorts, tennis club without the tennis',shared:'one of Jack’s 12 shorts, tennis club without the tennis'},{line:'shorts for a tennis club without the tennis',shared:'shorts for a tennis club without the tennis'}]},
+  {item:'socks',kind:'clothing',x:480,y:880,options:[{line:'one of your 12 pairs of ribbed socks, gym class deluxe',shared:'one of Jack’s 12 pairs of ribbed socks, gym class deluxe'}]}]});
+ const {card}=await readFit({photos,facts:[{item:'shirts',n:12}],name:'Jack',interpret:allOk,env:{},judges:async()=>counts});
+ assert.deepEqual(card.callouts.map(c=>c.text),['one of your 12 shirts, picnic blanket with buttons','shorts for a tennis club without the tennis','one of your 12 pairs of ribbed socks, gym class deluxe'],
+  'a later point with only a count option keeps it rather than losing the callout');
+});
