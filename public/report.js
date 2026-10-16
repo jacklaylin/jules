@@ -144,7 +144,8 @@ function emojiCard(card,animate){
   const strip=el('div',{className:'emoji-strip'},...Array.from({length:9},(_,k)=>el('span',{textContent:DECOYS[(k*5+i*3)%DECOYS.length],'aria-hidden':'true'})),el('span',{textContent:pick.emoji}));
   const delay=0.3+i*0.25,dur=1.3+i*0.25;
   strip.style.animationDelay=`${delay}s`;strip.style.animationDuration=`${dur}s`;
-  const caption=el('p',{className:'emoji-fact',textContent:pick.fact});caption.style.animationDelay=`${(delay+dur).toFixed(2)}s`;
+  // The joke written from the fact (it still states it); older reports and shared views carry the fact.
+  const caption=el('p',{className:'emoji-fact',textContent:pick.caption??pick.fact});caption.style.animationDelay=`${(delay+dur).toFixed(2)}s`;
   const window_=el('div',{className:'emoji-window'},strip);window_.style.animationDelay=`${(delay+dur).toFixed(2)}s`;
   return el('li',{className:'emoji-reel','aria-label':`${pick.emoji} ${pick.fact}`},window_,caption);
  });
@@ -155,6 +156,23 @@ function emojiCard(card,animate){
 }
 // Spectrum, the closer (canvas card 7): the person's type, its line, and the sliders behind it. Every
 // dot starts in the middle and slides out to its spot.
+// Style match (canvas card 5): "It's a style match." over a polaroid of the icon with the hanger
+// badge, the computed overlap and why. No free photo yet: an empty frame with the icon's name, which
+// is the intended look, not a broken image.
+const HANGER='M20 12 a4 4 0 1 1 6 3.5 c-1.5 1 -2 2 -2 4 L5 34 a2 2 0 0 0 1.2 3.6 h35.6 a2 2 0 0 0 1.2 -3.6 L24 19.5';
+function matchCard(card){
+ const photo=card.icon.photo?.url?el('img',{className:'match-photo',src:card.icon.photo.url,alt:card.icon.name}):el('div',{className:'match-photo match-empty','aria-hidden':'true'});
+ return el('article',{className:'story-card story-match','aria-label':`${card.pct}% style match with ${card.icon.name}`},
+  el('h2',{className:'match-head',textContent:'It’s a style match.'}),
+  el('div',{className:'match-stage'},
+   el('figure',{className:'match-polaroid'},photo,el('figcaption',{textContent:card.icon.name})),
+   el('span',{className:'match-badge','aria-hidden':'true'},svg('svg',{viewBox:'0 0 48 48',width:30,height:30},svg('path',{d:HANGER})))),
+  el('p',{className:'match-credit',textContent:card.icon.photo?.credit??''}),
+  el('p',{className:'match-pct'},el('b',{textContent:`${card.pct}%`}),` closet overlap with ${card.icon.first}`),
+  el('p',{className:'match-traits',textContent:card.icon.traits.join(' · ')}),
+  el('p',{className:'match-line',textContent:card.line}),
+  foot('story-foot match-foot'));
+}
 function spectrumCard(card){
  const slider=(x,i)=>{
   const dot=el('span',{className:'spectrum-dot'});dot.style.left=`${x.value}%`;dot.style.animationDelay=`${(0.5+i*0.12).toFixed(2)}s`;
@@ -204,7 +222,7 @@ function lockedCard(card){
    el('p',{className:'locked-hint',textContent:'Or text Jules a photo of an old receipt.'})),
   foot());
 }
-const RENDER={receipt:receiptCard,gatekeeper:gatekeeperCard,emoji:emojiCard,inout:inOutCard,spectrum:spectrumCard,locked:lockedCard};
+const RENDER={receipt:receiptCard,gatekeeper:gatekeeperCard,emoji:emojiCard,inout:inOutCard,match:matchCard,spectrum:spectrumCard,locked:lockedCard};
 
 function renderCard(animate=true){
  const card=report.cards[index];

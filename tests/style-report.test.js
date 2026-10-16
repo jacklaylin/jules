@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {receiptLines,validTotal,writeTotal,buildReport,updateReport,reportView,handleReport,FALLBACK_TOTAL,gatekeeper,nicheBrand,validGateLine,writeGateLine,reportWriter,REPORT_MODEL,inOut,validInOutLine,writeInOutLine,lockedCards,MIN_CARDS,sharedView,handleSharedReport,sharePreview,handleSharePage,fourEmojis,spectrum} from '../lib/style-report.js';
+import {receiptLines,validTotal,writeTotal,buildReport,updateReport,reportView,handleReport,FALLBACK_TOTAL,gatekeeper,nicheBrand,validGateLine,writeGateLine,reportWriter,REPORT_MODEL,inOut,validInOutLine,writeInOutLine,lockedCards,MIN_CARDS,sharedView,handleSharedReport,sharePreview,handleSharePage,fourEmojis,spectrum,validEmojiCaption,writeEmojiCaptions,styleMatch,validMatchLine,writeMatchLine} from '../lib/style-report.js';
 import {tagFingerprint} from '../lib/item-tags.js';
 import {purchaseEvidence,projectReceiptEvidence} from '../lib/receipt-extraction.js';
 import {signInLinks} from '../lib/onboarding.js';
@@ -485,6 +485,20 @@ test('In / Out: one order of several colourways is not a habit that went out, an
  assert.ok(c.out.some(o=>o.text==='leather accessories'),'accessory → accessories');
 });
 
+test('emoji captions are jokes that still state the fact, and fall back to the fact when they don’t',async()=>{
+ const names=['MAAP','Lululemon','SSENSE'];
+ assert.equal(validEmojiCaption('15 pieces of cycling kit, tour de drawer.','15 pieces of cycling kit',names),'15 pieces of cycling kit, tour de drawer');
+ for(const bad of ['cycling kit, tour de drawer','15 pieces of cycling kit, 0 races','15 pieces of cycling kit from Lululemon','15 pieces of cycling kit, obsessed','x15 '+'y'.repeat(40)])
+  assert.equal(validEmojiCaption(bad,'15 pieces of cycling kit',names),null,bad);
+ const picks=[{emoji:'🚲',fact:'15 pieces of cycling kit'},{emoji:'🛍️',fact:'44 different stores'}];
+ const out=await writeEmojiCaptions(picks,async()=>({captions:[{emoji:'🚲',caption:'15 pieces of cycling kit, tour de drawer',shared:'Jack: 15 pieces of cycling kit, tour de drawer'},{emoji:'🛍️',caption:'so many stores',shared:'you shop a lot'}]}),names,'Jack');
+ assert.equal(out[0].caption,'15 pieces of cycling kit, tour de drawer');assert.equal(out[0].shared,'Jack: 15 pieces of cycling kit, tour de drawer');
+ // The second dropped its number, so the plain fact stays.
+ assert.equal(out[1].caption,'44 different stores');assert.equal(out[1].shared,'44 different stores');
+ // A writer that fails keeps every fact.
+ assert.deepEqual((await writeEmojiCaptions(picks,async()=>{throw Error('down');},names)).map(p=>p.caption),['15 pieces of cycling kit','44 different stores']);
+});
+
 test('Spectrum price counts each brand once and leans on the most premium brands, so restocks do not drown them out',()=>{
  seq=0;
  const rows=[
@@ -498,4 +512,42 @@ test('Spectrum price counts each brand once and leans on the most premium brands
  const price=spectrum(state,tags,{gateScore:40}).sliders.find(x=>x.key==='price').value;
  // Per item this would be about 42 (twenty 33s and three 100s); per brand, blended with the top quarter, it's spendy.
  assert.ok(price>=67,`price ${price}`);
+});
+
+// A closet built for a known icon: Frank Ocean's anchors (Prada, Homer, Our Legacy, Nike), neutrals.
+function matchHistory(brands){
+ seq=0;
+ const rows=brands.flatMap((brand,k)=>buy({product:'Item '+k,merchant:brand,brand,order_reference:'M'+k},{at:Date.UTC(2025,k%12,1)}));
+ const state=projectReceiptEvidence(owner,rows).state;
+ return {state,tags:tagsFor(state,i=>({item_type:'tee',group:'tops',color_family:['white','grey','navy'][Number(i.product.split(' ')[1])%3],resale:false}))};
+}
+test('the style match picks the icon whose brands, palette, price and signals fit best, and its score is the percentage',()=>{
+ const {state,tags}=matchHistory(['Our Legacy','Our Legacy','Nike','Nike','Prada','COS','Uniqlo','Lemaire','Auralee','Margaret Howell','Our Legacy','Nike']);
+ const m=styleMatch(state,tags,{gateScore:62,spectrumValues:{price:80,variety:60}});
+ assert.equal(m.eligible,true);
+ assert.equal(m.icon.name,'Frank Ocean');
+ assert.deepEqual([...m.shared.brands].sort(),['Nike','Our Legacy','Prada']);
+ assert.ok(m.pct>=50&&m.pct<=100);
+ // Same history, same icon: the match is computed, not random.
+ assert.deepEqual(styleMatch(state,tags,{gateScore:62,spectrumValues:{price:80,variety:60}}),m);
+ // Without price or signal data those parts are left out, not guessed: still a match from brands.
+ const plain=styleMatch(state,tags,{});
+ assert.equal(plain.eligible,true);assert.ok(plain.shared.brands.length>=2);
+ // Too little history: no card.
+ assert.equal(styleMatch(matchHistory(['Nike','Nike','Nike']).state,{}).eligible,false);
+});
+
+test('the match line names only shared brands and has a third-person twin for share links',async()=>{
+ const card={icon:{name:'Frank Ocean',first:'Frank',traits:['Cult brands','Clean shapes','Says little']},shared:{brands:['Our Legacy','Nike'],signals:[],palette:null}};
+ const names=['Our Legacy','Nike','Zara'];
+ assert.equal(validMatchLine('You both buy Our Legacy and say very little.',card,names),'you both buy Our Legacy and say very little');
+ for(const bad of ['you both love Zara','you both own 4 hoodies','you both are loyal to Nike','y'.repeat(101)])assert.equal(validMatchLine(bad,card,names),null,bad);
+ const written=await writeMatchLine(card,async()=>({line:'you both buy Our Legacy and say very little',shared:'Jack and Frank both buy Our Legacy and say very little'}),names,'Jack');
+ assert.equal(written.shared,'Jack and Frank both buy Our Legacy and say very little');
+ const fallback=await writeMatchLine(card,async()=>({line:'you both love Zara',shared:'you both love Zara'}),names,'Jack');
+ assert.equal(fallback.written,false);assert.match(fallback.shared,/^Jack and Frank both/);assert.ok(!/\byou\b/.test(fallback.shared));
+ // The share view shows the match about the person and leaves out what it was computed from.
+ const view=sharedView({cards:[{type:'match',pct:94,icon:{key:'frank-ocean',...card.icon,kind:'real',photo:null},shared:card.shared,orders:121,line:written.line,shared_line:written.shared}],feedback:[],hidden:{}},'Jack');
+ assert.deepEqual(Object.keys(view.cards[0]).sort(),['icon','line','pct','type']);
+ assert.equal(view.cards[0].line,'Jack and Frank both buy Our Legacy and say very little');
 });
