@@ -170,7 +170,8 @@ function matchCard(card){
    el('span',{className:'match-badge','aria-hidden':'true'},svg('svg',{viewBox:'0 -1.5 48 48',width:36,height:36},svg('path',{d:HEART})))),
   el('p',{className:'match-credit',textContent:card.icon.photo?.credit??''}),
   el('p',{className:'match-pct'},el('b',{textContent:`${card.pct}%`}),' match'),
-  el('p',{className:'match-line',textContent:card.line}),
+  // Every card says what you both love and what you both hate; reports built before that keep one line.
+  ...(card.love?[card.love,card.hate].filter(Boolean):[card.line]).map(text=>el('p',{className:'match-line',textContent:text})),
   foot('story-foot match-foot'));
 }
 function spectrumCard(card){
@@ -352,7 +353,8 @@ document.addEventListener('keydown',event=>{
 });
 $('restart').onclick=()=>go(0);
 // Sharing: the person's own choice. The first tap makes an unguessable link; the phone's share sheet
-// opens when there is one, otherwise the link is copied. Stop sharing turns the link off for everyone.
+// opens when there is one, otherwise the link is copied. The link is permanent and always shows the
+// latest report (founder, 16 Oct: no turning it off).
 const shareUrl=()=>`${location.origin}/r/${report.share.token}`;
 async function shareReport(){
  try{
@@ -368,10 +370,6 @@ function shareStatus(){
  if(report?.share&&!readOnly){$('share-link').href=shareUrl();$('share-link').textContent=shareUrl().replace(/^https?:\/\//,'');}
 }
 $('share').onclick=shareReport;$('end-share').onclick=shareReport;
-$('unshare').onclick=async()=>{
- try{const result=await api('POST',{action:'report-unshare'});report={...result.report,name:report.name,text_url:report.text_url,read_photos:report.read_photos};shareStatus();toast('Link turned off. Nobody can open it now.');}
- catch(error){toast(error.message);}
-};
 // A fresh read of another photo takes a few seconds; the card replays its entrance when it lands.
 $('read-shuffle').onclick=async()=>{
  const button=$('read-shuffle');button.disabled=true;button.textContent='Judging…';
