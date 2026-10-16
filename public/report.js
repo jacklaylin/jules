@@ -111,7 +111,46 @@ function fitChips(){
  for(const chip of list.children)if(chip.offsetTop+chip.offsetHeight>room)chip.hidden=true;
 }
 addEventListener('resize',fitChips);
-const RENDER={receipt:receiptCard,gatekeeper:gatekeeperCard};
+// Then vs now (canvas card 4): "then" slides down from the top, "now" up from the bottom, and the
+// verdict stamps across the middle.
+function thenNowSide(side,label,className){
+ const row=(name,...value)=>el('div',{className:'then-row'},el('span',{className:'then-key',textContent:name}),...value);
+ const swatch=side.colour&&el('span',{className:'then-swatch','aria-hidden':'true'});
+ if(swatch)swatch.style.background=side.colour.hex;
+ return el('section',{className:className},
+  el('p',{className:'then-label',textContent:label}),
+  el('p',{className:'then-year',textContent:String(side.year)}),
+  el('div',{className:'then-rows'},
+   row('Brands',el('b',{textContent:side.brands.join(', ')})),
+   side.colour&&row('Colour',swatch,el('b',{textContent:side.colour.name})),
+   side.item&&row('Mostly',el('b',{textContent:side.item}))));
+}
+function thenNowCard(card){
+ return el('article',{className:'story-card story-thennow','aria-label':`Then ${card.then.year}, now ${card.now.year}`},
+  thenNowSide(card.then,'Then','then-half then-then'),
+  thenNowSide(card.now,'Now','then-half then-now'),
+  el('p',{className:'then-verdict',textContent:card.verdict}),
+  el('footer',{className:'story-foot then-foot'},wordmark()));
+}
+// A locked card: a real card the person can't have yet, saying from real counts what unlocks it.
+// Never shared, no thumbs.
+const LOCK_ICON='M6 11 L18 11 L18 21 L6 21 Z M8.5 11 L8.5 7.5 C8.5 3.5 15.5 3.5 15.5 7.5 L15.5 11';
+function lockedCard(card){
+ const lock=el('span',{className:'locked-icon','aria-hidden':'true'},svg('svg',{viewBox:'0 0 24 24',width:24,height:24},svg('path',{d:LOCK_ICON})));
+ const teaser=card.card==='thennow'
+  ?el('div',{className:'locked-teaser locked-split','aria-hidden':'true'},el('span',{className:'locked-then',textContent:'20??'}),el('span',{className:'locked-now',textContent:String(new Date(report.built_at).getUTCFullYear())}),lock)
+  :el('div',{className:'locked-teaser locked-dial','aria-hidden':'true'},el('span',{className:'locked-score',textContent:'??'}),lock);
+ return el('article',{className:'story-card story-locked','aria-label':`Locked: ${card.title}`},
+  teaser,
+  el('p',{className:'label locked-label',textContent:'Locked'}),
+  el('h2',{className:'display story-title',textContent:card.title}),
+  el('p',{className:'locked-why',textContent:card.why}),
+  el('div',{className:'locked-actions'},
+   el('a',{className:'report-cta report-cta-small locked-cta',href:'/account',textContent:'Connect more orders'}),
+   el('p',{className:'locked-hint',textContent:'Or text Jules a photo of an old receipt.'})),
+  el('footer',{className:'story-foot'},wordmark()));
+}
+const RENDER={receipt:receiptCard,gatekeeper:gatekeeperCard,thennow:thenNowCard,locked:lockedCard};
 
 function renderCard(animate=true){
  const card=report.cards[index];
@@ -125,7 +164,10 @@ function renderCard(animate=true){
  $('vote-up').setAttribute('aria-pressed',String(vote==='up'));$('vote-down').setAttribute('aria-pressed',String(vote==='down'));
  $('edit-lines').hidden=card.type!=='receipt'||Boolean(person);
  // An admin preview records nothing: no thumbs, no line edits.
- $('vote-up').hidden=$('vote-down').hidden=Boolean(person);
+ // A locked card takes no thumbs either: there's nothing to judge yet.
+ const quiet=Boolean(person)||card.type==='locked';
+ $('vote-up').hidden=$('vote-down').hidden=quiet;
+ if($('controls-label'))$('controls-label').hidden=quiet;
  show('view-card');
  // Measured once the card is on screen.
  fitCard();fitChips();
