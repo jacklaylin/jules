@@ -4,6 +4,7 @@ import sharp from 'sharp';
 import {cropFrame,placeStickers,stickerHeight,validReadLine,readFit,READ_CATEGORIES,READ_BANDS,FRAME,readPhoto,askJudges,pickLine,READ_EXAMPLES,READ_PROMPT} from '../lib/fit-read.js';
 import {buildReport,sharedView,withReadPhoto,readAfterOutfits,sendReportLink,reportView,READ_ASK,shuffleRead,updateReport,COPY_CARDS} from '../lib/style-report.js';
 import {lineVotes,cardLessons,shownLine,promptVersion,RETIRE_PEOPLE} from '../lib/report-copy.js';
+import {judgeStyle,judgesFacts,JUDGES_PROMPT} from '../lib/style-judges.js';
 import {tagFingerprint} from '../lib/item-tags.js';
 import {purchaseEvidence,projectReceiptEvidence} from '../lib/receipt-extraction.js';
 
@@ -62,7 +63,7 @@ const answer=(over={})=>({photo_id:'p2',problem:'none',person:{x0:350,y0:150,x1:
  scores:[8,7,9],closer:{line:'clean, sporty and a little smug, and the judges allow it',shared:'clean, sporty and a little smug, and the judges allow it'},...over});
 const allOk=async({context})=>({results:context.lines.map(l=>({id:l.id,ok:true}))});
 
-test('a read keeps lines off the face, apart and checked, scores three drawn categories and picks a verdict from its band',async()=>{
+test('a read keeps lines off the face, apart and checked, and scores three drawn categories (the verdict is the judges card’s)',async()=>{
  const photos=[{id:'p1',data:await photo()},{id:'p2',data:await photo()}];
  let asked=null;
  // The second check rejects the first jeans option, so the second option is used.
@@ -76,7 +77,7 @@ test('a read keeps lines off the face, apart and checked, scores three drawn cat
  assert.ok(card.callouts.every(c=>c.shared&&!/\byou/.test(c.shared)));
  assert.equal(card.scores.length,3);assert.ok(card.scores.every(s=>READ_CATEGORIES.includes(s.label)));
  assert.deepEqual(asked.categories,card.scores.map(s=>s.label),'the judges score the categories code drew');
- assert.equal(card.band,'strong');assert.ok(READ_BANDS.find(b=>b.band==='strong').verdicts.includes(card.verdict));
+ assert.equal(card.band,'strong');assert.equal(card.verdict,undefined,'the judges’ verdict is on their own card');
  assert.equal(card.closer,'clean, sporty and a little smug, and the judges allow it');assert.equal(card.written,true);
  for(const c of card.callouts){assert.ok(c.x>=FRAME.x&&c.x<=FRAME.x+FRAME.w&&c.y>=FRAME.y&&c.y<=FRAME.y+FRAME.h);assert.ok([12,230].includes(c.lx));}
 });
@@ -121,7 +122,7 @@ async function fixture({photos=[]}={}){
   reserve:async(c,operation,body)=>{if(ops.has(operation))return false;ops.set(operation,{conversation_id:owner,status:'reserved',body});return true;},
   operation:async op=>ops.get(op)??null,finish:async(op,status)=>{ops.get(op).status=status;},prepareAI:async()=>{}};
 }
-const writer=async request=>request.schema.properties?.results?allOk(request):request.schema.properties?.line?{line:'you got to Our Legacy early',shared:'Jack got to Our Legacy early'}:{total:'one colour and a crop top habit'};
+const writer=async request=>request.schema.properties?.results?allOk(request):request.schema.properties?.scores?{scores:[8,8,9]}:request.schema.properties?.line?{line:'you got to Our Legacy early',shared:'Jack got to Our Legacy early'}:{total:'one colour and a crop top habit'};
 const env={STYLE_ENABLED:'true',SITE_ORIGIN:'https://jules.example'};
 const judges=async()=>answer({photo_id:'o2'});
 
@@ -142,7 +143,9 @@ test('the report reads the newest outfit photo, keeps the read across rebuilds, 
  assert.ok(!cards.some(c=>c.type==='locked'&&c.card==='read'));
  const at=cards.findIndex(c=>c.type==='read'),spectrumAt=cards.findIndex(c=>c.type==='spectrum');
  if(spectrumAt>=0)assert.ok(at<spectrumAt,'the read comes before the closing Spectrum card');
- assert.ok(store.row.data.style_report.read_seen.includes(built.card.verdict),'its verdict is remembered so the next read differs');
+ const last=cards.at(-1);
+ assert.equal(last.type,'judges','the judges close the report');assert.ok(at<cards.indexOf(last));
+ assert.ok(store.row.data.style_report.read_seen.includes(last.verdict),'their verdict is remembered so the next build differs');
 });
 
 test('a rebuild reads the photo again when the kept read is from the four-judge format',async()=>{
@@ -231,25 +234,27 @@ test('sending the report link also asks for a fit photo once, while the Read is 
 // The Read in the thumbs loop (COPY_CARDS.read, lib/report-copy.js): each callout, the closer and the
 // verdict is logged as its own line; votes on callouts and closers teach READ_PROMPT, and votes on the
 // pre-written verdicts and closers weight and retire the bank.
-test('every Read line is logged on its own: callouts and a written closer as generated, the verdict as pre-written',async()=>{
+test('every Read line is logged on its own: callouts and a written closer as generated; the judges’ verdict as pre-written on their card',async()=>{
  const store=await fixture({photos:['o2']});
  const {buildRead}=await import('../lib/style-report.js');
  store.row.data.style_report={cards:[(await buildRead(store,owner,env,{interpret:writer,judges})).card],feedback:[],hidden:{}};
  await buildReport(store,owner,env,{interpret:writer});
  const report=store.row.data.style_report,card=report.cards.find(c=>c.type==='read');
  const lines=report.copy_log.filter(l=>l.card==='read'&&l.report_id===report.id);
- assert.deepEqual(lines.map(l=>l.slot),[...card.callouts.map((c,k)=>`callout${k+1}`),'closer','verdict']);
- assert.deepEqual(lines.map(l=>l.source),[...card.callouts.map(()=>'generated'),'generated','prewritten']);
+ assert.deepEqual(lines.map(l=>l.slot),[...card.callouts.map((c,k)=>`callout${k+1}`),'closer']);
+ assert.deepEqual(lines.map(l=>l.source),[...card.callouts.map(()=>'generated'),'generated']);
  assert.deepEqual(lines.slice(0,card.callouts.length).map(l=>l.fact),card.callouts.map(c=>c.item),'a callout states the item it reads');
  assert.match(lines.at(-1).fact,/^strong fit, scored \w/);
  assert.ok(lines.every(l=>l.prompt===promptVersion(READ_PROMPT)));
- // 👎 can name the verdict alone ("which one missed?"), and only it counts as missed.
- const verdict=lines.at(-1);
+ // The judges' verdict is its own card's one line; 👎 on it counts against it alone.
+ const panel=report.cards.find(c=>c.type==='judges'),[verdict]=report.copy_log.filter(l=>l.card==='judges'&&l.report_id===report.id);
+ assert.equal(verdict.slot,'verdict');assert.equal(verdict.source,'prewritten');assert.equal(verdict.text,panel.verdict);
+ assert.match(verdict.fact,/^\w+ style, scored \w/);assert.equal(verdict.prompt,promptVersion(JUDGES_PROMPT));
  assert.deepEqual(reportView(report).copy.read.map(l=>l.text),lines.map(l=>l.text));
- await updateReport(store,owner,{action:'report-feedback',card:'read',vote:'down',reason:'not_funny',lines:[verdict.id]});
+ await updateReport(store,owner,{action:'report-feedback',card:'judges',vote:'down',reason:'not_funny',lines:[verdict.id]});
  const after=store.row.data.style_report,votes=lineVotes([{conversation_id:owner,copy:after.copy_log,feedback:after.feedback}]);
  assert.equal([...votes.values()].find(a=>a.text===verdict.text).downs,1);
- assert.ok([...votes.values()].filter(a=>a.card==='read'&&a.text!==verdict.text).every(a=>a.downs===0));
+ assert.ok([...votes.values()].filter(a=>a.card==='read').every(a=>a.downs===0));
  // A fallback closer is logged as pre-written.
  const fallback=COPY_CARDS.read.lines({...card,closer:'great idea, wrong decade',written:false,closer_source:undefined});
  assert.equal(fallback.find(l=>l.slot==='closer').source,'prewritten');
@@ -332,9 +337,14 @@ test('when the whole bank is retired, the card states the score plainly and logs
  const {card}=await readFit({photos:[{id:'p2',data:await photo()}],facts:[{item:'cream jeans',n:12}],name:'Jack',lessons,interpret:allOk,env:{},
   judges:async()=>answer({closer:{line:'the vibes are elevated',shared:'the vibes are elevated'}})});
  assert.equal(card.band,'strong');
- assert.equal(card.verdict,'Averaged 8');assert.equal(card.closer,'three judges, 8 on average');
- const logged=COPY_CARDS.read.lines(card);
- assert.equal(logged.find(l=>l.slot==='verdict').source,'fact');assert.equal(logged.find(l=>l.slot==='closer').source,'fact');
+ assert.equal(card.closer,'three judges, 8 on average');
+ assert.equal(COPY_CARDS.read.lines(card).find(l=>l.slot==='closer').source,'fact');
+ // The judges card draws its verdict from the same bank, as its own card: retired there, it says the average.
+ const verdictDowns=Object.fromEntries(Object.keys(downs).map(p=>[p,{vote:'down',lines:strong.verdicts}]));
+ const judged=readRows(strong.verdicts.map(v=>['verdict',v,'prewritten']),verdictDowns).map(r=>({...r,copy:r.copy.map(l=>({...l,card:'judges'})),feedback:r.feedback.map(f=>({...f,card:'judges'}))}));
+ const panel=await judgeStyle({purchases:['tops: 6']},{interpret:async()=>({scores:[8,8,8]}),seed:owner,
+  lessons:cardLessons(lineVotes(judged),'judges',{teaches:COPY_CARDS.judges.teaches})});
+ assert.equal(panel.verdict,'Averaged 8');assert.equal(COPY_CARDS.judges.lines(panel)[0].source,'fact');
 });
 
 test('only one callout leans on a purchase count; the others take an option about the photo',async()=>{
@@ -365,4 +375,27 @@ test('“Try another photo” reads the next outfit photo, skips one that can’
  assert.equal(read().source_id,'o1','the current read stays when nothing else can be read');
  const one=await fixture({photos:['o1']});
  await assert.rejects(shuffleRead(one,owner,env),e=>e.status===409);
+});
+
+// The judges (lib/style-judges.js): the report's last card scores the person's style as a whole from
+// the facts the other cards counted, never a photo, and never sees private lines.
+test('the judges score the whole report from its counted facts, close the deck, and share in the third person',async()=>{
+ const facts=judgesFacts({receipt:{lines:[{label:'TOPS',n:6},{label:'RETURNS',n:3,private:true}]},gate:{eligible:false},
+  then:{eligible:true,then:2023,now:2025,in:[{fact:'Arket: new',private:false},{fact:'sent back 40%',private:true}],out:[]}});
+ assert.deepEqual(facts.purchases,['TOPS: 6']);assert.deepEqual(facts.changes.in,['Arket: new']);
+ assert.ok(!JSON.stringify(facts).includes('sent back')&&!JSON.stringify(facts).includes('RETURNS'),'private lines stay out');
+ let asked=null;
+ const card=await judgeStyle(facts,{interpret:async r=>{asked=r;return {scores:[9,10,10]};},seed:owner,name:'Jack'});
+ assert.equal(asked.instructions,JUDGES_PROMPT);assert.deepEqual(asked.context.categories,card.scores.map(s=>s.label));
+ assert.ok(!('photos' in asked.context),'no photo');
+ assert.equal(card.band,'perfect');assert.ok(READ_BANDS.find(b=>b.band==='perfect').verdicts.flat().includes(card.verdict));
+ assert.equal(await judgeStyle(facts,{interpret:async()=>({scores:[9,11]}),seed:owner}),null,'bad scores: no card');
+ assert.equal(await judgeStyle(facts,{interpret:async()=>{throw Error('down');},seed:owner}),null);
+ // In a built report they're last, even after locked cards, and a friend sees the third-person verdict.
+ const store=await fixture();
+ await buildReport(store,owner,env,{interpret:writer});
+ const report=store.row.data.style_report;
+ assert.equal(report.cards.at(-1).type,'judges');
+ const shared=sharedView(report,'Jack').cards.find(c=>c.type==='judges');
+ assert.deepEqual(Object.keys(shared).sort(),['scores','type','verdict']);assert.ok(!/\byou\b/i.test(shared.verdict));
 });

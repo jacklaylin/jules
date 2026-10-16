@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {buildReport,updateReport,reportView,FALLBACK_TOTAL,plainTotal,validEmojiCaption,writeEmojiCaptions,writeGateLine,gateFallback,plainGateLine,COPY_CARDS} from '../lib/style-report.js';
 import {lineVotes,cardLessons,teach,allows,copyWeek,shownLine,lineKey,promptVersion,EXAMPLES_MAX,MISSES_MAX,NO_LESSONS} from '../lib/report-copy.js';
 import {createAdminHandler} from '../api/admin.js';
+import {JUDGES_PROMPT} from '../lib/style-judges.js';
 import {tagFingerprint} from '../lib/item-tags.js';
 import {purchaseEvidence,projectReceiptEvidence} from '../lib/receipt-extraction.js';
 
@@ -32,11 +33,12 @@ function world(){
   finishGmailImport:async(p,revision,data,token)=>{if(revision!==rows.get(p).revision)return false;busy.delete(p);rows.set(p,{...rows.get(p),data:structuredClone(data),token_ciphertext:token});return true;},
   reportCopyRows:async()=>[...rows.values()].map(r=>({conversation_id:r.conversation_id,copy:r.data.style_report?.copy_log??null,feedback:r.data.style_report?.feedback??null}))};
 }
-// A writer that always offers the same total and remembers the instructions it was given.
+// A writer that always offers the same total and remembers the instructions it was given (last: the
+// latest writer's, not the judges', who only score).
 function writer(total='one colour and a crop top habit'){
  const seen=[];
  const fn=async request=>{seen.push(request.instructions);return {total};};
- fn.seen=seen;fn.last=()=>seen.at(-1);return fn;
+ fn.seen=seen;fn.last=()=>seen.filter(s=>s!==JUDGES_PROMPT).at(-1);return fn;
 }
 const report=(store,p)=>store.rows.get(p).data.style_report;
 const vote=(store,p,input)=>updateReport(store,p,{action:'report-feedback',card:'receipt',...input});
