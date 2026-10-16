@@ -139,6 +139,22 @@ Evals added: named-model-in-my-size, named-model-want-a-pair, named-model-best-p
 
 Triage cursor: 2026-10-15T01:23:06.195194+00:00
 
+## October 14 (second batch): unverified results read as error text
+
+Recorded late: an interrupted run left this batch uncommitted, and it shipped after the October 15 batch, on top of the code that had changed since. Its cursor (2026-10-15T04:54:14) is earlier than October 15's, which stays the active cursor below.
+
+One report from one tester conversation, about the reply sent when no store page could be checked. Findings:
+
+- **Unverified-result reply used check vocabulary instead of a shopper's voice (degraded, recurring).** The search formatter's partial-result text used check-status explanations and an "identification source (price and stock unverified)" label, which VOICE.md forbids ("keep retrieval details in diagnostics", "express uncertainty once"). Replies are now model-written, but this text is still the draft the model restates and what is sent when composing fails. Fix: the formatter says the uncertainty once in a plain opening, gives each item one plain reason and its link, and ends with a next step the chat supports (look at other stores, or save the link).
+- **A collection page was shown as a possible match (trust).** The only candidate was a retailer's category listing; its page check had returned `not_product`, yet the fallback still showed it as a possible match with its link. A page that checked out as not a listing is not evidence of the product. Fix: one shared rule (`identityEvidence` / `unverifiedShowable` in `lib/search.js`) used by the formatter, the text-wishlist fallback (including its unverified options) and saved identity sources; withheld candidates are logged as `unverified_withheld`. This covers the unverified paths; the October 15 category-page proposal for verified/recovered candidates stays open.
+- **Shown unverified items couldn't be selected (blocked).** Already fixed on main before this landed (unread store pages are selectable options); the regression test for selecting one, both, none or being unsure is kept.
+- **Generic failure on a purchase-history answer (observed in context, not reported).** It happened before the October 14 fix (#37) deployed, so it is the already-addressed cause.
+- **Unknown:** the second search for the same named model did not return the retailer page the previous search found; the packet does not show whether retrieval or ranking dropped it.
+
+Evals added: unverified-save-shown, unverified-save-second, unverified-other-stores, unverified-both-unsure.
+
+Triage cursor: 2026-10-15T04:54:14.227445+00:00
+
 ## October 15: what a reply says was saved, follow-ups on photo results, and fixed fallback text
 
 Nine reports (six developer feedback, three quality signals) from one tester conversation. Chat metrics (since the previous cursor vs the period before): first message 37.6 s → 17.4 s (better); final result median 37.6 s → 45.5 s (worse), p90 75.4 s → 99.4 s (worse); failed replies 12.5% → 14.3% (worse); model-written share 8.7% → 42.9% (better); first-try find rate no data. Findings:

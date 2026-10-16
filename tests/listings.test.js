@@ -88,11 +88,28 @@ test('supported official stores verify individual products while collection page
   assert.equal((await verifyListing('https://'+domain+'/collections/footwear',name,async()=>html({'@type':'CollectionPage',name,mainEntity:product}))).status,'not_product');
  }
 });
-test('no-store replies separate identification sources, failed checks and useful next steps',async()=>{
+test('no-store replies show the source link with one plain reason and a supported next step, without check vocabulary',async()=>{
  const {formatSearch}=await import('../lib/search.js');
- for(const status of ['unsupported','check_failed','not_product']){
-  const body=formatSearch({products:[{brand:'Example',name:'Jacket',match:'likely_match',sourcing_status:'store_not_found',identity_sources:[{url}],listing_checks:[{status}]}]});
-  assert.ok(body.includes(url));assert.match(body,/identification source.*unverified/);assert.match(body,/another color or a similar item/);assert.doesNotMatch(body,/store I can recommend/);
+ // A merchant page that failed checks does not discredit a different identity source.
+ for(const checks of [[{status:'unsupported'}],[{status:'check_failed'}],[{url:'https://other.example/p/1',status:'not_product'}]]){
+  const body=formatSearch({products:[{brand:'Example',name:'Jacket',match:'likely_match',sourcing_status:'store_not_found',identity_sources:[{url}],listing_checks:checks}]});
+  assert.ok(body.includes(url));assert.match(body,/wishlist/);
+  assert.doesNotMatch(body,/identification source|unverified\)|product page|retrieved|store I can recommend/i);
+ }
+});
+test('a page that checked out as a category or collection page is never shown as a possible match',async()=>{
+ const {formatSearch,unverifiedShowable}=await import('../lib/search.js');
+ const collection='https://shop.example/collections/menswear-trousers?page=2';
+ const listing={brand:'Example',name:'Trouser',match:'likely_match',sourcing_status:'store_not_found',identity_sources:[{url:collection}]};
+ for(const status of ['not_product','invalid_redirect']){
+  const p={...listing,listing_checks:[{url:collection,status}]};
+  assert.equal(unverifiedShowable(p),false);
+  const body=formatSearch({products:[p]});
+  assert.ok(!body.includes(collection));assert.doesNotMatch(body,/possible match|looks like it/);
+  // Alongside a candidate that only failed to load, only that one is shown and numbered.
+  const other={...listing,name:'Other trouser',identity_sources:[{url}],listing_checks:[{url,status:'check_failed'}]};
+  const mixed=formatSearch({products:[p,other]});
+  assert.ok(mixed.includes(url));assert.ok(!mixed.includes(collection));assert.match(mixed,/^this looks like it/);assert.match(mixed,/1\. Example Other trouser/);
  }
 });
 test('verified shopping options lead the reply; failed source checks stay out of it',async()=>{

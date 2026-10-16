@@ -134,3 +134,35 @@ test('without a named model the agent’s mode and brief are unchanged',async()=
     assert.equal(state.search_plan.mode,'discover');assert.match(queries[0],/^relaxed khakis, any brand/);
   }
 });
+
+// A candidate whose own page checked out as a category/collection page is withheld; what is shown stays
+// selectable, so a follow-up refers to exactly the items in the reply.
+const collectionPage=(id,brand)=>({...u(id,brand),url:'https://store.example/collections/trousers?page='+id,identity_sources:[{url:'https://store.example/collections/trousers?page='+id}],listing_checks:[{url:'https://store.example/collections/trousers?page='+id,status:'not_product'}]});
+test('a collection page is never offered as a possible match; the brand question follows instead',async()=>{
+  for(const mode of ['identify','discover']){
+    const {reply,state,recorded}=await run(start({mode,required_brands:['Our Legacy']}),[collectionPage('2','Our Legacy')]);
+    assert.ok(!reply.includes('collections/trousers'),mode);assert.match(reply,/Our Legacy/,mode);
+    assert.deepEqual(state.options,[],mode);
+    assert.deepEqual(recorded.text_wishlist_diagnostics.unverified_withheld,[collectionPage('2').url],mode);
+    assert.deepEqual(recorded.text_wishlist_diagnostics.unverified_shown,[],mode);
+  }
+  // Mixed with a page that only failed to load, the loadable-but-unchecked one is option 1.
+  const {reply,state}=await run(start({mode:'identify',required_brands:['Our Legacy']}),[collectionPage('2','Our Legacy'),u('a','Our Legacy')]);
+  assert.ok(!reply.includes('collections/trousers'));assert.match(reply,/Our Legacy Pleated chino a/);
+  assert.deepEqual(state.options.map(o=>o.url),[u('a').url]);
+});
+test('after an unverified result, follow-ups resolve against the shown items across varied selections',async()=>{
+  const shown=await run(start({mode:'identify',required_brands:['Our Legacy']}),[u('a','Our Legacy'),u('b','Our Legacy')]);
+  assert.deepEqual(shown.state.options.map(o=>o.url),[u('a').url,u('b').url]);
+  const select=async(args)=>{let recorded;const reply=await textWishlistAction({action:'selection',consent:'none',consent_context:'none',...args},{state:shown.state,env:{},record:async r=>{recorded=r;},search:()=>assert.fail('a selection must not restart search')});return {reply,recorded};};
+  // One, both, none and a hesitant answer each keep the intended set; nothing is saved without consent.
+  for(const [indices,decision,size] of [[[1],'interest',1],[[0,1],'interest',2]]){
+    const {recorded}=await select({decision,option_indices:indices});
+    assert.equal(recorded.text_wishlist_state.stage,'offer_set');
+    assert.deepEqual(recorded.text_wishlist_state.selected_set.map(o=>o.url),indices.map(i=>shown.state.options[i].url));
+    assert.equal(recorded.text_wishlist_state.selected_set.length,size);assert.notEqual(recorded.user_confirmed,true);
+  }
+  const none=await select({decision:'decline',option_indices:[]});assert.equal(none.recorded.text_wishlist_state,null);
+  const unsure=await select({decision:'clarify',option_indices:[],response:'which one looked closer to you?'});
+  assert.deepEqual(unsure.recorded.text_wishlist_state.options.map(o=>o.url),[u('a').url,u('b').url]);
+});
