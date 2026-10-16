@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {shopCall,searchShop,shopVariant,shopifyStoreFor,ignoredFilters,startShopSignIn,pollShopSignIn,listShopOrders} from '../lib/shop.js';
-import {shopCandidates,nameOverlap} from '../lib/text-sources.js';
+import {shopCandidates,nameOverlap,modelCoverage} from '../lib/text-sources.js';
 import {mergeSources} from '../lib/text-wishlist.js';
 import {checkoutLink,checkoutReply,minorMoney} from '../lib/checkout.js';
 
@@ -66,6 +66,32 @@ test('Shop candidates pass the normal listing check, cap each seller and need th
   const discover=await shopCandidates('white tee',{env,search,verify,mode:'discover'});
   assert.ok(discover.products.every(p=>p.match==='similar'));
   assert.ok(nameOverlap('Kith Dolce Far Niente Tee','Kith','Kith LAX tee')<0.5);
+});
+
+test('a named model needs the page to name that model, not only the brand line and garment type',async()=>{
+  const pages={
+    'https://eu.fivefourfive.it/products/545-heavy-cargo-pants-black':'545 Heavy Cargo Pants',
+    'https://eu.fivefourfive.it/products/545-double-knee-forest-camo':'545 Double Knee Forest Camo Pants',
+    'https://eu.fivefourfive.it/products/545-double-knee-black':'545 Double Knee Pants - Black'};
+  const search=async()=>({offers:Object.entries(pages).map(([url,title],i)=>({product_id:'p'+i,variant_id:'v'+i,url,title,seller:{domain:'store-'+i+'.example'},available:true})),ignored_filters:[],next:[]});
+  const verify=async url=>({status:'verified',url,product_brand:'Fivefourfive',product_name:pages[url]});
+  const brief='Fivefourfive 545 Double Knee Forest Camo Pants';
+  // Without a named model the brief-overlap rule alone lets a different model through (the reported case).
+  const loose=await shopCandidates(brief,{env,search,verify,requiredBrands:['Fivefourfive']});
+  assert.ok(loose.products.some(p=>p.url.includes('heavy-cargo')));
+  for(const namedModel of ['545 Double Knee Forest Camo','Fivefourfive 545 Double Knee Forest Camo','545 double-knee forest camo pants']){
+    const strict=await shopCandidates(brief,{env,search,verify,requiredBrands:['Fivefourfive'],namedModel});
+    // The named model (and its other colourway, a variant of the same model) stays; the other model goes.
+    assert.deepEqual(strict.products.map(p=>p.url).sort(),['https://eu.fivefourfive.it/products/545-double-knee-black','https://eu.fivefourfive.it/products/545-double-knee-forest-camo'],namedModel);
+  }
+  // Named without its colourway, the model still accepts its colourways and rejects the other model.
+  const anyColour=await shopCandidates('Fivefourfive 545 Double Knee Pants',{env,search,verify,requiredBrands:['Fivefourfive'],namedModel:'545 Double Knee'});
+  assert.deepEqual(anyColour.products.map(p=>p.url).sort(),['https://eu.fivefourfive.it/products/545-double-knee-black','https://eu.fivefourfive.it/products/545-double-knee-forest-camo']);
+  // Discovery still offers the other model (no named model narrows it).
+  const discover=await shopCandidates(brief,{env,search,verify,mode:'discover',namedModel:null});
+  assert.ok(discover.products.some(p=>p.url.includes('heavy-cargo')));
+  assert.ok(modelCoverage('Still Chino Pants','Our Legacy','Beige Still Chino Trousers')>=0.5);
+  assert.ok(modelCoverage('545 Heavy Cargo Pants','Fivefourfive','545 Double Knee Forest Camo')<0.5);
 });
 
 test('merged sources alternate, drop duplicate pages despite tracking parameters and keep department checks',()=>{
