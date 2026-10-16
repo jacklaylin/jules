@@ -484,3 +484,18 @@ test('In / Out: one order of several colourways is not a habit that went out, an
  assert.ok(c.out.some(o=>o.text==='Lemaire'));
  assert.ok(c.out.some(o=>o.text==='leather accessories'),'accessory → accessories');
 });
+
+test('Spectrum price counts each brand once and leans on the most premium brands, so restocks do not drown them out',()=>{
+ seq=0;
+ const rows=[
+  // Twenty restocks of one mid-tier brand...
+  ...Array.from({length:20},(_,k)=>buy({product:'Legging '+k,merchant:'Lululemon',brand:'Lululemon',order_reference:'L'+k})).flat(),
+  // ...and one piece each from three luxury houses.
+  ...['Dries Van Noten','Bottega Veneta','Prada'].flatMap((b,k)=>buy({product:'Coat '+k,merchant:b,brand:b,order_reference:'X'+k})),
+ ];
+ const state=projectReceiptEvidence(owner,rows).state;
+ const tags=tagsFor(state,i=>({item_type:/Legging/.test(i.product)?'legging':'coat',group:/Legging/.test(i.product)?'activewear':'outerwear',color_family:/Legging/.test(i.product)?'black':'brown',resale:false}));
+ const price=spectrum(state,tags,{gateScore:40}).sliders.find(x=>x.key==='price').value;
+ // Per item this would be about 42 (twenty 33s and three 100s); per brand, blended with the top quarter, it's spendy.
+ assert.ok(price>=67,`price ${price}`);
+});
