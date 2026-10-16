@@ -18,7 +18,6 @@ function showTab(tab, push = false) {
   if (!TABS.includes(tab)) tab = 'memory';
   for (const link of document.querySelectorAll('.tabs a')) { if (link.dataset.tab === tab) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current'); }
   for (const panel of document.querySelectorAll('[data-panel]')) panel.hidden = panel.dataset.panel !== tab;
-  $('person-more').dataset.tab = tab;
   // On phones the tab strip scrolls sideways; keep the selected tab in view.
   const active = document.querySelector('.tabs a[aria-current]'), strip = active.parentElement;
   strip.scrollLeft = Math.max(0, active.offsetLeft - strip.offsetLeft - 16);
@@ -29,6 +28,12 @@ function showTab(tab, push = false) {
 }
 for (const link of document.querySelectorAll('.tabs a')) link.onclick = event => { event.preventDefault(); showTab(link.dataset.tab, true); };
 addEventListener('popstate', () => showTab(new URLSearchParams(location.search).get('tab')));
+// The More menu is the same on every tab; an action that belongs to another tab (re-check, tag purchases) opens that
+// tab first, so its progress and result show. Capture runs before the action's own click handler.
+$('person-more').addEventListener('click', event => {
+  const tab = event.target.closest('[data-opens-tab]')?.dataset.opensTab;
+  if (tab && tab !== new URLSearchParams(location.search).get('tab')) showTab(tab, true);
+}, true);
 
 // ---------- Conversation ----------
 let messages = [], cursor = null, imageURLs = [];
