@@ -1,4 +1,4 @@
-// Owner console shell: the standard Jules header, one sign-in shared by every admin tool, and a tool menu that stays on screen.
+// Owner console shell: the standard Jules header, one sign-in shared by every admin tool, and a slim strip of tool links under it.
 // Pages keep their own actions; they call adminFetch so expired or non-owner sessions return to sign-in.
 import {mountHeader} from './design-system.js';
 import {createSession} from './wishlist-session.js';
@@ -52,15 +52,12 @@ export function mountAdminShell(page){
  if(!document.querySelector('.app-header'))document.body.prepend(element('header',{className:'app-header'}));
  mountHeader('admin');
  signout=document.getElementById('logout');adminLink=document.getElementById('admin-link');
+ // One 40px row of text links, current one underlined; it stays under the compact header and scrolls sideways on phones.
  const nav=element('nav',{className:'admin-nav'});nav.setAttribute('aria-label','Admin tools');
- for(const [title,pages] of ADMIN_SECTIONS){
-  const list=element('div',{className:'admin-nav-group'},element('h2',{textContent:title}));
-  for(const [key,text,href,hint] of pages){
-   const link=element('a',{href},element('span',{textContent:text}),element('small',{textContent:hint}));
-   if(key===page)link.setAttribute('aria-current','page');
-   list.append(link);
-  }
-  nav.append(list);
+ for(const [,pages] of ADMIN_SECTIONS)for(const [key,text,href,hint] of pages){
+  const link=element('a',{href,textContent:text,title:hint});
+  if(key===page)link.setAttribute('aria-current','page');
+  nav.append(link);
  }
  const email=element('input',{type:'email',id:'admin-email',autocomplete:'email',required:true,placeholder:'you@example.com'});
  const submit=element('button',{className:'btn--butter',textContent:'Email me a sign-in link'});
@@ -82,8 +79,9 @@ export function mountAdminShell(page){
   session.clear();[...LEGACY_KEYS,'jules_simulator'].forEach(key=>sessionStorage.removeItem(key));
   signout.disabled=false;showGate('Signed out on this browser.');
  };
- const layout=element('div',{className:'admin-layout'},nav);
- content.before(layout);layout.append(content,gate);
+ content.before(nav);content.after(gate);
+ // On a phone the strip scrolls sideways; start with the current tool in view.
+ const current=nav.querySelector('[aria-current]');if(current&&nav.scrollWidth>nav.clientWidth)nav.scrollLeft=current.offsetLeft-nav.offsetLeft-24;
  if(error||!session.read())showGate(error??'');else hideGate();
 }
 
