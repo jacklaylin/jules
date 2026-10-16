@@ -113,7 +113,7 @@ test('learned lines must still pass their card’s validator, and the banks are 
  const rows=[];
  for(let k=0;k<EXAMPLES_MAX+5;k++){
   const at=new Date(Date.UTC(2026,9,1,k)).toISOString(),fact=`${k+3} knits`;
-  for(const p of [A,B]){const line=shownLine({report_id:`r${k}-${p}`,card:'emoji',slot:'🧶',text:`${k+3} knits and one very busy drawer`,fact:`🧶 ${fact}`,source:'generated',check:{fact},at});
+  for(const p of [A,B]){const line=shownLine({report_id:`r${k}-${p}`,card:'emoji',slot:'🧶',text:`${k+3} knits, one busy drawer`,fact:`🧶 ${fact}`,source:'generated',check:{fact},at});
    rows.push({conversation_id:p,copy:[line],feedback:[{card:'emoji',vote:'up',report_id:line.report_id,at}]});}
  }
  // A liked line whose number no longer matches its fact fails validEmojiCaption and is left out.
@@ -122,8 +122,8 @@ test('learned lines must still pass their card’s validator, and the banks are 
  assert.equal(validEmojiCaption(bad.text,'3 bags'),null);
  const lessons=cardLessons(lineVotes(rows),'emoji',{recheck:COPY_CARDS.emoji.recheck});
  assert.equal(lessons.examples.length,EXAMPLES_MAX);
- assert.equal(lessons.examples[0].text,`${EXAMPLES_MAX+7} knits and one very busy drawer`,'newest first');
- assert.ok(!lessons.examples.some(e=>e.text==='3 knits and one very busy drawer'),'the oldest rotated out');
+ assert.equal(lessons.examples[0].text,`${EXAMPLES_MAX+7} knits, one busy drawer`,'newest first');
+ assert.ok(!lessons.examples.some(e=>e.text==='3 knits, one busy drawer'),'the oldest rotated out');
  assert.ok(!lessons.examples.some(e=>e.text===bad.text));
  // Facts shown in place of a joke never teach.
  const fact=shownLine({report_id:'f',card:'emoji',slot:'🧶',text:'7 knits',fact:'🧶 7 knits',source:'fact',check:{fact:'7 knits'},at:'2026-10-02T00:00:00Z'});
