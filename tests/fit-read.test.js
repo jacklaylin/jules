@@ -145,6 +145,19 @@ test('the report reads the newest outfit photo, keeps the read across rebuilds, 
  assert.ok(store.row.data.style_report.read_seen.includes(built.card.verdict),'its verdict is remembered so the next read differs');
 });
 
+test('a rebuild reads the photo again when the kept read is from the four-judge format',async()=>{
+ const store=await fixture({photos:['o1','o2']});
+ const {buildRead}=await import('../lib/style-report.js');
+ const {card}=await buildRead(store,owner,env,{interpret:writer,judges});
+ const old={...card,scores:[...card.scores,{label:'Drip',n:8}]};
+ store.row.data.style_report={cards:[old],feedback:[],hidden:{}};
+ let asked=0;
+ await buildReport(store,owner,env,{interpret:writer,judges:async(...args)=>{asked++;return judges(...args);}});
+ const read=store.row.data.style_report.cards.find(c=>c.type==='read');
+ assert.equal(asked,1,'the old card was read again');
+ assert.equal(read.scores.length,3);
+});
+
 test('a shared read shows the photo and third-person lines only, and drops the card if the photo is gone',async()=>{
  const store=await fixture({photos:['o2']});
  const {buildRead}=await import('../lib/style-report.js');
