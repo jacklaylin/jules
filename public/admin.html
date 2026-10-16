@@ -3,19 +3,25 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Jules admin · People</title><link rel="stylesheet" href="/design-system.css"><link rel="stylesheet" href="/admin.css">
-  <script src="/admin.js" type="module"></script><link rel="modulepreload" href="/admin-console.js"><link rel="modulepreload" href="/design-system.js"><link rel="modulepreload" href="/brand-ui.js"><link rel="modulepreload" href="/activity.js"><link rel="modulepreload" href="/wishlist-session.js"><link rel="modulepreload" href="/admin-session.js">
+  <script src="/admin.js" type="module"></script><link rel="modulepreload" href="/admin-console.js"><link rel="modulepreload" href="/design-system.js"><link rel="modulepreload" href="/brand-ui.js"><link rel="modulepreload" href="/activity.js"><link rel="modulepreload" href="/wishlist-session.js"><link rel="modulepreload" href="/admin-session.js"><link rel="modulepreload" href="/admin-review.js"><link rel="modulepreload" href="/admin-people-view.js">
 <link rel="icon" href="/brand/icon.svg" type="image/svg+xml"></head>
 <body class="admin-console">
   <main>
-    <h1>People</h1>
-    <p class="muted">Testers who have texted Jules. Open one to see their memory, conversation, purchases and wishlist.</p>
-    <section id="chat-metrics" class="chat-metrics" aria-labelledby="chat-metrics-title" hidden>
-      <h2 id="chat-metrics-title" class="mono-label">Chat quality · last 7 days vs the 7 before</h2>
-      <div class="stats" id="chat-metrics-stats"></div>
+    <h1 class="dv-title">People</h1>
+    <section id="chat-metrics" class="dv-metrics" aria-labelledby="chat-metrics-title" hidden>
+      <div class="dv-metric dv-metric-label"><strong id="chat-metrics-title">Chat quality</strong><span>Last 7 days vs the 7 before</span></div>
     </section>
-    <div class="toolbar"><label class="sr-only" for="people-search">Search identifier</label><input id="people-search" type="search" maxlength="40" placeholder="Search identifier"><span class="spacer"></span><button id="refresh" class="small" type="button">Refresh</button></div>
-    <div class="table-scroll"><table class="data-table people-table"><thead><tr><th>Identifier</th><th>Last activity</th><th><span class="sr-only">Open</span></th></tr></thead><tbody id="people"></tbody></table></div>
-    <p id="notice" role="status" aria-live="polite" class="muted"></p>
+    <div class="dv-toolbar">
+      <label class="dv-search"><span class="sr-only">Search identifier</span><input id="people-search" type="search" maxlength="40" placeholder="Search identifier"><span class="kbd" aria-hidden="true">/</span></label>
+      <span id="people-count" class="dv-toolbar-note"></span>
+      <span class="spacer"></span>
+      <button class="small quiet" type="button" popovertarget="people-more">More ⋯</button>
+    </div>
+    <div id="people-more" class="dv-pop dv-menu" popover aria-label="More actions">
+      <button id="refresh" type="button">Refresh <span class="hint">people and chat quality</span></button>
+    </div>
+    <div class="dv-status"><span id="metrics-note"></span><span id="notice" role="status" aria-live="polite"></span><span class="dv-keys" aria-hidden="true"><span class="kbd">J</span><span class="kbd">K</span> move <span class="kbd">↵</span> open</span></div>
+    <div id="people" class="dv-list people-list" aria-label="People"></div>
   </main>
 </body>
 </html>
