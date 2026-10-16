@@ -28,12 +28,12 @@ test('shared navigation exposes the companion pages, marks the current page, and
  const controls=nav().children;assert.deepEqual(controls.filter(c=>c.href).map(c=>c.href),['/wishlist','/wardrobe','/report','/admin','/account']);
  const account=controls.find(c=>c.href==='/account');assert.ok(account.className.includes('nav-account'),'account is shown as an avatar');
  assert.equal(controls[0].getAttribute('aria-current'),'page');assert.equal(controls[1].getAttribute('aria-current'),undefined);
- assert.equal(document.querySelector('#admin-link').hidden,true);assert.equal(document.querySelector('#logout').hidden,true);
+ assert.equal(document.querySelector('#admin-link').hidden,true);assert.equal(document.querySelector('#logout'),null,'log out lives on the Account page');
 });
 test('mobile menu moves the existing actions without replacing their handlers and restores them on Escape or desktop resize',()=>{
- const logout=document.querySelector('#logout');const handler=()=>{};logout.onclick=handler;
+ const admin=document.querySelector('#admin-link');const handler=()=>{};admin.onclick=handler;
  const button=document.querySelector('.menu-toggle'),menu=document.querySelector('#mobile-menu');
- button.onclick();assert.equal(nav().parent,menu);assert.equal(menu.open,true);assert.equal(button.getAttribute('aria-expanded'),'true');assert.equal(document.querySelector('#logout').onclick,handler);
+ button.onclick();assert.equal(nav().parent,menu);assert.equal(menu.open,true);assert.equal(button.getAttribute('aria-expanded'),'true');assert.equal(document.querySelector('#admin-link').onclick,handler);
  menu.listeners.cancel({preventDefault(){}});assert.equal(menu.open,false);assert.equal(nav().parent,header);assert.equal(button.getAttribute('aria-expanded'),'false');
  button.onclick();media.find(m=>m.query==='(max-width:800px)').change({matches:false});assert.equal(menu.open,false);assert.equal(nav().parent,header);
 });

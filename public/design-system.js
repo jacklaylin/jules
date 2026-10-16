@@ -8,9 +8,9 @@ export function mountHeader(page){
  header=document.querySelector('.app-header');
  const brand=document.createElement('a');brand.className='wordmark';brand.href='/wishlist';brand.setAttribute('aria-label','Jules wishlist');brand.append(createLogo());
  nav=document.createElement('nav');nav.className='header-actions';nav.setAttribute('aria-label','Your collection');
- for(const [key,text,href] of [['wishlist','Wishlist','/wishlist'],['wardrobe','Wardrobe','/wardrobe'],['style','Your style','/report'],['admin','Admin','/admin'],['logout','Log out',null],['account','Account','/account']]){
-  const control=document.createElement(href?'a':'button');control.className='nav-item';if(href)control.href=href;else control.type='button';
-  if(key==='logout'){control.id='logout';control.hidden=true;}
+ // Log out lives on the Account page only.
+ for(const [key,text,href] of [['wishlist','Wishlist','/wishlist'],['wardrobe','Wardrobe','/wardrobe'],['style','Your style','/report'],['admin','Admin','/admin'],['account','Account','/account']]){
+  const control=document.createElement('a');control.className='nav-item';control.href=href;
   if(key==='admin'){control.id='admin-link';control.hidden=true;}
   if(key===page)control.setAttribute('aria-current','page');
   const textNode=document.createElement('span');textNode.textContent=text;

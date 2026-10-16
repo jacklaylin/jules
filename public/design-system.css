@@ -256,7 +256,7 @@ body.admin-console{--admin-sticky:105px}
 /* Before the shell script runs, main already leaves room for the strip, so nothing jumps when it appears. */
 body.admin-console>main{padding-top:calc(var(--page-top) + 41px)}
 body.admin-console>.admin-nav~main,.admin-gate{padding-top:var(--page-top)}
-.admin-nav{position:sticky;top:64px;z-index:9;display:flex;align-items:stretch;gap:22px;height:40px;padding:0 var(--page-gutter);background:var(--white);border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+.admin-nav{position:sticky;top:64px;z-index:9;display:flex;align-items:stretch;gap:22px;height:40px;padding:0 var(--page-gutter);background:var(--white);border-bottom:1px solid var(--line);overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;scrollbar-width:none}
 .admin-nav::-webkit-scrollbar{display:none}
 .admin-nav a{flex:none;display:flex;align-items:center;white-space:nowrap;text-decoration:none;font-size:13px;font-weight:600;color:var(--text-2);border-bottom:2px solid transparent;margin-bottom:-1px}
 .admin-nav a:hover{color:var(--ink)}.admin-nav a[aria-current=page]{color:var(--ink);border-bottom-color:var(--ink)}
@@ -277,7 +277,7 @@ body.admin-console>.admin-nav~main,.admin-gate{padding-top:var(--page-top)}
 .badge.warn{background:var(--warn-bg);color:var(--warn-text)}.badge.warn::before{content:"!"}
 .badge.fail{background:var(--fail-bg);color:var(--fail-text)}.badge.fail::before{content:"×"}
 .badge.plain::before{display:none}.badges{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
-.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;scrollbar-width:none}
 .tabs a{display:flex;align-items:center;gap:8px;min-height:44px;padding:0 16px;text-decoration:none;font-weight:600;color:var(--text-2);border-bottom:3px solid transparent;margin-bottom:-1px;white-space:nowrap}
 .tabs a:hover{color:var(--ink)}.tabs a[aria-current=page]{color:var(--ink);border-bottom-color:var(--ink)}.tabs .count{font-weight:400;color:var(--text-2)}
 .filter-chips{display:flex;gap:6px;flex-wrap:wrap}
@@ -323,7 +323,7 @@ button.small{min-height:32px;padding:0 14px;font-size:13px}
 .dv-toolbar button.small{min-height:34px}
 .dv-divider{width:1px;height:22px;background:var(--line)}
 .dv-views{display:flex;flex-wrap:wrap;gap:2px}
-.seg{display:inline-flex;gap:2px;padding:0;border:0;border-radius:var(--r-pill);overflow-x:auto;scrollbar-width:none;max-width:100%}
+.seg{display:inline-flex;gap:2px;padding:0;border:0;border-radius:var(--r-pill);overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;scrollbar-width:none;max-width:100%}
 .dv-views button,.seg button{flex:none;min-height:28px;padding:0 11px;border:0;border-radius:var(--r-pill);background:transparent;box-shadow:none;color:var(--text-2);font-size:13px;white-space:nowrap}
 .dv-views button::after,.seg button::after,.dv-menu button::after,.dv-token button::after{display:none}
 .dv-views button:hover,.seg button:hover,.dv-menu button:hover,.dv-token button:hover{transform:none;color:var(--ink)}
@@ -420,5 +420,7 @@ button.quiet{border-color:transparent;box-shadow:none;background:transparent;col
 
 /* Toast: one notice at a time, bottom centre, with an optional Undo. */
 .toast{position:fixed;z-index:20;bottom:24px;left:50%;transform:translateX(-50%);width:max-content;max-width:calc(100vw - 32px);background:var(--ink);color:var(--white);padding:16px 20px;border-radius:var(--r-card);box-shadow:var(--shadow-panel);font-size:13px;line-height:1.5;animation:enter .2s ease}
-.toast .undo-remove{margin-left:16px;text-decoration:none}
+/* Message and Undo share one row; long item names wrap beside the button. */
+.toast:not([hidden]){display:flex;align-items:center;gap:16px}
+.toast .undo-remove{flex:none;min-height:36px;padding:6px 16px;font-size:13px;text-decoration:none}
 @media(forced-colors:active){.alert-toggle[aria-pressed=true]{outline:2px solid Highlight}.toast{border:1px solid CanvasText}}
