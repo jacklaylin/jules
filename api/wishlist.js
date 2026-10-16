@@ -16,7 +16,7 @@ import { wishlistUser, sessionHash, groupWishlist } from '../lib/wishlist.js';
 import { authorize } from '../lib/auth.js';
 import { json, readJson, uuid } from '../lib/http.js';
 import {createSignupHandler} from '../lib/public-signup.js';
-import {handleReport} from '../lib/style-report.js';
+import {handleReport,handleSharedReport} from '../lib/style-report.js';
 import {handleWardrobe} from '../lib/wardrobe.js';
 
 export const config = { api: { bodyParser: false }, maxDuration: 120 };
@@ -36,6 +36,8 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
       if(new URL(req.url,'https://jules.invalid').searchParams.has('gmail'))return gmail(req,res);
       if(new URL(req.url,'https://jules.invalid').searchParams.get('onboarding')==='1')return onboarding(req,res);
       if(new URL(req.url,'https://jules.invalid').searchParams.get('public_signup')==='1')return signup(req,res);
+      // A shared style report (/r/<link>): public, read-only, only what the person chose to share.
+      if(new URL(req.url,'https://jules.invalid').searchParams.has('shared'))return handleSharedReport(req,res,{store:storeFactory(env)});
       // The person's style report (private; /report).
       if(new URL(req.url,'https://jules.invalid').searchParams.get('report')==='1')return handleReport(req,res,{store:storeFactory(env),env,auth,fetcher});
       // The person's wardrobe (/wardrobe): their purchase history as owned items, with corrections.

@@ -50,10 +50,14 @@ body.report-page{background:var(--ink);color:var(--white);min-height:100vh;min-h
 .report-icon-button:focus-visible,.report-pill-button:focus-visible,.report-cta:focus-visible,.report-tap:focus-visible,.report-link:focus-visible{outline:3px solid var(--grape);outline-offset:3px}
 
 /* Card */
-.report-card{flex:1;display:flex;padding:52px 0 92px}
-.story-card{flex:1;display:flex;flex-direction:column;gap:14px;padding:16px 22px 0;color:var(--white)}
+/* Every card is designed at 360×640 (9:16, the Stories size) and scaled to fit the space, so it looks
+   the same on every screen, never scrolls, and matches the shared image. report.js sets the scale. */
+.report-card{flex:1;position:relative;margin:52px 0 92px;overflow:hidden}
+.story-card{position:absolute;left:0;top:0;width:360px;height:640px;box-sizing:border-box;transform-origin:0 0;display:flex;flex-direction:column;gap:14px;padding:16px 22px 0;color:var(--white);overflow:hidden}
 .story-title{margin:0;font-size:34px;line-height:1}
 .story-foot{display:flex;justify-content:flex-end;padding-bottom:4px}
+/* Shared cards ask the friend reading them: "What about you?" beside the wordmark. */
+.story-ask{margin-right:auto;align-self:center;font:500 10px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;opacity:.75}
 .report-wordmark{font:400 24px/1 var(--font-serif);letter-spacing:-.04em;white-space:nowrap}
 .report-j{position:relative;display:inline-block}
 .report-dot{position:absolute;left:.07em;top:.02em;width:.24em;height:.24em;border-radius:50%;background:radial-gradient(circle at 30% 30%,var(--butter),var(--tangerine,#FF7A2F) 55%,var(--grape))}
@@ -74,9 +78,9 @@ body.report-page{background:var(--ink);color:var(--white);min-height:100vh;min-h
 .receipt-zig{height:10px;background:linear-gradient(-45deg,transparent 7px,var(--white) 0) 0 0/14px 10px repeat-x,linear-gradient(45deg,transparent 7px,var(--white) 0) 0 0/14px 10px repeat-x}
 
 /* Gatekeeper (design canvas, card 3): grape ground, a dial, the score and ranked brand chips. */
-.story-gatekeeper{background:var(--grape);margin:0 10px;border-radius:18px;padding:20px 20px 12px;gap:10px;overflow:hidden}
+.story-gatekeeper{background:var(--grape);border-radius:18px;padding:22px 22px 14px;gap:10px}
 .story-gatekeeper .story-title{font-size:30px}
-.gate-scale span{white-space:nowrap}
+.gate-scale span{max-width:42%;line-height:1.4}.gate-scale span:last-child{text-align:right}
 .gate-dial{position:relative;max-width:300px;width:100%;align-self:center;padding-bottom:16px}
 .gate-dial svg{display:block;overflow:visible}
 .gate-track,.gate-fill{fill:none;stroke-width:18;stroke-linecap:round}
@@ -94,12 +98,50 @@ body.report-page{background:var(--ink);color:var(--white);min-height:100vh;min-h
 .gate-label{font:500 9px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:#ffffffcc}
 .gate-chips{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
 .gate-chip{display:inline-flex;gap:6px;align-items:center;border-radius:999px;padding:5px 10px;font:600 12px var(--font-sans);border:1.5px solid var(--white);animation:gate-pop .4s ease-out both}
+.gate-chip[hidden]{display:none}
 .gate-chip.is-top{background:var(--butter);color:var(--ink);border-color:var(--butter)}
 .gate-rank{font:500 9px var(--font-mono)}
 @keyframes gate-fill{from{stroke-dashoffset:var(--len)}}
 @keyframes gate-sweep{from{transform:rotate(-90deg)}}
 @keyframes gate-pop{0%{opacity:0;transform:scale(.6)}70%{transform:scale(1.08)}100%{opacity:1;transform:none}}
 @keyframes report-rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+
+/* Then vs now (design canvas, card 4), laid out on the 360×640 card. */
+.story-thennow{padding:0;gap:0;background:var(--ink)}
+.then-half{position:absolute;left:0;right:0;box-sizing:border-box;display:flex;flex-direction:column;gap:10px;padding:22px}
+.then-then{top:0;height:300px;background:var(--white);color:var(--ink);animation:then-down .8s cubic-bezier(.16,1,.3,1) both}
+.then-now{bottom:0;height:340px;padding-top:76px;background:var(--ink);color:var(--white);animation:then-up .8s cubic-bezier(.16,1,.3,1) .15s both}
+.then-half p{margin:0}
+.then-label{font:500 10px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;opacity:.7}
+.then-year{font:800 88px/.85 var(--font-sans);letter-spacing:-.06em}
+.then-rows{display:flex;flex-direction:column;gap:6px;font-size:15px}
+.then-row{display:flex;gap:8px;align-items:center}
+.then-row b{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.then-key{font:500 9px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;width:52px;flex-shrink:0;opacity:.7}
+.then-swatch{width:14px;height:14px;border-radius:50%;border:1px solid currentColor;flex-shrink:0}
+.then-verdict{position:absolute;left:18px;right:18px;top:262px;margin:0;padding:14px 16px;font:800 18px/1.15 var(--font-sans);letter-spacing:-.03em;border:2px solid var(--ink);box-shadow:0 8px 24px #17120f33;background:var(--butter);color:var(--ink);transform:rotate(-4deg);animation:then-stamp .6s ease-out .9s both}
+.then-foot{position:absolute;right:22px;bottom:18px}
+@keyframes then-down{from{transform:translateY(-100%)}to{transform:none}}
+@keyframes then-up{from{transform:translateY(100%)}to{transform:none}}
+@keyframes then-stamp{0%{opacity:0;transform:rotate(-4deg) scale(1.6)}70%{opacity:1;transform:rotate(-4deg) scale(.95)}100%{opacity:1;transform:rotate(-4deg)}}
+
+/* Locked card: a real card the person can't have yet, with what unlocks it. */
+.story-locked{background:var(--ink);gap:14px;padding:22px}
+.story-locked p{margin:0}
+.locked-teaser{position:relative;height:200px;border-radius:20px;overflow:hidden;border:2px solid var(--white);flex-shrink:0}
+.locked-split .locked-then,.locked-split .locked-now{position:absolute;left:0;right:0;height:50%;box-sizing:border-box;padding:12px 16px;display:flex;align-items:flex-end;font:800 60px/.8 var(--font-sans);letter-spacing:-.06em}
+.locked-then{top:0;background:var(--white);color:var(--ink);filter:blur(5px)}
+.locked-now{bottom:0;border-top:2px solid var(--white)}
+.locked-dial{display:flex;align-items:center;justify-content:center;background:var(--grape)}
+.locked-score{font:800 96px/.85 var(--font-sans);letter-spacing:-.06em;filter:blur(6px)}
+.locked-icon{position:absolute;left:50%;top:50%;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;background:var(--ink);display:flex;align-items:center;justify-content:center}
+.locked-icon path{fill:none;stroke:var(--butter);stroke-width:2;stroke-linejoin:round}
+.locked-label{color:var(--butter)}
+.story-locked .story-title{font-size:34px}
+.locked-why{font-size:15px;line-height:1.45;color:#ffffffcc}
+.locked-actions{margin-top:auto;display:flex;flex-direction:column;gap:8px}
+.locked-cta{text-decoration:none}
+.locked-hint{font-size:13px;color:#ffffffb3;text-align:center}
 
 /* End */
 .report-end{background:var(--white);color:var(--ink);padding:64px 28px 40px;justify-content:space-between}
@@ -109,6 +151,12 @@ body.report-page{background:var(--ink);color:var(--white);min-height:100vh;min-h
 .report-end .label{color:var(--text-2)}
 .report-end-actions{display:flex;flex-direction:column;gap:12px}
 .report-end .report-cta{background:var(--grape);color:var(--white)}
+/* Sharing from the end screen; the wishlist link steps back to a quieter style beside it. */
+.report-end .report-cta-share{background:var(--grape);color:var(--white);width:100%}
+.report-end .report-cta-share:not([hidden])~.report-cta{background:var(--white);color:var(--ink)}
+.report-share-status{font-size:14px!important}
+.report-share-status .report-link{min-height:0;font-size:14px}
+.report-share-link{color:inherit;font-family:var(--font-mono);font-size:12px;word-break:break-all}
 
 /* Sheets */
 .report-sheet{border:0;border-radius:24px 24px 0 0;margin:auto auto 0;width:100%;max-width:440px;box-sizing:border-box;padding:24px 22px 34px;color:var(--ink);background:var(--white)}
@@ -153,9 +201,9 @@ body.report-page{background:var(--ink);color:var(--white);min-height:100vh;min-h
 .report-progress-wrap{flex:1;display:flex;flex-direction:column}
 .report-chrome{display:none}
 @media (min-width:900px) and (min-height:600px){
- .report-stage{--card-h:min(736px,100dvh - 170px);--card-w:calc(var(--card-h)*9/16);isolation:isolate}
+ .report-stage{--card-h:calc(100dvh - 128px);--card-w:calc(var(--card-h)*9/16);isolation:isolate}
  /* The intro and end screens are card-sized too, on the same glow, so the story doesn't change size. */
- .report-intro,.report-end{width:var(--card-w);height:var(--card-h);max-width:none;max-height:none;margin:0;border-radius:22px;box-shadow:0 30px 80px #00000080}
+ .report-intro,.report-end{width:var(--card-w);height:var(--card-h);max-width:none;max-height:none;margin:40px 0 0;border-radius:22px;box-shadow:0 30px 80px #00000080}
  .report-stage:has(.report-intro:not([hidden])),.report-stage:has(.report-end:not([hidden])){background:radial-gradient(ellipse calc(var(--card-w)*0.9) calc(var(--card-h)*0.6) at 50% 54%,#ff7a2f73,#ff7a2f00)}
  .report-player{max-width:none;max-height:none;height:100dvh;margin:0;border-radius:0;isolation:isolate}
  .report-player::before{content:"";position:absolute;z-index:-1;left:50%;top:50%;width:calc(var(--card-w) * 1.3);height:calc(var(--card-h) * .9);transform:translate(-50%,-46%);border-radius:50%;background:radial-gradient(circle,var(--tangerine) 0,#ff7a2f00 70%);filter:blur(50px);opacity:.45;pointer-events:none}
@@ -165,7 +213,10 @@ body.report-page{background:var(--ink);color:var(--white);min-height:100vh;min-h
  .report-progress{padding-top:0}
  .report-progress-label{display:block;margin:0;text-align:center;color:#ffffffb3}
  .report-close{margin:0 0 0 auto;width:48px;height:48px;border:1.5px solid #ffffff59}
- .report-card{position:absolute;left:50%;top:max(96px,50% - var(--card-h)/2 + 20px);transform:translateX(-50%);width:var(--card-w);height:var(--card-h);padding:20px 0 16px;box-sizing:border-box;border-radius:22px;background:var(--ink);border:1px solid #ffffff1f;box-shadow:0 30px 80px #00000080;overflow:hidden}
+ /* The card itself fills the window's height: no phone frame around it. */
+ .report-card{position:absolute;left:50%;top:88px;transform:translateX(-50%);width:var(--card-w);height:var(--card-h);margin:0}
+ .report-card .story-card{border-radius:22px}
+ .report-card .story-gatekeeper{box-shadow:0 30px 80px #00000080}
  .report-tap{display:none}
  .report-arrow{display:flex;position:absolute;top:50%;transform:translateY(-50%);width:56px;height:56px;border-radius:50%;border:1.5px solid #ffffff59;background:#ffffff0d;color:var(--white);align-items:center;justify-content:center;padding:0;cursor:pointer;box-shadow:none;z-index:2}
  .report-arrow::after{display:none}

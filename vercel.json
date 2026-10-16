@@ -55,6 +55,10 @@
       "destination": "/report.html"
     },
     {
+      "source": "/r/:token",
+      "destination": "/report.html"
+    },
+    {
       "source": "/onboarding/connect",
       "destination": "/onboarding.html"
     },
