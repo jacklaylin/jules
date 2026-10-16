@@ -2,7 +2,7 @@
 // Pages keep their own actions; they call adminFetch so expired or non-owner sessions return to sign-in.
 import {mountHeader} from './design-system.js';
 import {createSession} from './wishlist-session.js';
-import {captureSignIn,LEGACY_KEYS} from './admin-session.js';
+import {captureSignIn} from './admin-session.js';
 import {trackedFetch} from './activity.js';
 
 export const ADMIN_SECTIONS=[
@@ -16,7 +16,7 @@ export const ADMIN_SECTIONS=[
  ['Operations',[['costs','Costs','/admin/costs','Daily spend and budget']]],
 ];
 const session=createSession({storage:localStorage,lock:work=>navigator.locks?navigator.locks.request('jules-wishlist-refresh',work):work()});
-let gate,content,signout,adminLink;
+let gate,content,adminLink;
 export const adminToken=()=>session.token();
 
 export async function adminFetch(path,options={}){
@@ -37,10 +37,10 @@ export async function adminJson(path,options){
 
 function showGate(message=''){
  if(!gate)return;
- gate.hidden=false;content.hidden=true;signout.hidden=true;adminLink.hidden=true;
+ gate.hidden=false;content.hidden=true;adminLink.hidden=true;
  gate.querySelector('.admin-gate-notice').textContent=message;
 }
-function hideGate(){gate.hidden=true;content.hidden=false;signout.hidden=false;adminLink.hidden=false;}
+function hideGate(){gate.hidden=true;content.hidden=false;adminLink.hidden=false;}
 
 function element(tag,props={},...children){const node=Object.assign(document.createElement(tag),props);node.append(...children);return node;}
 
@@ -51,7 +51,7 @@ export function mountAdminShell(page){
  // Admin pages use the same header as Wishlist and Your style; Admin is the current page.
  if(!document.querySelector('.app-header'))document.body.prepend(element('header',{className:'app-header'}));
  mountHeader('admin');
- signout=document.getElementById('logout');adminLink=document.getElementById('admin-link');
+ adminLink=document.getElementById('admin-link');
  // One 40px row of text links, current one underlined; it stays under the compact header and scrolls sideways on phones.
  const nav=element('nav',{className:'admin-nav'});nav.setAttribute('aria-label','Admin tools');
  for(const [,pages] of ADMIN_SECTIONS)for(const [key,text,href,hint] of pages){
@@ -72,12 +72,6 @@ export function mountAdminShell(page){
    gate.querySelector('.admin-gate-notice').textContent=response.ok?'Check your email and open the sign-in link. It expires after one hour.':data.error??'Could not send the sign-in link.';
   }catch{gate.querySelector('.admin-gate-notice').textContent='Could not send the sign-in link.';}
   finally{submit.disabled=false;}
- };
- signout.onclick=async()=>{
-  signout.disabled=true;
-  try{const token=await session.token();if(token)await trackedFetch('/api/wishlist',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({action:'logout'})});}catch{}
-  session.clear();[...LEGACY_KEYS,'jules_simulator'].forEach(key=>sessionStorage.removeItem(key));
-  signout.disabled=false;showGate('Signed out on this browser.');
  };
  content.before(nav);content.after(gate);
  // On a phone the strip scrolls sideways; start with the current tool in view.
