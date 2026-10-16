@@ -308,11 +308,11 @@ The page shows, per service and in total: the selected day, the month to date, a
 | SerpApi | SerpApi Account API: plan name, monthly price, searches used/left, renewal date. Searches are included in the plan, so the plan price is the cost, spread over the month. |
 | Vercel | Vercel billing API (FOCUS charges): daily usage on its day, plan and seat fees spread over the days they cover. |
 | GitHub | GitHub billing API for the selected day's metered charges; plan fee manual. |
-| Photon, Supabase, ChatGPT / Codex | Manual: enter the monthly fee (0 if free) and any daily usage. |
+| Photon, Supabase, ChatGPT / Codex | Manual: enter the monthly fee once (0 if free); it carries forward to later months until you enter a new amount. Photon has no billing API (flat price per line), so its fee is always entered here. |
 
 **What each feature costs** splits Jules' metered OpenAI and SerpApi calls by feature (chat, imports, style, alerts, evals) for the day and the month. OpenAI calls are priced from token counts at list prices in `lib/usage.js`; a model without a listed price (currently `gpt-5.5`, used by the style report) is counted but shown as unpriced rather than guessed. SerpApi searches are priced as plan price ÷ monthly searches. These are estimates; billed totals are the source of truth. Run `db/031_cost_dashboard.sql` for this section.
 
-Subscription fees are allocated evenly across the month's days; this is allocated cost, not a cash-payment statement. Where a connected provider reports its own plan fee (SerpApi, Vercel), a manual subscription entry for it is ignored, so nothing is counted twice. Choose **Daily warning budget** to set a threshold the day's total is compared against. The page does not enforce limits or poll in the background; it reads billing when opened or refreshed.
+The projected month end is calculated by Jules (the month's fees plus average daily usage so far), not reported by a provider. Subscription fees are allocated evenly across the month's days; this is allocated cost, not a cash-payment statement. Where a connected provider reports its own plan fee (SerpApi, Vercel), a manual subscription entry for it is ignored, so nothing is counted twice. Choose **Daily warning budget** to set a threshold the day's total is compared against. The page does not enforce limits or poll in the background; it reads billing when opened or refreshed.
 
 ### Billing connections
 
