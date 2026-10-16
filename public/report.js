@@ -277,10 +277,12 @@ function opened(result){
  report={...report,cards:report.cards.filter(c=>RENDER[c.type])};
  if(report.shared){
   // A friend's view: about the person, ending with an invitation to get their own.
-  $('intro-eyebrow').textContent=[report.name?`${report.name}’s style report`:'A style report',report.built_at&&day(report.built_at)].filter(Boolean).join(' · ');
-  $('intro-title').textContent=report.name?`${report.name}’s style report is in.`:'Someone’s style report is in.';
-  $('end-title').textContent=report.name?`That’s ${report.name}’s report.`:'That’s their report.';
-  $('end-body').textContent='Jules made it from their shopping history. What would yours say?';
+  // The name appears once, in the headline; the eyebrow says where the report comes from, and the
+  // end is a single question back to the friend (founder, 16 Oct).
+  $('intro-eyebrow').textContent=['Made by Jules from real orders',report.built_at&&day(report.built_at)].filter(Boolean).join(' · ');
+  $('intro-title').textContent=report.name?`${report.name}’s style report is in.`:'A style report is in.';
+  $('end-title').textContent='What would yours say?';
+  $('end-body').textContent=`${report.name?`Jules made ${report.name}’s`:'Jules made this'} from real orders. Get yours by connecting your order emails.`;
   $('end-cta').textContent='Get your own report ↗';$('end-cta').href='/signup';
   $('end-share').hidden=true;
   if(!report.cards.length){message('Nothing shared here yet.','This report has no cards to show right now.','Style report',{label:'Get your own report ↗',href:'/signup'});return;}

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { validateChanges, mergeFacts, saveChanges, extractChanges, MEMORY_PROMPT, updateProfile, prevails, profileFirstName, firstName } from '../lib/memory.js';
+import { validateChanges, mergeFacts, saveChanges, extractChanges, MEMORY_PROMPT, updateProfile, prevails, profileFirstName, firstName, displayName } from '../lib/memory.js';
 import { agentTurn, tool, agentContext, toolNames, toolOutputs } from './helpers/agent.js';
 import { generateReply } from '../lib/ai.js';
 import { receiveInInbox } from '../lib/inbox.js';
@@ -125,4 +125,9 @@ test('size and budget keys keep their shape: a store name alone is not a size ke
  assert.equal(one({ field: 'budget', key: 'jeans', value: '$300', evidence: 'I usually spend $300 on jeans.' }).length, 0);
  assert.equal(one({ field: 'budget', key: 'jeans/usd', value: '$300', evidence: 'I usually spend $300 on jeans.' }).length, 1);
  assert.equal(one({ field: 'size', key: 'mfpen retail aps', value: '', action: 'remove', evidence: 'Size 31 is also fine' }).length, 1);
+});
+
+test('names are shown capitalised however they were saved, without touching names that have their own capitals',async()=>{
+ assert.deepEqual(['jack','McKenzie','zoë-ann',"o'brien",'  ',null].map(displayName),['Jack','McKenzie','Zoë-Ann',"O'Brien",null,null]);
+ assert.equal(await firstName({signupFirstName:async()=>null,profile:async()=>({facts:[{field:'name',key:'first',value:'jack',deleted:false,basis:'stated',updated_at:'2026-10-16T00:00:00Z'}]})},id),'Jack');
 });
