@@ -28,7 +28,7 @@ export function totalLine(data, period = 'month') {
   const { today, month, projected } = data.totals;
   const partial = data.incomplete.length ? ' · known part only' : '';
   if (period === 'day') return { amount: money(today), label: `${data.date} (UTC) · month to date ${money(month)}${today === null ? '' : partial}` };
-  const label = fullMonth(data.date) ? `${monthName(data.date)} (UTC), whole month` : `${monthName(data.date)} to date, through ${data.date} (UTC) · projected month end ${money(projected)}`;
+  const label = fullMonth(data.date) ? `${monthName(data.date)} (UTC), whole month` : `${monthName(data.date)} to date, through ${data.date} (UTC) · projected month end ${money(projected)} (calculated)`;
   return { amount: money(month), label: label + (month === null ? '' : partial) };
 }
 
@@ -52,7 +52,7 @@ const badgeClass = row => !row.complete ? 'warn' : row.basis === 'billed' ? 'ok'
 // The amount columns for the period: [field, heading]. A finished month needs no projection.
 export function serviceColumns(period, data) {
   if (period === 'day') return [['today', 'Day']];
-  return data && fullMonth(data.date) ? [['month', 'Month']] : [['month', 'Month to date'], ['projected', 'Projected month end']];
+  return data && fullMonth(data.date) ? [['month', 'Month']] : [['month', 'Month to date'], ['projected', 'Projected month end (calculated)']];
 }
 export const featureColumn = (period, data) => period === 'day' ? ['today', 'Day'] : ['month', data && fullMonth(data.date) ? 'Month' : 'Month to date'];
 
