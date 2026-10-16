@@ -142,7 +142,9 @@ function openDetail(id){
  const item=view.items.find(i=>i.id===id);if(!item)return;current=id;
  $('detail-photo').replaceWith(Object.assign(photo(item),{id:'detail-photo'}));
  $('detail-brand').textContent=item.brand??'';$('detail-title').textContent=name(item);
- const facts=[['Size',item.size??'Unknown'],['Color',item.color??'Unknown'],['Bought',[item.merchant,item.bought_at&&day(item.bought_at)].filter(Boolean).join(' · ')||'Unknown']];
+ const facts=[['Size',item.size??'Unknown'],['Color',item.color??'Unknown'],['Bought',[item.merchant,item.bought_at&&day(item.bought_at)].filter(Boolean).join(' · ')||'Unknown'],
+  // A configured product lists the parts chosen for it (the strap and carabiners of a built bag).
+  ...(item.parts?.length?[['Built with',item.parts.map(p=>[p.product,p.color].filter(Boolean).join(', ')).join(' · ')]]:[])];
  $('detail-facts').replaceChildren(...facts.flatMap(([k,v])=>[el('dt',{},k),el('dd',{},v)]));
  const ask=$('detail-ask');
  if(view.text_url){ask.hidden=false;ask.href=`${view.text_url}&body=${encodeURIComponent(`what goes with my ${[item.brand,item.product].filter(Boolean).join(' ').toLowerCase()||'this'}?`)}`;}
