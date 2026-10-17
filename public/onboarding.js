@@ -63,6 +63,21 @@ function shopLine(c){
  if(c?.status==='extracting')return `Read ${c.processed} of ${c.processed+c.queued} orders.`;
  return c?.error??'';
 }
+// Short progress for the connect screen's account rows; the orb shows only while Jules is working.
+function gmailShort(d){
+ if(d.status==='listing'&&!d.processed&&!d.already_read)return 'Finding your shopping emails…';
+ if(d.status==='questions')return 'Almost done…';
+ return `Reading · ${d.processed.toLocaleString()} ${d.processed===1?'email':'emails'} checked${d.already_read?` · ${d.already_read.toLocaleString()} already checked`:''}`;
+}
+function progress(name,text,working){$(name+'-progress').hidden=!text;$(name+'-progress-text').textContent=text;$(name+'-orb').hidden=!working;}
+// An action is a label plus an end mark (↗ leaves the page) so it reads the same as a pill or a row.
+function action(id,label,disabled=false,go){
+ const el=$(id);el.hidden=!label;if(!label)return;
+ const mark=go??(label.endsWith('↗')?'↗':''),text=label.replace(/\s*↗$/,'');
+ const parts=[Object.assign(document.createElement('span'),{textContent:text})];
+ if(mark)parts.push(Object.assign(document.createElement('span'),{className:'action-row__go',textContent:mark,ariaHidden:'true'}));
+ el.replaceChildren(...parts);if('disabled' in el)el.disabled=disabled;
+}
 function render(){
  const d=data,shop=d.connections?.shop,shopOn=(d.connections_available??[]).includes('shop');
  const gReading=running(d.status),sWorking=working(shop),gDone=d.status==='ready',sDone=shop?.status==='ready';
@@ -75,31 +90,34 @@ function render(){
  document.dispatchEvent(new CustomEvent('jules:activity',{detail:{agentWorking:gReading||sWorking,busy:gReading||sWorking,success:view==='done'}}));
  for(const a of document.querySelectorAll('.messages-link')){a.hidden=!textURL;if(textURL)a.href=textURL;}
  if(view==='connect'){
-  $('connect-title').textContent=consented?'Nice. One more?':'Let’s get to know each other.';
-  $('connect-intro').textContent=consented?`${gIn?'Gmail':'Shop'} is connected and Jules is already reading. ${shop?.status==='awaiting_approval'?'Approve Shop':`Add ${left[0]??'another account'} too`} and Jules sees more of what you buy.`:'Connect where you shop. Jules learns your style from what you actually buy, not a quiz.';
+  const approving=shop?.status==='awaiting_approval';
+  $('connect-title').textContent=approving?'Approve Shop.':consented?'Nice. One more?':'Let’s get to know each other.';
+  $('connect-intro').textContent=approving?'Shop asks you to approve Jules on its own screen. Check the code matches, then come back.':consented?`${gIn?'Gmail':'Shop'} is connected and Jules is reading. Add ${left[0]??'another account'} and Jules sees more of what you buy.`:'Connect where you shop. Jules learns your style from what you actually buy, not a quiz.';
   // The consent collapses once agreed (here or by an earlier connection); Read or unticking opens it.
   const agreed=$('consent').checked||consented;
   if(consented)$('consent').checked=true;
   $('consent-full').hidden=agreed&&!consentOpen;$('consent-done').hidden=!agreed||consentOpen;
-  // Gmail card
+  // Gmail row
   $('gmail-ok').hidden=!gIn;$('gmail-details').hidden=gIn;$('gmail-what').textContent=gIn&&d.account?d.account:'Receipts, orders and returns from your email';
-  $('gmail-progress').textContent=gIn?(d.failed&&gReading?'Reading paused. Jules will keep trying, or resume now.':d.status==='paused'?'Reading paused. Connect Gmail again to continue.':gReading?`Reading now. ${gmailLine(d)}`:gDone?'Done reading.':''):'';
-  const gAction=!gIn||d.status==='paused'?'Connect Gmail ↗':d.consent_required?'Approve the updated consent':d.status==='not_started'?'Start reading':d.failed&&gReading?'Resume':null;
-  $('gmail-connect').hidden=!gAction;if(gAction)$('gmail-connect').textContent=gAction;
-  $('gmail-connect').disabled=!agreed;
-  $('gmail-card').classList.toggle('ob-source--featured',!gIn);
-  // Shop card
+  progress('gmail',gIn?(d.failed&&gReading?'Reading paused. Jules will keep trying, or resume now.':d.status==='paused'?'Reading paused. Connect Gmail again to continue.':gReading?gmailShort(d):gDone?'Done reading.':''):'',gReading&&!d.failed);
+  const gAction=!gIn||d.status==='paused'?'Connect Gmail ↗':d.consent_required?'Approve the updated consent':d.status==='not_started'?'Start reading':d.failed&&gReading?'Resume reading':null;
+  // Shop row
   $('shop-card').hidden=!shopOn;
-  const approving=shop?.status==='awaiting_approval';
-  $('shop-ok').hidden=!(shop?.connected);$('shop-details').hidden=sIn;$('shop-approve').hidden=!approving;
+  $('shop-ok').hidden=!(shop?.connected);$('shop-details').hidden=sIn||shopWaiting;$('shop-approve').hidden=!approving;
+  $('shop-what').textContent=approving?'Waiting for your approval':'Orders from the Shop app';
   $('shop-code').textContent=shop?.user_code??'';if(shop?.verification_url)$('shop-approve-link').href=shop.verification_url;
-  $('shop-progress').textContent=shopWaiting?'Jules is finishing a Gmail step first. This can take a minute or two.':approving?shopLine(shop):shop?.status==='extracting'?`Reading now. ${shopLine(shop)}`:sDone?'Done reading.':shop?.error??'';
-  const sAction=shopWaiting?'Connecting…':!sIn?'Connect Shop ↗':shop?.status==='connected'?'Read Shop orders again':null;
-  $('shop-connect').hidden=!sAction;if(sAction)$('shop-connect').textContent=sAction;
-  $('shop-connect').disabled=!agreed||shopWaiting;
-  $('shop-card').classList.toggle('ob-source--featured',gIn&&!sIn);
+  progress('shop',shopWaiting?'Starting once Jules finishes a Gmail step. Up to two minutes.':approving?'':shop?.status==='extracting'?`Reading · ${shopLine(shop)}`:sDone?'Done reading.':shop?.error??'',shopWaiting||shop?.status==='extracting');
+  const sAction=shopWaiting?'Connecting Shop…':!sIn?'Connect Shop ↗':shop?.status==='connected'?'Read Shop orders again':null;
+  // One butter pill for the most useful next step, then quiet rows: approving Shop, else Gmail, else Shop.
+  action('gmail-connect',gAction,!agreed);action('shop-connect',sAction,!agreed||shopWaiting);action('shop-approve-link',approving&&shop?.verification_url?'Approve in Shop ↗':null);
+  const primary=approving?'shop-approve-link':gAction?'gmail-connect':sAction?'shop-connect':null;
+  for(const id of ['gmail-connect','shop-connect','shop-approve-link']){
+   const el=$(id),main=id===primary;el.className=main?'btn btn--butter':'action-row';
+   if(main)$('primary-slot').replaceChildren(el);else $('action-rows').insertBefore(el,$('continue'));
+  }
+  if(!primary)$('primary-slot').replaceChildren();
   // One account connected: the other is optional.
-  $('continue').hidden=!(consented&&left.length);$('continue').textContent=`Skip ${left[0]}, continue`;
+  action('continue',consented&&left.length?`Skip ${left[0]} for now`:null,false,'→');
   $('not-now').hidden=consented||!textURL;
  }else if(view==='reading'){
   $('row-gmail').hidden=!gIn;
