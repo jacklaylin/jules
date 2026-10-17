@@ -68,9 +68,10 @@ async function act(work,message){
  try{const done=await work();if(done)notice(done);}catch(error){notice(error.message);}
  finally{busy=false;buttons.forEach(b=>{b.disabled=false;});importReady();}
 }
-// Shop reads in browser-driven steps; lease conflicts with a running Gmail step are retried briefly.
+// Shop reads in browser-driven steps; a running Gmail step can hold the shared lock
+// for up to ~2 minutes (the server's lease), so conflicts wait that long.
 const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
-async function shopCall(action){for(let attempt=0;;attempt++){try{return await api('connection-'+action,{source:'shop'});}catch(error){if(error.status!==409||attempt>=5)throw error;await wait(2000);}}}
+async function shopCall(action){const until=Date.now()+120000;for(;;){try{return await api('connection-'+action,{source:'shop'});}catch(error){if(error.status!==409||Date.now()>until)throw error;await wait(3000);}}}
 // Shop reads on the server when background work is on; the page then only refreshes progress.
 async function shopRead(data){while(data.connections?.shop?.status==='extracting'){render(data);data=data.background?(await wait(4000),await api()):await shopCall('step');}return data;}
 
