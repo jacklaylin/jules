@@ -184,3 +184,17 @@ Ten reports (four developer feedback, six quality signals) from one tester conve
 Evals added: none (all three fixes are deterministic sourcing and validation rules, covered by unit tests).
 
 Triage cursor: 2026-10-16T03:47:26.982477+00:00
+
+## October 17: rate-limited model calls and the "still looking" follow-up
+
+Three reports (two developer feedback, one quality signal) from one tester conversation. Chat metrics (since the previous cursor vs the period before): first message 17 s → 24.8 s, final result median 38.3 s → 106.7 s and p90 81.6 s → 106.7 s, failed replies 14% → 100%, model-written share 42.9% → 0%, first-try find rate no data; every verdict is "too few to tell" (two timed turns, both ending in a fallback). Findings:
+
+- **A plain profile question got the generic failure text (blocked, recurring from October 15 proposal 3).** The model API answered HTTP 429 on the first attempt and on the compact retry; the tester then asked what the message meant, and the quality check recorded the miss. Every existing retry (the loop's reduced-context round retry and the inbox's compact retry) fires immediately, so a short rate limit fails all of them. The packet could not say whether this was the per-minute rate tier or exhausted billing. Fix: the agent's model call waits out a short rate limit once (the wait the API asks for, at most 4 s; never for `insufficient_quota`), logging `model_rate_limited`. Instrumentation: every refused model call records the API's error code, which limit was exhausted (requests or tokens) and the requested wait (`model_error_code`, `model_limit` in reply diagnostics and the `ai_reply_failed` log); the founder alert names the code. No message text is read or stored.
+- **The "still looking" follow-up arrives on most slow searches, and the tester would rather wait (degraded).** The follow-up fired at 60 s; median final result is ~38 s but p90 is 82–99 s, so many searches got one. Fix: the follow-up waits until 90 s (still before the 105 s turn deadline).
+- **Searches run past the turn deadline (degraded, recurring from October 16 proposal 4).** The reported search saved one item and then hit the 105 s deadline during the save step, so the reply was the partial fallback. Nothing recorded where the time went. Instrumentation: reply diagnostics now carry `steps` (each step and when it began, at most 40) for sent and failed turns, so the next slow turn shows which step is slow. Speeding up sourcing is a proposal until that data exists.
+- **Observed in context, not reported:** a request to find a named shoe in one of two suede colours was saved to the wishlist directly, in a colour the packet doesn't show is suede. The consent check's verdict is not in the packet; check from data whether the request was read as a save request before changing consent.
+- **Proposals, not implemented:** (1) check the OpenAI account's rate tier and billing once the new `model_error_code`/`model_limit` data shows which limit is hit (founder action in the OpenAI dashboard); (2) latency work on sourcing, guided by the new step timings; (3) record the consent check's verdict in diagnostics for saves made in the same turn as a search.
+
+Evals added: none (no interpretation change; deterministic tests cover the retry, the diagnostics and the follow-up timing in `tests/model-rate-limit.test.js`).
+
+Triage cursor: 2026-10-16T21:47:18.555892+00:00
