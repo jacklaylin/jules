@@ -17,7 +17,7 @@ const running=status=>['listing','extracting','questions'].includes(status);
 const working=c=>['awaiting_approval','extracting'].includes(c?.status);
 const logos=new Map();
 for(const el of document.querySelectorAll('[data-logo]')){const logo=createLogo();if(el.dataset.logo==='thinking')logo.classList.add('logo--thinking');if(el.dataset.logo==='done')logo.classList.add('logo--done');el.append(logo);logos.set(el,logo);}
-let data=null,textURL='',consentOpen=false,poll=null,busy=false;
+let data=null,textURL='',consentOpen=false,poll=null,busy=false,shopWaiting=false;
 // "Continue" without the remaining account; kept for this tab so a reload stays on the reading screen.
 const store=(key,value)=>{try{if(value===undefined)return sessionStorage.getItem(key);sessionStorage.setItem(key,value);}catch{return null;}};
 let continued=store('jules-onboarding-continued')==='1';
@@ -41,10 +41,14 @@ async function call(url,action,extra={}){
  return result;
 }
 const historyAPI=(action,extra)=>call('/api/wishlist?gmail=1',action,extra);
-// Lease conflicts (another step writing) are retried briefly.
-async function sourceCall(name,action,extra={}){
- for(let attempt=0;;attempt++){try{return await historyAPI('connection-'+action,{source:name,...extra});}catch(error){if(error.status!==409||attempt>=5)throw error;await wait(2000);}}
+// Gmail and Shop share one write lock; a Gmail step can hold it for up to ~2 minutes (the server's
+// lease). A conflict waits that out instead of failing, telling the person once it's taking a moment.
+const BUSY_MS=120000;
+async function whenFree(work,onWait=()=>{}){
+ const until=Date.now()+BUSY_MS;
+ for(let attempt=0;;attempt++){try{return await work();}catch(error){if(error.status!==409||Date.now()>until)throw error;if(attempt===1)onWait();await wait(3000);}}
 }
+const sourceCall=(name,action,extra={},onWait)=>whenFree(()=>historyAPI('connection-'+action,{source:name,...extra}),onWait);
 
 // Searching past emails an earlier import already checked adds nothing to "checked", so that count is shown too.
 const skipped=d=>d.already_read?`, skipped ${d.already_read.toLocaleString()} already checked`:'';
@@ -89,10 +93,10 @@ function render(){
   const approving=shop?.status==='awaiting_approval';
   $('shop-ok').hidden=!(shop?.connected);$('shop-details').hidden=sIn;$('shop-approve').hidden=!approving;
   $('shop-code').textContent=shop?.user_code??'';if(shop?.verification_url)$('shop-approve-link').href=shop.verification_url;
-  $('shop-progress').textContent=approving?shopLine(shop):shop?.status==='extracting'?`Reading now. ${shopLine(shop)}`:sDone?'Done reading.':shop?.error??'';
-  const sAction=!sIn?'Connect Shop ↗':shop?.status==='connected'?'Read Shop orders again':null;
+  $('shop-progress').textContent=shopWaiting?'Jules is finishing a Gmail step first. This can take a minute or two.':approving?shopLine(shop):shop?.status==='extracting'?`Reading now. ${shopLine(shop)}`:sDone?'Done reading.':shop?.error??'';
+  const sAction=shopWaiting?'Connecting…':!sIn?'Connect Shop ↗':shop?.status==='connected'?'Read Shop orders again':null;
   $('shop-connect').hidden=!sAction;if(sAction)$('shop-connect').textContent=sAction;
-  $('shop-connect').disabled=!agreed;
+  $('shop-connect').disabled=!agreed||shopWaiting;
   $('shop-card').classList.toggle('ob-source--featured',gIn&&!sIn);
   // One account connected: the other is optional.
   $('continue').hidden=!(consented&&left.length);$('continue').textContent=`Skip ${left[0]}, continue`;
@@ -145,14 +149,16 @@ $('consent').onchange=()=>{consentOpen=!$('consent').checked;if(data)render();};
 $('consent-read').onclick=()=>{consentOpen=true;render();$('consent').focus();};
 $('gmail-connect').onclick=()=>act($('gmail-connect'),async()=>{
  if(!$('consent').checked){say('Tick the box above to connect.');return;}
- if(data.connected&&data.status!=='paused'){data=await historyAPI(running(data.status)?'resume':'start',{consent:GMAIL_CONSENT});render();await refresh();return;}
+ if(data.connected&&data.status!=='paused'){data=await whenFree(()=>historyAPI(running(data.status)?'resume':'start',{consent:GMAIL_CONSENT}));render();await refresh();return;}
  const {url}=await historyAPI('connect',{consent:GMAIL_CONSENT});location.assign(url);
 });
-$('gmail-resume').onclick=()=>act($('gmail-resume'),async()=>{data=await historyAPI('resume');render();await refresh();});
+$('gmail-resume').onclick=()=>act($('gmail-resume'),async()=>{data=await whenFree(()=>historyAPI('resume'));render();await refresh();});
 $('shop-connect').onclick=()=>act($('shop-connect'),async()=>{
  if(!$('consent').checked){say('Tick the box above to connect.');return;}
  const shop=data.connections?.shop;
- data=await sourceCall('shop',shop?.connected?'import':'connect',{consent:SOURCES.shop.consent});render();await refresh();
+ try{data=await sourceCall('shop',shop?.connected?'import':'connect',{consent:SOURCES.shop.consent},()=>{shopWaiting=true;render();});}
+ finally{shopWaiting=false;}
+ render();await refresh();
 });
 $('continue').onclick=()=>{continued=true;store('jules-onboarding-continued','1');render();};
 $('retry').onclick=()=>{say('');start();};
