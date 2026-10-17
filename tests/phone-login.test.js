@@ -22,3 +22,16 @@ test('an expired link can text a fresh one, only to the phone it was made for, a
  assert.equal((await request(run,{action:'resend',token:'nope'})).statusCode,400);
  recent=5;assert.equal((await request(run,{action:'resend',token:challenge})).statusCode,429);assert.equal(sent.length,1);
 });
+test('a code text that fails logs the step and reason, never the code',async()=>{
+ const logs=[],original=console.log;console.log=line=>logs.push(line);
+ try{
+  const store={phoneLoginMember:async()=>({email:'person@example.test',line:'test-line'}),beginPhoneLogin:async()=>true};
+  const run=createPhoneLoginHandler({env,storeFactory:()=>store,fetcher:async()=>Response.json({email_otp:'123456'}),
+   send:async()=>{throw Object.assign(new Error('Recipient 123456 not allowed'),{name:'SpectrumCloudError',status:403,code:'403'});}});
+  const res=await request(run,{action:'request',phone:'+14155550123'});
+  assert.equal(res.statusCode,503);
+ }finally{console.log=original;}
+ const entry=JSON.parse(logs.find(l=>l.includes('phone_login_failed')));
+ assert.equal(entry.stage,'send');assert.equal(entry.error,'SpectrumCloudError');assert.equal(entry.status,403);
+ assert.ok(!logs.join('\n').includes('123456'),'the code never reaches the log');
+});
