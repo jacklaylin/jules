@@ -75,7 +75,7 @@ const bonus=(id,brand,match='similar')=>({...p(id,brand,{match}),role:'bonus'});
 test('an unverifiable in-brand match is shown honestly instead of reported as nothing found, in every mode',async()=>{
   for(const mode of ['identify','discover']){
     const {reply,state,recorded}=await run(start({mode,required_brands:['Our Legacy']}),[u('a','Our Legacy'),u('b','CMMN SWDN'),bonus('c','The Row')]);
-    assert.match(reply,/couldn’t be checked/,mode);assert.match(reply,/store\.example\/p\/a/,mode);
+    assert.match(reply,/can’t see its price or sizes from here/,mode);assert.doesNotMatch(reply,/couldn’t be (checked|read)|error|verif/i,mode);assert.match(reply,/store\.example\/p\/a/,mode);
     assert.doesNotMatch(reply,/p\/b|products\/c|Bonus|I found this option|couldn’t find a verified/,mode);
     // The unread page is a real option: selectable, with price and sizes unknown.
     assert.equal(state.stage,'choice',mode);assert.deepEqual(state.options.map(o=>o.url),[u('a').url],mode);assert.deepEqual(recorded.text_wishlist_diagnostics.unverified_shown,[u('a').url]);
@@ -98,13 +98,13 @@ test('a link the user just sent is offered first when verified and acknowledged 
   for(const mode of ['identify','discover']){
     const verified=await run(start({mode,required_brands:['Our Legacy']}),[p('a','Our Legacy'),p('b','Other')],reference(link));
     assert.equal(verified.state.options[0].url,link.url,mode);assert.ok(verified.state.options.some(o=>o.url===p('a').url));
-    assert.doesNotMatch(verified.reply,/couldn’t open the page you sent/);
+    assert.doesNotMatch(verified.reply,/can’t see the price or stock on the page you sent/);
     const blocked={...link,sourcing_status:'store_not_found',match:'unverified',listing_check:undefined};
     const failed=await run(start({mode,required_brands:['Our Legacy']}),[p('a','Our Legacy')],reference(blocked));
-    assert.match(failed.reply,/^i couldn’t open the page you sent/,mode);assert.match(failed.reply,/products\/a/);
+    assert.match(failed.reply,/^i can’t see the price or stock on the page you sent/,mode);assert.match(failed.reply,/products\/a/);
     assert.deepEqual(failed.recorded.text_wishlist_diagnostics.supplied_links.map(s=>s.status),['unverified']);
     const nothing=await run(start({mode,required_brands:['Our Legacy']}),[],reference(blocked));
-    assert.match(nothing.reply,/^i couldn’t open the page you sent/,mode);assert.match(nothing.reply,/similar brands/);
+    assert.match(nothing.reply,/^i can’t see the price or stock on the page you sent/,mode);assert.match(nothing.reply,/similar brands/);
   }
   const sold={...link,listing_check:{...link.listing_check,availability:'OutOfStock'}};
   const soldReply=await run(start({mode:'identify'}),[p('a','Our Legacy')],reference(sold));

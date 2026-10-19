@@ -101,6 +101,31 @@ test('no follow-up when the search finishes before the deadline, or when the mod
   }
 });
 
+// October 19: the follow-up time counts from the start of the turn, not from when the search began,
+// so a search that starts late in the turn can't get its follow-up a moment before the turn deadline.
+test('the follow-up counts from the start of the turn, not from the start of the search', async () => {
+  let clock = 0;
+  const sent = [];
+  // The search begins 45 s into the turn; its follow-up is due 20 ms later, not 45 s later.
+  const updates = searchUpdates({ now: () => clock, followupAfterMs: 45020, writeFollowup: async () => 'Still looking.', deliver: async (kind, body) => { sent.push(body); return { status: 'sent' }; } });
+  clock = 45000;
+  await updates.begin({ acknowledgment: 'On it.' });
+  await tick(200);
+  assert.deepEqual(sent, ['On it.', 'Still looking.']); assert.equal(updates.timing.followup_sent, true);
+  await updates.finish();
+});
+
+test('a search that begins after the follow-up time gets only its acknowledgment', async () => {
+  let clock = 0, written = 0;
+  const sent = [], started = [];
+  const updates = searchUpdates({ now: () => clock, followupAfterMs: 90000, onStart: () => started.push(clock),
+    writeFollowup: async () => { written++; return 'Still looking.'; }, deliver: async (kind, body) => { sent.push(body); return { status: 'sent' }; } });
+  clock = 95000;
+  await updates.begin({ acknowledgment: 'On it.' });
+  await tick(20); await updates.finish();
+  assert.deepEqual(sent, ['On it.']); assert.equal(written, 0); assert.deepEqual(started, [95000]);
+});
+
 test('a follow-up still being written when the result is ready is dropped, never sent after it', async () => {
   const sent = [], written = gate();
   const updates = searchUpdates({ followupAfterMs: 5, writeFollowup: () => written.opened, deliver: async (kind, body) => { sent.push(body); return { status: 'sent' }; } });

@@ -11,8 +11,8 @@ import { agentTurn, tool, toolNames } from './helpers/agent.js';
 const env = { OPENAI_API_KEY:'test' };
 const turn = body => [{ id:'00000000-0000-4000-8000-000000000001', direction:'inbound', body, status:'received' }];
 // The signal comes from an independent quality check (its own structured model call) run beside the turn.
-const missed = (args = {}) => ({ verdict:'missed', kind:'wrong_results', about:'previous_reply', summary:'Asked for loafers; Jules showed sneakers.', ...args });
-const fine = { verdict:'fine', kind:null, about:null, summary:null };
+const missed = (args = {}) => ({ newest_message:'reaction', verdict:'missed', kind:'wrong_results', about:'previous_reply', summary:'Asked for loafers; Jules showed sneakers.', ...args });
+const fine = { newest_message:'refinement', verdict:'fine', kind:null, about:null, summary:null };
 const isQuality = options => JSON.parse(options.body).text?.format?.name === 'quality';
 const verdict = v => ({ ok:true, json:async () => ({ status:'completed', output:[{ type:'message', content:[{ type:'output_text', text:JSON.stringify(v) }] }] }) });
 // The agent replies; the quality check answers with the given verdict.
@@ -87,4 +87,29 @@ test('the side tool and the independent check together record at most one signal
   const fetcher = async (_url, options) => isQuality(options) ? verdict(missed()) : agentTurn(tool('record_quality_signal', { kind:'repeated', about:'previous_reply', summary:'Asked again for the size.' }), tool('conversation_reply', { response:'Got it.' }));
   assert.equal(await generateReply(after('I already told you'), env, fetcher, { qualitySignal:async s => saved.push(s) }), 'Got it.');
   assert.equal(saved.length, 1);
+});
+
+// October 19: two signals flagged a new request (a named item after a failed search; turning order texts
+// off after a save) as proof that the earlier reply missed. The check now says first what the newest
+// message does, and only a reaction to an earlier Jules turn is recorded, from the check or the side tool.
+test('a new request, a refinement or anything but a reaction is never recorded as a missed earlier turn', async () => {
+  for (const newest of ['new_request', 'refinement', 'other', undefined]) {
+    const saved = [];
+    const check = missed({ newest_message:newest, kind:'misunderstood', about:'earlier_reply', summary:'The user asked to stop order texts; Jules offered more help.' });
+    const fetcher = async (_url, options) => isQuality(options) ? verdict(check)
+      : agentTurn(tool('record_quality_signal', { newest_message:newest, kind:'misunderstood', about:'previous_reply', summary:'Did not address the request.' }), tool('conversation_reply', { response:'Done.' }));
+    assert.equal(await generateReply(after('stop texting me about my orders'), env, fetcher, { qualitySignal:async s => saved.push(s) }), 'Done.');
+    assert.deepEqual(saved, [], String(newest));
+  }
+  const saved = [];
+  await generateReply(after('I already told you my size'), env, async (_url, options) => isQuality(options) ? verdict(fine)
+    : agentTurn(tool('record_quality_signal', { newest_message:'reaction', kind:'repeated', about:'previous_reply', summary:'Asked again for the size.' }), tool('conversation_reply', { response:'Got it.' })), { qualitySignal:async s => saved.push(s) });
+  assert.equal(saved.length, 1);
+});
+
+test('the quality check asks what the newest message does before its verdict', async () => {
+  let schema;
+  await generateReply(after('hi'), env, async (_url, options) => { if (isQuality(options)) { schema = JSON.parse(options.body).text.format.schema; return verdict(fine); } return agentTurn(tool('conversation_reply', { response:'Hi.' })); }, { qualitySignal:async () => {} });
+  assert.equal(Object.keys(schema.properties)[0], 'newest_message'); assert.ok(schema.required.includes('newest_message'));
+  assert.deepEqual(schema.properties.newest_message.enum, ['reaction', 'refinement', 'new_request', 'other']);
 });
