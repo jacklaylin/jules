@@ -52,12 +52,13 @@ test('product photos allow only compared Google thumbnails and reject unsafe, ov
   }
 });
 
-function transport({ failText = false } = {}) {
+function transport({ failText = false, failCard = false } = {}) {
   const sent = [], logs = []; let stopped = false;
   const provider = () => ({ user: async () => ({}), space: { create: async () => ({ send: async input => {
     const content = typeof input === 'string' ? { type: 'text', text: input } : await input.build();
     sent.push(content);
     if (failText) throw new Error('Ambiguous send');
+    if (failCard && (content.type === 'richlink' || content.content?.type === 'richlink')) throw new Error('Card failed');
     return { id: `test-sent-${sent.length}`, content };
   } }) } });
   provider.config = () => ({});
@@ -77,7 +78,7 @@ test('answer threads to the original image; numbered photo label and photo follo
     loadPhoto: async () => Buffer.from('test-photo'),
   });
   assert.equal(sdk.sent[0].type, 'reply'); assert.equal(sdk.sent[0].target.id, 'test-image');
-  assert.match(sdk.sent[1].content.text, /Product photo 1: Test jacket\. Possible match/);
+  assert.match(sdk.sent[1].content.text, /Option 1: Test jacket\. Possible match/);
   assert.equal(sdk.sent[1].target.id, 'test-sent-1');
   assert.equal(sdk.sent[2].content.type, 'attachment'); assert.equal(sdk.sent[2].target.id, 'test-sent-2');
   assert.equal(sdk.stopped(), true);
@@ -137,4 +138,39 @@ test('a canonical multi-color ProductGroup establishes identity without assignin
  assert.equal(product.name,group.name);assert.deepEqual(product.offers,[]);assert.equal(product.color,null);assert.equal(product.hasVariant.length,2);assert.deepEqual(structuredColorOptions(product,url).map(c=>c.color),['6D Agar Yellow','Black']);
  assert.equal(structuredColorOptions({...group,hasVariant:[{color:'Fake',url:'https://other.example/products/romi?variant=3'}]},url).length,0);
  assert.equal(listingProduct(html,'Romi Sunglasses',url+'?variant=unlisted'),null);
+});
+
+const card = 'https://jules.example/go/token.0.sig';
+const cardOf = content => content.type === 'richlink' ? content : content.content?.type === 'richlink' ? content.content : null;
+test('a text-search product goes out as its own preview card after the answer', async () => {
+  const sdk = transport();
+  await sendGreeting(delivery, 'Two picks https://jules.example/go/a https://jules.example/go/b', {}, { ...sdk.options,
+    products: [{ name: 'Muscle Tee', preview_url: card }, { name: 'Ripped tee', preview_url: card.replace('.0.', '.1.') }], loadPhoto: assert.fail });
+  assert.equal(sdk.sent.length, 3, 'answer + one card per product, no captions or photos');
+  assert.equal(sdk.sent[0].text.includes('Two picks'), true);
+  assert.equal(cardOf(sdk.sent[1]).url, card); assert.equal(sdk.sent[1].type, 'richlink', 'not threaded without a caption');
+  assert.deepEqual(sdk.logs.map(l => l.event), ['product_rich_preview_sent', 'product_rich_preview_sent']);
+});
+test('a photo-search product gets its caption with the card in place of the photo', async () => {
+  const sdk = transport();
+  await sendGreeting(delivery, 'Possible jacket match', {}, { ...sdk.options, replyTarget: delivery.message,
+    products: [{ name: 'Test jacket', caption: 'Closest match: same collar.', candidate_image: photoURL, preview_url: card }], loadPhoto: assert.fail });
+  assert.equal(sdk.sent.length, 3);
+  assert.equal(sdk.sent[1].content.text, 'Closest match: same collar.'); assert.equal(sdk.sent[1].target.id, 'test-sent-1');
+  assert.equal(cardOf(sdk.sent[2]).url, card); assert.equal(sdk.sent[2].target.id, 'test-sent-2', 'the card threads under its caption');
+  const plain = transport();
+  await sendGreeting(delivery, 'Possible jacket match', {}, { ...plain.options, products: [{ name: 'Test jacket', match: 'similar', candidate_image: photoURL, preview_url: card }], loadPhoto: assert.fail });
+  assert.match(plain.sent[1].content.text, /Option 1: Test jacket\. Similar alternative/, 'without a caption the card still says it is not the exact item');
+});
+test('a failed card falls back to the photo under the same caption; the answer is never resent', async () => {
+  const sdk = transport({ failCard: true });
+  await sendGreeting(delivery, 'Possible jacket match', {}, { ...sdk.options, replyTarget: delivery.message,
+    products: [{ name: 'Test jacket', caption: 'Closest match.', candidate_image: photoURL, preview_url: card }], loadPhoto: async () => Buffer.from('photo') });
+  const kinds = sdk.sent.map(c => cardOf(c) ? 'card' : c.content?.type ?? c.type);
+  assert.deepEqual(kinds, ['text', 'text', 'card', 'attachment']);
+  assert.equal(sdk.sent[3].target.id, 'test-sent-2', 'the photo goes under the caption already sent, which is not repeated');
+  assert.deepEqual(sdk.logs.map(l => l.event), ['product_rich_preview_failed', 'imessage_product_photo_sent']);
+  const text = transport({ failCard: true });
+  const sent = await sendGreeting(delivery, 'Picks https://jules.example/go/a', {}, { ...text.options, products: [{ name: 'Muscle Tee', preview_url: card }], loadPhoto: assert.fail });
+  assert.equal(sent.id, 'test-sent-1'); assert.equal(text.sent.length, 2, 'no photo to fall back to: the text link stands');
 });
