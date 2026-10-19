@@ -22,7 +22,7 @@ export async function checkAlert(alert,{store,env,inspect,discover,send,discover
   const withMarket=link=>({...link,market_country:country,market_currency:market.SHOPPING_CURRENCY});
   const unique=uniqueAlertLinks(alert.links);let links=unique.length<alert.links.length?unique:undefined,discovery;
   if(links)alert={...alert,links};
-  let {checks}=await inspect(alert.links.map(withMarket));
+  let {checks}=await withUsage({store,env,conversation:alert.conversation_id,operation:`price-check:${alert.id}:${new Date().toISOString().slice(0,10)}`,feature:'price_alerts',quiet:true},()=>inspect(alert.links.map(withMarket)));
   let decision=decidePriceCheck(alert,checks,{country});
   // Look for other stores weekly, and sooner when every watched store keeps failing.
   if(env.PRICE_ALERT_DISCOVERY!=='false'&&discoveries.remaining>0&&discoveryDue(alert,{recovery:decision.needs_recovery})){
