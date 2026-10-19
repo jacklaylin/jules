@@ -14,6 +14,8 @@ Open `/onboarding-preview` to walk through the flow with a demo tester. It uses 
 
 ## Setup for the first tester
 
+**October 19 update: self-serve onboarding (in progress).** With `SELF_SERVE_ONBOARDING_ENABLED=true` (plus `ONBOARDING_ENABLED` and `GMAIL_IMPORT_ENABLED`), approving someone in Admin › People does steps 2–3 below automatically for anyone who has texted Jules. It creates a Supabase sign-in user with an internal address (`<conversation id>@members.jules.invalid`, never shown or mailed; they sign in by phone), adds the `wishlist_members` row and the onboarding invite, then texts the onboarding welcome. Testers you already provisioned keep their account. Leave the switch off until Gmail can be connected with any Google account (the next step); until then, Gmail only connects when its address matches the member email.
+
 This is deliberately invite-only, using the existing private wishlist sign-in. Phone signup alone does not grant account access. Provision each tester once (maximum ten for this experiment):
 
 1. In Supabase **SQL Editor**, run `db/016_onboarding.sql` after the existing migrations, including `014_public_signup.sql`. It creates the private onboarding state table. No credential is produced.
