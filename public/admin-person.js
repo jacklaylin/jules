@@ -303,7 +303,9 @@ if (!/^[0-9a-f-]{36}$/i.test(person)) { $('person-name').textContent = 'Person n
 else {
   mountPurchases(api);
   const fail = area => error => { notice(`${area}: ${error.message}`); };
-  loadMessages().catch(fail('Conversation'));
+  // ?message=<id> (linked from Admin › Adoption's misses) opens the conversation at that message.
+  const linked = new URLSearchParams(location.search).get('message');
+  loadMessages().then(() => { if (/^[0-9a-f-]{36}$/i.test(linked ?? '')) return openMessage(linked); }).catch(fail('Conversation'));
   loadProfile().catch(fail('Memory'));
   loadPurchases(person);
   loadWishlist().catch(error => { $('wishlist-note').textContent = error.message; });

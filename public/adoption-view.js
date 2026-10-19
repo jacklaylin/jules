@@ -54,3 +54,54 @@ export function summaryCells(summary){
   {label:'Purchase intent',value:String(summary.intent),note:of(summary.intent)},
  ];
 }
+
+// ---------- Quality (lib/adoption-quality.js) ----------
+const ABOUT={previous_reply:'the reply just before',earlier_reply:'an earlier reply',overall:'the conversation overall'};
+const n=(count,[one,many])=>`${count} ${count===1?one:many}`;
+export const shortDate=at=>new Date(at).toLocaleDateString(undefined,{month:'short',day:'numeric',timeZone:'UTC'});
+// Photos Jules searched for: everything except unreadable photos, no reply, and photos that weren't a product search.
+const searched=o=>(o.identified??0)+(o.similar??0)+(o.none??0);
+
+export function qualitySummaryCells(q){
+ const s=searched(q.photos.outcomes);
+ return [
+  {label:'Misses',value:String(q.totals.misses),note:q.totals.results?`against ${n(q.totals.results,['reply','replies'])} with results`:'no results replies yet'},
+  {label:'Flags',value:String(q.totals.flags),note:`${q.totals.thumbs} by 👎, the rest by #dev`},
+  {label:'Photos identified',value:`${q.photos.outcomes.identified??0} of ${s}`,note:s?`${pct(q.photos.outcomes.identified??0,s)} of photo searches`:'no photo searches yet'},
+  {label:'Saved from a photo',value:String(q.photos.saved),note:`of ${n(q.photos.total,['photo','photos'])} sent`},
+ ];
+}
+
+// One row per tester: misses against their replies with results, flags, and photo outcomes.
+export function qualityTesterCells(tester,row){
+ return {
+  results:String(tester.results),misses:String(row.misses),miss_rate:tester.results?pct(row.misses,tester.results):'—',
+  flags:row.flags?`${row.flags}${row.thumbs?` (${row.thumbs} 👎)`:''}`:'0',
+  photos:String(row.photos),identified:row.photos?String(row.photos_identified):'—',saved:row.photos?String(row.photos_saved):'—',
+ };
+}
+
+// One week: replies with results, misses (and their share), each kind, flags, and a one-line photo summary.
+export function qualityWeekCells(week,kinds,outcomes){
+ const photos=outcomes.filter(o=>week.photos[o.key]).map(o=>`${week.photos[o.key]} ${o.label.toLowerCase()}`).join(' · ');
+ return {
+  week:`${shortDate(week.week_of+'T00:00:00Z')}${week.current?' (this week)':''}`,
+  results:String(week.results),misses:week.results?`${week.misses} · ${pct(week.misses,week.results)}`:String(week.misses),
+  kinds:kinds.map(k=>({key:k.key,label:k.label,value:String(week.by_kind[k.key]??0)})),
+  flags:String(week.flags),photos:photos||'—',
+ };
+}
+
+// Kinds that occur at least once, so the weekly table only has the columns it needs.
+export const usedKinds=q=>q.kinds.filter(k=>q.weeks.some(w=>w.by_kind[k.key]));
+
+// One miss to read, linking to its message in the tester's conversation.
+export function missRow(miss,kinds){
+ return {
+  date:shortDate(miss.at),tester:miss.sender_id??'Unknown tester',
+  href:`/admin/people/${miss.conversation_id}?tab=conversation&message=${miss.id}`,
+  kind:kinds.find(k=>k.key===miss.kind)?.label??miss.kind,
+  about:ABOUT[miss.about]?`About ${ABOUT[miss.about]}`:'',
+  summary:miss.summary??'No summary recorded.',
+ };
+}
