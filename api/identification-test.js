@@ -1,3 +1,5 @@
+// Loads first so the cost meter wraps fetch before any handler below keeps a reference to it.
+import '../lib/usage.js';
 import { REPLAY_CASES, runReplay } from '../lib/replay.js';
 import { AGENT_EVAL_CASES, runAgentEval } from '../lib/agent-eval.js';
 import { textWishlistAction } from '../lib/text-wishlist.js';

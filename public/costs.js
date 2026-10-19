@@ -1,5 +1,5 @@
 import {mountAdminShell,adminJson,anchorMenus} from './admin-console.js';
-import {viewOf,periodOf,apiDate,pickerValue,totalLine,coverageText,budgetText,serviceColumns,featureColumn,serviceRow,featureRows,meteredText,entryBody} from './costs-view.js';
+import {viewOf,periodOf,apiDate,pickerValue,totalLine,coverageText,budgetText,serviceColumns,featureColumn,serviceRow,featureRows,meteredText,entryBody,jobColumns,jobRows,jobsAlert,jobsText,reconcileText} from './costs-view.js';
 // Admin › Costs as a data view: a month by default (Day is an option, ?period=day), its total beside the title,
 // views By service · By feature · Evals, the period and its picker in the toolbar, coverage/budget in the status line. Update an amount opens its form above the table.
 mountAdminShell('costs');
@@ -34,7 +34,7 @@ function showView() {
 // The metered estimate for the open view (By feature, Evals) joins the status line.
 function summary() {
   const view = viewOf(location.search);
-  $('view-summary').textContent = data && view ? meteredText(data, view === 'evals', period()) : '';
+  $('view-summary').textContent = !data || !view ? '' : view === 'jobs' ? jobsText(data, period()) : meteredText(data, view === 'evals', period());
 }
 for (const button of $('cost-views').querySelectorAll('button')) button.onclick = () => {
   const url = new URL(location.href);
@@ -54,8 +54,21 @@ function render() {
   $('coverage').textContent = data ? coverageText(data) : '';
   const budget = data ? budgetText(data, p) : { text: '', over: false };
   $('budget-status').textContent = budget.text; $('budget-status').className = budget.over ? 'error' : '';
+  const reconcile = data ? reconcileText(data) : { text: '', over: false }; $('reconcile-status').textContent = reconcile.text; $('reconcile-status').className = reconcile.over ? 'error' : '';
+  const jobsStatus = jobsAlert(data); $('jobs-status').textContent = jobsStatus.text; $('jobs-status').className = jobsStatus.over ? 'error' : '';
   summary();
   if (!data) return;
+  const jobCols = jobColumns(p, data);
+  $('jobs-head').replaceChildren(th('Job'), th('Runs this month', true), th('Last run'), th('Calls (month)', true), ...jobCols.map(([, heading]) => th(heading, true)), th('Monthly budget', true), th('Status'));
+  $('jobs-rows').replaceChildren(...(data.jobs ? jobRows(data.jobs).map(j => el('tr', {},
+    el('td', {}, el('span', { className: 'service-name', textContent: j.name }), el('small', { textContent: `${j.when} · ${j.where}` }), el('small', { textContent: `Spends on: ${j.spends}` })),
+    el('td', { className: 'end num', textContent: j.runs, dataset: { label: 'Runs this month' } }),
+    el('td', { className: 'num', textContent: j.lastRun, dataset: { label: 'Last run' } }),
+    el('td', { className: 'end num', textContent: j.usage, dataset: { label: 'Calls (month)' } }),
+    ...jobCols.map(([key, heading]) => el('td', { className: 'end num', textContent: j[key], dataset: { label: heading } })),
+    el('td', { className: 'end num', textContent: j.budget, dataset: { label: 'Monthly budget' } }),
+    el('td', {}, el('span', { className: `badge ${j.badge}`, textContent: j.status }), ...j.flags.map(text => el('small', { textContent: text })))))
+    : [emptyRow(jobCols.length + 6, data.jobsNotice ?? 'Recurring job costs are unavailable.')]));
   $('rows').replaceChildren(...data.rows.map(serviceRow).map(row => el('tr', {},
     el('td', {}, el('a', { href: row.url, target: '_blank', rel: 'noopener noreferrer', className: 'service-name', textContent: row.name }), ...row.notes.map(note => el('small', { textContent: note }))),
     ...columns.map(([key, heading]) => el('td', { className: 'end num', textContent: row[key], dataset: { label: heading } })),
@@ -66,7 +79,7 @@ function render() {
     $(id).replaceChildren(...(rows.length ? rows.map(f => el('tr', {}, el('td', { textContent: f.label }), el('td', { className: 'end num', textContent: f.aiCalls, dataset: { label: 'AI calls' } }), el('td', { className: 'end num', textContent: f.searches, dataset: { label: 'Searches' } }), el('td', { className: 'end num', textContent: f[featureKey], dataset: { label: featureHeading } })))
       : [emptyRow(4, data.features?.features.length ? `No ${evals ? 'eval test runs' : 'user activity'} this month.` : `${meteredText(data, evals, p)}.`)]));
   }
-  if (!$('service').options.length) $('service').append(...data.rows.map(row => el('option', { value: row.id, textContent: row.name })));
+  serviceOptions();
 }
 
 async function load() {
@@ -100,7 +113,16 @@ $('entry').onsubmit = async event => {
 $('refresh').onclick = () => { $('costs-more').hidePopover(); load(); };
 $('date').onchange = load;
 // The service list does not apply to the all-services budget; only daily usage needs a day.
-function entryKind() { $('service').disabled = $('kind').value === 'budget'; $('entry-day').hidden = $('kind').value !== 'usage'; $('entry-date').disabled = $('kind').value !== 'usage'; }
+// A job budget picks a recurring job; every other amount picks a service.
+let optionsFor = null;
+function serviceOptions() {
+  if (!data) return;
+  const jobs = $('kind').value === 'job_budget';
+  if (optionsFor === jobs) return;
+  optionsFor = jobs; $('service-label').textContent = jobs ? 'Recurring job' : 'Service';
+  $('service').replaceChildren(...(jobs ? data.jobs?.rows.filter(j => !j.unregistered).map(j => el('option', { value: 'job:' + j.id, textContent: j.name })) ?? [] : data.rows.map(row => el('option', { value: row.id, textContent: row.name }))));
+}
+function entryKind() { serviceOptions(); $('service').disabled = $('kind').value === 'budget'; $('entry-day').hidden = $('kind').value !== 'usage'; $('entry-date').disabled = $('kind').value !== 'usage'; }
 $('kind').onchange = entryKind;
 addEventListener('popstate', () => { showView(); showPeriod(); load(); });
 showPeriod();

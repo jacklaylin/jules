@@ -1,6 +1,6 @@
 // Mocks the single agent's model turn: a list of tool calls with complete strict arguments.
 const defaults={
-  find_products:{query:'',search_plan:null,use_image:false,image_message_id:null,department:'unspecified',for_someone_else:false,show_variants:false,answers_message_ids:[],acknowledgment:''},
+  find_products:{query:'',search_plan:null,use_image:false,image_message_id:null,department:'unspecified',for_someone_else:false,show_variants:false,answers_message_ids:[],profile_size_keys:[],acknowledgment:''},
   ask_shopping_question:{query:'',search_plan:null,response:'',department:'unspecified',for_someone_else:false},
   respond_to_options:{decision:'interest',option_indices:[],color_choices:[],size_choices:[],option_sizing:[],response:''},
   save_to_wishlist:{option_indices:[],consent_context:'explicit_request',color_choices:[],size_choices:[],option_sizing:[],offer_alerts:true},
@@ -29,7 +29,8 @@ export function fromIntent(intent){
 }
 // Answers the independent consent check (a separate small model call before any save or alert).
 export const isConsentCheck=options=>JSON.parse(options?.body??'{}').text?.format?.name==='consent';
-export const consentResponse=authorizes=>({ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({authorizes})}]}]})});
+// A complete reading, as the strict schema returns it: approval comes from the message asking itself.
+export const consentResponse=authorizes=>({ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({newest_message_answers:'nothing_in_particular',asks_itself:authorizes,authorizes})}]}]})});
 export const withConsent=(fetcher,authorizes=true)=>restating(async(url,options)=>isConsentCheck(options)?consentResponse(typeof authorizes==='function'?authorizes(options):authorizes):fetcher(url,options));
 // The independent claim audit (lib/compose.js): a small model call that reads what a reply says happened.
 export const isClaimAudit=options=>JSON.parse(options?.body??'{}').text?.format?.name==='claim_audit';

@@ -1,3 +1,5 @@
+// Loads first so the cost meter wraps fetch before any handler below keeps a reference to it.
+import '../lib/usage.js';
 import { wishlistEvidence } from '../lib/evidence.js';
 import {scheduleGmail,handleGmailWork,handleGmailSweep} from '../lib/gmail-worker.js';
 import {handleGmailRefresh} from '../lib/purchase-texts.js';
@@ -115,10 +117,11 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
           const {sizes,checks}=await inspect(item.links,link=>readSizeOffers(link,fetcher));
           if(input.action==='alert-options')return json(res,200,{sizes});
           if(typeof input.size!=='string'||!sizes.includes(input.size))return json(res,400,{error:'Select a size found on the retailer listings.'});
-          const baselines=lowestAvailable(baselineOffers(checks,input.size));
-          if(!baselines.length)return json(res,422,{error:'We couldn’t verify an available price for that size. Try another size or check back later.'});
+          // A size sold out everywhere is watched for its return, with its verified price as the reference.
+          const offers=baselineOffers(checks,input.size),available=lowestAvailable(offers),baselines=initialPriceBaselines(offers);
+          if(!baselines.length)return json(res,422,{error:'We couldn’t verify a price for that size. Try another size or check back later.'});
           const alert=await store.enablePriceAlert({p_conversation:access.conversation,p_item:item.image_item,p_group:item.id,p_name:item.name,p_size:input.size,p_baselines:baselines,p_links:item.links.map(({url,name})=>({url,name}))});
-          return json(res,200,{active:alert.active,size:alert.size});
+          return json(res,200,{active:alert.active,size:alert.size,...(available.length?{}:{restock:true})});
         }
         if (input.action === 'refresh') {
           if(typeof input.refresh_token!=='string'||!input.refresh_token||input.refresh_token.length>8192)return json(res,400,{error:'Invalid session.'});

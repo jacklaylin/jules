@@ -566,7 +566,7 @@ function opened(result){
   $('end-title').textContent='What would yours say?';
   $('end-body').textContent=`${report.name?`Jules made ${report.name}’s`:'Jules made this'} from real orders. Get yours by connecting your order emails.`;
   $('end-cta').hidden=false;
-  if(!report.cards.length){message('Nothing shared here yet.','This report has no cards to show right now.','Style report',{label:'Get your own report ↗',href:'/signup'});return;}
+  if(!report.cards.length){message('Nothing shared here yet.','This report has no cards to show right now.','Style report',{label:'Get your own report ↗',href:'/signup?ref=shared-report'});return;}
   if(exportCard)return exportOne(exportCard);
  }else{
   $('intro-eyebrow').textContent=(person?'Admin preview · ':'')+[report.name?`For ${report.name}`:'For you',report.built_at&&day(report.built_at)].filter(Boolean).join(' · ');
@@ -609,7 +609,7 @@ async function start(){
   $('message-leave').href='/';$('message-leave').textContent='← Jules';
   message('One moment…','Opening the style report.','Style report',null,{progress:'waiting'});
   try{await load();}
-  catch(error){message(error.status===404?'This link isn’t working.':'Couldn’t open this report.',error.status===404?'It was turned off, or it was never a report link.':error.message,'Style report',{label:'Get your own report ↗',href:'/signup'});}
+  catch(error){message(error.status===404?'This link isn’t working.':'Couldn’t open this report.',error.status===404?'It was turned off, or it was never a report link.':error.message,'Style report',{label:'Get your own report ↗',href:'/signup?ref=shared-report'});}
   return;
  }
  message('One moment…',person?'Opening this tester’s report.':'Getting your style report.','Style report',null,{progress:'waiting',steps:person?[]:['Going through your orders…','Counting what you keep buying…','Writing your receipt…','Nearly there…']});

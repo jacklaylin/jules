@@ -1,3 +1,5 @@
+// Loads first so the cost meter wraps fetch before any handler below keeps a reference to it.
+import '../lib/usage.js';
 import { composeReply } from '../lib/compose.js';
 const TEST_LABEL='[test alert — not a real price]\n';
 import { timingSafeEqual, randomUUID } from 'node:crypto';
@@ -8,6 +10,7 @@ import { decidePriceCheck, alertSizes } from '../lib/alert-decision.js';
 import { discoverAlertLinks, discoveryDue } from '../lib/alert-discovery.js';
 import { marketEnvironment } from '../lib/shopping-market.js';
 import { withUsage } from '../lib/usage.js';
+import { recordJobRun } from '../lib/jobs.js';
 import { deliverReply } from '../lib/replies.js';
 import { sendGreeting } from '../lib/photon.js';
 import { authorize } from '../lib/auth.js';
@@ -101,17 +104,22 @@ export function createPriceChecksHandler({env=process.env,storeFactory=createSto
     const expected=env.CRON_SECRET&&Buffer.from(`Bearer ${env.CRON_SECRET}`),received=Buffer.from(req.headers.authorization??'');
     if(!expected||received.length!==expected.length||!timingSafeEqual(received,expected))return json(res,401,{error:'Unauthorized.'});
     if(req.method!=='GET')return json(res,405,{error:'Method not allowed.'});
-    if(env.PRICE_ALERTS_ENABLED!=='true')return json(res,503,{error:'Price alerts disabled.'});
+    const started=Date.now();
+    if(env.PRICE_ALERTS_ENABLED!=='true'){await recordJobRun((()=>{try{return storeFactory(env);}catch{return null;}})(),'price_checks',started,'skipped',{reason:'disabled'});return json(res,503,{error:'Price alerts disabled.'});}
+    let store;
     try{
-      const store=storeFactory(env),alerts=await store.claimPriceAlerts();let sent=0,failed=0;const discoveries={remaining:DISCOVERIES_PER_RUN},statuses={};
+      store=storeFactory(env);const alerts=await store.claimPriceAlerts();let sent=0,failed=0;const discoveries={remaining:DISCOVERIES_PER_RUN},statuses={};
+      // Each alert's calls (the text it composes, any store search) are metered to the user and to this job.
       for(let offset=0;offset<alerts.length;offset+=5)await Promise.all(alerts.slice(offset,offset+5).map(async alert=>{try{
-        const result=await checkAlert(alert,{store,env,inspect,discover,send,discoveries});
+        const result=await withUsage({store,env,conversation:alert.conversation_id,operation:`price-check:${alert.id}:${new Date().toISOString().slice(0,10)}`,feature:'price_alerts',job:'price_checks',quiet:true},
+          ()=>checkAlert(alert,{store,env,inspect,discover,send,discoveries}));
         statuses[result.status]=(statuses[result.status]??0)+1;
         if(result.delivery==='sent'&&!result.duplicate)sent++;
       }catch{failed++;console.log(JSON.stringify({event:'price_alert_check_failed',alert_id:alert.id}));}}));
       console.log(JSON.stringify({event:'price_alert_checks',checked:alerts.length,sent,failed,statuses,discoveries:DISCOVERIES_PER_RUN-discoveries.remaining}));
+      await recordJobRun(store,'price_checks',started,failed?'failed':'ok',{checked:alerts.length,sent,failed,discoveries:DISCOVERIES_PER_RUN-discoveries.remaining});
       return json(res,failed?503:200,{checked:alerts.length,sent,failed});
-    }catch{return json(res,503,{error:'Price checks failed.'});}
+    }catch{await recordJobRun(store,'price_checks',started,'failed');return json(res,503,{error:'Price checks failed.'});}
   };
 }
 export default createPriceChecksHandler();
