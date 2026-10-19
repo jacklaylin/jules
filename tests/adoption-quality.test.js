@@ -85,7 +85,7 @@ test('the quality section reads no message text, counts 👎 by its fixed note, 
   const result = await createStore({ SUPABASE_URL: 'https://db.example', SUPABASE_SERVICE_ROLE_KEY: 'fake' }, fetcher).adoptionQualityRows();
   assert.deepEqual(result.photoReplies, [{ operation_id: 'ai:g1', status: 'sent', products: [] }]);
   assert.ok(paths.some(p => p.includes('operation_id=in.("ai:g1")')));
-  assert.ok(paths.some(p => p.includes(`developer_feedback=eq.${REACTION_NOTE}`)));
+  assert.ok(paths.some(p => p.includes(`developer_feedback=like.${REACTION_NOTE}*`)));
   assert.ok(paths.every(p => !/select=[^&]*(body|developer_feedback)/.test(p)), 'neither message bodies nor feedback notes are selected');
 });
 

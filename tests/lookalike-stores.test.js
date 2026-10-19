@@ -51,3 +51,13 @@ test('search results on a lookalike of a listed store are set aside unread',asyn
  assert.deepEqual(result.products.map(p=>p.url),[urls.store]);
  assert.ok(result.rejections.some(r=>r.url===urls.copy&&r.reason==='lookalike_store'));
 });
+
+test('a domain spelled with look-alike letters from another alphabet is always blocked',async()=>{
+ // A Cyrillic о or а inside an otherwise Latin name, imitating a listed store or any other name.
+ for(const url of ['https://www.оurlegacy.com/x','https://ourlegаcy.com/x','https://www.shоp-deals.com/x','https://brаnd-outlet.example/x'])assert.equal(isLookalikeStore(url),true,url);
+ const copy=await verifyListing('https://www.оurlegacy.com/still-chino','Still Chino',()=>assert.fail('never fetched'));
+ assert.equal(copy.status,'not_product');assert.equal(copy.reason,'lookalike_store');
+ assert.equal((await verifyListing('https://www.ourlegasy.com/still-chino','Still Chino',()=>assert.fail('never fetched'))).reason,'lookalike_store');
+ // Real domains in one alphabet, or with accents, are not.
+ for(const url of ['https://магазин.рф/x','https://www.müller.de/x','https://www.ourlegacy.com/x'])assert.equal(isLookalikeStore(url),false,url);
+});
