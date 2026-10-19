@@ -26,12 +26,42 @@ Status: working draft, started October 19, 2026. Captures founder decisions and 
 
 "Single pane of glass" here means one thread you send things to from everywhere, not one feed that aggregates TikTok, Instagram and Depop. Those apps don't offer personal-feed APIs, and scraping them breaks and violates their terms. Jules can search those marketplaces' listings; it can't mirror your feeds.
 
-## Viral and word-of-mouth mechanics
+## Viral moves to test
 
-1. **Shareable style read (Wrapped).** The natural artifact to post. Today it depends on Gmail data, so it inherits the Gmail user cap (below). A version from a few screenshots would remove that dependency. See [WRAPPED.md](WRAPPED.md).
-2. **"Text it to Jules."** A one-line behavior people can tell each other in comment sections and group chats. Works only if the answers are right: a wrong price or a sold-out link becomes a screenshot that spreads.
-3. **Jules in the group chat.** Shopping decisions happen in group chats. Strongest spread mechanic, most complex; depends on Photon group support. Hypothesis only.
-4. **The landing-page demo.** The illustrative iMessage conversation on `/` already shows the "forward it, Jules finds it and watches it" loop.
+Two moves, tested side by side with current testers before any public push. Measure each as shares → new texts → first shopping request.
+
+1. **Style card sharing.** The shareable artifact. People post a card (Instagram Story image) or send the `/r/` link to a group chat; the viewer sees "What would yours say?" and a sign-up button. Sending cards into group chats is how Jules spreads through group chats today. "Jules inside the group chat" (taking part in the decision) remains a separate, unbuilt hypothesis.
+2. **Savings screenshots.** "Jules found my $300 jacket for $140." Less explosive than cards, but it proves the product works, and it's the moment someone becomes willing to pay. To make it easy to share: a savings moment should be clear in the thread (original price, found price, store) so a screenshot tells the story on its own. Depends on accurate prices (PRs #187, #191).
+
+Supporting habits:
+- **"Text it to Jules."** A one-line behavior people tell each other in comment sections and group chats. Works only if the answers are right: a wrong price or a sold-out link becomes a screenshot that spreads.
+- **The landing-page demo** already shows the "forward it, Jules finds it and watches it" loop.
+
+### Time to magic
+
+- **Under a minute:** first useful reply. Someone texts a screenshot or photo; Jules identifies it and replies with a specific read or find.
+- **Under five minutes:** first shareable card. Today the style report needs order history (Gmail or Shop import, which takes minutes and runs into the Gmail cap). A report built from what someone can send in the first five minutes (a few outfit photos, a couple of order screenshots, saved posts) is the missing piece for the viral path.
+
+### After the card: low-pressure follow-up
+
+The card is the hook; the follow-up turns it into a shopping conversation. Guidelines, not fixed copy (Jules writes it from context; see AGENTS.md):
+- **One follow-up, built from something on their card.** For example a pattern Jules saw, turned into an offer: watch a favorite for a sale, find the thing their closet is missing, or check a price.
+- **The easiest possible reply.** "Send me a screenshot of anything you're eyeing" asks for one tap and no thinking.
+- **An offer, not a question they have to work at.** No "what are you shopping for?", which puts the effort on them.
+- **Silence is an answer.** No second nudge unless they reply or a real event happens (a price drop on something they care about). Accurate over funny.
+- **Never ask for Gmail** in the follow-up.
+
+### Seeding creators
+
+- **Who:** micro-creators (roughly 2K–50K followers) who already post outfits, thrift and resale hauls, or "where's it from" content. Their audiences already ask the question Jules answers.
+- **Where to find them:** testers' friends and their networks first. Then TikTok and Instagram searches for those formats, college fashion clubs, and fashion and resale Discords.
+- **The pitch:** their own style report and early access, no obligation to post. Give each a personal `?ref=` code (signup attribution already exists) and free Jules+ when it exists. Once affiliate links are live, consider a share of the revenue from people they bring in.
+- **Disclosure:** creators who get something of value must disclose it (#gifted / #ad). Tell them.
+- **Expectations:** reach out to ~20, expect a few posts. Watch which card types get posted.
+
+### Word of mouth: what Daydream did
+
+Daydream's growth came mostly from press and founder reputation (Julie Bornstein: Stitch Fix, Sephora, The Yes), coverage of its $50M round, and collaborations with stylists and influencers. There's no public referral program. Jules has none of those advantages, so its word of mouth has to come from the product: the card, the savings moment, and accurate answers.
 
 ## Monetization
 
@@ -42,14 +72,48 @@ Status: working draft, started October 19, 2026. Captures founder decisions and 
   - Wrapping happens at Jules' existing `/go/` redirect after the tap, so messages look the same and no new short links are needed.
   - FTC disclosure required.
   - Commission must never influence which product or store Jules recommends. Same neutrality rule as Shop ([SHOP.md](SHOP.md)).
-- **Don't charge users** until retention is proven.
-- **Watch cost per active user.** Bootstrapped means model and search spend per user has to stay below what that user earns. Rough illustration: a $60 order at ~8% commission with a 75% share is about $3.60.
+- **Watch cost per active user.** Bootstrapped means model and search spend per user has to stay below what that user earns. Rough illustration: a $100 order at ~7% commission, after a ~25% network cut and ~30% of fashion orders returned (commissions are reversed on returns), is about $3.70. At one purchase every two months that's under $2 per user per month. Affiliate alone is probably marginal; direct payment from some users is likely needed.
 
-## Before strangers can text Jules
+### Free limits, then Jules+
 
-- **Gmail verification.** Jules reads Gmail with `gmail.readonly`, a restricted scope. An unverified app is capped at 100 new users total; verifying generally requires a yearly CASA security assessment (estimates seen: a few hundred dollars to $15–75K a year, unconfirmed). Get real quotes from approved labs before launch, and keep Gmail optional so onboarding doesn't depend on it.
-- **Self-serve onboarding**, **an alert when Jules goes silent**, and **per-user cost caps** (tracked go-live items).
-- **Accuracy of prices, stock and images.** Must be reliable before any marketing push.
+- **Free:** everything that spreads Jules or proves it works: the style card, sharing, a first find, a first price check. Limits apply to what costs the most: searches per day or week and active watches.
+- **Jules+ (paid):** more of the expensive things. Unlimited watches, size-specific hunting, "keep looking" requests. Most likely buyers: hunters, optimizers and avoidant shoppers. Younger viral users mostly won't pay; they're the marketing.
+- **Paywall placement:** after the activation moment, at the point of wanting more. Activation hypothesis to confirm with data: the first time Jules finds something in your size for less, or the first alert that fires. The upgrade offer appears when someone hits a limit after that moment ("you've got 3 watches running; Jules+ keeps unlimited"). Never before they've seen value.
+- **Limits are settings.** They build on the per-user caps (PR #188) and can change without a release as the activation moment becomes clear.
+- **Test before building payments.** Fake-door test with testers: show a Jules+ offer at a limit and record who says yes and at what price ($5–10/month to start). Payment would go through the web (for example Stripe), not an app store.
+
+## Viral launch readiness
+
+Steps to be ready for a spike. Hitting a cost ceiling, or limiting new sign-ups when costs run high, is acceptable: that's a good problem to have. Anything that blocks the viral path is not.
+
+1. **Know cost per active user.** Pull it from Admin › Costs once tracking is verified accurate (PR #188). This decides whether affiliate revenue can carry Jules and where free limits sit.
+2. **Enforce ceilings.** Per-user and overall spending caps, with an honest in-thread message when someone hits one (PR #188). An overall cap may also hold new sign-ups on the waitlist.
+3. **Take Gmail out of the viral path (non-starter).** An unverified app is capped at 100 new Gmail users ever (`gmail.readonly` is a restricted scope; verification needs a yearly CASA assessment, estimates from a few hundred dollars to $15–75K, unconfirmed). The first shareable card must not need Gmail, and the shared-card sign-up copy must not ask for order emails. Keep Gmail as an optional extra; get CASA quotes in parallel.
+4. **Fix the share funnel** (see "Share funnel check" below).
+5. **Make the waitlist feel like a start, not a wall.** Someone who signs up from a friend's card while sign-ups are held should hear honestly that they're on the list, and ideally still get something small (for example their first read) once capacity allows.
+6. **Confirm messaging capacity with Photon.** How many new conversations a line can start per day before Apple's spam limits kick in, and how to add lines.
+7. **Accuracy of prices, stock and images** (PRs #187, #191). A wrong answer is the thing that spreads.
+8. **Self-serve onboarding** and **an alert when Jules goes silent** (tracked go-live items).
+
+## Share funnel check (October 19, 2026)
+
+What a friend sees today, and what to fix:
+
+| Surface | Today | Gap |
+|---|---|---|
+| iMessage preview of a shared `/r/` link | Title "Name's style report · Jules", a description that ends in a question ("Who's your style icon?"), branded image | Works well |
+| Shared report page | Cards say "What about you?". The end card asks "What would yours say?" with **Get your own report ↗** to `/signup?ref=shared-report` | The only tappable sign-up is at the very end; a friend who stops partway sees none. The end copy says "Get yours by connecting your order emails", which sends them to the Gmail path. Every share uses the same `ref`, so you can't tell which sharer brought whom |
+| Instagram Story images (9:16) | The card, "What about you?" and the Jules wordmark. The link is copied for the link sticker | Nothing on the image itself says where to go if it's reposted or screenshotted, or if the sticker is skipped (TikTok has no link sticker) |
+| Starter-pack share image (`/style`) | Prints the site address plus `/style` | `/style` asks a stranger to log in, a dead end. Should point to sign-up |
+| After sign-up | The person may be held on the waitlist, and a report needs order history | The "get your own" promise can't be kept quickly |
+
+Fixes, smallest first:
+- A small persistent "Get yours" button on the shared page, not only at the end.
+- End copy that doesn't mention order emails.
+- A per-sharer `ref` (derived from the share link, not personal data) so every new person is credited to the share that brought them.
+- A short "text Jules" line or address on exported images.
+- Point the `/style` image at sign-up.
+- The no-Gmail first card (see "Time to magic").
 
 ## Purchase history beyond Gmail
 
@@ -57,9 +121,9 @@ Younger shoppers buy on TikTok Shop, Shein, Depop, Vinted and Amazon, often with
 
 | Source | Status | Notes |
 |---|---|---|
-| Order-history screenshots in chat | Built (`lib/order-screenshots.js`) | Make it a named onboarding step per store ("send a screenshot of your TikTok Shop orders") |
+| Order-history screenshots in chat | Built (`lib/order-screenshots.js`); up to 6 screenshots read together | Good for a few recent orders, brittle for full history: list pages rarely show size, color or price, and detail pages need one screenshot per order |
 | Shop app orders | Built, behind `SHOP_ORDERS_ENABLED` | Covers Shopify stores only |
-| Gmail import | Built, invite-only | 100-user cap until verified |
+| Gmail import | Built, invite-only | 100-user cap until verified; not part of the viral path |
 | Receipt forwarding address | Backlog | Avoids the restricted Gmail scope; captures new purchases going forward |
 | Store data exports (Amazon etc.) | Backlog | Slow and clunky |
 | Forwarded listings | Natural byproduct | "Did you end up getting it?" turns a forward into purchase evidence |
@@ -70,3 +134,5 @@ Younger shoppers buy on TikTok Shop, Shein, Depop, Vinted and Amazon, often with
 - Do testers forward listings unprompted?
 - Do they share the style read?
 - Do they come back within a week without a nudge?
+- Who says yes to a Jules+ offer shown at a limit, and at what price?
+- Which moment comes before people stick around: a find in their size for less, or an alert that fires?
