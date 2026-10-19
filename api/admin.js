@@ -10,6 +10,7 @@ import { tagPurchaseHistory } from '../lib/item-tags.js';
 import { buildReport, sendReportLink, sendNewCardText, reportView, withReadPhoto } from '../lib/style-report.js';
 import { firstName } from '../lib/memory.js';
 import { copyWeek } from '../lib/report-copy.js';
+import { adoptionReport } from '../lib/adoption.js';
 
 export const config = { api: { bodyParser: false }, maxDuration: 30 };
 // Owner view. Conversations are read-only (Jules replies automatically); the owner can review and
@@ -56,6 +57,7 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
       if (query.get('view') === 'feedback') return json(res, 200, { feedback: await store.feedback() });
       // The style report jokes loop: this week's best and worst lines, and each prompt version's votes.
       if (query.get('view') === 'report-copy') return json(res, 200, copyWeek(await store.reportCopyRows()));
+      if (query.get('view') === 'adoption') return json(res, 200, await adoptionReport(store));
       if (query.get('view') === 'metrics') return json(res, 200, await metricsTrend(store, { days: 7 }));
       const id = query.get('conversation');
       if (!id) return json(res, 200, { conversations: await store.list() });

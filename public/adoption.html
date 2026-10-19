@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Jules admin · Adoption</title><link rel="stylesheet" href="/design-system.css"><link rel="stylesheet" href="/admin.css">
+  <script src="/adoption.js" type="module"></script><link rel="modulepreload" href="/admin-console.js"><link rel="modulepreload" href="/design-system.js"><link rel="modulepreload" href="/brand-ui.js"><link rel="modulepreload" href="/activity.js"><link rel="modulepreload" href="/wishlist-session.js"><link rel="modulepreload" href="/admin-session.js"><link rel="modulepreload" href="/admin-people-view.js"><link rel="modulepreload" href="/adoption-view.js">
+<link rel="icon" href="/brand/icon.svg" type="image/svg+xml"></head>
+<body class="admin-console">
+  <main>
+    <h1 class="dv-title">Adoption</h1>
+    <div id="summary" class="dv-metrics adoption-summary" hidden></div>
+    <div class="dv-toolbar">
+      <span id="refreshed" class="dv-toolbar-note"></span>
+      <span class="spacer"></span>
+      <button id="refresh" class="small quiet" type="button">Refresh</button>
+    </div>
+    <div class="dv-status"><span id="loader" class="dv-loader" aria-hidden="true" hidden></span><span id="notice" role="status" aria-live="polite"></span></div>
+
+    <section aria-labelledby="testers-title">
+      <h2 id="testers-title" class="dv-subhead">Testers</h2>
+      <div class="dv-table-wrap"><table class="dv-table adoption-table"><thead><tr>
+        <th>Tester</th><th>Furthest step</th><th>Last message</th><th>Active days (last 7)</th><th class="end">Results</th><th class="end">Saves</th><th>Price alerts</th><th>First results after</th><th class="end">Cost</th>
+      </tr></thead><tbody id="testers"></tbody></table></div>
+    </section>
+
+    <section aria-labelledby="ladder-title">
+      <h2 id="ladder-title" class="dv-subhead">Weekly ladder</h2>
+      <div class="dv-table-wrap"><table class="dv-table adoption-table"><thead><tr id="ladder-head"></tr></thead><tbody id="ladder"></tbody></table></div>
+      <p class="dv-note">Each week shows how many testers had reached each step by the end of that week, as a count and a share of everyone who had joined by then. <strong>New</strong> joined that week. <strong>Active</strong> sent Jules a message that week. Weeks start Monday (UTC).</p>
+    </section>
+    <details class="fold metrics-help"><summary>What these numbers mean</summary><dl id="definitions"></dl></details>
+  </main>
+</body>
+</html>
