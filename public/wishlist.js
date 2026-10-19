@@ -4,7 +4,7 @@ mountHeader('wishlist');
 import {createSession} from './wishlist-session.js';
 import {rememberWishlistTarget,consumeWishlistTarget} from './wishlist-deep-link.js';
 import {matchPhotoBackground} from './photo-background.js';
-import {filterChips,matchesFilter,filterLabel,filterFromURL,filterURL,countLabel} from './wishlist-filters.js';
+import {filterChips,matchesFilter,nextFilter,filterLabel,filterFromURL,filterURL,countLabel} from './wishlist-filters.js';
 const $ = id => document.getElementById(id);
 const session=createSession({fetcher:fetch,storage:localStorage,lock:work=>navigator.locks?navigator.locks.request('jules-wishlist-refresh',work):work()});
 let token=session.read()?.access_token||sessionStorage.getItem('jules_wishlist_token'), generation=0, detailVersion=0, filter=filterFromURL(location.search);
@@ -116,7 +116,7 @@ function applyFilter(refilter=true){
  const items=[...itemCache.values()];
  $('filters').replaceChildren(...filterChips(items,filter).map(chip=>{
   const button=node('button',chip.label,'chip'+(chip.id===filter?' chip--on':''));button.type='button';button.setAttribute('aria-pressed',String(chip.id===filter));
-  button.append(node('span',String(chip.count),'chip-count'));button.onclick=()=>setFilter(chip.id);return button;
+  button.append(node('span',String(chip.count),'chip-count'));button.onclick=()=>setFilter(nextFilter(filter,chip.id));return button;
  }));
  let shown=0;
  for(const card of $('grid').children){const item=itemCache.get(card.dataset.group);if(!item)continue;if(refilter)card.hidden=!matchesFilter(item,filter);if(!card.hidden)shown++;}

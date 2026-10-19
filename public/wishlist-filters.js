@@ -13,6 +13,8 @@ export function filterChips(items,selected='all'){
  for(const f of FILTERS){const count=items.filter(f.matches).length;if(count||f.id===selected)chips.push({id:f.id,label:f.label,count});}
  return chips.length>1?chips:[];
 }
+// Tapping the selected chip turns it off and shows everything again.
+export const nextFilter=(current,clicked)=>clicked===current?'all':clicked;
 export const filterFromURL=search=>{const id=new URLSearchParams(search).get('filter');return find(id)?id:'all';};
 export function filterURL(href,id){const url=new URL(href);if(id==='all')url.searchParams.delete('filter');else url.searchParams.set('filter',id);return url.pathname+url.search;}
 const items=n=>`${n} ${n===1?'item':'items'}`;

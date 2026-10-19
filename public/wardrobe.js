@@ -115,7 +115,7 @@ function renderQuestions(){
 function renderCategories(){
  const present=Object.keys(CATEGORY_LABELS).filter(c=>view.items.some(i=>i.category===c));
  if(category!=='all'&&!present.includes(category))category='all';
- const chip=(key,label)=>{const b=el('button',{type:'button',className:'chip'+(key===category?' chip--on':''),textContent:label},el('span',{className:'chip-count'},String(key==='all'?view.items.length:view.items.filter(i=>i.category===key).length)));b.setAttribute('aria-pressed',String(key===category));b.onclick=()=>{category=key;render();};return b;};
+ const chip=(key,label)=>{const b=el('button',{type:'button',className:'chip'+(key===category?' chip--on':''),textContent:label},el('span',{className:'chip-count'},String(key==='all'?view.items.length:view.items.filter(i=>i.category===key).length)));b.setAttribute('aria-pressed',String(key===category));b.onclick=()=>{category=key===category?'all':key;render();};return b;};
  $('categories').replaceChildren(...(present.length>1?[chip('all','All'),...present.map(c=>chip(c,CATEGORY_LABELS[c]))]:[]));
 }
 
