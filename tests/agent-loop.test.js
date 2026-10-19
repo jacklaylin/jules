@@ -202,7 +202,9 @@ test('inbox: a save approved in the loop is committed before the message, which 
     wishlistEntries:async () => saved ? payload.map((p, i) => ({ reply_id:'reply', item_id:'item-' + i, text_origin:true, name:p.name, brand:p.brand, links:p.links, messages:{ created_at:'2026-10-14' } })) : [],
     priceAlerts:async () => [], searchResult:async (_op, r) => { stored = r; }, wishlistPayload:async (_op, p) => { payload = p; },
     saveConfirmedWishlist:async () => { events.push('persist'); saved = true; }, wishlistReplyId:async () => 'reply', recordEvidence:async () => {},
-    prepareAI:async () => events.push('prepare'), finish:async (_op, status) => events.push(status), saveWishlist:async () => assert.fail('Saved before sending') };
+    prepareAI:async () => events.push('prepare'), finish:async (_op, status) => events.push(status), saveWishlist:async () => assert.fail('Saved before sending'),
+    replyDiagnostics:async (_op, data) => { diagnostics = data; } };
+  let diagnostics;
   const { fetcher } = model([[tool('save_to_wishlist', { option_indices:[0] })], (options) => {
     const done = toolOutputs(options)[0]; assert.equal(done.outcome.saved_now, true); assert.match(done.result, /saved .+ to your wishlist/);
     return [reply('added the Peyter pants to your wishlist. i couldn’t see a price or sizes on that page yet.', { saved_now:true })];
@@ -216,6 +218,9 @@ test('inbox: a save approved in the loop is committed before the message, which 
   assert.equal(stored.user_confirmed, true); assert.equal(payload[0].links[0].price_snapshot, null);
   // Chat metrics read who wrote the sent text from the stored outcome.
   assert.equal(stored.composed_by, 'model');
+  // The turn's actions are persisted for outcome labels (lib/turn-outcomes.js): the tool, how code ran it, and what was saved.
+  assert.deepEqual(diagnostics.actions, [{ tool:'save_to_wishlist', status:'done', option_indices:[0], consent_context:'explicit_request' }]);
+  assert.equal(diagnostics.saved_now, true); assert.equal(diagnostics.reply_tool, 'agent_reply'); assert.equal(diagnostics.outcome, 'sent');
 });
 
 test('a search and an alert asked together with nothing pending: the search runs, then the alert on its result', async () => {
