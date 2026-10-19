@@ -255,3 +255,21 @@ The wardrobe (PRD section 29) can show the picture the receipt itself contained.
 - **Storing.** Items record `order_photo: {url, source: order_email | shop_order, source_id}` and `product_link`, set once and never replaced. Each item that gains a photo has it downloaded once through the safe public fetch, checked (at least 40px a side, not banner-shaped), resized to a JPEG and stored as one `photo_observation` evidence row with id `order_photo:<item id>`. Re-imports insert the same id, which is a no-op. No migration: the `evidence` table already allows that kind. Purchase-history loads skip these rows; the wardrobe asks only which items have one. Deleting history or re-reading Shop removes them with the rest of that source's evidence.
 - **Existing emails.** Shopping emails read before this change are re-read once for photos and links only (`PHOTO_VERSION`, stored as `photo_version`), as prices were. Click **Import again** to add photos to an existing history. A photo that fails to download is not retried in this step; the item keeps its outline.
 - **Logs.** `gmail_order_photos` / `shop_order_photos` per step (due, stored, failed); `gmail_order_media` / `shop_order_media` when an import finishes (items, with an order photo, with a product link, with neither).
+
+## October 18 update: daily purchase check and purchase texts
+
+Once a day (17:00 UTC, about 10am Pacific / 1pm Eastern) Jules checks every connected Gmail for purchases since the last check and texts the person about anything new. The code is in `lib/purchase-texts.js`.
+
+- **Reading.** Three small searches (order subjects, return subjects, receipt words) limited to mail since the last check, with one day of overlap, at most 50 emails a person, using the same reading rules as the import. Emails already read are skipped. Most days nothing matches, so there are no model calls. The check has its own job in `data.refresh`. `data.job` stays the last full import, so the account card, the import texts and the restart sweep are unaffected. While a full import or Shop read is running, the check waits until the next day.
+- **Wardrobe.** New purchases go into the purchase history like any import, so they show up in the wardrobe. New items are tagged so the wardrobe can file them.
+- **The text.** At most one a day per person (message key `gmail:<owner>:purchases:<date>`). Only the person's own new purchases from the last 7 days count: no gifts, returns, cancellations or duplicates. Several purchases share one text. The model picks the angle: styling ideas using items they own, something new for them, a pattern in what they buy, or plain "added to your wardrobe". The model may also decide a purchase is not worth a text, such as a restock of basics. Code checks every item the choice names against the actual purchase history and falls back to the plain text otherwise. The usual composer then writes it in Jules's voice. Replies such as "it was a gift" go through the existing purchase-history tool.
+- **Holding.** If the person messaged, or was messaged, in the last 15 minutes, the text waits for the next day's check.
+- **Not yet.** Price-watch offers (alerts are not set up to watch an item that has already been bought), and a fit check after delivery.
+- **Logs and costs.** `gmail_refresh` per person (check status, emails, items found, text status, angle) and `gmail_refresh_run` per run. Costs appear as "Daily purchase check" on the costs page.
+
+### Setup (once)
+
+1. In Vercel → Settings → Environment Variables, add `PURCHASE_TEXTS_ENABLED=true` (Production). `CRON_SECRET` and `GMAIL_IMPORT_ENABLED` are already set for price alerts and the import.
+2. Redeploy. The new daily job appears under Vercel → Settings → Cron Jobs as `/api/wishlist?gmail=refresh`. Click **Run** there to try it straight away, then check the logs for `gmail_refresh_run`.
+
+No database migration is needed.
