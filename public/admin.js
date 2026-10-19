@@ -1,23 +1,34 @@
 import {mountAdminShell,adminJson,anchorMenus} from './admin-console.js';
 import {browseKey} from './admin-review.js';
-import {filterPeople,ago,countLine,metricCells,metricsNote} from './admin-people-view.js';
+import {filterPeople,accessSegments,ago,countLine,metricCells,metricsNote} from './admin-people-view.js';
 // Admin › People: the list of testers as a data view. Each row opens the person page.
 mountAdminShell('people');
 anchorMenus();
 const $ = id => document.getElementById(id);
 const el = (tag, props = {}, ...children) => { const node = Object.assign(document.createElement(tag), props); node.append(...children.filter(c => c !== null)); return node; };
 const exact = at => new Date(at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
-let people = [], refreshedAt = null, loading = false, failed = '';
+let people = [], refreshedAt = null, loading = false, failed = '', accessFilter = '';
+const shownPeople = () => filterPeople(people, $('people-search').value, accessFilter);
 
 function render() {
-  const shown = filterPeople(people, $('people-search').value);
-  const head = el('div', { className: 'dv-head', ariaHidden: 'true' }, el('span', { textContent: 'Identifier' }), el('span', { textContent: 'Source' }), el('span', { textContent: 'Last activity' }), el('span', { className: 'end' }));
+  const segments = accessSegments(people);
+  if (!segments.length) accessFilter = '';
+  $('people-access').hidden = !segments.length;
+  $('people-access').replaceChildren(...segments.map(([value, label, n]) => {
+    const button = el('button', { type: 'button' }, label, el('span', { className: 'count', textContent: n }));
+    button.setAttribute('aria-pressed', String(accessFilter === value));
+    button.onclick = () => { accessFilter = value; render(); };
+    return button;
+  }));
+  const shown = shownPeople();
+  const head = el('div', { className: 'dv-head', ariaHidden: 'true' }, el('span', { textContent: 'Identifier' }), el('span', { textContent: 'Status' }), el('span', { textContent: 'Source' }), el('span', { textContent: 'Last activity' }), el('span', { className: 'end' }));
   $('people').replaceChildren(head, ...shown.map(person => el('a', { className: 'dv-row', href: `/admin/people/${person.id}`, ariaLabel: `Open ${person.sender_id}` },
     el('span', {}, el('strong', { textContent: person.sender_id })),
+    person.access === 'waitlisted' ? el('span', {}, el('span', { className: 'badge warn', textContent: 'Waitlisted' })) : el('span', { className: 'muted', textContent: person.access === 'approved' ? 'Approved' : '—' }),
     el('span', { className: 'muted', textContent: person.source ?? 'Direct', title: person.source ? `Signed up from a ?ref=${person.source} link` : 'No source on their signup link' }),
     el('span', { className: 'muted', textContent: ago(person.updated_at), title: exact(person.updated_at) }),
     el('span', { className: 'end', textContent: 'Open →' }))));
-  if (!shown.length) $('people').append(el('p', { className: 'dv-empty', textContent: loading ? 'Loading…' : failed ? '' : !people.length ? 'No testers yet.' : 'No testers match this search.' }));
+  if (!shown.length) $('people').append(el('p', { className: 'dv-empty', textContent: loading ? 'Loading…' : failed ? '' : !people.length ? 'No testers yet.' : accessFilter ? `No ${accessFilter} testers match.` : 'No testers match this search.' }));
   $('people-count').textContent = people.length || refreshedAt ? countLine(shown.length, people.length, refreshedAt) : '';
   $('notice').className = failed ? 'error' : '';
   $('notice').textContent = failed;
@@ -60,6 +71,6 @@ addEventListener('keydown', event => {
 $('people-search').oninput = render;
 $('refresh').onclick = () => { $('people-more').hidePopover(); load(); loadMetrics(); };
 // Keep "refreshed 3 min ago" honest while the page sits open.
-setInterval(() => { if (refreshedAt) $('people-count').textContent = countLine(filterPeople(people, $('people-search').value).length, people.length, refreshedAt); }, 30000);
+setInterval(() => { if (refreshedAt) $('people-count').textContent = countLine(shownPeople().length, people.length, refreshedAt); }, 30000);
 load();
 loadMetrics();
