@@ -89,11 +89,11 @@ Built (PR 2): outcomes are computed from these rows on read (`scripts/turn-outco
   5. no repeated list or restarted search
   6. consent respected — **checked by code** from the recorded actions (no save/alert without a passing consent check); the judge adds context only
 - A turn passes when no applicable criterion fails. Scores and reasons go into `sourcing_turns`.
-- **Cost guard (low-cost for now, founder decision 2026-10-19):** the judge runs on `gpt-4.1-mini`, the model Jules already uses, at roughly $0.005 per judged reply: about $7 a month at an assumed 50 sourcing turns a day, and never more than about $7.50 a month because `JUDGE_DAILY_TURNS` defaults to 50. Calls are metered in `usage_events` (feature `judge`) and show on Admin › Costs. `OPENAI_JUDGE_MODEL` switches models without a code change.
+- **Cost guard (low-cost for now, founder decision 2026-10-19):** the judge runs on `gpt-4.1-mini`, the model Jules already uses, at roughly $0.005 per judged reply: about $7 a month at an assumed 50 sourcing turns a day, and never more than about $7.50 a month because `JUDGE_DAILY_TURNS` defaults to 50. Measured on real turns (2026-10-20): about $0.001 per judged turn, so about $1.50 a month at the cap. Calls are metered in `usage_events` (feature `judge`) and show on Admin › Costs. `OPENAI_JUDGE_MODEL` switches models without a code change.
 - **Failures → triage:** the feedback-triage packet gains judge failures as a third source next to `#dev`/👎 and quality signals, so the daily triage task clusters and fixes them. Each failed turn has a **Copy as replay case** button on the drill-down that produces a draft case for `lib/replay.js` / `evals/IDENTIFICATION.md`; real turns stay private and are anonymised before they go in a case.
 - **Trust check:** on the drill-down you can mark "judge was wrong" on a turn; the page shows judge agreement so you know when to trust the pass rate.
 - Tests: rubric response parsing, the two code-checked criteria, batching/idempotency, cap.
-- **Migration `db/035_judge_schedule.sql`**: the `sourcing_turns` table (outcome labels frozen next to the judge's scores) and the cron job.
+- **Migration `db/038_nightly_judge.sql`** (035–037 were taken by other work): the `sourcing_turns` table (outcome labels frozen next to the judge's scores) and the cron job.
 
 ### PR 4 — Admin › Scorecard
 
@@ -118,6 +118,7 @@ New page `/admin/quality` under Conversations in the admin sub-nav, built from t
 
 ## Considered later
 
+- **Judge strictness (measured 2026-10-20).** On 8 real turns that testers flagged or the quality check marked missed, gpt-4.1-mini failed 1 and gpt-4.1 failed 1 (a different one, arguably wrongly). A stronger model alone does not make the judge stricter. What testers objected to was mostly taste or fit, which this rubric doesn't measure, and photo identity, which the judge can't see. Before paying for gpt-4.1, use the Scorecard's "judge was wrong" marks to find what the rubric misses, and consider showing the judge the photo for photo requests.
 - **Stronger judge model.** A judge on the same model that wrote the replies tends to miss that model's own mistakes. Moving the judge to `gpt-4.1` (about $0.02 a reply, about $35 a month at 50 turns a day, $70 a month at a 100-turn cap) needs only `OPENAI_JUDGE_MODEL=gpt-4.1` in Vercel. Revisit once the "judge was wrong" agreement rate on the Scorecard shows whether the mini judge is reliable enough, or before going live.
 
 ## What you will run (manual migrations)
@@ -126,6 +127,6 @@ Each PR says it again; run in the Supabase SQL editor **right after merging** th
 
 - PR 1 → `db/033_signup_ref.sql`
 - PR 2 → `db/034_turn_outcomes.sql`
-- PR 3 → `db/035_judge_schedule.sql` (needs `db/023_gmail_sweep.sql` already applied, which it is)
+- PR 3 → `db/038_nightly_judge.sql` (needs `db/023_gmail_sweep.sql` and `db/034_recurring_jobs.sql`, both applied)
 
 Every PR's code works before its migration runs (it degrades and logs), so a late migration doesn't take Jules down.

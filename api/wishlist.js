@@ -17,7 +17,7 @@ import { inspectAlertLinks, baselineOffers, readSizeOffers, lowestAvailable, ini
 import { createStore } from '../lib/store.js';
 import {withUsage} from '../lib/usage.js';
 import {lookupIndexedProduct} from '../lib/indexed-product.js';
-import { wishlistUser, sessionHash, groupWishlist } from '../lib/wishlist.js';
+import { wishlistUser, sessionHash, groupWishlist, photoCaching } from '../lib/wishlist.js';
 import { authorize } from '../lib/auth.js';
 import { json, readJson, uuid } from '../lib/http.js';
 import {createSignupHandler} from '../lib/public-signup.js';
@@ -53,7 +53,7 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
       // The person's style report (private; /report).
       if(new URL(req.url,'https://jules.invalid').searchParams.get('report')==='1')return handleReport(req,res,{store:storeFactory(env),env,auth,fetcher});
       // The person's wardrobe (/wardrobe): their purchase history as owned items, with corrections.
-      if(new URL(req.url,'https://jules.invalid').searchParams.get('wardrobe')==='1')return handleWardrobe(req,res,{store:storeFactory(env),env,auth,fetcher});
+      if(new URL(req.url,'https://jules.invalid').searchParams.get('wardrobe')==='1')return handleWardrobe(req,res,{store:storeFactory(env),env,auth,fetcher:live});
       if (env.WISHLIST_ENABLED !== 'true') return json(res, 503, { error: 'Wishlist is not available yet.' });
       const store = storeFactory(env);
       if (req.method === 'POST') {
@@ -186,23 +186,23 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
         return json(res,200,{items:groups.map(({links,entries,...group})=>group)});
       }
       if (!uuid(id)) return json(res,400,{error:'Invalid item.'});
-      if(query.get('image')==='reference'){const index=query.get('index');if(!/^[01]$/.test(index??''))return json(res,400,{error:'Invalid photo.'});return image(res,await store.wishlistPhoto(access.conversation,id,Number(index)));}
-      if (query.get('image') === 'product' && store.wishlistPhoto) return image(res,await store.wishlistPhoto(access.conversation,id));
+      if(query.get('image')==='reference'){const index=query.get('index');if(!/^[01]$/.test(index??''))return json(res,400,{error:'Invalid photo.'});return image(res,await store.wishlistPhoto(access.conversation,id,Number(index)),query);}
+      if (query.get('image') === 'product' && store.wishlistPhoto) return image(res,await store.wishlistPhoto(access.conversation,id),query);
       const item = await store.wishlistItem(access.conversation, id);
       if (!item) return json(res,404,{error:'Item not found.'});
-      if (query.get('image') === 'product') return image(res,item.product.image);
+      if (query.get('image') === 'product') return image(res,item.product.image,query);
       if (query.has('source')) {
         const source = query.get('source');
         if (!uuid(source) || !item.wishlist_encounters.some(e=>e.source_image_id===source)) return json(res,404,{error:'Image not found.'});
-        return image(res,await store.image(source));
+        return image(res,await store.image(source),query);
       }
       const { image: bytes, additional_images: references, ...product } = item.product;
       return json(res,200,{item:{id:item.id,saved_at:item.saved_at,product,encounters:item.wishlist_encounters.map(e=>({source_image_id:e.source_image_id,found_at:e.messages?.created_at,links:e.product.links,match:e.product.match,reason:e.product.reason}))}});
     } catch(error) { console.log(JSON.stringify({event:'wishlist_request_failed',error_type:error?.name,database_error:error?.message==='Database request failed',database_status:error?.database_status,database_code:error?.database_code})); return json(res,503,{error:'Could not load your wishlist. Please try again.'}); }
   };
 }
-function image(res, value) {
+function image(res, value, query) {
   if (!value || !['image/jpeg','image/png','image/webp'].includes(value.mime_type)) return json(res,404,{error:'Image unavailable.'});
-  res.statusCode=200;res.setHeader('Content-Type',value.mime_type);res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');res.end(Buffer.from(value.data,'base64'));
+  res.statusCode=200;res.setHeader('Content-Type',value.mime_type);res.setHeader('Cache-Control',photoCaching(query));res.setHeader('X-Content-Type-Options','nosniff');res.end(Buffer.from(value.data,'base64'));
 }
 export default createWishlistHandler();
