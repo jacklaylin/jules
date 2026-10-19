@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {stylistConcepts,shopperWords,conceptQuery,interleaveConcepts,STYLIST_MODEL} from '../lib/stylist.js';
+import {stylistConcepts,shopperWords,conceptQuery,interleaveConcepts,savedBrands,requestReferenceBrands,STYLIST_MODEL} from '../lib/stylist.js';
 import {textWishlistAction,settleWithin} from '../lib/text-wishlist.js';
 const plan={continuation:false,mode:'discover',hard_constraints:['going-out top'],guidance:['more visual intrigue'],reference_brands:['Emily Dawn Long'],required_brands:[],keep_option_indices:[],exclude_option_indices:[]};
 const model=value=>async(url,options)=>{model.last=JSON.parse(options.body);return {ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(value)}]}]})};};
@@ -18,7 +18,7 @@ test('the stylist reads the shopper’s own words and saved taste, and returns c
  const out=await stylistConcepts({query:'going out top with visual intrigue',plan,facts,recent,env:{OPENAI_API_KEY:'k'},fetcher});
  assert.equal(model.last.model,STYLIST_MODEL);
  const input=JSON.parse(model.last.input);
- assert.deepEqual(input.shopper_recent_messages,recent);assert.deepEqual(input.reference_brands,['Emily Dawn Long']);
+ assert.deepEqual(input.shopper_recent_messages,recent);assert.deepEqual(input.brands_named_in_request,['Emily Dawn Long']);
  assert.deepEqual(input.saved_profile.map(f=>f.field),['style','budget']);
  assert.deepEqual(out.map(c=>c.label),['airbrushed mesh tops','archive diesel prints']);
  assert.ok(!out[0].search_query.includes('http'));assert.equal(out[1].resale,true);
@@ -27,6 +27,21 @@ test('the stylist reads the shopper’s own words and saved taste, and returns c
  assert.deepEqual(await stylistConcepts({query:'x',plan,env:{}}),[]);
  assert.deepEqual(await stylistConcepts({query:'x',plan,env:{OPENAI_API_KEY:'k',STYLIST_ENABLED:'false'},fetcher:()=>assert.fail('Disabled')}),[]);
  assert.deepEqual(await stylistConcepts({query:'x',plan,env:{OPENAI_API_KEY:'k'},fetcher:async()=>({ok:false})}),[]);
+});
+
+test('saved favorite brands reach the stylist as taste, not as brands named in the request',async()=>{
+ const facts=[{field:'brand',key:'st laurent',value:'favorite brand'},{field:'brand',key:'style-pack/prada',value:'favorite brand'},{field:'brand',key:'prada',value:'favorite brand'},{field:'brand',key:'oakley',value:'purchased',deleted:true}];
+ const copied={...plan,reference_brands:['Saint Laurent','Prada','Our Legacy']};
+ assert.deepEqual(requestReferenceBrands(copied,facts),['Our Legacy']);
+ assert.deepEqual(savedBrands(facts),[{name:'st laurent',saved_as:'favorite brand'},{name:'prada',saved_as:'favorite brand'}]);
+ await stylistConcepts({query:'ribbed base layers',plan:copied,facts,env:{OPENAI_API_KEY:'k'},fetcher:model({concepts})});
+ const input=JSON.parse(model.last.input);
+ assert.deepEqual(input.brands_named_in_request,['Our Legacy']);assert.deepEqual(input.saved_brands.map(b=>b.name),['st laurent','prada']);
+ assert.ok(model.last.instructions.includes('Saved brands')&&model.last.instructions.includes('discover something new'));
+ // The search brief no longer says the user named their favorites.
+ const queries=[];
+ await textWishlistAction({action:'start',query:'ribbed base layers',search_plan:copied},{env:{},facts,record:async()=>{},stylist:async()=>[],search:async q=>{queries.push(q);return {products:[p('x')]};},rank:async x=>x});
+ assert.ok(queries[0].includes('["Our Legacy"]')&&!queries[0].includes('Prada'));
 });
 
 test('each direction becomes its own search carrying the request’s constraints; resale is invited only where it fits',()=>{
