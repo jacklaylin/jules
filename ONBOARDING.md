@@ -37,7 +37,7 @@ Right after the welcome is delivered, Jules sends “save me so you know it’s 
 
 The card is its own ledger entry (`onboarding:<conversation>:contact_card`), so it goes once, only after a welcome Photon accepted, never after an uncertain one. A failed card never changes the welcome's outcome; Vercel logs show `imessage_file_sent` or `imessage_file_failed`.
 
-**Check it once:** with both settings in Vercel, provision a test number and sign up. You should get the welcome, then the lead-in and a contact bubble showing the orb. Tap it and confirm the name, number and photo.
+**Check it once (one phone is enough):** with both settings in Vercel, open **Admin › People**, pick yourself and click **Text them Jules’s contact card…**. You should get the lead-in and a contact bubble showing the orb; tap it and confirm the name, number and photo. This resets nothing (onboarding, Gmail and history stay as they are), and it is also how to send the card to testers who signed up before it existed. Each click sends it again.
 
 ### Set the same photo as the line's iMessage Name and Photo
 
