@@ -4,7 +4,7 @@ import { receiveInInbox } from '../lib/inbox.js';
 import { WAITLIST_NOTICE, WAITLIST_REPLIES, waitlistContext } from '../lib/waitlist.js';
 
 const id = '00000000-0000-4000-8000-000000000002';
-// Mirrors db/034_waitlist.sql claim_waitlist_turn: an allowance of real replies, then one notice a day.
+// Mirrors db/035_waitlist.sql claim_waitlist_turn: an allowance of real replies, then one notice a day.
 function waitlistStore(access = 'waitlisted') {
   const operations = new Map();
   const store = { operations, access, replies: 0, noticeAt: null, now: Date.now(), turns: 0,
