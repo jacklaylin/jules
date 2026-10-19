@@ -124,6 +124,8 @@ a.btn:hover { color: var(--ink); } a.btn--ink:hover, a.btn--grape:hover { color:
 .action-row[hidden] { display: none; }
 .action-row::after { display: none; }
 .action-row > span:first-child { flex: 1; }
+.action-row > svg { flex: none; }
+.action-row > svg + span { flex: 1; }
 .action-row__go { color: var(--text-2); }
 @media (hover: hover) and (pointer: fine) { .action-row:not(:disabled):hover { transform: none; color: var(--grape); } }
 .action-row:focus-visible { outline: 3px solid var(--grape); outline-offset: -3px; }
