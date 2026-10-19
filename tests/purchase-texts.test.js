@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createReceiptFeedback,applyReceiptFeedback} from '../lib/receipt-feedback.js';
 import {sealToken} from '../lib/gmail-client.js';
 import {importStep} from '../lib/gmail-import.js';
-import {newRefreshJob,refreshStep,refreshOwner,announcePurchases,validPick,purchaseDraft,runDailyRefresh,handleGmailRefresh} from '../lib/purchase-texts.js';
+import {newRefreshJob,refreshStep,refreshOwner,announcePurchases,managePurchaseTexts,validPick,purchaseDraft,runDailyRefresh,handleGmailRefresh} from '../lib/purchase-texts.js';
 
 const OWNER='owner-1',DAY=86400000,NOW=Date.parse('2026-10-18T17:00:00Z');
 const bought=(id,daysAgo,extra={})=>({id,source_ids:[`gmail:${id}`],brand:'Brand',product:`Item ${id}`,merchant:'shop.com',size_label:'32',color:null,
@@ -146,6 +146,61 @@ test('the composer is told the purchase was recorded in the wardrobe, not saved 
  assert.equal(result.composed,true);
  assert.ok(JSON.stringify(bodies[0].input).includes('wardrobe_added'));
  assert.ok(bodies[1].input.some(m=>m.content.startsWith('ADDED_TO_WARDROBE')));
+});
+
+test('the person turns purchase texts off and back on in chat, and can ask where they stand',async()=>{
+ const store=storage(),wait=async()=>{};
+ assert.match(await managePurchaseTexts(store,OWNER,'status',{wait}),/ are on/);
+ assert.match(await managePurchaseTexts(store,OWNER,'turn_off',{messageId:'m1',now:NOW,wait}),/^done: no more texts/);
+ assert.deepEqual(store.row.data.purchase_texts,{enabled:false,changed_at:new Date(NOW).toISOString(),message_id:'m1'});
+ // Asking again changes nothing and says so; the full import is untouched.
+ assert.match(await managePurchaseTexts(store,OWNER,'turn_off',{wait}),/already off/);
+ assert.equal(store.row.data.job.started_at,'import-1');
+ assert.match(await managePurchaseTexts(store,OWNER,'status',{wait}),/ are off/);
+ assert.match(await managePurchaseTexts(store,OWNER,'turn_on',{messageId:'m2',wait}),/^done: i'll text you again/);
+ assert.equal(store.row.data.purchase_texts.enabled,true);
+ // With Gmail disconnected, turning them on says there is nothing to read.
+ const disconnected=storage({token:null});
+ assert.match(await managePurchaseTexts(disconnected,OWNER,'turn_on',{wait}),/isn't connected/);
+ await assert.rejects(managePurchaseTexts(store,OWNER,'delete',{wait}));
+});
+
+test('without email history there is nothing to turn off, and a busy history is retried before giving up',async()=>{
+ const none=storage();none.gmailImport=async()=>null;none.claimGmailImport=async()=>assert.fail('nothing to change');
+ assert.match(await managePurchaseTexts(none,OWNER,'turn_off',{wait:async()=>{}}),/don't read your email/);
+ const busy=storage();let claims=0;const claim=busy.claimGmailImport;busy.claimGmailImport=async()=>++claims<3?null:claim();
+ assert.match(await managePurchaseTexts(busy,OWNER,'turn_off',{wait:async()=>{}}),/^done/);assert.equal(claims,3);
+ const stuck=storage();stuck.claimGmailImport=async()=>null;
+ assert.match(await managePurchaseTexts(stuck,OWNER,'turn_off',{wait:async()=>{}}),/couldn't change that/);
+});
+
+test('with purchase texts off, new purchases join the wardrobe without a text',async()=>{
+ const store=storage({data:{refresh:{pending:['cargo'],announced:[]},purchase_texts:{enabled:false}},items:[cargos]});
+ assert.deepEqual(await announcePurchases(store,OWNER,{},{interpret:()=>assert.fail('no choice needed'),send:send(store),now:NOW}),{status:'texts_off',items:1});
+ assert.equal(store.sent.length,0);assert.deepEqual(store.row.data.refresh.pending,[]);assert.deepEqual(store.row.data.refresh.announced,['cargo']);
+ // Turned back on later, a purchase already settled is not texted about.
+ store.row.data.purchase_texts.enabled=true;
+ assert.equal((await announcePurchases(store,OWNER,{},{interpret:()=>assert.fail(),send:send(store),now:NOW})).status,'nothing_new');
+});
+
+test('a purchase-texts change is not mistaken for an alert change, and real alert claims are still caught',async()=>{
+ const {auditProblems}=await import('../lib/compose.js');
+ const read=extra=>({texts_about_purchases_changed:true,saved_now:false,alerts_turned_on:false,alerts_turned_off:false,names_other_saved_item:false,...extra});
+ // The audit read "no more purchase texts" as alerts off too: the same change, not a false claim.
+ assert.deepEqual(auditProblems(read({alerts_turned_off:true}),{alerts_turned_off:false,purchase_texts:'turned_off'}),[]);
+ assert.deepEqual(auditProblems(read({alerts_turned_on:true}),{alerts_turned_on:false,purchase_texts:'turned_on'}),[]);
+ // The opposite direction, no purchase-texts change this turn, or a message not about it: still a problem.
+ assert.equal(auditProblems(read({alerts_turned_on:true}),{purchase_texts:'turned_off'}).length,1);
+ assert.equal(auditProblems(read({alerts_turned_off:true}),{}).length,1);
+ assert.equal(auditProblems(read({texts_about_purchases_changed:false,alerts_turned_off:true}),{purchase_texts:'turned_off'}).length,1);
+});
+
+test('the chat agent is offered the purchase-texts tool only when the person can get those texts',async()=>{
+ const {AGENT_EVAL_CASES}=await import('../lib/agent-eval.js');
+ const cases=AGENT_EVAL_CASES.filter(c=>c.category==='purchase_texts');
+ assert.ok(cases.length>=6);
+ assert.ok(cases.some(c=>c.expect.args?.action==='turn_off')&&cases.some(c=>c.expect.args?.action==='turn_on')&&cases.some(c=>c.expect.args?.action==='status'));
+ assert.ok(cases.some(c=>c.expect.not?.includes('manage_purchase_texts')));
 });
 
 test('a person\'s daily run reads, then texts about what it found',async()=>{

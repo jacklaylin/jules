@@ -78,6 +78,14 @@ test('a fit check names the item and its size as recorded, goes out once, and is
  assert.deepEqual(failing.row.data.refresh.fit_checks.map(c=>c.item_id),['jeans']);
 });
 
+test('a person who turned purchase texts off in chat gets no fit check, and gets one again once they turn them back on',async()=>{
+ const store=storage({data:{purchase_texts:{enabled:false}}});
+ assert.deepEqual(await sendFitCheck(store,OWNER,{},{send:send(store),now:NOW}),{status:'skipped',reason:'texts_off'});
+ assert.equal(store.sent.length,0);assert.equal(store.row.data.refresh,undefined);
+ store.row.data.purchase_texts.enabled=true;
+ assert.equal((await sendFitCheck(store,OWNER,{},{send:send(store),now:NOW})).status,'sent');
+});
+
 test('the draft keeps the size label exactly as recorded',()=>{
  assert.equal(fitCheckDraft({product:'Loafers',brand:'G.H. Bass',merchant:null,size:'EU 42.5'}),'how is the G.H. Bass Loafers fitting in size EU 42.5? tell me if the size is right, if it runs big or small, or if you sent it back.');
 });
