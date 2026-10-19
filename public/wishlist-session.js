@@ -1,9 +1,11 @@
+import {forgetLists} from './list-cache.js';
 // Keep the rotating token pair together. Never log either token.
 export function createSession({storage,fetcher=fetch,now=()=>Date.now(),lock=async work=>work()}={}){
  const key='jules_wishlist_session';let pending;
  const read=()=>{try{return JSON.parse(storage.getItem(key)||'null');}catch{return null;}};
  const save=value=>storage.setItem(key,JSON.stringify(value));
- const clear=()=>storage.removeItem(key);
+ // Signing out also forgets the lists saved for instant return visits.
+ const clear=()=>{storage.removeItem(key);forgetLists(storage);};
  async function token(force=false){
   const session=read();if(!session)return null;
   if(!force && (!session.refresh_token||session.expires_at>now()/1000+60))return session.access_token;
