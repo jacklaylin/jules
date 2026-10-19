@@ -1,6 +1,6 @@
 import {mountAdminShell,adminJson} from './admin-console.js';
 import {ago} from './admin-people-view.js';
-import {testerCells,weekCells,summaryCells} from './adoption-view.js';
+import {testerCells,weekCells,summaryCells,qualitySummaryCells,qualityTesterCells,qualityWeekCells,usedKinds,missRow} from './adoption-view.js';
 // Admin › Adoption: each tester's furthest step on the delegation ladder, and the ladder week by week.
 mountAdminShell('adoption');
 const $ = id => document.getElementById(id);
@@ -44,8 +44,40 @@ function render() {
     return el('tr', { className: w.current ? 'current' : '' }, cell('Week of', el('strong', { textContent: c.week })), cell('New', c.joined, 'num'), cell('Active', c.active, 'num'),
       ...c.steps.map(s => cell(s.key === 'joined' ? 'Testers' : s.label, s.value, 'num')));
   }));
-  $('definitions').replaceChildren(...[...steps.map(s => [s.label, s.explain]), ...OTHER_TERMS].flatMap(([term, text]) => [el('dt', { textContent: term }), el('dd', { textContent: text })]));
+  renderQuality(data.quality, testers);
+  const quality = data.quality ? [...data.quality.kinds.map(k => [`Miss: ${k.label}`, k.explain]), ...data.quality.photo_outcomes.map(o => [`Photo: ${o.label}`, o.explain])] : [];
+  $('definitions').replaceChildren(...[...steps.map(s => [s.label, s.explain]), ...OTHER_TERMS, ...quality].flatMap(([term, text]) => [el('dt', { textContent: term }), el('dd', { textContent: text })]));
   $('refreshed').textContent = refreshedAt ? `Refreshed ${ago(refreshedAt, now)}` : '';
+}
+
+// Quality: misses, flags and photo outcomes. A null section (its reads failed) leaves the rest of the page as it is.
+function renderQuality(q, testers) {
+  $('quality').hidden = !q; $('quality-error').hidden = Boolean(q);
+  if (!q) return;
+  $('quality-summary').replaceChildren(...qualitySummaryCells(q).map(c => el('div', { className: 'dv-metric' }, el('span', { textContent: c.label }), el('strong', { textContent: c.value }), el('span', { textContent: c.note }))));
+  $('quality-testers').replaceChildren(...testers.map(t => {
+    const c = qualityTesterCells(t, q.per_tester[t.id] ?? { misses: 0, flags: 0, thumbs: 0, photos: 0, photos_identified: 0, photos_saved: 0 });
+    return el('tr', {}, cell('Tester', el('a', { className: 'tester-link', href: `/admin/people/${t.id}`, textContent: t.sender_id })),
+      cell('Results', c.results, 'end num'), cell('Misses', c.misses, 'end num'), cell('Miss rate', c.miss_rate, 'end num'), cell('Flags', c.flags, 'end num'),
+      cell('Photos', c.photos, 'end num'), cell('Identified', c.identified, 'end num'), cell('Saved from photo', c.saved, 'end num'));
+  }));
+  const kinds = usedKinds(q);
+  $('quality-week-head').replaceChildren(...['Week of', 'Results', 'Misses', ...kinds.map(k => k.label), 'Flags', 'Photos'].map(h => el('th', { textContent: h })));
+  $('quality-weeks').replaceChildren(...q.weeks.map(w => {
+    const c = qualityWeekCells(w, kinds, q.photo_outcomes);
+    return el('tr', { className: w.current ? 'current' : '' }, cell('Week of', el('strong', { textContent: c.week })), cell('Results', c.results, 'num'), cell('Misses', c.misses, 'num'),
+      ...c.kinds.map(k => cell(k.label, k.value, 'num')), cell('Flags', c.flags, 'num'), cell('Photos', c.photos));
+  }));
+  if (!q.weeks.length) $('quality-weeks').append(el('tr', {}, el('td', { colSpan: 5, className: 'dv-empty', textContent: 'Nothing recorded yet.' })));
+  $('quality-photos').replaceChildren(...q.photo_outcomes.map(o => el('tr', {}, cell('Outcome', el('strong', { textContent: o.label })), cell('Photos', String(q.photos.outcomes[o.key] ?? 0), 'end num'), cell('Meaning', o.explain, 'muted'))));
+  $('quality-photo-note').textContent = `${q.photos.total} photo messages in all. ${q.photos.saved} led to a wishlist save${q.photos.corrected ? `, ${q.photos.corrected} of them later corrected` : ''}. Owner test photos are left out.`;
+  $('quality-misses').replaceChildren(...q.misses.map(m => {
+    const c = missRow(m, q.kinds);
+    return el('tr', {}, cell('Date', c.date), cell('Tester', el('a', { className: 'tester-link', href: c.href, textContent: c.tester, title: 'Open this message in the conversation' })),
+      cell('Kind', el('span', { className: 'badge warn', textContent: c.kind })),
+      cell('What happened', el('span', { className: 'miss-summary' }, c.summary, c.about ? el('small', { textContent: c.about }) : null)));
+  }));
+  if (!q.misses.length) $('quality-misses').append(el('tr', {}, el('td', { colSpan: 4, className: 'dv-empty', textContent: 'No misses recorded.' })));
 }
 
 async function load() {

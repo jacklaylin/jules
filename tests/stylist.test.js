@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {stylistConcepts,shopperWords,conceptQuery,interleaveConcepts,STYLIST_MODEL} from '../lib/stylist.js';
-import {textWishlistAction} from '../lib/text-wishlist.js';
+import {textWishlistAction,settleWithin} from '../lib/text-wishlist.js';
 const plan={continuation:false,mode:'discover',hard_constraints:['going-out top'],guidance:['more visual intrigue'],reference_brands:['Emily Dawn Long'],required_brands:[],keep_option_indices:[],exclude_option_indices:[]};
 const model=value=>async(url,options)=>{model.last=JSON.parse(options.body);return {ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(value)}]}]})};};
 const concepts=[
@@ -74,6 +74,24 @@ test('a slow direction is left behind at the cap and the finished ones are shown
   search:async query=>{calls++;if(query.includes('archive diesel prints'))return new Promise(()=>{});return {status:'found',products:[p('a1')]};},rank:async x=>x});
  assert.ok(Date.now()-started<3000);assert.equal(calls,2);
  assert.deepEqual(result.text_wishlist_state.options.map(o=>o.url),[p('a1').url]);
+});
+
+test('once results are enough, slower directions get only a short grace period',async()=>{
+ const started=Date.now(),never=new Promise(()=>{});
+ const out=await settleWithin([Promise.resolve(3),never],60000,{enough:o=>o.some(s=>s.status==='fulfilled'),grace:50});
+ assert.ok(Date.now()-started<1000);assert.deepEqual(out.map(s=>s.status),['fulfilled','timed_out']);assert.equal(typeof out[0].ms,'number');
+ // Without enough, everything that settles in time is waited for.
+ const all=await settleWithin([Promise.resolve(1),new Promise(r=>setTimeout(()=>r(2),30))],1000,{enough:()=>false,grace:0});
+ assert.deepEqual(all.map(s=>s.value),[1,2]);
+});
+
+test('discovery records where sourcing spent its time',async()=>{
+ let result;
+ await textWishlistAction({action:'start',query:'going out top',search_plan:plan},{env:{},facts:[],record:async r=>{result=r;},stylist:async()=>concepts,
+  search:async query=>({status:'found',products:[p(query.includes('archive')?'d1':'a1')]}),rank:async x=>x});
+ const t=result.text_wishlist_diagnostics.timing;
+ for(const key of ['stylist_ms','directions_ms','rank_ms','sourcing_ms'])assert.equal(typeof t[key],'number',key);
+ assert.equal(t.direction_ms.length,concepts.length);
 });
 
 test('without room in the turn the stylist is skipped and one search runs',async()=>{
