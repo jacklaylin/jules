@@ -12,6 +12,7 @@
       <div id="cost-views" class="dv-views" role="group" aria-label="Cost views">
         <button type="button" data-view="">By service</button>
         <button type="button" data-view="features">By feature</button>
+        <button type="button" data-view="jobs">Recurring jobs</button>
         <button type="button" data-view="evals">Evals</button>
       </div>
       <span class="dv-divider"></span>
@@ -24,14 +25,14 @@
     <div id="costs-more" class="dv-pop dv-menu" popover aria-label="More actions">
       <button id="refresh" type="button">Refresh <span class="hint">re-reads connected billing</span></button>
     </div>
-    <div class="dv-status"><span id="loader" class="dv-loader" aria-hidden="true" hidden></span><span id="refreshed"></span><span id="coverage"></span><span id="budget-status"></span><span id="view-summary"></span><span id="notice" role="status" aria-live="polite"></span></div>
+    <div class="dv-status"><span id="loader" class="dv-loader" aria-hidden="true" hidden></span><span id="refreshed"></span><span id="coverage"></span><span id="budget-status"></span><span id="jobs-status"></span><span id="view-summary"></span><span id="notice" role="status" aria-live="polite"></span></div>
 
     <section id="tool-entry" class="dv-tool" aria-labelledby="tool-entry-title" hidden>
       <div class="dv-tool-head"><h2 id="tool-entry-title">Update an amount</h2><button id="entry-close" class="small" type="button">Close ×</button></div>
       <p class="muted">Each save replaces that service’s amount for the selected day or month. Check provider billing before recording a value. Missing entries are unknown, not free; enter 0 to confirm no charge.</p>
       <form id="entry" class="entry-fields">
-        <label>Service<select id="service"></select></label>
-        <label>Amount type<select id="kind"><option value="usage">Daily usage total</option><option value="subscription">Monthly fee, from this month on</option><option value="budget">Daily warning budget, from this month on (all services)</option></select></label>
+        <label><span id="service-label">Service</span><select id="service"></select></label>
+        <label>Amount type<select id="kind"><option value="usage">Daily usage total</option><option value="subscription">Monthly fee, from this month on</option><option value="budget">Daily warning budget, from this month on (all services)</option><option value="job_budget">Monthly budget for one recurring job, from this month on</option></select></label>
         <label id="entry-day">Day (UTC)<input id="entry-date" type="date" required></label>
         <label>USD<input id="amount" type="number" min="0" max="1000000" step="any" required></label>
         <label class="entry-note">Note / credits used<input id="note" maxlength="300" placeholder="e.g. 35 of 250 searches used; included in subscription"></label>
@@ -48,6 +49,10 @@
     <section data-view-panel="features" aria-label="By feature" hidden>
       <div class="dv-table-wrap"><table class="dv-table costs-table costs-narrow"><thead><tr id="feature-head"></tr></thead><tbody id="feature-rows"></tbody></table></div>
       <p class="dv-note">Estimates from every OpenAI and SerpApi call Jules makes. OpenAI calls are priced from their token counts at list prices; SerpApi searches as a share of the plan price. Eval test runs are under Evals. Billed totals (By service) are the source of truth.</p>
+    </section>
+    <section data-view-panel="jobs" aria-label="Recurring jobs" hidden>
+      <div class="dv-table-wrap"><table class="dv-table costs-table"><thead><tr id="jobs-head"></tr></thead><tbody id="jobs-rows"></tbody></table></div>
+      <p class="dv-note">Every scheduled job Jules runs, from <code>lib/jobs.js</code>. A test fails if one is scheduled without being listed, and Supabase jobs not listed show here as untracked. Costs are estimates of the OpenAI and SerpApi calls each job makes (also counted By feature); compute time is in the Vercel and Supabase rows, which their billing does not split per job. <strong>Projected</strong> is the month so far averaged per day, times the days in the month. Set a job’s monthly budget with Update an amount; a job is flagged when it is over or projected over budget, when a day costs more than double its daily average, or when it stops running.</p>
     </section>
     <section data-view-panel="evals" aria-label="Evals" hidden>
       <div class="dv-table-wrap"><table class="dv-table costs-table costs-narrow"><thead><tr id="eval-head"></tr></thead><tbody id="eval-rows"></tbody></table></div>

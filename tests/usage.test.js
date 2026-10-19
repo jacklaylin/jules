@@ -36,3 +36,17 @@ test('onUsage receives the priced rows even with no store, so a script can keep 
   await withUsage({env:{},conversation:null,operation:'eval:run',feature:'eval_agent',onUsage:rows=>seen.push(...rows)},async()=>{await (await fetch('https://api.openai.com/v1/responses',{method:'POST'})).json();});
   assert.deepEqual(seen.map(r=>[r.feature,r.operation,r.conversation_id,r.cost_usd]),[['eval_agent','eval:run',null,0.0256]]);
 });
+test('a scheduled job tags its calls, nested actions inherit the job, and costs survive a database without the job column',async()=>{
+  const recorded=[];const store={recordUsage:async rows=>recorded.push(...rows)};
+  await withUsage({store,env:{},conversation:'c1',operation:'price-check:a',feature:'price_alerts',job:'price_checks',quiet:true},async()=>{
+    await (await fetch('https://api.openai.com/v1/responses',{method:'POST'})).json();
+    await withUsage({store,env:{},conversation:'c1',operation:'price-discovery:a',feature:'price_alerts',quiet:true},()=>fetch('https://serpapi.com/search?engine=google'));
+  });
+  assert.deepEqual(recorded.map(r=>[r.provider,r.job]),[['serpapi','price_checks'],['openai','price_checks']]);
+  const kept=[];let tries=0;
+  await withUsage({store:{recordUsage:async rows=>{tries++;if(rows.some(r=>'job' in r))throw Error('column usage_events.job does not exist');kept.push(...rows);}},env:{},conversation:'c',operation:'o',feature:'chat',job:'reply_watchdog',quiet:true},async()=>{await (await fetch('https://api.openai.com/v1/responses',{method:'POST'})).json();});
+  assert.equal(tries,2);assert.equal(kept.length,1);assert.equal(kept[0].job,undefined);assert.equal(kept[0].cost_usd,0.0256);
+  // Calls by people (no job) are written without the column, as before.
+  recorded.length=0;await withUsage({store,env:{},conversation:'c',operation:'ai:m',feature:'chat',quiet:true},()=>fetch('https://serpapi.com/search'));
+  assert.equal('job' in recorded[0],false);
+});
