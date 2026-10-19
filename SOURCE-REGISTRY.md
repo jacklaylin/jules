@@ -1,12 +1,12 @@
 # Jules sourcing registry
 
-Starter list: 20 curated fashion retailers and 100 brands, excluding fast fashion and big-box general merchandise stores. This is an editorial sourcing list, not a sales ranking. Retailer numbers give the default priority; brands are grouped for readability.
+Registry: 31 curated fashion retailers and 124 brands (the starter 20 and 100, plus women's and independent additions on October 18, 2026), excluding fast fashion and big-box general merchandise stores. This is an editorial sourcing list, not a sales ranking. Retailer numbers give the default priority; brands are grouped for readability.
 
 Search order: the shopper's brief is first searched exactly as typed on Google web and Google Shopping (via SerpAPI), at the same time as the model's web search. Results that name the most of what was asked are read first; among equally good results, the order is official brand site → registered trusted retailer → other stores → resale marketplaces (Poshmark, eBay, Grailed and others in `RESALE_MARKETPLACES`), which are offered only when nothing else is found. A model judges whether each read listing is the asked-for item. A verified exact match answers immediately; otherwise both sources' candidates are combined. A store that blocks our page read keeps Google's indexed name, photo and price for that exact page (stock unknown); a collection page is followed to its matching product page; a strong result that can't be read at all stays a candidate with price and stock unknown. Each search records in diagnostics (`sourcing`) whether the exact item was found on the first attempt and why every candidate was set aside.
 
 Older order, still used by the model search: registered official brand sites → registered trusted retailers → broader web retrieval. Search uses domain filters, followed by independent product-page checks. Registered sites may be blocked, lack structured product data, or have no online shop. Identity, requested variant and eligibility precede store ranking. Registration does not establish stock, size, price, shipping, authenticity of an individual item, or retailer policy.
 
-## 20 retailers
+## 31 retailers
 
 | Priority | Retailer | Website |
 |---|---|---|
@@ -30,6 +30,17 @@ Older order, still used by the model search: registered official brand sites →
 | 18 | Kith | [kith.com](https://www.kith.com/) |
 | 19 | Bodega | [bdgastore.com](https://www.bdgastore.com/) |
 | 20 | Slam Jam | [slamjam.com](https://www.slamjam.com/) |
+| 21 | Shopbop | [shopbop.com](https://www.shopbop.com/) |
+| 22 | FWRD | [fwrd.com](https://www.fwrd.com/) |
+| 23 | REVOLVE | [revolve.com](https://www.revolve.com/) |
+| 24 | 24S | [24s.com](https://www.24s.com/) |
+| 25 | Browns | [brownsfashion.com](https://www.brownsfashion.com/) |
+| 26 | Wolf & Badger | [wolfandbadger.com](https://www.wolfandbadger.com/) |
+| 27 | Garmentory | [garmentory.com](https://www.garmentory.com/) |
+| 28 | Café Forgot | [cafeforgot.com](https://www.cafeforgot.com/) |
+| 29 | LCD | [shoplcd.co](https://www.shoplcd.co/) |
+| 30 | La Garçonne | [lagarconne.com](https://www.lagarconne.com/) |
+| 31 | Hampden Clothing | [hampdenclothing.com](https://www.hampdenclothing.com/) |
 
 ## Luxury and designer houses
 
@@ -161,7 +172,40 @@ Older order, still used by the model search: registered official brand sites →
 | 99 | Crockett & Jones | [crockettandjones.com](https://crockettandjones.com/) |
 | 100 | Natalino | [natalino.co](https://natalino.co/) |
 
+## Women's contemporary, independent and archive-revival labels
+
+Added October 18, 2026, so stylist search directions for women's wardrobes have official stores to prefer.
+
+| # | Brand | Official website |
+|---|---|---|
+| 101 | Mulberry | [mulberry.com](https://mulberry.com/) |
+| 102 | Diesel | [diesel.com](https://diesel.com/) |
+| 103 | GANNI | [ganni.com](https://ganni.com/) |
+| 104 | Paloma Wool | [palomawool.com](https://palomawool.com/) |
+| 105 | Sandy Liang | [sandyliang.info](https://sandyliang.info/) |
+| 106 | Maryam Nassir Zadeh | [mnzstore.com](https://mnzstore.com/) |
+| 107 | Simone Rocha | [simonerocha.com](https://simonerocha.com/) |
+| 108 | Molly Goddard | [mollygoddard.com](https://mollygoddard.com/) |
+| 109 | Ottolinger | [ottolinger.com](https://ottolinger.com/) |
+| 110 | Collina Strada | [collinastrada.com](https://collinastrada.com/) |
+| 111 | Eckhaus Latta | [eckhauslatta.com](https://eckhauslatta.com/) |
+| 112 | Rejina Pyo | [rejinapyo.com](https://rejinapyo.com/) |
+| 113 | Nanushka | [nanushka.com](https://nanushka.com/) |
+| 114 | Proenza Schouler | [proenzaschouler.com](https://proenzaschouler.com/) |
+| 115 | Coperni | [coperniparis.com](https://coperniparis.com/) |
+| 116 | Courrèges | [courreges.com](https://courreges.com/) |
+| 117 | Mugler | [mugler.com](https://mugler.com/) |
+| 118 | Jean Paul Gaultier | [jeanpaulgaultier.com](https://jeanpaulgaultier.com/) |
+| 119 | Vivienne Westwood | [viviennewestwood.com](https://viviennewestwood.com/) |
+| 120 | The Frankie Shop | [thefrankieshop.com](https://thefrankieshop.com/) |
+| 121 | Sézane | [sezane.com](https://sezane.com/) |
+| 122 | Rouje | [rouje.com](https://rouje.com/) |
+| 123 | AGOLDE | [agolde.com](https://agolde.com/) |
+| 124 | Citizens of Humanity | [citizensofhumanity.com](https://citizensofhumanity.com/) |
+
 ## Maintenance and verification
+
+A scoped web search's domain filter accepts at most 100 domains, so `filterDomains` sends the first 100 in priority order; the default wider-web search uses the whole registry as a priority list.
 
 The executable source is `lib/source-registry.js`. Domain identity was reviewed against brand/retailer primary websites on October 8, 2026, with search fallback for blocked homepages. Some sites are corporate/identity references rather than direct shops (for example Alden and Comme des Garçons); retailer retrieval remains necessary. Each sourced product still needs its own live page check. Geographic redirects outside registered domains remain rejected. Goldwin and Supreme use their current destinations, goldwin.global and supreme.com.
 
