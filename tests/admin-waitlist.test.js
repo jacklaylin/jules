@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createAdminHandler } from '../api/admin.js';
 import { APPROVED_TEXT } from '../lib/waitlist.js';
-import { filterPeople, accessSegments } from '../public/admin-people-view.js';
+import { filterPeople, accessSegments, accessChange, accessResult } from '../public/admin-people-view.js';
 
 // Owner approval from Admin › People (db/035): only a waitlisted person changes, and only that change texts them once.
 const waiting = '00000000-0000-4000-8000-0000000000d1', approved = '00000000-0000-4000-8000-0000000000d2';
@@ -12,6 +12,9 @@ function world({ optedOut = false } = {}) {
   const store = {
     conversation: async id => access.has(id) ? { id, sender_id: 'synthetic', line: 'shared' } : null,
     approveAccess: async id => { if (access.get(id) !== 'waitlisted') return false; access.set(id, 'approved'); return true; },
+    waitlistAccess: async id => { if (access.get(id) !== 'approved') return false; access.set(id, 'waitlisted'); return true; },
+    signupNames: async phones => new Map(phones.includes('d1') ? [['d1', { first_name: 'jane', last_name: 'doe' }]] : []),
+    profilesFor: async () => new Map([[approved, [{ field: 'name', key: 'first', value: 'sam', basis: 'explicit' }]]]),
     accessFor: async ids => new Map(ids.filter(id => access.has(id)).map(id => [id, { access: access.get(id) }])),
     list: async () => [...access.keys()].map(id => ({ id, sender_id: id.slice(-2), updated_at: '2026-10-19T00:00:00Z' })),
     messages: async () => ({ messages: [], before: null }),
@@ -83,4 +86,40 @@ test('the status filter counts each status and hides itself when no status is kn
   assert.deepEqual(filterPeople(people, '', 'approved').map(p => p.sender_id), ['+1416', '+1417']);
   assert.deepEqual(filterPeople(people, '1415', 'approved'), []);
   assert.deepEqual(accessSegments(people.map(p => ({ ...p, access: null }))), []);
+});
+
+test('the list names each person from their signup, else the name told to Jules, and stays usable without names', async () => {
+  const w = world();
+  const names = c => Object.fromEntries(c.map(p => [p.id, p.name]));
+  assert.deepEqual(names((await get(w.handler(), '/api/admin')).body.conversations), { [waiting]: 'Jane Doe', [approved]: 'Sam' });
+  w.store.signupNames = async () => { throw new Error('signups unavailable'); };
+  w.store.profilesFor = async () => { throw new Error('profiles unavailable'); };
+  const res = await get(w.handler(), '/api/admin');
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(names(res.body.conversations), { [waiting]: null, [approved]: null });
+  assert.deepEqual(filterPeople([{ sender_id: '+1415', name: 'Jane Doe' }], 'janedoe').length, 1);
+});
+
+test('moving someone back to the waitlist is confirmed, texts nothing, and re-approving never resends', async () => {
+  const w = world();
+  assert.equal((await post(w.handler(), { action: 'waitlist', conversation: approved, confirm: false })).statusCode, 400);
+  assert.equal((await post(w.handler(), { action: 'waitlist', conversation: approved }, 'https://evil.example')).statusCode, 400);
+  const back = await post(w.handler(), { action: 'waitlist', conversation: approved, confirm: true });
+  assert.deepEqual({ changed: back.body.changed, text: back.body.text, access: back.body.access.access }, { changed: true, text: null, access: 'waitlisted' });
+  assert.equal(w.sent.length, 0);
+  await post(w.handler(), approve);
+  await post(w.handler(), { action: 'waitlist', conversation: waiting, confirm: true });
+  const again = await post(w.handler(), approve);
+  assert.deepEqual({ changed: again.body.changed, text: again.body.text }, { changed: true, text: 'already_sent' });
+  assert.deepEqual(w.sent, [APPROVED_TEXT]);
+});
+
+test('the confirmation says what each change does', () => {
+  const opts = { allowance: 3, approvalText: APPROVED_TEXT };
+  assert.match(accessChange({}, 'approved', opts).lines.join(' '), /texts them once/);
+  assert.match(accessChange({}, 'approved', { ...opts, approvalText: null }).lines.join(' '), /No text is sent/);
+  assert.match(accessChange({ waitlist_replies: 1 }, 'waitlisted', opts).lines[0], /2 more replies/);
+  assert.match(accessChange({ waitlist_replies: 3 }, 'waitlisted', opts).lines[0], /the waitlist text/);
+  assert.match(accessResult('approved', { changed: true, text: 'already_sent' }), /nothing new was sent/);
+  assert.match(accessResult('waitlisted', { changed: true, text: null }), /Nothing was sent/);
 });
