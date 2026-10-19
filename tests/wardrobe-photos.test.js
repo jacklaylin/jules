@@ -70,9 +70,11 @@ test('the wardrobe shows the order photo first, a confirmed search photo next, a
  const store=memory();const all=['i1','i2','i3'].map(id=>({id,photo:false}));
  await suggestWardrobePhotos(store,OWNER,all,{env,find:found(),limit:3});
  await decideSuggestion(store,OWNER,'i2','yes',{items:all});
- const view=wardrobeView(state,{photos:new Map([['i3','order_email']]),suggestions:suggestionState(await store.wardrobePhotoEvidence())});
+ const view=wardrobeView(state,{photos:new Map([['i3',{source:'order_email',version:'2026-10-19T00:00:00Z'}]]),suggestions:suggestionState(await store.wardrobePhotoEvidence())});
  const by=Object.fromEntries(view.items.map(i=>[i.id,i]));
- assert.deepEqual([by.i1.photo,by.i1.suggestion],[false,{seller:'ASICS'}]);
+ assert.deepEqual([by.i1.photo,by.i1.suggestion.seller],[false,'ASICS']);
+ // Each photo URL is versioned by the one stored photo it shows, so a new suggestion or answer gets a new URL.
+ assert.ok(by.i1.suggestion.version);assert.ok(by.i2.photo_version);assert.notEqual(by.i1.suggestion.version,by.i2.photo_version);assert.equal(by.i3.photo_version,'2026-10-19T00:00:00Z');
  assert.deepEqual([by.i2.photo,by.i2.photo_source,by.i2.suggestion],[true,'search_confirmed',null]);
  assert.deepEqual([by.i3.photo,by.i3.photo_source,by.i3.suggestion],[true,'order_email',null]);
 });
@@ -125,12 +127,14 @@ test('a tiny order photo is offered a sharper suggestion, matched against it; ye
  const state=createReceiptFeedback(OWNER,[bought('i1'),bought('i2')],[]);
  const store=memory();const tinyPhoto={mime_type:'image/jpeg',data:'dGlueQ=='};store.purchasePhoto=async(_o,id)=>id==='i1'?tinyPhoto:null;
  const seen=[];const find=async(item,{reference})=>{seen.push([item.id,reference]);return found()();};
- const view=()=>wardrobeView(state,{photos:new Map([['i1','order_email'],['i2','order_email']]),tiny:new Set(['i1'])});
+ const view=()=>wardrobeView(state,{photos:new Map([['i1',{source:'order_email',version:'v1'}],['i2',{source:'order_email',version:'v2'}]]),tiny:new Set(['i1'])});
  assert.deepEqual(view().items.map(i=>[i.id,i.photo_small]).sort(),[['i1',true],['i2',false]]);
  await suggestWardrobePhotos(store,OWNER,view().items,{env,find});
  assert.deepEqual(seen,[['i1',tinyPhoto]],'only the tiny one is searched, with its order photo as the reference');
- const withSuggestions=async()=>wardrobeView(state,{photos:new Map([['i1','order_email'],['i2','order_email']]),tiny:new Set(['i1']),suggestions:suggestionState(await store.wardrobePhotoEvidence())}).items.find(i=>i.id==='i1');
- let i1=await withSuggestions();assert.deepEqual([i1.photo,i1.photo_source,i1.suggestion],[true,'order_email',{seller:'ASICS'}]);
+ const withSuggestions=async()=>wardrobeView(state,{photos:new Map([['i1',{source:'order_email',version:'v1'}],['i2',{source:'order_email',version:'v2'}]]),tiny:new Set(['i1']),suggestions:suggestionState(await store.wardrobePhotoEvidence())}).items.find(i=>i.id==='i1');
+ let i1=await withSuggestions();assert.deepEqual([i1.photo,i1.photo_source,i1.suggestion.seller],[true,'order_email','ASICS']);
  await decideSuggestion(store,OWNER,'i1','yes',{items:view().items});
  i1=await withSuggestions();assert.deepEqual([i1.photo_source,i1.photo_small,i1.suggestion],['search_confirmed',false,null]);
+ // The confirmed photo has its own version, so the browser never shows the cached thumbnail in its place.
+ assert.notEqual(i1.photo_version,'v1');
 });

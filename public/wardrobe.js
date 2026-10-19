@@ -2,6 +2,8 @@ import {trackedFetch as fetch} from './activity.js';
 import {mountHeader,enableAdminLink} from './design-system.js';
 import {createSession} from './wishlist-session.js';
 import {matchPhotoBackground} from './photo-background.js';
+import {readList,saveList,forgetLists} from './list-cache.js';
+import {whenNear} from './lazy-photo.js';
 mountHeader('wardrobe');
 
 // The wardrobe (PRD section 29): what Jules counts as yours, from your receipts. Every change goes
@@ -39,11 +41,12 @@ function outline(category){
 // The photo from the order email or Shop order, in the shared .photo frame; the outline if it can't load.
 const photoURLs=new Map();
 // kind: 'photo' (the item's photo; source=search for a confirmed searched photo) or 'suggestion' (pending).
-function photoURL(id,kind='photo',source=null){
- const key=kind+':'+(source??'')+':'+id;
+// The URL carries the photo's version, so the browser keeps the photo until it changes.
+function photoURL(id,kind='photo',source=null,version){
+ const key=`${kind}:${source??''}:${id}:${version}`;
  if(!photoURLs.has(key))photoURLs.set(key,(async()=>{
   // Plain fetch: photo loads don't show the page activity indicator.
-  const send=()=>globalThis.fetch(`/api/wishlist?wardrobe=1&${kind}=${encodeURIComponent(id)}${source?`&source=${source}`:''}`,{headers:{Authorization:`Bearer ${token}`},cache:'no-store'});
+  const send=()=>globalThis.fetch(`/api/wishlist?wardrobe=1&${kind}=${encodeURIComponent(id)}${source?`&source=${source}`:''}&v=${encodeURIComponent(version??'0')}`,{headers:{Authorization:`Bearer ${token}`}});
   let response=await send();
   if(response.status===401&&session.read()?.refresh_token){token=await session.token(true);response=await send();}
   if(!response.ok)throw Error('Photo unavailable');
@@ -57,11 +60,11 @@ function photo(item){
  const kind=item?.suggestion?'suggestion':item?.photo?'photo':null;
  if(!kind)return outline(item?.category);
  const frame=el('div',{className:'photo skeleton'+(kind==='suggestion'?' suggested-photo':'')});
- photoURL(item.id,kind,kind==='photo'&&item.photo_source==='search_confirmed'?'search':null).then(async url=>{
+ whenNear(frame,()=>photoURL(item.id,kind,kind==='photo'&&item.photo_source==='search_confirmed'?'search':null,kind==='photo'?item.photo_version:item.suggestion.version).then(async url=>{
   const img=el('img',{alt:name(item)});img.src=url;await img.decode();
   if(Math.max(img.naturalWidth,img.naturalHeight)<SMALL_PHOTO){frame.classList.add('photo--small');img.style.maxWidth=img.naturalWidth*2+'px';img.style.maxHeight=img.naturalHeight*2+'px';}
   matchPhotoBackground(frame,img);frame.classList.remove('skeleton');frame.replaceChildren(img);})
-  .catch(()=>{if(frame.parentNode)frame.replaceWith(Object.assign(outline(item.category),{id:frame.id}));});
+  .catch(()=>{if(frame.parentNode)frame.replaceWith(Object.assign(outline(item.category),{id:frame.id}));}));
  return frame;
 }
 const name=item=>item.product||item.brand||'Item';
@@ -71,8 +74,14 @@ const day=at=>new Date(at).toLocaleDateString(undefined,{month:'short',day:'nume
 let view=null,category='all',current=null,undo=null,toastTimer;
 const message=text=>{$('notice').textContent=text;};
 
+// Changes in flight, so a list refresh never draws over one (see load).
+const writes=new Set();let written=0;
+function api(method='GET',body,options){
+ if(method==='GET')return request(method,body,options);
+ const pending=request(method,body,options);writes.add(pending);pending.finally(()=>{writes.delete(pending);written++;}).catch(()=>{});return pending;
+}
 // A rejected token is renewed once before the page asks you to sign in again, as on the wishlist.
-async function api(method='GET',body,{quiet=false}={}){
+async function request(method='GET',body,{quiet=false}={}){
  try{token=await session.token()||token;}catch(error){if(!session.read())token=null;else throw error;}
  if(!token)throw Object.assign(Error('Please sign in.'),{status:401});
  const send=()=>(quiet?globalThis.fetch:fetch)('/api/wishlist?wardrobe=1',{method,headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},...(body?{body:JSON.stringify(body)}:{}),cache:'no-store'});
@@ -139,6 +148,7 @@ function renderCategories(){
 
 function render(){
  if(!view)return;
+ saveList(localStorage,'wardrobe',token,view);
  $('login').hidden=true;$('wardrobe').hidden=false;
  const count=view.items.length,reading=['listing','extracting','questions'].includes(view.status);
   $('reading').hidden=!reading;
@@ -218,11 +228,16 @@ async function findPhotos(){
   catch{return;}
  }
 }
+// A return visit draws the wardrobe it showed last time straight away, then swaps in the server's copy only if it changed.
 async function load(){
  if(!token){login();return;}
- loading();
- try{view=await api();render();void enableAdminLink(token);void findPhotos();}
- catch(error){$('grid').replaceChildren();if(error.status===401)return login();message(error.message);}
+ let saved=readList(localStorage,'wardrobe',token);
+ // A saved copy that no longer draws (say, from before a deploy) is dropped, never a broken page.
+ if(saved)try{view=saved;render();$('wardrobe').dataset.listSource='saved';}catch{saved=null;view=null;forgetLists(localStorage);}
+ if(!saved)loading();
+ // A change made on the saved wardrobe while this refresh runs wins: wait for it, then read again.
+ try{let fresh;for(;;){const seen=written;fresh=await api();if(!writes.size&&written===seen)break;await Promise.allSettled([...writes]);}if(!saved||JSON.stringify(fresh)!==JSON.stringify(view)){view=fresh;render();$('wardrobe').dataset.listSource='server';}void enableAdminLink(token);void findPhotos();}
+ catch(error){if(!saved)$('grid').replaceChildren();if(error.status===401)return login();message(error.message);}
  finally{$('grid').setAttribute('aria-busy','false');}
 }
 load();
