@@ -73,6 +73,10 @@
       "destination": "/api/wishlist?share_page=:token"
     },
     {
+      "source": "/go/:token",
+      "destination": "/api/image?go=:token"
+    },
+    {
       "source": "/onboarding/connect",
       "destination": "/onboarding.html"
     },
