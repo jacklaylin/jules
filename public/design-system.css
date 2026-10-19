@@ -452,8 +452,8 @@ button.quiet{border-color:transparent;box-shadow:none;background:transparent;col
 @media(max-width:800px){
 .collection-heading:has(+ .filter-bar){margin-bottom:16px}
 .filter-bar{flex-wrap:nowrap;align-items:center;gap:8px;margin-bottom:20px}
-.filter-chips{flex:1;min-width:0;flex-wrap:nowrap;gap:6px;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;margin-left:calc(var(--page-gutter) * -1);padding:4px 16px 10px var(--page-gutter);scrollbar-width:none;mask-image:linear-gradient(to right,#000 calc(100% - 20px),transparent)}
+.filter-chips{flex:1;min-width:0;flex-wrap:nowrap;gap:6px;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;margin-left:calc(var(--page-gutter) * -1);padding:6px 16px 6px var(--page-gutter);scrollbar-width:none;mask-image:linear-gradient(to right,#000 calc(100% - 20px),transparent)}
 .filter-chips::-webkit-scrollbar{display:none}
 .filter-chips .chip{flex:none;min-height:38px;padding:0 14px;font-size:13px}
-.filter-bar .filter-count{flex:none;padding-bottom:6px}
+.filter-bar .filter-count{flex:none}
 }

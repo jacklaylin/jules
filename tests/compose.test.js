@@ -41,11 +41,34 @@ test('the model writes the reply from the outcome, the recent turns and the voic
 test('a rejected reply is retried once with the problems, then the factual draft is used', async () => {
   let calls = 0, retry;
   const fixed = await composeReply({ draft, facts:none, env, fetcher:async (_url, options) => { calls++; if (calls === 2) retry = JSON.parse(options.body).input.at(-1).content;
-    return calls === 1 ? written('No link here.') : written(`Here you go.\n${url}`); } });
-  assert.equal(calls, 2); assert.match(retry, /Include these links/); assert.equal(fixed.body, `Here you go.\n${url}`);
+    return calls === 1 ? written('No link here.') : written(`Here you go, $1,295.\n${url}`); } });
+  assert.equal(calls, 2); assert.match(retry, /Include these links/); assert.match(retry, /Include the prices the results give/); assert.equal(fixed.body, `Here you go, $1,295.\n${url}`);
   calls = 0;
   const stuck = await composeReply({ draft, facts:none, env, fetcher:async () => { calls++; return written(`Saved it!\n${url}`, { saved_now:true }); } });
   assert.equal(calls, 2); assert.equal(stuck.body, draft); assert.equal(stuck.composed, false);
+});
+
+// October 19 founder test: "size 12 in stock and ready to ship" with the verified $249 left out.
+test('a reply must keep the prices the results give, and may not add shop facts they do not state', async () => {
+  const { auditClaims, auditProblems } = await import('../lib/compose.js');
+  const boots = 'found it.\n\nThursday Desperado | Black Matte · $249.00 · size 12 in stock\nhttps://thursdayboots.com/products/desperado';
+  const dropped = checkComposed({ reply:'size 12 is in stock.\nhttps://thursdayboots.com/products/desperado', claims:{} }, { draft:boots });
+  assert.ok(dropped.some(p => /^Include the prices the results give.*249/.test(p)));
+  assert.deepEqual(checkComposed({ reply:'yours in a 12, $249.\nhttps://thursdayboots.com/products/desperado', claims:{} }, { draft:boots }), []);
+  assert.deepEqual(checkComposed({ reply:'they were $249 last time.', claims:{} }, { draft:'', context:boots }), [], 'earlier prices may be repeated, not required');
+  let sent;
+  const reader = statements => async (_url, options) => { sent = JSON.parse(options.body); return { ok:true, json:async () => ({ status:'completed', output:[{ type:'message', content:[{ type:'output_text',
+    text:JSON.stringify({ texts_about_purchases_changed:false, saved_now:false, alerts_turned_on:false, alerts_turned_off:false, names_other_saved_item:false, shop_statements:statements }) }] }] }) }; };
+  const said = (quote, kind, in_results) => ({ quote, kind, in_results });
+  const audit = await auditClaims({ reply:'size 12 in stock and ready to ship, $249.', results:boots, env, fetcher:reader([said('size 12 in stock', 'states_fact', true), said('ready to ship', 'states_fact', false)]) });
+  assert.match(sent.input.find(i => i.content.startsWith('RESULTS')).content, /size 12 in stock/, 'the reader sees what the results say');
+  assert.deepEqual(sent.text.format.schema.properties.shop_statements.items.properties.kind.enum, ['states_fact', 'says_unknown', 'question_or_offer']);
+  const problems = auditProblems(audit, {});
+  assert.equal(problems.length, 1); assert.match(problems[0], /^The message states things the results do not support: "ready to ship"/);
+  // Saying something is unknown, or asking, is honest even though the results don't state it.
+  const honest = await auditClaims({ reply:'size 12 in stock, $249. i couldn’t see shipping times; want me to watch the price?', results:boots, env,
+    fetcher:reader([said('size 12 in stock', 'states_fact', true), said('i couldn’t see shipping times', 'says_unknown', false), said('want me to watch the price', 'question_or_offer', false)]) });
+  assert.deepEqual(auditProblems(honest, {}), []);
 });
 
 test('when the model is unavailable or not configured, the draft is sent and nothing is lost', async () => {

@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {filterChips,matchesFilter,filterFromURL,filterURL,countLabel} from '../public/wishlist-filters.js';
+import {filterChips,matchesFilter,nextFilter,filterFromURL,filterURL,countLabel} from '../public/wishlist-filters.js';
 
 const watched={id:'a',price_alert:{active:true,size:'M'}};
 const soldOut={id:'b',stock:{status:'sold_out',stores:2,fresh:false}};
@@ -46,4 +46,11 @@ test('both collection pages put the count on the filter row, not the heading',as
   assert.doesNotMatch(heading,/id="count"/,page);
   assert.match(html,/class="filter-bar"[^>]*>(?:(?!<\/section>)[\s\S])*id="count"/,page);
  }
+});
+
+test('tapping the selected filter turns it off; tapping another switches to it',()=>{
+ assert.equal(nextFilter('sold-out','sold-out'),'all');
+ assert.equal(nextFilter('sold-out','alerts'),'alerts');
+ assert.equal(nextFilter('all','sold-out'),'sold-out');
+ assert.equal(nextFilter('all','all'),'all');
 });
