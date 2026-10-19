@@ -72,3 +72,6 @@
 .info .stock-alert-on{margin:0;padding:0 4px;font-size:12px;color:var(--text-2)}
 @media(max-width:800px){.tile .stock-tag{margin-inline:4px}.card-note{margin-inline:4px;font-size:11px}}
 .link-action .stock-tag{margin-right:4px;vertical-align:1px}
+.filter-empty{display:grid;justify-items:start;gap:16px;margin-top:24px}
+.filter-empty p{margin:0;font:400 36px/1.1 var(--font-serif);letter-spacing:-.04em}
+.filter-empty[hidden]{display:none}

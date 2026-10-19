@@ -149,6 +149,13 @@ test('without a recorded send time, the placeholder row time is never used as th
   assert.equal(turnOutcomes({ messages }, { now: NOW })[0].result_ms, null);
 });
 
+test('a search followed by a pick in the same turn still counts the options it showed', () => {
+  const messages = chat([{ actions: [search(), { tool: 'respond_to_options', status: 'done', decision: 'interest', option_indices: [0] }] }]);
+  messages[1].search_result = { products: [], text_wishlist_state: { stage: 'offer_set', options: verified(2), selected_set: verified(1) } };
+  const [turn] = turnOutcomes({ messages }, { now: NOW });
+  assert.equal(turn.result, 'verified'); assert.equal(turn.products_shown, 2); assert.equal(turn.verified_shown, 2);
+});
+
 test('the summary reports rates on their own samples', () => {
   const turns = outcomes([{ actions: [search()], products: verified(2) }, { actions: [{ tool: 'save_to_wishlist', status: 'done' }], outcome_flags: { saved_now: true } },
     { actions: [search()], products: [] }, { actions: [search()], products: verified(1) }]);

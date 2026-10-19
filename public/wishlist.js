@@ -4,9 +4,10 @@ mountHeader('wishlist');
 import {createSession} from './wishlist-session.js';
 import {rememberWishlistTarget,consumeWishlistTarget} from './wishlist-deep-link.js';
 import {matchPhotoBackground} from './photo-background.js';
+import {filterChips,matchesFilter,nextFilter,filterLabel,filterFromURL,filterURL,countLabel} from './wishlist-filters.js';
 const $ = id => document.getElementById(id);
 const session=createSession({fetcher:fetch,storage:localStorage,lock:work=>navigator.locks?navigator.locks.request('jules-wishlist-refresh',work):work()});
-let token=session.read()?.access_token||sessionStorage.getItem('jules_wishlist_token'), generation=0, detailVersion=0;
+let token=session.read()?.access_token||sessionStorage.getItem('jules_wishlist_token'), generation=0, detailVersion=0, filter=filterFromURL(location.search);
 const urls=new Set(), imageCache=new Map(), itemCache=new Map();
 const fragment=new URLSearchParams(location.hash.slice(1));
 if(fragment.has('access_token')){token=fragment.get('access_token');session.save({access_token:token,refresh_token:fragment.get('refresh_token'),expires_at:Number(fragment.get('expires_at'))||Date.now()/1000+(Number(fragment.get('expires_in'))||3600)});sessionStorage.removeItem('jules_wishlist_token');}
@@ -95,14 +96,36 @@ async function detail(id){
  }catch(e){if(version===detailVersion){$('detail-content').setAttribute('aria-busy','false');if(saved)$('detail-content .info')?.append(node('p',e.message));else $('detail-content').replaceChildren(node('p',e.message));}}
 }
 async function load(){
- clear();const version=generation;$('login').hidden=true;$('collection').hidden=false;$('empty').hidden=true;$('count').textContent='';$('grid').setAttribute('aria-busy','true');for(let i=0;i<4;i++){const tile=node('div',null,'tile');tile.setAttribute('aria-hidden','true');tile.append(skeleton('photo'),skeleton('skeleton-card-title'),skeleton('skeleton-price'));$('grid').append(tile);}
+ clear();const version=generation;$('login').hidden=true;$('collection').hidden=false;$('empty').hidden=true;$('toolbar').hidden=true;$('filter-empty').hidden=true;$('grid').setAttribute('aria-busy','true');for(let i=0;i<4;i++){const tile=node('div',null,'tile');tile.setAttribute('aria-hidden','true');tile.append(skeleton('photo'),skeleton('skeleton-card-title'),skeleton('skeleton-price'));$('grid').append(tile);}
  let items;try{({items}=await api());if(version!==generation)return;void enableAdminLink(token);}catch(e){$('grid').replaceChildren();throw e;}finally{$('grid').setAttribute('aria-busy','false');}
- $('grid').replaceChildren();$('login').hidden=true;$('collection').hidden=false;$('empty').hidden=items.length>0;$('count').textContent=items.length+' '+(items.length===1?'ITEM':'ITEMS');
- for(const item of items){itemCache.set(item.id,item);const card=node('div',null,'product-card');card.dataset.group=item.id;const tile=node('button',null,'tile');tile.type='button';tile.append(item.has_image?photo(`?item=${item.image_item}&image=product`,item.name):pendingPhoto(item.photo_status==='retry_pending'),node('strong',item.name),node('span',priceRange(item.price_ranges),'card-price'+(item.stock?' sold-out':'')),...cardStock(item.stock));if(item.sourcing_status==='store_not_found')tile.append(node('span','Product identified · Store not found','card-state'));tile.onclick=()=>detail(item.id);card.append(tile,removeButton(item,card));if(item.alerts_enabled)card.append(alertToggle(item));$('grid').append(card);}message('');requestAnimationFrame(()=>{if(version===generation)$('collection').dataset.readyMs=performance.now().toFixed(1);});void recoverPhotos(items,generation);void recoverAlertBaselines(items,generation);
+ $('grid').replaceChildren();$('login').hidden=true;$('collection').hidden=false;$('empty').hidden=items.length>0;
+ for(const item of items){itemCache.set(item.id,item);const card=node('div',null,'product-card');card.dataset.group=item.id;const tile=node('button',null,'tile');tile.type='button';tile.append(item.has_image?photo(`?item=${item.image_item}&image=product`,item.name):pendingPhoto(item.photo_status==='retry_pending'),node('strong',item.name),node('span',priceRange(item.price_ranges),'card-price'+(item.stock?' sold-out':'')),...cardStock(item.stock));if(item.sourcing_status==='store_not_found')tile.append(node('span','Product identified · Store not found','card-state'));tile.onclick=()=>detail(item.id);card.append(tile,removeButton(item,card));if(item.alerts_enabled)card.append(alertToggle(item));$('grid').append(card);}
+ // A link to a filter with nothing in it opens the whole wishlist.
+ if(filter!=='all'&&!items.some(item=>matchesFilter(item,filter)))setFilter('all',false);
+ applyFilter();message('');requestAnimationFrame(()=>{if(version===generation)$('collection').dataset.readyMs=performance.now().toFixed(1);});void recoverPhotos(items,generation);void recoverAlertBaselines(items,generation);
  const target=consumeWishlistTarget(items,localStorage);
  if(target?.id)void detail(target.id);else if(target?.missing)message('This item is not available in your signed-in wishlist.');
 }
 
+function setFilter(id,apply=true){
+ filter=id;history.replaceState(history.state,'',filterURL(location.href,id));
+ if(apply)applyFilter();
+}
+// Chips count every state; refilter=false keeps cards in place after an alert change until the person picks a filter.
+function applyFilter(refilter=true){
+ const items=[...itemCache.values()];
+ $('filters').replaceChildren(...filterChips(items,filter).map(chip=>{
+  const button=node('button',chip.label,'chip'+(chip.id===filter?' chip--on':''));button.type='button';button.setAttribute('aria-pressed',String(chip.id===filter));
+  button.append(node('span',String(chip.count),'chip-count'));button.onclick=()=>setFilter(nextFilter(filter,chip.id));return button;
+ }));
+ let shown=0;
+ for(const card of $('grid').children){const item=itemCache.get(card.dataset.group);if(!item)continue;if(refilter)card.hidden=!matchesFilter(item,filter);if(!card.hidden)shown++;}
+ $('count').textContent=countLabel(shown,items.length,filter!=='all');
+ $('toolbar').hidden=!items.length;
+ const empty=Boolean(items.length)&&filter!=='all'&&!shown;$('filter-empty').hidden=!empty;
+ if(empty){$('filter-empty-text').textContent=`Nothing left in ${filterLabel(filter)}.`;$('filter-show-all').textContent=`Show all ${items.length} ${items.length===1?'item':'items'}`;}
+}
+$('filter-show-all').onclick=()=>setFilter('all');
 async function recoverAlertBaselines(items,version){
  if(!items.some(item=>item.price_alert?.active&&item.price_alert.baseline_pending))return;
  try{
@@ -155,7 +178,7 @@ function toast(text,undo){
 }
 function removeButton(item,card){
  const button=node('button','×','icon-button remove-item');button.type='button';button.setAttribute('aria-label',`Remove ${item.name} from wishlist`);button.title='Remove from wishlist';
- button.onclick=async()=>{button.disabled=true;try{await alertPost({action:'remove',group:item.id});if(card)await removeWithMotion(card);itemCache.delete(item.id);const count=$('grid').children.length;$('count').textContent=count+' '+(count===1?'ITEM':'ITEMS');$('empty').hidden=count>0;toast(item.price_alert?.active?'Removed. Price alert turned off.':'Removed from your wishlist.',async()=>{await alertPost({action:'restore',group:item.id});await load();});const next=$('grid').querySelector('.tile');if(next)next.focus();}catch(e){message(e.message);button.disabled=false;}};
+ button.onclick=async()=>{button.disabled=true;try{await alertPost({action:'remove',group:item.id});if(card)await removeWithMotion(card);itemCache.delete(item.id);applyFilter();$('empty').hidden=itemCache.size>0;toast(item.price_alert?.active?'Removed. Price alert turned off.':'Removed from your wishlist.',async()=>{await alertPost({action:'restore',group:item.id});await load();});const next=$('grid').querySelector('.product-card:not([hidden]) .tile');if(next)next.focus();}catch(e){message(e.message);button.disabled=false;}};
  return button;
 }
 function stockSummary(item){
@@ -191,7 +214,7 @@ function alertToggle(item){
  button.onclick=async()=>{
    button.disabled=true;
    try{
-     if(item.price_alert?.active){await alertPost({action:'alert-disable',group:item.id});item.price_alert.active=false;update();toast('Price alert turned off.');return;}
+     if(item.price_alert?.active){await alertPost({action:'alert-disable',group:item.id});item.price_alert.active=false;update();applyFilter(false);toast('Price alert turned off.');return;}
      await openAlertPicker(item,{update,button});
    }catch(e){$('alert-note').textContent=e.message;message(e.message);}finally{button.disabled=false;}
  };return button;
@@ -202,7 +225,7 @@ $('alert-picker').addEventListener('close',()=>{alertSelection=null;});
 $('alert-form').onsubmit=async event=>{
  event.preventDefault();if(!alertSelection||!$('alert-size').value)return;
  const selected=alertSelection;$('alert-save').disabled=true;$('alert-size').disabled=true;$('alert-close').disabled=true;
- try{const data=await alertPost({action:'alert-enable',group:selected.item.id,size:$('alert-size').value});selected.item.price_alert=data;selected.update();popIn(selected.button);closeDialog($('alert-picker'));toast(data.restock?`We’ll text you when size ${data.size} is back in stock.`:"We'll text you if the price drops more than 10% or your size comes back in stock");}
+ try{const data=await alertPost({action:'alert-enable',group:selected.item.id,size:$('alert-size').value});selected.item.price_alert=data;selected.update();applyFilter(false);popIn(selected.button);closeDialog($('alert-picker'));toast(data.restock?`We’ll text you when size ${data.size} is back in stock.`:"We'll text you if the price drops more than 10% or your size comes back in stock");}
  catch(e){$('alert-note').textContent=e.message;}finally{$('alert-save').disabled=!$('alert-size').value;$('alert-size').disabled=false;$('alert-close').disabled=false;}
 };
 const closeDetail=()=>{detailVersion++;closeDialog($('detail'));};
