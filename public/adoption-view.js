@@ -2,7 +2,7 @@
 // Pure functions so the page logic is testable without a browser.
 import {ago} from './admin-people-view.js';
 
-const STAGE_TONE={joined:'plain',messaged:'plain',results:'plain',saved:'ok',watching:'ok'};
+const STAGE_TONE={joined:'plain',messaged:'plain',results:'plain',saved:'ok',watching:'ok',intent:'ok'};
 export const pct=(n,total)=>total?`${Math.round(n/total*100)}%`:'—';
 
 // "45 min", "6 hours", "3 days": how long from a tester's first message to their first product results.
@@ -12,6 +12,7 @@ export function duration(hours){
  if(hours<48){const h=Math.round(hours);return `${h} ${h===1?'hour':'hours'}`;}
  return `${Math.round(hours/24)} days`;
 }
+export const rate=v=>v===null||v===undefined?'—':`${Math.round(v*100)}%`;
 export const money=v=>v===null||v===undefined?'—':`$${v.toFixed(2)}`;
 
 // One tester row: the identifier, the furthest ladder step as a badge, then activity and counts.
@@ -22,6 +23,7 @@ export function testerCells(tester,steps,now=Date.now()){
   last_active:tester.last_active_at?ago(tester.last_active_at,now):'never',
   active_days:`${tester.active_days_7} of 7`,
   results:String(tester.results),saves:String(tester.saves),
+  shown:String(tester.shown),save_rate:rate(tester.save_rate),clicks:String(tester.clicks),
   alerts:tester.alerts_total?`${tester.alerts_active} on · ${tester.alerts_total} set`:'0',
   first_results:duration(tester.hours_to_results),
   cost:money(tester.cost_usd),
@@ -47,5 +49,8 @@ export function summaryCells(summary){
   {label:'Got results',value:String(summary.results),note:of(summary.results)},
   {label:'Saved an item',value:String(summary.saved),note:of(summary.saved)},
   {label:'Watching now',value:String(summary.watching_now),note:of(summary.watching_now)},
+  {label:'Save rate',value:rate(summary.save_rate),note:summary.shown?`${summary.saves_tracked} saved of ${summary.shown} shown`:'not tracked yet'},
+  {label:'Link clicks',value:String(summary.clicks),note:summary.clicks?`from ${summary.clickers} ${summary.clickers===1?'tester':'testers'}`:'none yet'},
+  {label:'Purchase intent',value:String(summary.intent),note:of(summary.intent)},
  ];
 }

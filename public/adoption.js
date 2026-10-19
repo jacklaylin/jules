@@ -11,10 +11,13 @@ const OTHER_TERMS = [
   ['Last message', 'When the tester last texted Jules.'],
   ['Active days', 'Distinct days (UTC) in the last 7 on which the tester texted Jules.'],
   ['Results', 'Replies that carried product results.'],
+  ['Shown', 'Product options linked in Jules’s replies, counted since this tracking began.'],
+  ['Save rate', 'Wishlist saves made since tracking began, divided by product options shown. A save of something the tester found elsewhere also counts.'],
+  ['Clicks', 'Taps on product links in Jules’s replies. Recorded only while link tracking (LINK_CLICK_TRACKING) is on; link previews are not counted.'],
   ['Price alerts', 'Alerts currently on, and every alert the tester has set.'],
   ['First results after', 'Time from the tester’s first message to their first reply with products.'],
   ['Cost', 'Estimated OpenAI and SerpApi spend caused by this tester, at list prices.'],
-  ['Not tracked yet', 'Purchases and purchase intent, results shown versus saved, and link clicks. These need a small event log.'],
+  ['Not tracked yet', 'Completed purchases. Jules never buys, so a purchase is only known when a receipt arrives later.'],
 ];
 let data = null, refreshedAt = null;
 
@@ -30,9 +33,10 @@ function render() {
       cell('Furthest step', el('span', { className: `badge ${c.stage.tone}`, textContent: c.stage.label })),
       cell('Last message', el('span', { textContent: c.last_active, title: t.last_active_at ? new Date(t.last_active_at).toLocaleString() : '' })),
       cell('Active days (last 7)', c.active_days), cell('Results', c.results, 'end num'), cell('Saves', c.saves, 'end num'),
+      cell('Shown', c.shown, 'end num'), cell('Save rate', c.save_rate, 'end num'), cell('Clicks', c.clicks, 'end num'),
       cell('Price alerts', c.alerts), cell('First results after', c.first_results), cell('Cost', c.cost, 'end num'));
   }));
-  if (!testers.length) $('testers').append(el('tr', {}, el('td', { colSpan: 9, className: 'dv-empty', textContent: 'No testers yet.' })));
+  if (!testers.length) $('testers').append(el('tr', {}, el('td', { colSpan: 12, className: 'dv-empty', textContent: 'No testers yet.' })));
   const heads = ['Week of', 'New', 'Active', ...steps.map(s => s.key === 'joined' ? 'Testers' : s.label)];
   $('ladder-head').replaceChildren(...heads.map(h => el('th', { textContent: h })));
   $('ladder').replaceChildren(...weeks.map(w => {
