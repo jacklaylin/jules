@@ -1,3 +1,5 @@
+// Loads first so the cost meter wraps fetch before any handler below keeps a reference to it.
+import '../lib/usage.js';
 import { billingSnapshot } from '../lib/billing.js';
 import { authorize } from '../lib/auth.js';
 import { createStore } from '../lib/store.js';
@@ -13,9 +15,12 @@ export function createCostsHandler({auth=authorize, storeFactory=createStore, en
       if (req.method === 'GET') {
         const date = new URL(req.url,'https://local.invalid').searchParams.get('date');
         if (!validDate(date)) return json(res,400,{error:'Choose a valid date.'});
-        const [entries, providers, metered] = await Promise.all([store.costEntries(date),billing(date,env),Promise.resolve().then(()=>store.meteredMonth(date)).catch(()=>null)]);
-        const report=buildReport({date,entries,providers,metered,env});
+        const optional=read=>Promise.resolve().then(read).catch(()=>null);
+        const [entries, providers, metered, jobUsage, jobRuns, scheduled] = await Promise.all([store.costEntries(date),billing(date,env),optional(()=>store.meteredMonth(date)),
+          optional(()=>store.jobUsageMonth(date)),optional(()=>store.jobRunsMonth(date)),optional(()=>store.scheduledJobs(date))]);
+        const report=buildReport({date,entries,providers,metered,jobUsage,jobRuns,scheduled,env});
         if(!metered)report.featureNotice='Feature costs are unavailable. If db/031_cost_dashboard.sql has not been run in Supabase, run it.';
+        if(!jobUsage||!jobRuns||!scheduled)report.jobsNotice='Some recurring job figures are unavailable. If db/034_recurring_jobs.sql has not been run in Supabase, run it.';
         return json(res,200,report);
       }
       if (req.method === 'POST') {

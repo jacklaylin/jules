@@ -242,6 +242,8 @@ const previewed = { products: [
     candidate_image: 'https://encrypted-tbn0.gstatic.com/shopping?q=tbn:abc', price_snapshot: { amount: 245, currency: 'USD' }, listing_check: { status: 'in_stock' },
     merchant_options: [{ url: 'https://www.mrporter.com/shirt/2', retailer: { name: 'MR PORTER' } }] },
   { brand: 'Auralee', name: 'Auralee wool trousers', url: 'https://auralee.example/trousers' },
+  { brand: 'Our Legacy', name: 'Muscle Tee', url: 'https://www.ourlegacy.com/muscle-tee', retailer: { name: 'Our Legacy' },
+    listing_check: { url: 'https://www.ourlegacy.com/muscle-tee', status: 'verified', product_images: ['https://ourlegacy.centracdn.net/tee-big.jpg', 'https://ourlegacy.centracdn.net/tee-2.jpg'] } },
 ] };
 async function preview(token, { agent = 'facebookexternalhit/1.1 Facebot Twitterbot/1.0', method = 'GET', extra = '', tracking = 'false', loadPhoto, recorded = [] } = {}) {
   const store = { replyResult: async operation => operation === 'ai:p1' ? { conversation_id: A, search_result: previewed } : null, recordAdoptionEvent: async row => recorded.push(row) };
@@ -254,14 +256,17 @@ const previewToken = index => goLink('ai:p1', index, env).split('/go/')[1];
 test('a preview fetcher gets the product name, store and photo, with no price or stock', async () => {
   const res = await preview(previewToken(0));
   assert.equal(res.statusCode, 200); assert.match(res.headers['Content-Type'], /text\/html/);
-  assert.ok(res.body.includes('<meta property="og:title" content="Our Legacy Borrowed &lt;Shirt&gt; &quot;Navy&quot;">'), 'title is brand + name, escaped');
+  assert.ok(res.body.includes('<meta property="og:title" content="Our Legacy Borrowed &lt;Shirt&gt; &quot;Navy&quot; · SSENSE">'), 'title is brand + name + store, escaped');
   assert.ok(res.body.includes('content="At SSENSE"'));
   assert.ok(res.body.includes(`content="https://jules.example/api/image?go=${encodeURIComponent(previewToken(0))}&amp;image=1"`));
   assert.ok(!/245|USD|in_stock|stock/i.test(res.body), 'no price or availability in the preview');
   const other = await preview(previewToken(1));
   assert.ok(other.body.includes('content="At MR PORTER"'), 'another store for the same product names that store');
   const plain = await preview(previewToken(2));
-  assert.ok(plain.body.includes('content="Auralee wool trousers"'), 'a name that already starts with the brand is not doubled');
+  assert.ok(plain.body.includes('content="Auralee wool trousers · auralee.example"'), 'a name that already starts with the brand is not doubled');
+  const own = await preview(previewToken(3));
+  assert.ok(own.body.includes('content="Our Legacy Muscle Tee"'), 'a brand’s own store is not repeated');
+  assert.ok(own.body.includes('og:image'), 'a text-search product uses its verified store photo');
   assert.ok(!plain.body.includes('og:image'), 'no product photo means no image, not brand art');
   assert.equal((await preview(previewToken(0), { method: 'HEAD' })).body, undefined);
 });
@@ -270,11 +275,13 @@ test('the preview photo is the product thumbnail on a white square; missing or f
   const thumb = await sharp({ create: { width: 200, height: 300, channels: 3, background: '#336699' } }).jpeg().toBuffer();
   assert.equal((await preview(previewToken(0), { extra: '&image=1', loadPhoto: async () => { throw new Error('blocked'); } })).statusCode, 404, 'a photo that cannot be fetched is left out');
   const fetched = [];
-  const res = await preview(previewToken(0), { agent: 'Mozilla/5.0', extra: '&image=1', loadPhoto: async url => { fetched.push(url); return thumb; } });
+  const res = await preview(previewToken(0), { agent: 'Mozilla/5.0', extra: '&image=1', loadPhoto: async source => { fetched.push(source); return thumb; } });
   assert.equal(res.statusCode, 200); assert.equal(res.headers['Content-Type'], 'image/jpeg');
   const meta = await sharp(res.body).metadata();
   assert.deepEqual([meta.width, meta.height], [800, 800]);
-  assert.deepEqual(fetched, [previewed.products[0].candidate_image]);
+  assert.deepEqual(fetched, [{ url: previewed.products[0].candidate_image, page: null }], 'the Lens thumbnail comes first');
+  await preview(previewToken(3), { extra: '&image=1', loadPhoto: async source => { fetched.push(source); return thumb; } });
+  assert.deepEqual(fetched[1], { url: 'https://ourlegacy.centracdn.net/tee-big.jpg', page: 'https://www.ourlegacy.com/muscle-tee' }, 'otherwise the first verified store photo');
   assert.equal((await preview(previewToken(2), { extra: '&image=1', loadPhoto: assert.fail })).statusCode, 404);
 });
 
@@ -291,4 +298,21 @@ test('a person tapping a /go/ link goes straight to the store; taps are recorded
   const tampered = previewToken(0).slice(0, -1) + (previewToken(0).endsWith('A') ? 'B' : 'A');
   assert.equal((await preview(tampered)).statusCode, 404);
   assert.equal((await preview(tampered, { extra: '&image=1' })).statusCode, 404, 'a tampered link gets no photo either');
+});
+
+test('the products an answer links (up to 3) are passed on for their own cards, with or without tracking', async () => {
+  const many = { products: ['a', 'b', 'c', 'd', 'e'].map(k => ({ name: k, url: `https://shop.example/${k}`, merchant_options: [{ url: `https://other.example/${k}` }] })) };
+  const body = 'Picks:\nhttps://shop.example/a\nhttps://other.example/b\nhttps://shop.example/d\nhttps://shop.example/e';
+  for (const tracking of ['false', 'true']) {
+    let rich;
+    const store = { receive: async () => C, claimAI: async () => true, context: async () => [{ id: '00000000-0000-4000-8000-000000000001', direction: 'inbound', body: 'tees', status: 'received' }],
+      prepareAI: async () => {}, finish: async () => {}, searchResult: async () => {}, recordAdoptionEvent: async () => {} };
+    await receiveInInbox({ space: { phone: 'l' }, message: { id: 'm1', sender: { id: 's' }, content: { type: 'text', text: 'tees' }, attachments: [] } },
+      { AI_ENABLED: 'true', OPENAI_API_KEY: 'test', SEARCH_ENABLED: 'true', ...env, LINK_CLICK_TRACKING: tracking },
+      { store, send: async (_d, _body, _e, options) => { rich = options; return { id: 'p1' }; }, compose: async args => ({ body: args.draft, captions: [], composed: true }),
+        generate: async (_m, _e, _f, memory) => { await memory.recordSearch(many); return body; } });
+    assert.deepEqual(rich.products.map(p => p.name), ['a', 'b', 'd'], 'only linked products, capped at 3; c was not linked');
+    assert.deepEqual(rich.products.map(p => resultLinks(many)[readGoLink(p.preview_url.split('/go/')[1], env).index]),
+      ['https://shop.example/a', 'https://other.example/b', 'https://shop.example/d'], 'each card opens the store the answer linked');
+  }
 });

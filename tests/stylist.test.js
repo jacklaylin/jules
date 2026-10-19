@@ -116,6 +116,23 @@ test('without room in the turn the stylist is skipped and one search runs',async
  assert.equal(queries.length,1);assert.deepEqual(result.text_wishlist_state.options.map(o=>o.url),[p('x').url]);
 });
 
+// October 19: a "more options" search ran past the turn deadline. Without stylist directions (no room,
+// no directions returned, or a named item) the single search used a fixed 60 s deadline
+// regardless of how much of the turn was left. Every path now fits in what the turn has left.
+test('the single search never gets more time than the turn has left, in every mode and stylist outcome',async()=>{
+ for(const [mode,turnLeft,stylist] of [['discover',30000,()=>assert.fail('No stylist without time')],['discover',60000,async()=>[]],['identify',50000,()=>assert.fail('No stylist for a named item')],['identify',200000,null]]){
+  const deadlines=[],steps=[];let result;
+  await textWishlistAction({action:'start',query:'waffle knit long sleeve',search_plan:{...plan,mode}},{env:{},facts:[],turnLeft:()=>turnLeft,step:s=>steps.push(s),record:async r=>{result=r;},
+   ...(stylist?{stylist}:{}),search:async(q,_i,env)=>{deadlines.push(env.SEARCH_DEADLINE_MS);return {status:'found',products:[{...p('x'),match:'likely_match'}]};},rank:async x=>x});
+  assert.equal(deadlines.length,1,mode+turnLeft);
+  // 20 s stay reserved for the reply; the search also leaves itself 3 s, and never exceeds 60 s.
+  assert.ok(deadlines[0]<=Math.min(60000,turnLeft-20000-3000),mode+' '+turnLeft+': '+deadlines[0]);assert.ok(deadlines[0]>=1000);
+  assert.ok(result.text_wishlist_state.options.length,mode);
+  // Each sourcing stage reaches the turn trace, so a turn that dies mid-search shows where it was.
+  assert.ok(steps.includes('sourcing:search')&&steps.includes('sourcing:search_ms'),mode+' '+steps.join());
+ }
+});
+
 test('Shop catalog results only fill gaps after every direction’s results',async()=>{
  let result;
  const shop=async()=>({products:[{...p('shop1'),source_provider:'shop_catalog'},{...p('shop2'),source_provider:'shop_catalog'}]});

@@ -1,3 +1,5 @@
+// Loads first so the cost meter wraps fetch before any handler below keeps a reference to it.
+import '../lib/usage.js';
 import { authorize } from '../lib/auth.js';
 import { createStore } from '../lib/store.js';
 import { json, readJson, uuid } from '../lib/http.js';
@@ -5,30 +7,41 @@ import { purchaseReview, reviewPurchase, reportMissedPurchase } from '../lib/pur
 import { groupWishlist } from '../lib/wishlist.js';
 import { marketEnvironment } from '../lib/shopping-market.js';
 import { metricsTrend } from '../lib/chat-metrics.js';
+import { loadTurnOutcomes } from '../lib/turn-outcomes.js';
 import { deleteImportedHistory } from '../lib/gmail-import.js';
 import { tagPurchaseHistory } from '../lib/item-tags.js';
 import { buildReport, sendReportLink, sendNewCardText, reportView, withReadPhoto } from '../lib/style-report.js';
 import { firstName } from '../lib/memory.js';
 import { copyWeek } from '../lib/report-copy.js';
 import { adoptionReport } from '../lib/adoption.js';
+import { approveAccess, waitlistAgain, APPROVED_TEXT, WAITLIST_REPLIES } from '../lib/waitlist.js';
+import { profileFirstName, displayName } from '../lib/memory.js';
 
 export const config = { api: { bodyParser: false }, maxDuration: 30 };
 // Owner view. Conversations are read-only (Jules replies automatically); the owner can review and
 // correct imported purchase history.
-export function createAdminHandler({ auth = authorize, storeFactory = createStore, env = process.env, fetcher = fetch } = {}) {
+export function createAdminHandler({ auth = authorize, storeFactory = createStore, env = process.env, fetcher = fetch, send } = {}) {
   return async (req, res) => {
     try {
       const access = await auth(req.headers, env);
       if (access !== 200) return json(res, access, { error: access === 503 ? 'Admin is not configured yet.' : 'Please sign in with the owner account.' });
       if (!['GET','POST'].includes(req.method)) { res.setHeader('Allow', 'GET, POST'); return json(res, 405, { error: 'Method not allowed.' }); }
       if (req.method === 'POST') {
-        // The only writes are purchase-history reviews, tagging and the onboarding reset; manual replies stay retired.
+        // The only writes are purchase-history reviews, tagging, the onboarding reset and waitlist approval; manual replies stay retired.
         const input = await readJson(req);
-        if (!['review', 'missed', 'tag', 'build-report', 'send-report', 'reset-onboarding'].includes(input.action)) return json(res, 400, { error: 'Unknown purchase action.' });
+        if (!['review', 'missed', 'tag', 'build-report', 'send-report', 'reset-onboarding', 'approve', 'waitlist'].includes(input.action)) return json(res, 400, { error: 'Unknown purchase action.' });
+        if (['approve', 'waitlist'].includes(input.action) && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Change waitlist status from the Jules admin page.' });
         if (input.action === 'reset-onboarding' && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Reset onboarding from the Jules admin page.' });
         const store = storeFactory(env);
         if (!uuid(input.conversation) || !await store.conversation(input.conversation)) return json(res, 404, { error: 'Conversation not found.' });
         if (input.action === 'reset-onboarding') return json(res, 200, await resetOnboarding(store, input, env, fetcher));
+        if (['approve', 'waitlist'].includes(input.action)) {
+          if (input.confirm !== true) throw Object.assign(new Error('Confirm the status change first.'), { status: 400 });
+          const conversation = await store.conversation(input.conversation);
+          const result = input.action === 'approve' ? await approveAccess(store, conversation, env, send) : await waitlistAgain(store, conversation);
+          console.log(JSON.stringify({ event: input.action === 'approve' ? 'admin_waitlist_approved' : 'admin_waitlist_returned', changed: result.changed, text: result.text }));
+          return json(res, 200, { access: (await store.accessFor([input.conversation])).get(input.conversation) ?? null, ...result });
+        }
         if (input.action === 'build-report') {
           const built = await buildReport(store, input.conversation, env);
           if (built.status === 'busy') throw Object.assign(new Error('Purchase history is busy (an import or another edit is running). Try again in a moment.'), { status: 409 });
@@ -59,11 +72,22 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
       if (query.get('view') === 'report-copy') return json(res, 200, copyWeek(await store.reportCopyRows()));
       if (query.get('view') === 'adoption') return json(res, 200, await adoptionReport(store));
       if (query.get('view') === 'metrics') return json(res, 200, await metricsTrend(store, { days: 7 }));
+      // Per sourcing turn outcomes (lib/turn-outcomes.js): ids, counts and labels only, no message text.
+      if (query.get('view') === 'turn-outcomes') return json(res, 200, await loadTurnOutcomes(store, { days: Math.min(56, Math.max(1, Number(query.get('days')) || 7)) }));
       const id = query.get('conversation');
       if (!id) {
         // Each tester's signup source (db/033). The list never depends on it: before the migration, sources are blank.
+        // Waitlist status (db/035) is the same: unknown (null) when it cannot be read.
         const [conversations, sources] = await Promise.all([store.list(), store.signupSources?.().catch(() => new Map()) ?? new Map()]);
-        return json(res, 200, { conversations: conversations.map(c => ({ ...c, source: sources.get(c.sender_id) ?? null })) });
+        // Names come from the latest signup, else the first name told to Jules; a failed read only blanks them.
+        const blank = () => new Map();
+        const [statuses, signups, profiles] = await Promise.all([store.accessFor(conversations.map(c => c.id)).catch(blank),
+          store.signupNames?.(conversations.map(c => c.sender_id)).catch(blank) ?? blank(), store.profilesFor?.(conversations.map(c => c.id)).catch(blank) ?? blank()]);
+        return json(res, 200, { conversations: conversations.map(c => {
+          const signup = signups.get(c.sender_id), status = statuses.get(c.id);
+          const name = signup ? [displayName(signup.first_name), displayName(signup.last_name)].filter(Boolean).join(' ') : displayName(profileFirstName(profiles.get(c.id)));
+          return { ...c, name: name || null, source: sources.get(c.sender_id) ?? null, access: status?.access ?? null, waitlist_replies: status?.waitlist_replies ?? null };
+        }), waitlist_enabled: env.WAITLIST_ENABLED === 'true', waitlist_replies: WAITLIST_REPLIES, approval_text: env.WAITLIST_ENABLED === 'true' ? APPROVED_TEXT : null });
       }
       if (!uuid(id)) return json(res, 400, { error: 'Invalid conversation.' });
       const conversation = await store.conversation(id);
@@ -80,7 +104,8 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
         try { before = JSON.parse(query.get('before')); } catch { return json(res, 400, { error: 'Invalid history cursor.' }); }
         if (!uuid(before?.id) || !/^\d{4}-\d{2}-\d{2}T[\d:.]+(?:Z|\+00:00)$/.test(before.at ?? '')) return json(res, 400, { error: 'Invalid history cursor.' });
       }
-      return json(res, 200, { conversation, ...await store.messages(id, before) });
+      const [history, waitlist] = await Promise.all([store.messages(id, before), before ? null : store.accessFor([id]).then(m => m.get(id) ?? null).catch(() => null)]);
+      return json(res, 200, { conversation, ...history, ...(before ? {} : { access: waitlist, approval_text: env.WAITLIST_ENABLED === 'true' ? APPROVED_TEXT : null }) });
     } catch (error) {
       console.error(JSON.stringify({ event: 'admin_request_failed', status: error.status ?? null }));
       // Review validation and busy-lease messages are written for the owner; everything else is generic.

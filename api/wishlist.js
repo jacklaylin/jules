@@ -1,3 +1,5 @@
+// Loads first so the cost meter wraps fetch before any handler below keeps a reference to it.
+import '../lib/usage.js';
 import { wishlistEvidence } from '../lib/evidence.js';
 import {scheduleGmail,handleGmailWork,handleGmailSweep} from '../lib/gmail-worker.js';
 import {handleGmailRefresh} from '../lib/purchase-texts.js';
