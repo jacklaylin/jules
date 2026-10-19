@@ -122,7 +122,14 @@ test('search, then a later message saves: the check sees products the user has a
   assert.equal(accept.commits, 1); assert.equal(accept.checks[0].pending_offer?.offered, 'saving to the wishlist, with optional price alerts');
 });
 
-test('a consent check that fails is recorded as failed, not as a refusal', async () => {
+test('a consent check that fails once is tried again and the save runs', async () => {
+  let calls = 0;
+  const t = turn({ rounds:findSaveRounds, reading:() => (++calls === 1 ? { ok:false, status:429 } : consentReply(asksToSave)), state:{ stage:'choice', options:[coat] } });
+  await generateReply([inbound('find me a navy merino cardigan from Drake’s and save it')], env, t.fetcher, t.memory);
+  assert.equal(calls, 2); assert.equal(t.commits, 1); assert.deepEqual(t.consents.map(c => c.allowed), [true]);
+});
+
+test('a consent check that fails twice is recorded as failed, not as a refusal', async () => {
   const t = turn({ rounds:findSaveRounds.slice(0, 3).concat([[reply('here’s the navy Drake’s cardigan. want me to save it?')]]), reading:() => ({ ok:false, status:429 }), state:{ stage:'choice', options:[coat] } });
   await generateReply([inbound('find me a navy merino cardigan from Drake’s and save it')], env, t.fetcher, t.memory);
   assert.equal(t.commits, 0);
