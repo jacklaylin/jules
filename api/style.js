@@ -136,6 +136,6 @@ export function createStyleHandler({env=process.env,storeFactory=createStore,aut
   };
 }
 function signupURL(env) {
-  try{const u=new URL(env.SITE_ORIGIN);return u.protocol==='https:'&&!u.username&&!u.password?u.origin+'/style':null;}catch{return null;}
+  try{const u=new URL(env.SITE_ORIGIN);return u.protocol==='https:'&&!u.username&&!u.password?u.origin+'/signup?ref=style-card':null;}catch{return null;}
 }
 export default createStyleHandler();

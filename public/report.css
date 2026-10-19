@@ -84,6 +84,7 @@ body.report-page:has(.report-player:not([hidden])[data-ground="inout"]){backgrou
 @media (min-width:900px) and (min-height:600px){.controls-mark{display:none}}
 /* Shared cards ask the friend reading them: "What about you?" beside the wordmark. */
 .story-ask{margin-right:auto;align-self:center;font:500 10px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;opacity:.75}
+.story-where{display:block;margin-top:4px;text-transform:none;letter-spacing:.02em}
 .report-wordmark{font:400 24px/1 var(--font-serif);letter-spacing:-.04em;white-space:nowrap}
 .report-j{position:relative;display:inline-block}
 .report-dot{position:absolute;left:.01em;top:.02em;width:.21em;height:.21em;border-radius:50%;background:radial-gradient(circle at 30% 30%,var(--butter),var(--tangerine,#FF7A2F) 55%,var(--grape))}
@@ -434,3 +435,6 @@ body.report-page:has(.report-player:not([hidden])[data-ground="inout"]){backgrou
  .report-sheet{margin:auto;border-radius:24px}
  .report-toast{bottom:40px}
 }
+a.report-pill-button{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;box-sizing:border-box}
+/* A friend's way in: the one filled pill on every card of a shared report. */
+#get-yours{background:var(--grape);border-color:var(--grape);color:var(--white)}
