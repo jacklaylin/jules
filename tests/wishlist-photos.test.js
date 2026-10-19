@@ -70,3 +70,17 @@ test('an unverified saved link still gets a photo when the details check is reje
  const rows=await repairWishlistPhotos([{item_id:'a',...p}],{conversation:'owned',store,now,env:{SHOPPING_COUNTRY:'US'},verify:async()=>({status:'blocked'}),photos:async()=>{throw Error('403');},indexed:async()=>({product_images:['https://cdn.example/tee.jpg']}),assets:async()=>[photo]});
  assert.equal(rows[0].has_image,'image/jpeg');assert.equal(store.items.get('a').product.image,photo);
 });
+test('a blocked page through the API falls back to the index and records the attempt instead of failing',async()=>{
+ const store=fixture();store.wishlistEntries=async()=>[{...product,item_id:'a',reply_id:'reply'}];
+ const handler=createWishlistHandler({env:{WISHLIST_ENABLED:'true'},storeFactory:()=>store,auth:async()=>({status:200,conversation:'owned'}),photos:async()=>{throw Error('403');},verify:async()=>({status:'unavailable'})});
+ const req=Object.assign(Readable.from([JSON.stringify({action:'recover-photos'})]),{method:'POST',url:'/api/wishlist',headers:{authorization:'test','content-type':'application/json'}});
+ const res={setHeader(){},end(body){this.body=body;}};await handler(req,res);
+ assert.equal(res.statusCode,200);assert.equal(store.items.get('a').product.photo_status,'retry_pending');assert.equal(store.items.get('a').product.photo_attempts,1);
+});
+test('rejected details checks stop after three attempts so paid search does not repeat forever',async()=>{
+ const store=fixture();const p=store.items.get('a').product;Object.assign(p,{image:photo,details_revision:6,market_country:'US',links:[{url:product.url,user_saved:true,verification_status:'unverified'}]});
+ store.correctWishlistProduct=async()=>assert.fail('details stay unverified');
+ let checks=0;const run=at=>repairWishlistPhotos([{item_id:'a',has_image:'image/jpeg',...p,details_attempts:p.details_attempts}],{conversation:'owned',store,now:at,env:{SHOPPING_COUNTRY:'US'},verify:async()=>{checks++;return {status:'blocked'};},photos:()=>assert.fail('has a photo'),indexed:()=>assert.fail('has a photo')});
+ for(let n=0;n<5;n++)await run(now+n*300001);
+ assert.equal(checks,3);assert.equal(p.details_attempts,3);assert.equal(p.image,photo);
+});

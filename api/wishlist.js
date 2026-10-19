@@ -13,6 +13,8 @@ import {fetchListingPhotos,fetchProductAssets} from '../lib/product-photos.js';
 import {verifyListing} from '../lib/listings.js';
 import { inspectAlertLinks, baselineOffers, readSizeOffers, lowestAvailable, initialPriceBaselines } from '../lib/price-alerts.js';
 import { createStore } from '../lib/store.js';
+import {withUsage} from '../lib/usage.js';
+import {lookupIndexedProduct} from '../lib/indexed-product.js';
 import { wishlistUser, sessionHash, groupWishlist } from '../lib/wishlist.js';
 import { authorize } from '../lib/auth.js';
 import { json, readJson, uuid } from '../lib/http.js';
@@ -23,6 +25,8 @@ import {handleWardrobe} from '../lib/wardrobe.js';
 
 export const config = { api: { bodyParser: false }, maxDuration: 120 };
 export function createWishlistHandler({ env = process.env, storeFactory = createStore, auth = wishlistUser, admin = authorize, fetcher = fetch, verify = verifyListing, inspect = inspectAlertLinks, photos = fetchListingPhotos } = {}) {
+  // Resolve the default fetch per call so the usage meter (which wraps global fetch) records recovery searches.
+  const live=fetcher===fetch?(...args)=>globalThis.fetch(...args):fetcher;
   const onboarding=createOnboardingHandler({env,storeFactory});
   const gmail=createGmailHandler({env,storeFactory,auth,fetcher,schedule:(owner,worker)=>scheduleGmail(owner,env,{worker})});
   const phoneLogin=createPhoneLoginHandler({env,storeFactory,fetcher});
@@ -55,7 +59,7 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
         if(input.action==='recover-photos'){
           const access=await auth(req.headers,env,store,fetcher);if(access.status!==200)return json(res,access.status,{error:'Please sign in with your invited email.'});
           const marketEnv=marketEnvironment((await store.profile?.(access.conversation))?.facts??[],env);
-          const rows=await repairWishlistPhotos(await store.wishlistEntries(access.conversation),{conversation:access.conversation,store,env:marketEnv,verify:(url,name)=>verify(url,name,fetcher,undefined,marketEnv,{recoveryOnly:true}),photos:(url,name)=>photos(url,name,fetcher),assets:(urls,url)=>fetchProductAssets(urls,url,fetcher),indexed:(url,name)=>lookupIndexedProduct(url,name,{env:marketEnv,fetcher,siteSearch:true})});
+          const rows=await withUsage({store,env,conversation:access.conversation,operation:'wishlist-recovery:'+new Date().toISOString().slice(0,13),feature:'wishlist_recovery',quiet:true},async()=>repairWishlistPhotos(await store.wishlistEntries(access.conversation),{conversation:access.conversation,store,env:marketEnv,verify:(url,name)=>verify(url,name,live,undefined,marketEnv,{recoveryOnly:true}),photos:(url,name)=>photos(url,name,live),assets:(urls,url)=>fetchProductAssets(urls,url,live),indexed:(url,name)=>lookupIndexedProduct(url,name,{env:marketEnv,siteSearch:true})}));
           return json(res,200,{items:groupWishlist(rows,{currency:marketEnv.SHOPPING_CURRENCY,country:marketEnv.SHOPPING_COUNTRY}).map(({links,entries,...group})=>group)});
         }
         if(input.action==='recover-alerts'){
@@ -80,7 +84,7 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
           const access=await auth(req.headers,env,store,fetcher);if(access.status!==200)return json(res,access.status,{error:'Please sign in with your invited email.'});
           if(!uuid(input.item))return json(res,400,{error:'Invalid item.'});
           const marketEnv=marketEnvironment((await store.profile?.(access.conversation))?.facts??[],env);
-          const {update,...result}=await enrichWishlistItem(store,access.conversation,input.item,{env:marketEnv,verify:(url,name)=>verify(url,name,fetcher,undefined,marketEnv,{recoveryOnly:true}),photos:(url,name)=>photos(url,name,fetcher),assets:(urls,url)=>fetchProductAssets(urls,url,fetcher),indexed:(url,name)=>lookupIndexedProduct(url,name,{env:marketEnv,fetcher,siteSearch:true})});
+          const {update,...result}=await withUsage({store,env,conversation:access.conversation,operation:'wishlist-details:'+input.item,feature:'wishlist_recovery',quiet:true},()=>enrichWishlistItem(store,access.conversation,input.item,{env:marketEnv,verify:(url,name)=>verify(url,name,live,undefined,marketEnv,{recoveryOnly:true}),photos:(url,name)=>photos(url,name,live),assets:(urls,url)=>fetchProductAssets(urls,url,live)}));
           return json(res,200,result);
         }
         if (['remove','restore'].includes(input.action)) {
