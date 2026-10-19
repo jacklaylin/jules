@@ -58,3 +58,14 @@
 .removed-row strong{display:block;font-size:15px;line-height:1.3;overflow-wrap:anywhere}
 .removed-row .fine{margin:0}
 .removed-row .chip{padding:0 14px;font-size:13px}
+
+/* Suggested photos: a searched photo waiting for the owner's answer. Labelled on the photo, answered beside it. */
+.suggested-frame{position:relative}
+.suggested-label{position:absolute;left:10px;top:10px;padding:4px 8px;border-radius:999px;background:var(--photo-overlay);color:var(--ink);font:500 10px/1.4 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;pointer-events:none}
+.suggest-ask{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:8px;padding:0 4px}
+.suggest-ask>span{font-size:14px;font-weight:600}
+.suggest-answers{display:flex;gap:8px}
+.suggest-answers .chip{padding:0 16px;font-size:13px}
+.detail-suggestion{display:flex;flex-direction:column;gap:12px;min-width:0}
+.detail-suggestion .photo{aspect-ratio:4/5}
+.detail-suggestion .suggest-ask{padding:0}
