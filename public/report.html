@@ -18,7 +18,11 @@
       <p class="label" id="intro-eyebrow"></p>
       <h1 class="display" id="intro-title">Your style report is ready.</h1>
     </div>
-    <button id="intro-start" class="report-cta" type="button">Show me</button>
+    <div class="report-intro-actions">
+      <button id="intro-start" class="report-cta" type="button">Show me</button>
+      <!-- A friend's view only: a quiet way to sign up before watching (Shared Report Get Yours canvas). -->
+      <a id="intro-signup" class="report-end-row report-intro-row" href="/signup?ref=shared-report" hidden><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg><span>Get your style report</span><span class="report-end-row-go" aria-hidden="true">↗</span></a>
+    </div>
   </section>
 
   <section id="view-card" class="report-frame report-player" hidden>
@@ -40,6 +44,7 @@
       <button id="edit-lines" class="report-pill-button" type="button">Edit lines</button>
       <button id="read-shuffle" class="report-pill-button" type="button" hidden aria-label="Shuffle: read another of your outfit photos">Shuffle</button>
       <button id="share" class="report-pill-button report-share" type="button">Share ↗</button>
+      <a id="get-yours" class="report-pill-button" href="/signup?ref=shared-report" hidden>Get your style report ↗</a>
     </div>
   </section>
 
@@ -53,7 +58,7 @@
     <div class="report-end-actions">
       <a id="end-connect" class="report-cta" href="/account" hidden></a>
       <button id="end-share" class="report-cta" type="button">Share your report ↗</button>
-      <a id="end-cta" class="report-cta" href="/signup?ref=shared-report" hidden>Get your own report ↗</a>
+      <a id="end-cta" class="report-cta" href="/signup?ref=shared-report" hidden>Get your style report ↗</a>
       <div class="report-end-rows">
         <button id="end-share-row" class="report-end-row" type="button" hidden><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5M5 13v7h14v-7"/></svg><span>Share your report</span></button>
         <button id="end-copy" class="report-end-row" type="button"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg><span>Copy report link</span></button>

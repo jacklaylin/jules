@@ -64,7 +64,11 @@ const day=at=>new Date(at).toLocaleDateString('en-GB',{day:'numeric',month:'shor
 const theirs=()=>report.shared?(report.name?`${report.name}’s`:'their'):'your';
 const Theirs=()=>{const t=theirs();return t.charAt(0).toUpperCase()+t.slice(1);};
 // Shared cards end with a question back to the friend reading them.
-const foot=(className='story-foot')=>el('footer',{className},report.shared&&el('span',{className:'story-ask',textContent:'What about you?'}),wordmark());
+// An exported Story image asks the question and says where to get one, for when it's reposted without
+// the link sticker. In the page, the Get your style report button does that job instead.
+const foot=(className='story-foot')=>el('footer',{className},report.shared&&exportCard&&el('span',{className:'story-ask'},'What about you?',el('span',{className:'story-where',textContent:`Text Jules · ${location.host}`})),wordmark());
+// A friend's way in: signup credited to this share link (Admin shows whose report brought them).
+const signupHref=()=>`/signup?ref=${/^u-[0-9a-f]{12}$/.test(report?.ref??'')?report.ref:'shared-report'}`;
 // The receipt proves Jules has read the person's orders: member since, their first order, exact
 // products, a few fields (items kept, last order...) and one line of fine print. Reports built before
 // October 18 still end on their TOTAL line.
@@ -353,6 +357,10 @@ function renderCard(animate=true){
  // Shuffling re-reads another of the person's outfit photos; only on their own report, with 2+ photos.
  $('read-shuffle').hidden=card.type!=='read'||readOnly||!(report.read_photos>1);
  $('share').hidden=readOnly;
+ // A friend can sign up from any card, not only the end.
+ $('get-yours').hidden=!report.shared;
+ // On desktop a friend's button sits beside the card instead of in the feedback controls' corner.
+ $('view-card').classList.toggle('is-friend',Boolean(report.shared));
  // An admin preview records nothing: no thumbs, no line edits.
  // A locked card takes no thumbs either: there's nothing to judge yet.
  const quiet=readOnly||card.type==='locked';
@@ -564,9 +572,10 @@ function opened(result){
   $('intro-eyebrow').textContent=['Made by Jules from real orders',report.built_at&&day(report.built_at)].filter(Boolean).join(' · ');
   $('intro-title').textContent=report.name?`${report.name}’s style report is in.`:'A style report is in.';
   $('end-title').textContent='What would yours say?';
-  $('end-body').textContent=`${report.name?`Jules made ${report.name}’s`:'Jules made this'} from real orders. Get yours by connecting your order emails.`;
-  $('end-cta').hidden=false;
-  if(!report.cards.length){message('Nothing shared here yet.','This report has no cards to show right now.','Style report',{label:'Get your own report ↗',href:'/signup?ref=shared-report'});return;}
+  $('end-body').textContent=`${report.name?`Jules made ${report.name}’s`:'Jules made this'} from what they really buy and wear. Sign up and Jules will start on yours.`;
+  $('end-cta').hidden=false;$('intro-signup').hidden=false;
+  $('end-cta').href=$('get-yours').href=$('intro-signup').href=signupHref();
+  if(!report.cards.length){message('Nothing shared here yet.','This report has no cards to show right now.','Style report',{label:'Get your own report ↗',href:signupHref()});return;}
   if(exportCard)return exportOne(exportCard);
  }else{
   $('intro-eyebrow').textContent=(person?'Admin preview · ':'')+[report.name?`For ${report.name}`:'For you',report.built_at&&day(report.built_at)].filter(Boolean).join(' · ');

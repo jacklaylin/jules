@@ -35,6 +35,7 @@ test('API scopes items and source bytes to the invited conversation and strips s
  let res=response();await handler(request('GET',`/api/wishlist?item=${other}`),res);assert.equal(res.statusCode,404);
  res=response();await handler(request('GET',`/api/wishlist?item=${id}&source=${other}`),res);assert.equal(res.statusCode,404);assert.equal(bytes,0);
  res=response();await handler(request('GET',`/api/wishlist?item=${id}&source=${id}`),res);assert.equal(res.statusCode,200);assert.equal(bytes,1);assert.equal(res.headers['Cache-Control'],'no-store');
+ res=response();await handler(request('GET',`/api/wishlist?item=${id}&source=${id}&v=7`),res);assert.equal(res.statusCode,200);assert.match(res.headers['Cache-Control'],/^private, max-age=\d+, immutable$/);
  res=response();await handler(request('GET',`/api/wishlist?item=${id}`),res);assert.equal(JSON.parse(res.value).item.product.image,undefined);
  const denied=createWishlistHandler({verify:async url=>({status:'verified',url,price_snapshot:null}),env,storeFactory:()=>({}),auth:async()=>({status:401})});res=response();await denied(request(),res);assert.equal(res.statusCode,401);
 });

@@ -38,8 +38,7 @@
 .detail-facts dt,.detail-facts dd{margin:0;padding:12px 0;border-bottom:1px solid var(--line)}
 .detail-facts dt{font:500 11px/1.9 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--text-2);padding-right:20px}
 .detail-facts dd{font-size:15px;line-height:1.45;overflow-wrap:anywhere}
-.detail-actions{display:flex;flex-direction:column;gap:12px}
-.detail-fixes{display:flex;gap:12px;flex-wrap:wrap}.detail-fixes .btn{flex:1}
+.detail-actions{display:flex;flex-direction:column;gap:20px;padding-top:8px}
 @media(max-width:800px){.wardrobe-detail{width:100%;max-width:100%;height:100dvh;max-height:100dvh;margin:0;border-radius:0;border:0;box-shadow:none;padding:16px var(--page-gutter) 32px}.detail-close{position:sticky;top:0;z-index:2}.detail-body{grid-template-columns:1fr;gap:20px}.detail-body>.photo{aspect-ratio:4/5}}
 
 /* Sheets: remove reasons, fix details, add item, removed list. */
@@ -58,3 +57,17 @@
 .removed-row strong{display:block;font-size:15px;line-height:1.3;overflow-wrap:anywhere}
 .removed-row .fine{margin:0}
 .removed-row .chip{padding:0 14px;font-size:13px}
+
+/* Suggested photos: a searched photo waiting for the owner's answer. The question and the thumbs sit
+   inside the photo. On cards the thumbs overlay the tile's photo area (buttons can't nest in the tile). */
+.suggested-frame{position:relative}
+.suggested-label{position:absolute;left:10px;top:10px;padding:4px 8px;border-radius:999px;background:var(--photo-overlay);color:var(--ink);font:500 10px/1.4 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;pointer-events:none}
+.suggest-ask{position:absolute;display:flex;gap:8px;align-items:flex-end;justify-content:flex-end;padding:10px;pointer-events:none}
+.product-card>.suggest-ask{top:11px;left:11px;right:11px;aspect-ratio:4/5}
+.suggested-frame>.suggest-ask{inset:0}
+.suggest-thumb{pointer-events:auto;width:44px;height:44px;min-height:44px;padding:0;display:grid;place-items:center;border-radius:50%;background:var(--photo-overlay);color:var(--ink)}
+.suggest-thumb--down svg{transform:rotate(180deg)}
+.detail-suggestion{min-width:0}.detail-suggestion>.photo{aspect-ratio:4/5}
+@media(max-width:800px){.product-card>.suggest-ask{top:9px;left:9px;right:9px;aspect-ratio:3/4;padding:8px;gap:6px}.suggested-label{left:8px;top:8px}}
+/* A thumbnail-sized order photo keeps its own scale (set in wardrobe.js) instead of stretching to the frame. */
+.photo--small img{width:auto;height:auto;object-fit:contain}

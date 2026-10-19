@@ -28,6 +28,28 @@ The configured Supabase Auth redirect allowlist must permit `SITE_ORIGIN/onboard
 
 The existing public-launch/provider-review notes in LANDING-PAGE.md remain relevant for broad public outreach. This change does not implement universal messaging unsubscribe or general public account enrollment. Declining this demo cancels its onboarding progression, not existing shopping alerts.
 
+## Jules's contact card
+
+Right after the welcome is delivered, Jules sends “save me so you know it’s me:” and a contact card, `jules.vcf`: name **Jules**, note **Personal shopper**, the Jules number, the site link and the still-orb photo (`public/brand/contact-photo-512.jpg`). Tapping it on iPhone opens **Create New Contact** with everything filled in. The card is built at send time by `lib/contact-card.js` from two Vercel settings, so no phone number lives in the repository:
+
+- `JULES_PUBLIC_LINE`: the Photon line in international format, e.g. `+14155550100`. Without it, the welcome goes alone and no card is sent.
+- `SITE_ORIGIN`: already required above; it becomes the card's website.
+
+The card is its own ledger entry (`onboarding:<conversation>:contact_card`), so it goes once, only after a welcome Photon accepted, never after an uncertain one. A failed card never changes the welcome's outcome; Vercel logs show `imessage_file_sent` or `imessage_file_failed`.
+
+**Check it once:** with both settings in Vercel, provision a test number and sign up. You should get the welcome, then the lead-in and a contact bubble showing the orb. Tap it and confirm the name, number and photo.
+
+### Set the same photo as the line's iMessage Name and Photo
+
+The contact card covers people who save it. Separately, iMessage can show Jules's name and photo in the chat header for everyone, using the Photon line's own **Name and Photo** (the iMessage profile Apple shares with people you text). It lives on the Photon line's Apple account, not in this app, so it is a one-time setup outside the code:
+
+1. Why: so the thread shows **Jules** and the orb even for testers who never save the card.
+2. In [Photon Dashboard](https://app.photon.codes/), open the `jules` project and the line testers text, and look for the line's iMessage profile (**Name and Photo**). This repository can't confirm Photon exposes it; if it does, set the name to `Jules` (first name only) and upload `public/brand/contact-photo-1024.png` (iOS crops it to a circle). If there is a sharing choice, pick sharing automatically with **Anyone**, not **Contacts Only**, so it reaches testers who haven't saved Jules.
+3. If the dashboard has no such setting, email Photon support: ask them to set the iMessage Name and Photo for the Jules line to “Jules” with that image attached, shared automatically, and to turn on contact sharing for the project (the iMessage SDK calls this the `imessageSynced` profile; it pushes the line's card to each chat once a day).
+4. No credential or value is produced. Nothing goes into Vercel or the repository.
+
+Then text the line from a phone that has never saved Jules. After Jules replies, the thread should offer or show the orb and “Jules” (iOS may show a banner to accept the updated name and photo).
+
 ## Failure and retry behavior
 
 Outbound messages use the existing persisted reservation/delivery ledger. Concurrent signup submissions and repeated demo clicks cannot send the same stage twice. An uncertain send is not retried automatically because it may already have reached the tester. The browser reports uncertainty and retains a wishlist link. Stage state survives reloads. Account access is checked on every request; the client cannot choose another conversation. The demo POST checks the site origin. Consent to a product save or alert cannot be reused as acceptance of the style-reading offer.
