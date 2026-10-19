@@ -3,10 +3,13 @@ import { authorize } from '../lib/auth.js';
 import { createStore } from '../lib/store.js';
 import { json, uuid } from '../lib/http.js';
 import { handleReportImage } from '../lib/report-image.js';
+import { createGoHandler } from '../lib/adoption-events.js';
 export function createImageHandler({auth=authorize,storeFactory=createStore,env=process.env,previewHandler=createPreviewHandler({env})}={}) {
   return async (req,res) => {
     try {
       if (new URL(req.url,'https://local.invalid').searchParams.get('preview')==='1') return previewHandler(req,res);
+      // A tracked product link from a Jules reply (/go/<token>): public, records the click and forwards to the store.
+      if (new URL(req.url,'https://local.invalid').searchParams.has('go')) return createGoHandler({env,store:storeFactory(env)})(req,res);
       // A shared style report card as a Story image: public like the share link, no sign-in.
       if (new URL(req.url,'https://local.invalid').searchParams.has('report')) return handleReportImage(req,res,{store:storeFactory(env),env});
       const access=await auth(req.headers,env);

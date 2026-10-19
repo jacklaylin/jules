@@ -150,6 +150,7 @@ How beliefs follow evidence: `prune_unsupported_facts` runs whenever evidence is
 |---|---|
 | `gmail_imports` (row) | OAuth token (encrypted), consent version, import job progress, open questions (`data.questions`), lease/revision lock, and `history_summary`: a cache of the purchase-history view refreshed on every write. Receipt items are not stored here. |
 | `usage_events` (+ `usage_by_user_day` view) | One row per OpenAI or SerpApi call, attributed to the user action (chat message, Gmail step, style reading) and the agent tool chosen, with tokens, web-search calls and an estimated cost (`lib/usage.js`). The basis for per-user cost and eventual billing; provider invoices remain authoritative. |
+| `adoption_events` | One row per reply that showed product options (`results_shown`, quantity = options linked), product-link tap through `/go/…` (`link_click`), or purchase request (`purchase_intent`), with the reply's operation id. No message text, links or phone numbers (`lib/adoption-events.js`). Feeds save rate, clicks and the Purchase intent step on Admin › Adoption. |
 | `style_sessions` | `/style` notes, tone, current report (cards plus references to observation evidence), analysis lock. |
 | `onboarding_sessions` | Onboarding step per invited user. |
 | `wishlist_items`, `wishlist_encounters`, `wishlist_entry_metadata` (view) | What the user saved and where each save came from. |
@@ -203,3 +204,4 @@ The People page compares the last 7 days with the 7 before (`metricsTrend`). Eac
 - `db/022_history_sources.sql`: replaces the fixed origin list with the `evidence_origins` table (adds `shop`), clears every purchase-history origin with imported history, and lets a connected source create the history row. Run before `SHOP_ORDERS_ENABLED=true`.
 - `db/027_reply_sent_at.sql`: adds `messages.sent_at` and the trigger that stamps it. Run before relying on reply speed for turns that don't search. Nothing reads it until then: the metrics fall back to estimates and label them as such.
 - `db/021_usage_events.sql`: run before relying on cost data. Until then usage writes fail quietly (logged as `usage_record_failed`) and nothing else is affected.
+- `db/032_adoption_events.sql`: run before relying on save rate, link clicks or purchase intent in Admin › Adoption. Until then event writes fail quietly (logged as `adoption_event_failed`), the page shows them as not tracked, and tracked links still forward. Turn on `LINK_CLICK_TRACKING=true` afterwards to send product links as `/go/…` links.
