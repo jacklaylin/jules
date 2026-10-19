@@ -58,7 +58,7 @@ test('store searches cover each store found so far, newest first, across the who
  const job=storeJob();assert.equal(nextStoreQuery(stage(job),{sources:[]},job),null);
  const data={sources:[{sender_domain:'orders.bigstore.example'},{sender_domain:'gmail.com'},{sender_domain:'evil.example) OR in:anywhere'},{sender_domain:'cyclingbrand.example'}]};
  const q=nextStoreQuery(stage(job),data,job);
- assert.equal(q,`after:${job.after} before:${job.before} -in:spam -in:trash from:cyclingbrand.example {order receipt invoice shipped shipment refund return cancelled canceled}`);
+ assert.equal(q,`after:${job.after} before:${job.before} -in:spam -in:trash from:cyclingbrand.example {order receipt invoice shipped shipment delivered refund return cancelled canceled}`);
  admitStorePage(job,{messages:[{id:'c1'}]});assert.deepEqual(job.stores_searched,['cyclingbrand.example']);
  assert.match(nextStoreQuery(stage(job),data,job),/from:bigstore\.example /);admitStorePage(job,{messages:[]});
  assert.equal(nextStoreQuery(stage(job),data,job),null,'gmail.com and malformed domains are never searched');
