@@ -4,6 +4,7 @@ import { createStore } from '../lib/store.js';
 import { withUsage } from '../lib/usage.js';
 import { wishlistUser } from '../lib/wishlist.js';
 import { json, readJson, uuid } from '../lib/http.js';
+import { referralRef } from '../lib/referral.js';
 import { ensureCoreCards, TONES, prepareSource, analyzeStyle, captionStylePhotos, confirmReport, reportFacts, confirmationEvidence, withObservationEvidence, hydrateReport, dehydrateReport, cropSource, fail } from '../lib/style.js';
 
 export const config={api:{bodyParser:false},maxDuration:120};
@@ -44,7 +45,7 @@ export function createStyleHandler({env=process.env,storeFactory=createStore,aut
           res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Content-Disposition',source.mime_type==='application/pdf'?'attachment; filename="receipt.pdf"':'inline');
           res.end(bytes);return;
         }
-        return json(res,200,{...state,sources:await store.styleSources(owner),signup_url:signupURL(env)});
+        return json(res,200,{...state,sources:await store.styleSources(owner),signup_url:signupURL(env,owner)});
       }
       const input=await readJson(req,4300000);
       if(!input||!Number.isInteger(input.revision)||input.revision!==state.revision)throw fail('Your style inputs changed. Reload before continuing.',409);
@@ -56,18 +57,18 @@ export function createStyleHandler({env=process.env,storeFactory=createStore,aut
       }
       const write=async(data,options)=>{
         if(!await save(state.revision,data,options))throw fail('Your style inputs changed. Reload before continuing.',409);
-        return json(res,200,{revision:state.revision+1,data,sources:await store.styleSources(owner),signup_url:signupURL(env)});
+        return json(res,200,{revision:state.revision+1,data,sources:await store.styleSources(owner),signup_url:signupURL(env,owner)});
       };
       // Deletion is allowed during analysis and invalidates the in-flight reservation.
       if(input.action==='delete') {
         if(!await store.deleteStyle(owner,state.revision))throw fail('Reload before deleting your style data.',409);
         console.log(JSON.stringify({event:'style_deleted'}));
-        return json(res,200,{revision:state.revision+1,data:{notes:'',tone:'balanced',report:null},sources:[],signup_url:signupURL(env)});
+        return json(res,200,{revision:state.revision+1,data:{notes:'',tone:'balanced',report:null},sources:[],signup_url:signupURL(env,owner)});
       }
       if(state.data.busy_until && Date.parse(state.data.busy_until)>Date.now())throw fail('Your analysis is still running. Give it a moment, then reload.',409);
       if(input.action==='captions') {
         if(!state.data.consent_at||!state.data.report||input.report!==state.data.report.id)throw fail('Reload your style read before checking photo captions.',409);
-        if(!state.data.report.analysis.crops.some(c=>!c.full_caption||c.caption_version!==1))return json(res,200,{...state,sources:await store.styleSources(owner),signup_url:signupURL(env)});
+        if(!state.data.report.analysis.crops.some(c=>!c.full_caption||c.caption_version!==1))return json(res,200,{...state,sources:await store.styleSources(owner),signup_url:signupURL(env,owner)});
         const pending={...state.data,busy_until:new Date(Date.now()+60000).toISOString()};
         if(!await save(state.revision,pending))throw fail('Your style read changed. Reload before continuing.',409);
         reservation={revision:state.revision+1,data:state.data};
@@ -78,7 +79,7 @@ export function createStyleHandler({env=process.env,storeFactory=createStore,aut
         if(!await save(reservation.revision,updated))throw fail('Your style read changed while checking captions. Reload to see it.',409);
         reservation=null;
         console.log(JSON.stringify({event:'style_photo_captions_checked',photos:ids.size}));
-        return json(res,200,{revision:state.revision+2,data:updated,sources:await store.styleSources(owner),signup_url:signupURL(env)});
+        return json(res,200,{revision:state.revision+2,data:updated,sources:await store.styleSources(owner),signup_url:signupURL(env,owner)});
       }
       if(input.action==='upload') {
         if(input.consent!==true)throw fail('Approve private storage and OpenAI analysis before uploading.');
@@ -112,7 +113,7 @@ export function createStyleHandler({env=process.env,storeFactory=createStore,aut
         const data={...state.data,report,busy_until:null};
         if(!await save(reservation.revision,data,{evidence}))throw fail('Your inputs changed during analysis. Reload to see the current version.',409);
         reservation=null;
-        return json(res,200,{revision:state.revision+2,data,sources:sources.map(({data,...s})=>s),signup_url:signupURL(env)});
+        return json(res,200,{revision:state.revision+2,data,sources:sources.map(({data,...s})=>s),signup_url:signupURL(env,owner)});
       }
       if(input.action==='confirm') {
         const report=confirmReport(state.data.report,input.reviews);
@@ -135,7 +136,8 @@ export function createStyleHandler({env=process.env,storeFactory=createStore,aut
     }
   };
 }
-function signupURL(env) {
-  try{const u=new URL(env.SITE_ORIGIN);return u.protocol==='https:'&&!u.username&&!u.password?u.origin+'/style':null;}catch{return null;}
+// The starter-pack image prints this address; the shared link credits the person (lib/referral.js).
+function signupURL(env,owner) {
+  try{const u=new URL(env.SITE_ORIGIN);return u.protocol==='https:'&&!u.username&&!u.password?u.origin+'/signup?ref='+(referralRef(owner,env)??'style-card'):null;}catch{return null;}
 }
 export default createStyleHandler();
