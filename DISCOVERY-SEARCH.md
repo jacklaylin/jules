@@ -35,3 +35,9 @@ Discovery now starts with a stylist step (`lib/stylist.js`, `STYLIST_MODEL`, def
 Also: the search step discarded an entire search when the model returned more than three products. It now keeps the first three valid ones.
 
 Live replay of her "structured and luxe" request (local code, real search, no message sent): before, Farinaz Taghavi and Frank Lyman blouses and a $48 SEO-titled corset; after (14 seconds, all three directions succeeded): a L'agence structured corset, a $75 top from an independent label (shop-matte.com), and a KNWLS corset top from knwls.com. The KNWLS price ($618) is above her stated $400–500 range because budget is a soft signal. This is one replay, not a measure of taste quality; a taste evaluation set is a later step.
+
+### Time cap and Shop catalog order — October 19, 2026
+
+First production test (founder, base-layer tops): the first search took 73 seconds, and the follow-up search ran past the 105-second turn deadline, so the founder got the fallback "couldn’t prepare a reply". The same requests take about 14 seconds locally. The third option, a basic Stanfield’s top, came from the Shop catalog, not a stylist direction: the interleave gave the Shop list a turn alongside the directions.
+
+Fixes: sourcing now counts the time left in the whole turn (`turnLeft` from the inbox) and keeps 20 seconds for the reply. The stylist runs only with at least 25 seconds of room (timeout 12 seconds). The direction searches share one hard cap (at most 40 seconds); results finished by then are used and slow directions are left behind (`stylist_searches.timed_out`). After directions ran, the extra refinement, in-stock and replacement searches are skipped. Shop catalog results come after every direction’s results, so they only fill an empty slot. Vercel logs were not reachable, so the exact slow step in production is not established.

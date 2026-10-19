@@ -65,3 +65,38 @@ test('a failed direction leaves the others; without directions the single search
 test('interleaving takes turns across directions and never repeats a page',()=>{
  assert.deepEqual(interleaveConcepts([[p('a'),p('b')],[p('a'),p('c')],[]]).map(x=>x.url),[p('a').url,p('b').url,p('c').url]);
 });
+
+test('a slow direction is left behind at the cap and the finished ones are shown',async()=>{
+ let result,calls=0;const started=Date.now();
+ // Plenty of turn time when the stylist starts, then almost none: the directions get a ~200 ms cap.
+ const left=[60000];const turnLeft=()=>left.length?left.shift():20000+3000+200;
+ await textWishlistAction({action:'start',query:'going out top',search_plan:plan},{env:{},facts:[],turnLeft,record:async r=>{result=r;},stylist:async()=>concepts,
+  search:async query=>{calls++;if(query.includes('archive diesel prints'))return new Promise(()=>{});return {status:'found',products:[p('a1')]};},rank:async x=>x});
+ assert.ok(Date.now()-started<3000);assert.equal(calls,2);
+ assert.deepEqual(result.text_wishlist_state.options.map(o=>o.url),[p('a1').url]);
+});
+
+test('without room in the turn the stylist is skipped and one search runs',async()=>{
+ let result;const queries=[];
+ await textWishlistAction({action:'start',query:'going out top',search_plan:plan},{env:{},facts:[],turnLeft:()=>30000,record:async r=>{result=r;},stylist:()=>assert.fail('No stylist without time'),
+  search:async q=>{queries.push(q);return {products:[p('x')]};},rank:async x=>x});
+ assert.equal(queries.length,1);assert.deepEqual(result.text_wishlist_state.options.map(o=>o.url),[p('x').url]);
+});
+
+test('Shop catalog results only fill gaps after every direction’s results',async()=>{
+ let result;
+ const shop=async()=>({products:[{...p('shop1'),source_provider:'shop_catalog'},{...p('shop2'),source_provider:'shop_catalog'}]});
+ const run=byConcept=>textWishlistAction({action:'start',query:'going out top',search_plan:plan},{env:{SHOP_CATALOG_ENABLED:'true'},facts:[],record:async r=>{result=r;},stylist:async()=>concepts,shop,
+  search:async query=>({status:'found',products:byConcept[concepts.find(c=>query.includes(c.label)).label]}),rank:async x=>x});
+ await run({'airbrushed mesh tops':[p('a1')],'archive diesel prints':[]});
+ assert.deepEqual(result.text_wishlist_state.options.map(o=>o.url),[p('a1').url,p('shop1').url,p('shop2').url]);
+ await run({'airbrushed mesh tops':[p('a1'),p('a2')],'archive diesel prints':[p('d1')]});
+ assert.deepEqual(result.text_wishlist_state.options.map(o=>o.url),[p('a1').url,p('d1').url,p('a2').url]);
+});
+
+test('after stylist directions, no extra retry searches run when nothing qualifies',async()=>{
+ let result,calls=0;
+ await textWishlistAction({action:'start',query:'going out top',search_plan:plan},{env:{},facts:[],record:async r=>{result=r;},stylist:async()=>concepts,
+  search:async()=>{calls++;return {status:'needs_review',products:[p('a1')]};},rank:async()=>[]});
+ assert.equal(calls,concepts.length);assert.equal(result.text_wishlist_state.stage,'search_clarification');
+});
