@@ -183,3 +183,9 @@ test('suppressed stores in search results are set aside unread; the real store i
  const suppressed=result.rejections.filter(r=>r.reason==='suppressed_store').map(r=>r.url);
  for(const url of [urls.lyst,urls.temu,urls.rakuten])assert.ok(suppressed.includes(url),url);
 });
+
+test('chat search asks verification to skip paid re-lookups: the search result is the index evidence',async()=>{
+ const options=[];const organic=[{link:'https://www.mrporter.com/en-us/mens/product/x/123',title:'Dries Van Noten Peyter pants black'}];
+ await exactSearch('Dries Van Noten Peyter pants black',env,serp({organic}),{},async(url,name,fetcher,opts)=>{options.push(opts);return {status:'check_failed'};},{judge:async()=>[]});
+ assert.ok(options.length>0);assert.ok(options.every(o=>o?.indexed===false));
+});
