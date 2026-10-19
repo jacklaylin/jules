@@ -25,7 +25,7 @@
     <div id="costs-more" class="dv-pop dv-menu" popover aria-label="More actions">
       <button id="refresh" type="button">Refresh <span class="hint">re-reads connected billing</span></button>
     </div>
-    <div class="dv-status"><span id="loader" class="dv-loader" aria-hidden="true" hidden></span><span id="refreshed"></span><span id="coverage"></span><span id="budget-status"></span><span id="jobs-status"></span><span id="view-summary"></span><span id="notice" role="status" aria-live="polite"></span></div>
+    <div class="dv-status"><span id="loader" class="dv-loader" aria-hidden="true" hidden></span><span id="refreshed"></span><span id="coverage"></span><span id="budget-status"></span><span id="jobs-status"></span><span id="reconcile-status"></span><span id="view-summary"></span><span id="notice" role="status" aria-live="polite"></span></div>
 
     <section id="tool-entry" class="dv-tool" aria-labelledby="tool-entry-title" hidden>
       <div class="dv-tool-head"><h2 id="tool-entry-title">Update an amount</h2><button id="entry-close" class="small" type="button">Close ×</button></div>
@@ -44,7 +44,7 @@
 
     <section data-view-panel="" aria-label="By service">
       <div class="dv-table-wrap"><table class="dv-table costs-table"><thead><tr id="service-head"></tr></thead><tbody id="rows"></tbody></table></div>
-      <p class="dv-note"><strong>Billed</strong> = the provider’s own reported dollars. <strong>Estimate</strong> = Jules’ own count of its calls at list prices, used only where billing isn’t available yet. <strong>Manual</strong> = entered with Update an amount. Plan fees are spread evenly over the month. <strong>Projected month end</strong> is calculated, not reported by any provider: the month’s fees plus the average daily usage so far, times the days in the month. It is a forecast, not a bill. Missing entries are unknown, not free. Provider reporting can lag by a day or two; this page cannot enforce spending caps.</p>
+      <p class="dv-note"><strong>Billed</strong> = the provider’s own reported dollars. <strong>Estimate</strong> = Jules’ own count of its calls at list prices, used only where billing isn’t available yet. <strong>Manual</strong> = entered with Update an amount. The status line compares OpenAI’s billed dollars with Jules’ own recorded calls for the days OpenAI has finished reporting; a gap means some calls are made outside the cost meter. Plan fees are spread evenly over the month. <strong>Projected month end</strong> is calculated, not reported by any provider: the month’s fees plus the average daily usage so far, times the days in the month. It is a forecast, not a bill. Missing entries are unknown, not free. Provider reporting can lag by a day or two; this page cannot enforce spending caps.</p>
     </section>
     <section data-view-panel="features" aria-label="By feature" hidden>
       <div class="dv-table-wrap"><table class="dv-table costs-table costs-narrow"><thead><tr id="feature-head"></tr></thead><tbody id="feature-rows"></tbody></table></div>
