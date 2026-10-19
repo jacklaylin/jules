@@ -299,3 +299,20 @@ test('a person tapping a /go/ link goes straight to the store; taps are recorded
   assert.equal((await preview(tampered)).statusCode, 404);
   assert.equal((await preview(tampered, { extra: '&image=1' })).statusCode, 404, 'a tampered link gets no photo either');
 });
+
+test('the products an answer links (up to 3) are passed on for their own cards, with or without tracking', async () => {
+  const many = { products: ['a', 'b', 'c', 'd', 'e'].map(k => ({ name: k, url: `https://shop.example/${k}`, merchant_options: [{ url: `https://other.example/${k}` }] })) };
+  const body = 'Picks:\nhttps://shop.example/a\nhttps://other.example/b\nhttps://shop.example/d\nhttps://shop.example/e';
+  for (const tracking of ['false', 'true']) {
+    let rich;
+    const store = { receive: async () => C, claimAI: async () => true, context: async () => [{ id: '00000000-0000-4000-8000-000000000001', direction: 'inbound', body: 'tees', status: 'received' }],
+      prepareAI: async () => {}, finish: async () => {}, searchResult: async () => {}, recordAdoptionEvent: async () => {} };
+    await receiveInInbox({ space: { phone: 'l' }, message: { id: 'm1', sender: { id: 's' }, content: { type: 'text', text: 'tees' }, attachments: [] } },
+      { AI_ENABLED: 'true', OPENAI_API_KEY: 'test', SEARCH_ENABLED: 'true', ...env, LINK_CLICK_TRACKING: tracking },
+      { store, send: async (_d, _body, _e, options) => { rich = options; return { id: 'p1' }; }, compose: async args => ({ body: args.draft, captions: [], composed: true }),
+        generate: async (_m, _e, _f, memory) => { await memory.recordSearch(many); return body; } });
+    assert.deepEqual(rich.products.map(p => p.name), ['a', 'b', 'd'], 'only linked products, capped at 3; c was not linked');
+    assert.deepEqual(rich.products.map(p => resultLinks(many)[readGoLink(p.preview_url.split('/go/')[1], env).index]),
+      ['https://shop.example/a', 'https://other.example/b', 'https://shop.example/d'], 'each card opens the store the answer linked');
+  }
+});
