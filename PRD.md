@@ -396,6 +396,8 @@ When a user says “Buy it,” return the best checkout link and log `PURCHASE_I
 
 Do not store credit-card numbers, CVVs, or retailer passwords. Do not automate checkout.
 
+**October 19, 2026 founder decision:** affiliate links are **P0 after beta**: the first item to build once the tester beta ends, before public launch. Not during beta. Use one affiliate network (no per-merchant deals), wrap links at the existing `/go/` redirect, disclose it, and never let commission affect product or store selection. See [AFFILIATE-LINKS.md](AFFILIATE-LINKS.md).
+
 ## 19. Suggested technology
 
 Prefer a boring stack:
@@ -420,7 +422,7 @@ Do not build:
 - proprietary web crawler
 - comprehensive fashion index
 - retailer integrations
-- affiliate infrastructure
+- affiliate infrastructure during beta (P0 after beta; see Section 18 and AFFILIATE-LINKS.md)
 - social-network integrations
 - Instagram/Pinterest login
 - vector database unless clearly necessary
