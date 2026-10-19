@@ -16,7 +16,7 @@
     </section>
     <div class="dv-toolbar">
       <div id="people-access" class="seg" role="group" aria-label="Filter by waitlist status" hidden></div>
-      <label class="dv-search"><span class="sr-only">Search identifier</span><input id="people-search" type="search" maxlength="40" placeholder="Search identifier"><span class="kbd" aria-hidden="true">/</span></label>
+      <label class="dv-search"><span class="sr-only">Search name or number</span><input id="people-search" type="search" maxlength="40" placeholder="Search name or number"><span class="kbd" aria-hidden="true">/</span></label>
       <span id="people-count" class="dv-toolbar-note"></span>
       <span class="spacer"></span>
       <button class="small quiet" type="button" popovertarget="people-more">More ⋯</button>
@@ -27,5 +27,12 @@
     <div class="dv-status"><span id="metrics-note"></span><span id="notice" role="status" aria-live="polite"></span><span class="dv-keys" aria-hidden="true"><span class="kbd">J</span><span class="kbd">K</span> move <span class="kbd">↵</span> open</span></div>
     <div id="people" class="dv-list people-list" aria-label="People"></div>
   </main>
+  <dialog id="access-dialog" class="confirm-dialog" aria-labelledby="access-title">
+    <h2 id="access-title">Change waitlist status?</h2>
+    <p><strong id="access-person">This person</strong></p>
+    <div id="access-lines"></div>
+    <p id="access-error" class="error" role="alert" hidden></p>
+    <div class="dialog-actions"><button id="access-confirm" class="btn--butter" type="button">Confirm</button><button id="access-cancel" type="button">Cancel</button></div>
+  </dialog>
 </body>
 </html>

@@ -366,6 +366,8 @@ button.small{min-height:32px;padding:0 14px;font-size:13px}
 .dv-head,.dv-row{display:grid;grid-template-columns:var(--dv-cols);gap:0 12px;align-items:center;padding:0 10px}
 .dv-head{min-height:32px;border-bottom:1px solid var(--line);font-size:12px;color:var(--text-2)}
 .dv-row{min-height:40px;border-bottom:1px solid var(--line);color:var(--ink);text-decoration:none;font-size:13px}
+/* A compact select inside a dense data row (People status). Waitlisted is tinted like a warn badge. */
+.dv-select{display:inline-block;width:auto;min-height:30px;margin:0;padding:4px 10px;border-radius:var(--r-pill);font-size:13px}.dv-select[data-access=waitlisted]{background:var(--warn-bg);color:var(--warn-text);border-color:transparent}
 .dv-row>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dv-row .muted{color:var(--text-2)}
 .dv-row:hover{background:#FAF9F7}.dv-row[aria-current=true]{background:var(--fog)}.dv-row:focus-visible{outline:3px solid var(--grape);outline-offset:-3px}
 .dv-row strong{font-weight:600}.dv-row .end{text-align:right}.dv-facts{display:none}

@@ -12,7 +12,8 @@ import { buildReport, sendReportLink, sendNewCardText, reportView, withReadPhoto
 import { firstName } from '../lib/memory.js';
 import { copyWeek } from '../lib/report-copy.js';
 import { adoptionReport } from '../lib/adoption.js';
-import { approveAccess, APPROVED_TEXT } from '../lib/waitlist.js';
+import { approveAccess, waitlistAgain, APPROVED_TEXT, WAITLIST_REPLIES } from '../lib/waitlist.js';
+import { profileFirstName, displayName } from '../lib/memory.js';
 
 export const config = { api: { bodyParser: false }, maxDuration: 30 };
 // Owner view. Conversations are read-only (Jules replies automatically); the owner can review and
@@ -26,16 +27,17 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
       if (req.method === 'POST') {
         // The only writes are purchase-history reviews, tagging, the onboarding reset and waitlist approval; manual replies stay retired.
         const input = await readJson(req);
-        if (!['review', 'missed', 'tag', 'build-report', 'send-report', 'reset-onboarding', 'approve'].includes(input.action)) return json(res, 400, { error: 'Unknown purchase action.' });
-        if (input.action === 'approve' && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Approve people from the Jules admin page.' });
+        if (!['review', 'missed', 'tag', 'build-report', 'send-report', 'reset-onboarding', 'approve', 'waitlist'].includes(input.action)) return json(res, 400, { error: 'Unknown purchase action.' });
+        if (['approve', 'waitlist'].includes(input.action) && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Change waitlist status from the Jules admin page.' });
         if (input.action === 'reset-onboarding' && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Reset onboarding from the Jules admin page.' });
         const store = storeFactory(env);
         if (!uuid(input.conversation) || !await store.conversation(input.conversation)) return json(res, 404, { error: 'Conversation not found.' });
         if (input.action === 'reset-onboarding') return json(res, 200, await resetOnboarding(store, input, env, fetcher));
-        if (input.action === 'approve') {
-          if (input.confirm !== true) throw Object.assign(new Error('Confirm the approval first.'), { status: 400 });
-          const result = await approveAccess(store, await store.conversation(input.conversation), env, send);
-          console.log(JSON.stringify({ event: 'admin_waitlist_approved', changed: result.changed, text: result.text }));
+        if (['approve', 'waitlist'].includes(input.action)) {
+          if (input.confirm !== true) throw Object.assign(new Error('Confirm the status change first.'), { status: 400 });
+          const conversation = await store.conversation(input.conversation);
+          const result = input.action === 'approve' ? await approveAccess(store, conversation, env, send) : await waitlistAgain(store, conversation);
+          console.log(JSON.stringify({ event: input.action === 'approve' ? 'admin_waitlist_approved' : 'admin_waitlist_returned', changed: result.changed, text: result.text }));
           return json(res, 200, { access: (await store.accessFor([input.conversation])).get(input.conversation) ?? null, ...result });
         }
         if (input.action === 'build-report') {
@@ -75,9 +77,15 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
         // Each tester's signup source (db/033). The list never depends on it: before the migration, sources are blank.
         // Waitlist status (db/035) is the same: unknown (null) when it cannot be read.
         const [conversations, sources] = await Promise.all([store.list(), store.signupSources?.().catch(() => new Map()) ?? new Map()]);
-        const statuses = await store.accessFor(conversations.map(c => c.id)).catch(() => new Map());
-        return json(res, 200, { conversations: conversations.map(c => ({ ...c, source: sources.get(c.sender_id) ?? null, access: statuses.get(c.id)?.access ?? null })),
-          waitlist_enabled: env.WAITLIST_ENABLED === 'true' });
+        // Names come from the latest signup, else the first name told to Jules; a failed read only blanks them.
+        const blank = () => new Map();
+        const [statuses, signups, profiles] = await Promise.all([store.accessFor(conversations.map(c => c.id)).catch(blank),
+          store.signupNames?.(conversations.map(c => c.sender_id)).catch(blank) ?? blank(), store.profilesFor?.(conversations.map(c => c.id)).catch(blank) ?? blank()]);
+        return json(res, 200, { conversations: conversations.map(c => {
+          const signup = signups.get(c.sender_id), status = statuses.get(c.id);
+          const name = signup ? [displayName(signup.first_name), displayName(signup.last_name)].filter(Boolean).join(' ') : displayName(profileFirstName(profiles.get(c.id)));
+          return { ...c, name: name || null, source: sources.get(c.sender_id) ?? null, access: status?.access ?? null, waitlist_replies: status?.waitlist_replies ?? null };
+        }), waitlist_enabled: env.WAITLIST_ENABLED === 'true', waitlist_replies: WAITLIST_REPLIES, approval_text: env.WAITLIST_ENABLED === 'true' ? APPROVED_TEXT : null });
       }
       if (!uuid(id)) return json(res, 400, { error: 'Invalid conversation.' });
       const conversation = await store.conversation(id);
