@@ -69,7 +69,7 @@ const two=[buy(1),buy(2,{brand:'BODE',merchant:'Mr Porter'})];
 const stateOf=rows=>projectReceiptEvidence(owner,rows).state;
 test('the summary adds what they wear from their photos, and works from photos alone',()=>{
  const both=profileText(stateOf(two),[{text:'lots of washed denim'},{text:'muted earth tones'}]);
- assert.match(both,/from your purchases and outfit photos/);assert.match(both,/brands you buy most: BODE, Our Legacy/);
+ assert.match(both,/your purchases and outfit photos show so far/);assert.match(both,/brands you buy most: BODE, Our Legacy/);
  assert.match(both,/what you wear: lots of washed denim; muted earth tones/);
  assert.equal(profileText(stateOf(two)),profileText(stateOf(two),[]),'without photos the summary is unchanged');
  assert.match(profileText(stateOf([buy(1)]),[{text:'lots of washed denim'}]),/from your outfit photos:\nlots of washed denim/);
