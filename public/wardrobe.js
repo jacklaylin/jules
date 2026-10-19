@@ -115,7 +115,7 @@ function renderQuestions(){
 function renderCategories(){
  const present=Object.keys(CATEGORY_LABELS).filter(c=>view.items.some(i=>i.category===c));
  if(category!=='all'&&!present.includes(category))category='all';
- const chip=(key,label)=>{const b=el('button',{type:'button',className:'chip'+(key===category?' chip--on':''),textContent:label});b.setAttribute('aria-pressed',String(key===category));b.onclick=()=>{category=key;render();};return b;};
+ const chip=(key,label)=>{const b=el('button',{type:'button',className:'chip'+(key===category?' chip--on':''),textContent:label},el('span',{className:'chip-count'},String(key==='all'?view.items.length:view.items.filter(i=>i.category===key).length)));b.setAttribute('aria-pressed',String(key===category));b.onclick=()=>{category=key;render();};return b;};
  $('categories').replaceChildren(...(present.length>1?[chip('all','All'),...present.map(c=>chip(c,CATEGORY_LABELS[c]))]:[]));
 }
 
@@ -123,11 +123,12 @@ function render(){
  if(!view)return;
  $('login').hidden=true;$('wardrobe').hidden=false;
  const count=view.items.length,reading=['listing','extracting','questions'].includes(view.status);
- $('count').textContent=count?`${count} ${count===1?'ITEM':'ITEMS'}`:'';
- $('reading').hidden=!reading;
+  $('reading').hidden=!reading;
  for(const link of document.querySelectorAll('.text-jules')){link.hidden=!view.text_url;if(view.text_url)link.href=view.text_url;}
  renderQuestions();renderCategories();
  const shown=view.items.filter(i=>category==='all'||i.category===category);
+ const total=`${count} ${count===1?'item':'items'}`;
+ $('count').textContent=count?(category==='all'?total:`${shown.length} of ${total}`):'';
  $('grid').replaceChildren(...shown.map(card));
  $('toolbar').hidden=!count;
  $('empty').hidden=Boolean(count)||reading;

@@ -14,16 +14,8 @@
 .question-answers .chip{padding:0 14px;font-size:13px}
 @media(max-width:800px){.question-list{display:flex;overflow-x:auto;gap:12px;margin:0 calc(var(--page-gutter) * -1);padding:4px var(--page-gutter) 10px;overflow-y:hidden;overscroll-behavior-x:contain;scrollbar-width:none}.question{flex:none;width:300px}}
 
-.wardrobe-toolbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:28px}
-.wardrobe-chips{display:flex;flex-wrap:wrap;gap:8px}
-/* Phones: one row. Smaller chips scroll sideways only, fading out beside Add item. */
-@media(max-width:800px){
-.wardrobe-toolbar{flex-wrap:nowrap;align-items:flex-start;gap:8px;margin-bottom:20px}
-.wardrobe-chips{flex:1;min-width:0;flex-wrap:nowrap;gap:6px;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;margin-left:calc(var(--page-gutter) * -1);padding:4px 16px 10px var(--page-gutter);scrollbar-width:none;mask-image:linear-gradient(to right,#000 calc(100% - 20px),transparent)}
-.wardrobe-chips::-webkit-scrollbar{display:none}
-.wardrobe-chips .chip,.wardrobe-toolbar #add{flex:none;min-height:38px;padding:0 14px;font-size:13px}
-.wardrobe-toolbar #add{margin-top:4px}
-}
+/* Phones: Add item matches the smaller filter chips beside it. */
+@media(max-width:800px){.filter-bar #add{flex:none;min-height:38px;padding:0 14px;font-size:13px}}
 
 /* No photo in the order itself: a category outline on fog. */
 .outline-photo svg{width:58%;height:58%;color:var(--line-strong)}
