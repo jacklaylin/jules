@@ -10,6 +10,10 @@
     {
       "path": "/api/price-checks",
       "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/wishlist?gmail=refresh",
+      "schedule": "0 17 * * *"
     }
   ],
   "redirects": [
