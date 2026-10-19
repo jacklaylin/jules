@@ -1,5 +1,5 @@
 import {trackedFetch as fetch,withActivity} from './activity.js';
-import {mountHeader,enableAdminLink} from './design-system.js';
+import {mountHeader,enableAdminLink,closeDialog} from './design-system.js';
 mountHeader('style');
 import {createSession} from './wishlist-session.js';
 import {cardText,renderShareCard,canvasBlob} from './style-export.js';
@@ -106,8 +106,8 @@ function syncStory(){const cards=[...$('cards').children];storyIndex=Math.max(0,
 function moveStory(delta){$('cards').scrollTo({left:Math.max(0,storyIndex+delta)*($('cards').clientWidth+16),behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});}
 $('story-prev').onclick=()=>moveStory(-1);$('story-next').onclick=()=>moveStory(1);$('cards').onscroll=syncStory;
 $('cards').onkeydown=e=>{if(document.body.classList.contains('story-mode')&&['ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault();moveStory(e.key==='ArrowRight'?1:-1);}};
-$('evidence-close').onclick=()=>$('evidence-dialog').close();
-$('hidden-cards').onclick=()=>{const content=node('div');for(const card of state.data.report.cards.filter(c=>c.hidden&&c.accepted))content.append(button('Show '+card.title,()=>work(async()=>{state=await api({action:'hide',card:card.id,hidden:false});$('evidence-dialog').close();renderCards();})));$('evidence-content').replaceChildren(content);$('evidence-dialog').showModal();};
+$('evidence-close').onclick=()=>closeDialog($('evidence-dialog'));
+$('hidden-cards').onclick=()=>{const content=node('div');for(const card of state.data.report.cards.filter(c=>c.hidden&&c.accepted))content.append(button('Show '+card.title,()=>work(async()=>{state=await api({action:'hide',card:card.id,hidden:false});closeDialog($('evidence-dialog'));renderCards();})));$('evidence-content').replaceChildren(content);$('evidence-dialog').showModal();};
 function renderCards() {
  const report=state.data.report;$('cards').replaceChildren();$('report-section').hidden=!report;
  const draft=report?.status==='draft';document.body.classList.toggle('story-mode',!!report&&!draft);$('story-nav').hidden=!report||draft;
@@ -204,10 +204,10 @@ $('confirm').onclick=()=>work(async()=>{
   state=await api({action:'confirm',reviews});notice('');renderCards();notice('Your read is saved. Only the preferences you selected will guide shopping.');
 });
 $('edit-inputs').onclick=()=>{document.body.classList.remove('story-mode');$('report-section').hidden=true;$('inputs').hidden=false;renderSources();$('inputs').scrollIntoView({behavior:'instant',block:'start'});};
-$('delete').onclick=()=>$('delete-dialog').showModal();$('delete-cancel').onclick=()=>$('delete-dialog').close();
-$('delete-confirm').onclick=()=>work(async()=>{state=await api({action:'delete'});$('delete-dialog').close();$('consent').checked=false;render();notice('Your style uploads, report, and its saved preferences were deleted.');});
+$('delete').onclick=()=>$('delete-dialog').showModal();$('delete-cancel').onclick=()=>closeDialog($('delete-dialog'));
+$('delete-confirm').onclick=()=>work(async()=>{state=await api({action:'delete'});closeDialog($('delete-dialog'));$('consent').checked=false;render();notice('Your style uploads, report, and its saved preferences were deleted.');});
 
-function closeExport(){exportVersion++;exportBlob=null;exporting=null;$('export-dialog').close();$('export-preview').replaceChildren();}
+function closeExport(){const version=++exportVersion;exportBlob=null;exporting=null;closeDialog($('export-dialog')).then(()=>{if(version===exportVersion)$('export-preview').replaceChildren();});}
 $('export-close').onclick=closeExport;$('export-dialog').addEventListener('cancel',closeExport);
 function openExport(card){
   exporting={card,report:state.data.report.id,tone:state.data.tone,revision:state.revision};exportBlob=null;

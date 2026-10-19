@@ -1,5 +1,5 @@
 import {trackedFetch as fetch} from './activity.js';
-import {mountHeader,enableAdminLink} from './design-system.js';
+import {mountHeader,enableAdminLink,closeDialog,removeWithMotion,popIn,riseIn} from './design-system.js';
 mountHeader('wishlist');
 import {createSession} from './wishlist-session.js';
 import {rememberWishlistTarget,consumeWishlistTarget} from './wishlist-deep-link.js';
@@ -141,11 +141,11 @@ function toast(text,undo){
   };
   notification.append(button);
  }
- notification.hidden=false;if(!undo)toastTimer=setTimeout(()=>{notification.hidden=true;},6000);
+ const wasHidden=notification.hidden;notification.hidden=false;if(wasHidden)riseIn(notification);if(!undo)toastTimer=setTimeout(()=>{notification.hidden=true;},6000);
 }
 function removeButton(item,card){
  const button=node('button','×','icon-button remove-item');button.type='button';button.setAttribute('aria-label',`Remove ${item.name} from wishlist`);button.title='Remove from wishlist';
- button.onclick=async()=>{button.disabled=true;try{await alertPost({action:'remove',group:item.id});card?.remove();itemCache.delete(item.id);const count=$('grid').children.length;$('count').textContent=count+' '+(count===1?'ITEM':'ITEMS');$('empty').hidden=count>0;toast(item.price_alert?.active?'Removed. Price alert turned off.':'Removed from your wishlist.',async()=>{await alertPost({action:'restore',group:item.id});await load();});const next=$('grid').querySelector('.tile');if(next)next.focus();}catch(e){message(e.message);button.disabled=false;}};
+ button.onclick=async()=>{button.disabled=true;try{await alertPost({action:'remove',group:item.id});if(card)await removeWithMotion(card);itemCache.delete(item.id);const count=$('grid').children.length;$('count').textContent=count+' '+(count===1?'ITEM':'ITEMS');$('empty').hidden=count>0;toast(item.price_alert?.active?'Removed. Price alert turned off.':'Removed from your wishlist.',async()=>{await alertPost({action:'restore',group:item.id});await load();});const next=$('grid').querySelector('.tile');if(next)next.focus();}catch(e){message(e.message);button.disabled=false;}};
  return button;
 }
 function alertToggle(item){
@@ -156,7 +156,7 @@ function alertToggle(item){
    button.disabled=true;
    try{
      if(item.price_alert?.active){await alertPost({action:'alert-disable',group:item.id});item.price_alert.active=false;update();toast('Price alert turned off.');return;}
-     alertSelection={item,update};const selected=alertSelection;
+     alertSelection={item,update,button};const selected=alertSelection;
      $('alert-size').replaceChildren(node('option','Choose a size'));$('alert-size').firstChild.value='';$('alert-size').disabled=true;$('alert-save').disabled=true;$('alert-note').textContent='Checking sizes across your retailer links…';$('alert-picker').showModal();$('alert-picker').focus();
      const {sizes}=await alertPost({action:'alert-options',group:item.id});
      if(alertSelection!==selected||!$('alert-picker').open)return;
@@ -166,15 +166,15 @@ function alertToggle(item){
  };return button;
 }
 $('alert-size').onchange=()=>{$('alert-save').disabled=!$('alert-size').value;};
-$('alert-close').onclick=()=>{$('alert-picker').close();alertSelection=null;};
+$('alert-close').onclick=()=>{closeDialog($('alert-picker'));alertSelection=null;};
 $('alert-picker').addEventListener('close',()=>{alertSelection=null;});
 $('alert-form').onsubmit=async event=>{
  event.preventDefault();if(!alertSelection||!$('alert-size').value)return;
  const selected=alertSelection;$('alert-save').disabled=true;$('alert-size').disabled=true;$('alert-close').disabled=true;
- try{const data=await alertPost({action:'alert-enable',group:selected.item.id,size:$('alert-size').value});selected.item.price_alert=data;selected.update();$('alert-picker').close();toast("We'll text you if the price drops more than 10% or your size comes back in stock");}
+ try{const data=await alertPost({action:'alert-enable',group:selected.item.id,size:$('alert-size').value});selected.item.price_alert=data;selected.update();popIn(selected.button);closeDialog($('alert-picker'));toast("We'll text you if the price drops more than 10% or your size comes back in stock");}
  catch(e){$('alert-note').textContent=e.message;}finally{$('alert-save').disabled=!$('alert-size').value;$('alert-size').disabled=false;$('alert-close').disabled=false;}
 };
-const closeDetail=()=>{detailVersion++;$('detail').close();};
+const closeDetail=()=>{detailVersion++;closeDialog($('detail'));};
 $('close').onclick=closeDetail;
 $('detail').addEventListener('cancel',e=>{e.preventDefault();closeDetail();});
 let backdropPress=false;

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 class Element {
- constructor(tag){this.tag=tag;this.children=[];this.attributes={};this.listeners={};this.hidden=false;this.open=false;this.className='';this.classList={toggle:()=>{},remove:()=>{},add:()=>{}};}
+ constructor(tag){this.tag=tag;this.localName=tag;this.children=[];this.attributes={};this.listeners={};this.hidden=false;this.open=false;this.className='';this.classList={toggle:()=>{},remove:()=>{},add:()=>{}};}
  setAttribute(key,value){this.attributes[key]=value;}
  getAttribute(key){return this.attributes[key];}
  addEventListener(type,fn){this.listeners[type]=fn;}
@@ -18,8 +18,9 @@ class Element {
 }
 const body=new Element('body'),header=new Element('header');header.className='app-header';body.append(header);
 const media=[];
-globalThis.document={body,getElementById:id=>body.querySelector('#'+id),createElement:tag=>new Element(tag),querySelector:selector=>body.querySelector(selector),querySelectorAll:selector=>body.querySelectorAll(selector),addEventListener(){}};
-globalThis.window={addEventListener(){}};globalThis.scrollY=0;globalThis.matchMedia=query=>{const value={query,matches:false,addEventListener(type,fn){this.change=fn;}};media.push(value);return value;};
+globalThis.document={body,getElementById:id=>body.querySelector('#'+id),createElement:tag=>new Element(tag),querySelector:selector=>body.querySelector(selector),querySelectorAll:selector=>body.querySelectorAll(selector),listeners:{},addEventListener(type,fn){this.listeners[type]=fn;}};
+globalThis.window={addEventListener(){}};globalThis.scrollY=0;// Reduced motion makes dialog exits instant, so state can be asserted synchronously.
+globalThis.matchMedia=query=>{const value={query,matches:query.includes('reduced-motion'),addEventListener(type,fn){this.change=fn;}};media.push(value);return value;};
 const {mountHeader,enableAdminLink}=await import('../public/design-system.js');
 mountHeader('wishlist');
 const nav=()=>document.querySelector('.header-actions');
@@ -34,7 +35,7 @@ test('mobile menu moves the existing actions without replacing their handlers an
  const admin=document.querySelector('#admin-link');const handler=()=>{};admin.onclick=handler;
  const button=document.querySelector('.menu-toggle'),menu=document.querySelector('#mobile-menu');
  button.onclick();assert.equal(nav().parent,menu);assert.equal(menu.open,true);assert.equal(button.getAttribute('aria-expanded'),'true');assert.equal(document.querySelector('#admin-link').onclick,handler);
- menu.listeners.cancel({preventDefault(){}});assert.equal(menu.open,false);assert.equal(nav().parent,header);assert.equal(button.getAttribute('aria-expanded'),'false');
+ document.listeners.cancel({target:menu,preventDefault(){}});assert.equal(menu.open,false);assert.equal(nav().parent,header);assert.equal(button.getAttribute('aria-expanded'),'false');
  button.onclick();media.find(m=>m.query==='(max-width:800px)').change({matches:false});assert.equal(menu.open,false);assert.equal(nav().parent,header);
 });
 test('a delayed permission response cannot reveal Admin after sign-out',async()=>{
