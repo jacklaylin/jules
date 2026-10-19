@@ -7,6 +7,7 @@ import { testerCells, weekCells, summaryCells, duration } from '../public/adopti
 import { shownProducts, trackLinks, goLink, readGoLink, resultLinks, createGoHandler } from '../lib/adoption-events.js';
 import { createImageHandler } from '../api/image.js';
 import { receiveInInbox } from '../lib/inbox.js';
+import sharp from 'sharp';
 
 const A = '00000000-0000-4000-8000-00000000000a', B = '00000000-0000-4000-8000-00000000000b', C = '00000000-0000-4000-8000-00000000000c';
 // Wednesday Oct 14 2026, noon UTC.
@@ -174,6 +175,7 @@ test('tracked links replace only this reply\'s product links and keep the senten
 });
 
 test('the go link records a tap and forwards to the store; tampered links, previews and missing tables are handled', async () => {
+  const env = { SITE_ORIGIN: 'https://jules.example', SUPABASE_SERVICE_ROLE_KEY: 'secret', LINK_CLICK_TRACKING: 'true' };
   const recorded = [];
   const store = { replyResult: async operation => operation === 'ai:m1' ? { conversation_id: A, search_result: result } : null,
     recordAdoptionEvent: async row => recorded.push(row) };
@@ -187,7 +189,7 @@ test('the go link records a tap and forwards to the store; tampered links, previ
   assert.equal(res.statusCode, 302); assert.equal(res.headers.Location, 'https://other.example/coat');
   assert.deepEqual(recorded, [{ quantity: 1, conversation_id: A, kind: 'link_click', ref: 'ai:m1' }]);
   assert.ok(!JSON.stringify(recorded).includes('coat'), 'the event keeps no product link or text');
-  assert.equal((await open(token, { agent: 'facebookexternalhit/1.1 Facebot Twitterbot/1.0' })).statusCode, 302);
+  assert.equal((await open(token, { agent: 'facebookexternalhit/1.1 Facebot Twitterbot/1.0' })).statusCode, 200, 'a preview fetcher gets the preview page');
   assert.equal((await open(token, { method: 'HEAD' })).statusCode, 302);
   assert.equal(recorded.length, 1, 'link previews and HEAD checks are not taps');
   assert.equal((await open(token.slice(0, -1) + (token.endsWith('A') ? 'B' : 'A'))).statusCode, 404, 'a tampered signature is refused');
@@ -209,13 +211,14 @@ function turn(generate, extraEnv = {}) {
   return { sent, stored, recorded, run };
 }
 
-test('a sent reply with products records how many it showed; tracked links are sent only when switched on', async () => {
+test('a sent reply with products records how many it showed and sends /go/ product links', async () => {
   const body = 'Two picks:\nhttps://shop.example/coat\nhttps://shop.example/scarf';
   const searching = async (_m, _e, _f, memory) => { await memory.recordSearch(result); return body; };
   const off = turn(searching);
   await off.run();
   assert.deepEqual(off.recorded, [{ quantity: 2, conversation_id: C, kind: 'results_shown', ref: 'ai:m1' }]);
-  assert.equal(off.sent[0], body, 'store links are sent as written by default');
+  assert.equal(off.sent[0].match(/https:\/\/jules\.example\/go\//g).length, 2, 'product links preview through /go/ even with tracking off');
+  assert.equal(off.stored[0], body);
   const on = turn(searching, { LINK_CLICK_TRACKING: 'true' });
   await on.run();
   assert.equal(on.sent[0].match(/https:\/\/jules\.example\/go\//g).length, 2);
@@ -231,5 +234,61 @@ test('a purchase request records purchase intent with the number of items and no
   const t = turn(buying);
   await t.run();
   assert.deepEqual(t.recorded.find(r => r.kind === 'purchase_intent'), { quantity: 1, conversation_id: C, kind: 'purchase_intent', ref: 'ai:m1' });
-  assert.match(t.sent[0], /https:\/\/shop\.example\/hat/);
+  assert.match(t.sent[0], /https:\/\/jules\.example\/go\//, 'the checkout link previews through /go/');
+});
+
+const previewed = { products: [
+  { brand: 'Our Legacy', name: 'Borrowed <Shirt> "Navy"', url: 'https://www.ssense.com/en-us/men/product/our-legacy/shirt/1', retailer: { name: 'SSENSE' },
+    candidate_image: 'https://encrypted-tbn0.gstatic.com/shopping?q=tbn:abc', price_snapshot: { amount: 245, currency: 'USD' }, listing_check: { status: 'in_stock' },
+    merchant_options: [{ url: 'https://www.mrporter.com/shirt/2', retailer: { name: 'MR PORTER' } }] },
+  { brand: 'Auralee', name: 'Auralee wool trousers', url: 'https://auralee.example/trousers' },
+] };
+async function preview(token, { agent = 'facebookexternalhit/1.1 Facebot Twitterbot/1.0', method = 'GET', extra = '', tracking = 'false', loadPhoto, recorded = [] } = {}) {
+  const store = { replyResult: async operation => operation === 'ai:p1' ? { conversation_id: A, search_result: previewed } : null, recordAdoptionEvent: async row => recorded.push(row) };
+  const res = { headers: {}, setHeader(k, v) { this.headers[k] = v; }, end(body) { this.body = body; } };
+  await createGoHandler({ env: { ...env, LINK_CLICK_TRACKING: tracking }, store, loadPhoto })({ method, url: `/api/image?go=${encodeURIComponent(token)}${extra}`, headers: { 'user-agent': agent } }, res);
+  return res;
+}
+const previewToken = index => goLink('ai:p1', index, env).split('/go/')[1];
+
+test('a preview fetcher gets the product name, store and photo, with no price or stock', async () => {
+  const res = await preview(previewToken(0));
+  assert.equal(res.statusCode, 200); assert.match(res.headers['Content-Type'], /text\/html/);
+  assert.ok(res.body.includes('<meta property="og:title" content="Our Legacy Borrowed &lt;Shirt&gt; &quot;Navy&quot;">'), 'title is brand + name, escaped');
+  assert.ok(res.body.includes('content="At SSENSE"'));
+  assert.ok(res.body.includes(`content="https://jules.example/api/image?go=${encodeURIComponent(previewToken(0))}&amp;image=1"`));
+  assert.ok(!/245|USD|in_stock|stock/i.test(res.body), 'no price or availability in the preview');
+  const other = await preview(previewToken(1));
+  assert.ok(other.body.includes('content="At MR PORTER"'), 'another store for the same product names that store');
+  const plain = await preview(previewToken(2));
+  assert.ok(plain.body.includes('content="Auralee wool trousers"'), 'a name that already starts with the brand is not doubled');
+  assert.ok(!plain.body.includes('og:image'), 'no product photo means no image, not brand art');
+  assert.equal((await preview(previewToken(0), { method: 'HEAD' })).body, undefined);
+});
+
+test('the preview photo is the product thumbnail on a white square; missing or failed photos return no image', async () => {
+  const thumb = await sharp({ create: { width: 200, height: 300, channels: 3, background: '#336699' } }).jpeg().toBuffer();
+  assert.equal((await preview(previewToken(0), { extra: '&image=1', loadPhoto: async () => { throw new Error('blocked'); } })).statusCode, 404, 'a photo that cannot be fetched is left out');
+  const fetched = [];
+  const res = await preview(previewToken(0), { agent: 'Mozilla/5.0', extra: '&image=1', loadPhoto: async url => { fetched.push(url); return thumb; } });
+  assert.equal(res.statusCode, 200); assert.equal(res.headers['Content-Type'], 'image/jpeg');
+  const meta = await sharp(res.body).metadata();
+  assert.deepEqual([meta.width, meta.height], [800, 800]);
+  assert.deepEqual(fetched, [previewed.products[0].candidate_image]);
+  assert.equal((await preview(previewToken(2), { extra: '&image=1', loadPhoto: assert.fail })).statusCode, 404);
+});
+
+test('a person tapping a /go/ link goes straight to the store; taps are recorded only with tracking on', async () => {
+  const off = [], on = [];
+  const res = await preview(previewToken(0), { agent: 'Mozilla/5.0 (iPhone)', recorded: off });
+  assert.equal(res.statusCode, 302); assert.equal(res.headers.Location, previewed.products[0].url);
+  assert.deepEqual(off, [], 'tracking off records nothing');
+  await preview(previewToken(0), { agent: 'Mozilla/5.0 (iPhone)', tracking: 'true', recorded: on });
+  assert.equal(on.length, 1);
+  await preview(previewToken(0), { tracking: 'true', recorded: on });
+  await preview(previewToken(0), { tracking: 'true', extra: '&image=1', loadPhoto: async () => { throw new Error('x'); }, recorded: on });
+  assert.equal(on.length, 1, 'preview page and photo fetches are not taps');
+  const tampered = previewToken(0).slice(0, -1) + (previewToken(0).endsWith('A') ? 'B' : 'A');
+  assert.equal((await preview(tampered)).statusCode, 404);
+  assert.equal((await preview(tampered, { extra: '&image=1' })).statusCode, 404, 'a tampered link gets no photo either');
 });
