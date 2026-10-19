@@ -40,7 +40,7 @@ test('completion is followed by the first question; the profile waits until ques
  await announceImport(store,owner,{},store.send);
  assert.equal(store.sent.length,2);assert.match(store.sent[0],/found 5/);assert.equal(store.sent[1],'Were the BODE shirts for you?');
  questions[0].status='answered';await nextReceiptQuestion(store,owner,{},store.send);
- assert.equal(store.sent.length,3);assert.match(store.sent[2],/what i’m learning about your style/);
+ assert.equal(store.sent.length,3);assert.match(store.sent[2],/what your purchases show so far/);
  await nextReceiptQuestion(store,owner,{},store.send);assert.equal(store.sent.length,3,'the profile is sent once');
 });
 test('with no questions the profile follows the completion text straight away; never before completion',async()=>{
@@ -54,7 +54,7 @@ test('the sweep sends profiles that are due even while a question stays unanswer
  const sweepStore={...store,gmailProfilesDue:async()=>[owner],quietGmailImports:async()=>[]};
  const {sendProfile}=await import('../lib/receipt-notifications.js');
  const result=await sweepGmailImports(sweepStore,{},{profile:(s,o,e)=>sendProfile(s,o,e,store.send)});
- assert.equal(result.profiles,1);assert.match(store.sent[0],/what i’m learning/);
+ assert.equal(result.profiles,1);assert.match(store.sent[0],/what your purchases show so far/);
 });
 test('a re-import asks a still-unanswered question again once, so the completion text is never left hanging',async()=>{
  const questions=[{id:'q1',status:'open',question:'Were the BODE shirts for you?',item_ids:['item-4']}];
