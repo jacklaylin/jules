@@ -31,7 +31,8 @@ test('every Vercel cron and every Supabase pg_cron schedule in the repo is a reg
 const days = n => Array.from({ length: n }, (_, i) => `2026-10-${String(i + 1).padStart(2, '0')}`);
 const cost = (day, feature, value) => ({ day, feature, provider: 'openai', calls: 1, cost: value });
 const scheduled = [{ jobname: 'jules-gmail-sweep', schedule: '* * * * *', active: true, runs: 100, failed: 0, last_run: '2026-10-10T11:59:00Z' },
-  { jobname: 'jules-reply-watchdog', schedule: '* * * * *', active: true, runs: 100, failed: 0, last_run: '2026-10-10T11:59:00Z' }];
+  { jobname: 'jules-reply-watchdog', schedule: '* * * * *', active: true, runs: 100, failed: 0, last_run: '2026-10-10T11:59:00Z' },
+  { jobname: 'jules-nightly-judge', schedule: '*/10 9-11 * * *', active: true, runs: 18, failed: 0, last_run: '2026-10-10T11:50:00Z' }];
 const runs = [{ day: '2026-10-10', job: 'price_checks', runs: 1, failed: 0, last_at: '2026-10-10T13:00:00Z', last_status: 'ok' },
   { day: '2026-10-10', job: 'purchase_check', runs: 1, failed: 0, last_at: '2026-10-09T17:00:00Z', last_status: 'ok' }];
 const now = new Date('2026-10-10T18:00:00Z');
@@ -100,4 +101,11 @@ test('scheduled runs are recorded as worked, failed or skipped, and a missing ta
   assert.deepEqual(recorded.map(r => [r.job, r.status]), [['price_checks', 'ok'], ['price_checks', 'skipped'], ['purchase_check', 'failed']]);
   assert.ok(recorded.every(r => Number.isInteger(r.duration_ms) && r.duration_ms >= 0 && !Number.isNaN(Date.parse(r.started_at))));
   await recordJobRun({ recordJobRun: async () => { throw new Error('relation "job_runs" does not exist'); } }, 'price_checks', Date.now(), 'ok');
+});
+
+test('a nightly Supabase job is not flagged during the day, only after a missed night', () => {
+  const at = now => buildJobs({ date: '2026-10-10', days: days(10), priced: [], runs: [], scheduled, now }).rows.find(r => r.id === 'judge').flags.filter(f => f.level !== 'info').map(f => f.text);
+  assert.deepEqual(at(new Date('2026-10-10T18:00:00Z')), []);
+  const stale = buildJobs({ date: '2026-10-12', days: days(12), priced: [], runs: [], scheduled, now: new Date('2026-10-12T18:00:00Z') }).rows.find(r => r.id === 'judge');
+  assert.ok(stale.flags.some(f => /26 hours/.test(f.text)));
 });
