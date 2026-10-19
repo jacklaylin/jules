@@ -28,6 +28,23 @@
       <div class="dv-table-wrap"><table class="dv-table adoption-table"><thead><tr id="ladder-head"></tr></thead><tbody id="ladder"></tbody></table></div>
       <p class="dv-note">Each week shows how many testers had reached each step by the end of that week, as a count and a share of everyone who had joined by then. <strong>New</strong> joined that week. <strong>Active</strong> sent Jules a message that week. Weeks start Monday (UTC).</p>
     </section>
+    <section id="quality" aria-labelledby="quality-title" hidden>
+      <h2 id="quality-title" class="dv-subhead">Quality</h2>
+      <div id="quality-summary" class="dv-metrics adoption-summary"></div>
+      <p class="dv-note"><strong>Misses</strong> are the model’s own judgement that a later message showed Jules got something wrong. They’re noisy, so use them as pointers to conversations to read, not as a score. <strong>Flags</strong> are the tester’s own 👎 tapbacks and <code>#dev</code> notes.</p>
+      <h3 class="adoption-minor">By tester</h3>
+      <div class="dv-table-wrap"><table class="dv-table adoption-table"><thead><tr>
+        <th>Tester</th><th class="end">Results</th><th class="end">Misses</th><th class="end">Miss rate</th><th class="end">Flags</th><th class="end">Photos</th><th class="end">Identified</th><th class="end">Saved from photo</th>
+      </tr></thead><tbody id="quality-testers"></tbody></table></div>
+      <h3 class="adoption-minor">By week</h3>
+      <div class="dv-table-wrap"><table class="dv-table adoption-table"><thead><tr id="quality-week-head"></tr></thead><tbody id="quality-weeks"></tbody></table></div>
+      <h3 class="adoption-minor">Photo searches</h3>
+      <div class="dv-table-wrap"><table class="dv-table adoption-table adoption-narrow"><thead><tr><th>Outcome</th><th class="end">Photos</th><th>Meaning</th></tr></thead><tbody id="quality-photos"></tbody></table></div>
+      <p id="quality-photo-note" class="dv-note"></p>
+      <h3 class="adoption-minor">Misses to read</h3>
+      <div class="dv-table-wrap"><table class="dv-table adoption-table"><thead><tr><th>Date</th><th>Tester</th><th>Kind</th><th>What happened</th></tr></thead><tbody id="quality-misses"></tbody></table></div>
+    </section>
+    <p id="quality-error" class="dv-note" hidden>The Quality section couldn’t load. The rest of the page is unaffected; try Refresh.</p>
     <details class="fold metrics-help"><summary>What these numbers mean</summary><dl id="definitions"></dl></details>
   </main>
 </body>
