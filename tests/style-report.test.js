@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {receiptLines,validTotal,writeTotal,buildReport,updateReport,reportView,handleReport,FALLBACK_TOTAL,gatekeeper,nicheBrand,validGateLine,writeGateLine,reportWriter,REPORT_MODEL,inOut,validInOutLine,writeInOutLine,validEntry,copyLines,lockedCards,MIN_CARDS,sharedView,handleSharedReport,sharePreview,handleSharePage,fourEmojis,EMOJI_PERSONAS,emojiPersona,spectrum,validEmojiCaption,writeEmojiCaptions,styleMatch,validMatchLine,writeMatchLine,sendNewCardText,sendReportLink,newCardsText,missingSources} from '../lib/style-report.js';
+import {receiptLines,validFine,validName,writeReceipt,fineCheck,clock,buildReport,updateReport,reportView,handleReport,FALLBACK_FINE,gatekeeper,nicheBrand,validGateLine,writeGateLine,reportWriter,REPORT_MODEL,inOut,validInOutLine,writeInOutLine,validEntry,copyLines,lockedCards,MIN_CARDS,sharedView,handleSharedReport,sharePreview,handleSharePage,fourEmojis,EMOJI_PERSONAS,emojiPersona,spectrum,validEmojiCaption,writeEmojiCaptions,styleMatch,validMatchLine,writeMatchLine,sendNewCardText,sendReportLink,newCardsText,missingSources} from '../lib/style-report.js';
 import {tagFingerprint} from '../lib/item-tags.js';
 import {purchaseEvidence,projectReceiptEvidence} from '../lib/receipt-extraction.js';
 import {signInLinks} from '../lib/onboarding.js';
@@ -41,19 +41,52 @@ test('counts leave out returns, and one product ordered in several sizes counts 
  assert.equal(r.lines.find(l=>l.key==='returns').n,1,'the return is still its own private line');
 });
 
-test('the receipt counts real purchases: repeated item types, stores, brands and a dominant colour',()=>{
+test('the receipt proves it read the orders: repeat products, the first order and a few fields',()=>{
+ seq=0;
+ const sock=(order,at,quantity=1)=>buy({product:'Ribbed Calf Sock Black L',merchant:'Bombas',brand:'Bombas',color:'Black',size_label:'L',order_reference:order,quantity},{at});
+ const rows=[...sock('B1',Date.UTC(2024,0,5),3),...sock('B2',Date.UTC(2024,5,5)),...sock('B3',Date.UTC(2025,0,5)),...sock('B4',Date.UTC(2025,6,5)),
+  ...Array.from({length:6},(_,k)=>buy({product:'Muscle Crop Top '+k,merchant:'John Elliott',order_reference:'JE'+k},{at:Date.UTC(2025,k,1)})).flat(),
+  ...Array.from({length:3},(_,k)=>buy({product:'Overshirt '+k,merchant:'SSENSE',brand:'Our Legacy',order_reference:'SS'+k},{at:Date.UTC(2023,k+2,1)})).flat(),
+  ...buy({product:'Overshirt 9',merchant:'SSENSE',brand:'Our Legacy',order_reference:'SS9'},{at:Date.UTC(2026,9,3,8,14)})];
+ const state=projectReceiptEvidence(owner,rows).state;
+ const tags=tagsFor(state,i=>/Sock/.test(i.product)?{item_type:'sock',group:'underwear_basics',color_family:'black'}:/Crop/.test(i.product)?{item_type:'muscle half crop top',group:'tops',color_family:'black'}:{item_type:'overshirt',group:'shirts',color_family:'navy'});
+ const r=receiptLines(state,tags);
+ assert.equal(r.eligible,true);
+ const sockLine=r.lines.find(l=>l.key.startsWith('product:bombas|'));
+ assert.deepEqual({label:sockLine.label,n:sockLine.n},{label:'RIBBED CALF SOCK BLACK',n:6},'the same sock across four orders, size left off; a 3-pack order counts 3');
+ assert.ok(!r.lines.some(l=>l.key==='brand:bombas'),'a product line says more than its brand line');
+ assert.ok(r.lines.some(l=>l.key==='type:muscle half crop tops'||l.key==='type:muscle half crop top'),'six different crop tops fill in as an item type');
+ assert.ok(r.lines.every(l=>!/ORDERS$/.test(l.label)),'store order counts are gone');
+ assert.equal(r.first.label,'OVERSHIRT 0');assert.equal(r.first.at,Date.UTC(2023,2,1));
+ const fields=Object.fromEntries(r.fields.map(f=>[f.key,f]));
+ assert.equal(fields['field:kept'].value,'16');
+ assert.equal(fields['field:not-colour'].label,'ITEMS NOT BLACK');assert.equal(fields['field:not-colour'].value,'4');
+ assert.equal(fields['field:stores'].value,'3');
+ assert.equal(fields['field:last'].at,Date.UTC(2026,9,3,8,14),'the last order keeps its time, shown in the person’s own time zone');
+ assert.equal(r.fields.length,4);assert.equal(r.fields.at(-1).key,'field:last');
+ assert.ok(!fields['field:reordered'],'the sock is already a line');
+ assert.deepEqual(r.sources[sockLine.key],{brand:'Bombas',product:'Ribbed Calf Sock Black L',color:'Black'});
+ assert.ok(r.lines.every(l=>!/\$|€|£/.test(l.label)));
+});
+
+test('the item reordered most gets its own field when it isn’t already a line',()=>{
+ seq=0;
+ const rows=[...Array.from({length:5},(_,k)=>buy({product:'Tee '+'ABCDE'[k],merchant:'COS',brand:'COS',order_reference:'C'+k,quantity:4})).flat(),
+  ...Array.from({length:3},(_,k)=>buy({product:'Ankle Sock',merchant:'Uniqlo',brand:'Uniqlo',order_reference:'U'+k})).flat()];
+ const r=receiptLines(projectReceiptEvidence(owner,rows).state,{});
+ assert.equal(r.lines.length,5);
+ const field=r.fields.find(f=>f.key==='field:reordered');
+ assert.equal(field.value,'ANKLE SOCK · 3 ORDERS');
+});
+
+test('with no repeat products the receipt fills in with item types and brands',()=>{
  const {state,tags}=history(),r=receiptLines(state,tags);
  assert.equal(r.eligible,true);
  const byKey=Object.fromEntries(r.lines.map(l=>[l.key,l]));
  assert.equal(byKey['type:muscle half crop top'].label,'MUSCLE HALF CROP TOPS');assert.equal(byKey['type:muscle half crop top'].n,6);
- assert.equal(byKey['store:john elliott'].label,'JOHN ELLIOTT ORDERS');assert.equal(byKey['store:john elliott'].n,6);
- assert.equal(byKey['colour:black'].label,'BLACK ANYTHING');assert.equal(byKey['colour:black'].n,7,'the returned black overshirt is not counted');
- // A group line is dropped when an item-type line from the same group says it better.
- assert.ok(!r.lines.some(l=>l.key==='group:tops'));
- // Returns are a private line.
+ assert.equal(byKey['brand:john elliott'].label,'JOHN ELLIOTT');
  assert.deepEqual(r.lines.find(l=>l.key==='returns'),{key:'returns',label:'RETURNED',n:1,private:true});
  assert.deepEqual(r.range,{from:2023,to:2025});
- assert.ok(r.lines.every(l=>!/\$|€|£/.test(l.label)));
 });
 
 test('too little data makes no receipt instead of padding it',()=>{
@@ -61,25 +94,48 @@ test('too little data makes no receipt instead of padding it',()=>{
  assert.equal(receiptLines(state,{}).eligible,false);
 });
 
-test('the joke line is checked: no numbers or names the receipt does not show, no money or loyalty claims',()=>{
- const receipt={lines:[{key:'a',label:'JOHN ELLIOTT ORDERS',n:6},{key:'b',label:'BLACK ANYTHING',n:22}],all_names:['John Elliott','Our Legacy','SSENSE']};
- assert.equal(validTotal('one colour and a john elliott problem',receipt),'ONE COLOUR AND A JOHN ELLIOTT PROBLEM');
- assert.equal(validTotal('TOTAL: 22 SHADES OF BLACK.',receipt),'22 SHADES OF BLACK');
- assert.equal(validTotal('23 shades of black',receipt),null);
- assert.equal(validTotal('our legacy forever',receipt),null);
- assert.equal(validTotal('your favourite store',receipt),null);
- assert.equal(validTotal('$4k in black tees',receipt),null);
- assert.equal(validTotal('x'.repeat(41),receipt),null);
+test('a short product name may only remove words from what the receipt says',()=>{
+ const source={brand:'Bombas',product:"Men's Ribbed Calf Sock 3-Pack",color:'Black'};
+ assert.equal(validName('ribbed calf sock, black',source),'RIBBED CALF SOCK, BLACK');
+ assert.equal(validName('BOMBAS CALF SOCK',source),'BOMBAS CALF SOCK');
+ assert.equal(validName('BLACK CALF SOCK',source),null,'reordered');
+ assert.equal(validName('RIBBED CREW SOCK',source),null,'a word the receipt doesn’t have');
+ assert.equal(validName('BOMBAS MEN\'S RIBBED CALF SOCK BLACK',source),null,'too long for a line');
+ assert.equal(validName('',source),null);assert.equal(validName('SOCK',null),null);
 });
 
-test('a rejected joke is retried once, then the receipt uses a safe line',async()=>{
- const receipt={lines:[{key:'a',label:'BLACK ANYTHING',n:22}],all_names:[],range:null,items:30};
- let calls=0;
- assert.deepEqual(await writeTotal(receipt,async()=>{calls++;return {total:calls===1?'99 black tees':'still no beige'};}),{total:'STILL NO BEIGE',written:true});
- assert.equal(calls,2);
- assert.deepEqual(await writeTotal(receipt,async()=>({total:'your favourite colour'})),{total:FALLBACK_TOTAL,written:false});
- assert.deepEqual(await writeTotal(receipt,async()=>{throw Error('down');}),{total:FALLBACK_TOTAL,written:false});
+test('the fine print is checked: only numbers and names the card prints, no money or loyalty claims',()=>{
+ const card={lines:[{key:'a',label:'JOHN ELLIOTT',n:6},{key:'b',label:'RIBBED CALF SOCK',n:6}],first:{label:'OVERSHIRT'},fields:[{key:'field:not-colour',label:'ITEMS NOT BLACK',value:'4'},{key:'field:last',label:'LAST ORDER',at:1}]};
+ const check={...fineCheck(card),all_names:['John Elliott','Our Legacy']};
+ assert.equal(validFine('no exchanges for colour.',check),'NO EXCHANGES FOR COLOUR');
+ assert.equal(validFine('4 colours in stock',check),'4 COLOURS IN STOCK');
+ assert.equal(validFine('5 colours in stock',check),null);
+ assert.equal(validFine('john elliott members only',check),'JOHN ELLIOTT MEMBERS ONLY');
+ assert.equal(validFine('our legacy sold separately',check),null,'a brand the card doesn’t show');
+ assert.equal(validFine('your favourite sock',check),null);
+ assert.equal(validFine('no refunds over $50',check),null);
+ assert.equal(validFine('thank you, come again!',check),null);
+ assert.equal(validFine('x'.repeat(35),check),null);
 });
+
+test('the writer shortens names and writes the fine print; anything that fails a check falls back safely',async()=>{
+ const receipt={lines:[{key:'product:bombas|sock',label:'RIBBED CALF SOCK 3 PACK',n:6},{key:'type:tee',label:'TEES',n:4},{key:'brand:cos',label:'COS',n:3}],
+  first:{key:'first',at:1,label:'LINEN SHIRT CREAM',source:{brand:'COS',product:'Linen Shirt',color:'Cream'}},
+  fields:[{key:'field:kept',label:'ITEMS KEPT',value:'13'},{key:'field:last',label:'LAST ORDER',at:2}],
+  sources:{'product:bombas|sock':{brand:'Bombas',product:'Ribbed Calf Sock 3-Pack',color:'Black'},first:{brand:'COS',product:'Linen Shirt',color:'Cream'}},range:null,all_names:['Bombas','COS']};
+ let calls=0;
+ const out=await writeReceipt(receipt,async()=>{calls++;return calls===1?{names:[{key:'product:bombas|sock',label:'RIBBED CALF SOCK, BLACK'},{key:'first',label:'WHITE LINEN SHIRT'}],fine:'99 socks served'}
+  :{names:[{key:'first',label:'COS LINEN SHIRT'}],fine:'socks are final sale'};});
+ assert.equal(calls,2,'the fine print failed its check once, so the writer was asked again');
+ assert.equal(out.lines[0].label,'RIBBED CALF SOCK, BLACK','a name that passed on the first try is kept');
+ assert.equal(out.lines[1].label,'TEES','item-type lines are never renamed');
+ assert.equal(out.first.label,'COS LINEN SHIRT');
+ assert.equal(out.fine,'SOCKS ARE FINAL SALE');assert.equal(out.written,true);
+ const down=await writeReceipt(receipt,async()=>{throw Error('down');});
+ assert.equal(down.fine,FALLBACK_FINE);assert.equal(down.written,false);
+ assert.equal(down.lines[0].label,'RIBBED CALF SOCK 3 PACK','without the writer the code’s own label stays');
+});
+
 
 function fixture(){
  const {rows,tags}=history();
@@ -90,18 +146,18 @@ function fixture(){
   claimGmailImport:async()=>{if(busy)return null;busy=true;row.revision++;return structuredClone(row);},
   finishGmailImport:async(o,revision,data,token)=>{if(revision!==row.revision)return false;busy=false;row={...row,data:structuredClone(data),token_ciphertext:token};return true;}};
 }
-const writer=async()=>({total:'one colour and a crop top habit'});
+const writer=async()=>({names:[],fine:'one colour and a crop top habit'});
 
 test('building saves the receipt on the history row, and a rebuild keeps feedback and hidden lines',async()=>{
  const store=fixture(),built=await buildReport(store,owner,{},{interpret:writer});
  assert.equal(built.status,'built');
  const saved=store.row.data.style_report;
- assert.equal(saved.cards[0].type,'receipt');assert.equal(saved.cards[0].total,'ONE COLOUR AND A CROP TOP HABIT');assert.equal(saved.show_returns,false);
+ assert.equal(saved.cards[0].type,'receipt');assert.equal(saved.cards[0].fine,'ONE COLOUR AND A CROP TOP HABIT');assert.equal(saved.show_returns,false);
  await updateReport(store,owner,{action:'report-feedback',card:'receipt',vote:'down',reason:'not_funny'});
- await updateReport(store,owner,{action:'report-lines',card:'receipt',hidden:['colour:black'],show_returns:false});
+ await updateReport(store,owner,{action:'report-lines',card:'receipt',hidden:['type:muscle half crop top'],show_returns:false});
  const again=await buildReport(store,owner,{},{interpret:writer});
  assert.notEqual(again.report.id,saved.id);
- assert.deepEqual(store.row.data.style_report.hidden,{receipt:['colour:black']});
+ assert.deepEqual(store.row.data.style_report.hidden,{receipt:['type:muscle half crop top']});
  assert.equal(store.row.data.style_report.feedback.length,1);
  store.busy=true;assert.equal((await buildReport(store,owner,{},{interpret:writer})).status,'busy');
 });
@@ -121,9 +177,12 @@ test('the page view hides hidden lines and shows returns only when turned on',as
  const store=fixture();await buildReport(store,owner,{},{interpret:writer});
  let view=reportView(store.row.data.style_report,'Jack');
  assert.equal(view.name,'Jack');assert.equal(view.cards[0].lines.find(l=>l.key==='returns').hidden,true);
- await updateReport(store,owner,{action:'report-lines',card:'receipt',hidden:['colour:black'],show_returns:true});
+ await updateReport(store,owner,{action:'report-lines',card:'receipt',hidden:['type:muscle half crop top','first','field:last'],show_returns:true});
  view=reportView(store.row.data.style_report);
- assert.equal(view.cards[0].lines.find(l=>l.key==='returns').hidden,false);assert.equal(view.cards[0].lines.find(l=>l.key==='colour:black').hidden,true);
+ assert.equal(view.cards[0].lines.find(l=>l.key==='returns').hidden,false);assert.equal(view.cards[0].lines.find(l=>l.key==='type:muscle half crop top').hidden,true);
+ // The first order and the fields can be hidden like lines.
+ assert.equal(view.cards[0].first.hidden,true);assert.equal(view.cards[0].fields.find(f=>f.key==='field:last').hidden,true);
+ assert.equal(view.cards[0].fields.find(f=>f.key==='field:kept').hidden,false);
  await updateReport(store,owner,{action:'report-feedback',card:'receipt',vote:'up'});
  assert.equal(reportView(store.row.data.style_report).votes.receipt,'up');
 });
@@ -235,7 +294,7 @@ test('the Gatekeeper line names only the person’s own brands and falls back wh
 
 test('the report adds a Gatekeeper card after the receipt, and its lines cannot be edited',async()=>{
  const store=fixture();
- const built=await buildReport(store,owner,{},{interpret:async request=>request.schema.properties.line?{line:'you got to Our Legacy early'}:{total:'one colour and a crop top habit'}});
+ const built=await buildReport(store,owner,{},{interpret:async request=>request.schema.properties.line?{line:'you got to Our Legacy early'}:{names:[],fine:'one colour and a crop top habit'}});
  const card=built.report.cards[1];
  assert.equal(card.type,'gatekeeper');assert.equal(card.line,'you got to Our Legacy early');assert.ok(card.score>=0&&card.score<=100);
  assert.equal(reportView(built.report).cards[1].type,'gatekeeper');
@@ -507,7 +566,7 @@ test('the new-card text is one signed /report link, sent once per unlock',async(
 
 test('the built report puts real cards first and locked cards after, and locked cards take no line edits',async()=>{
  const store=fixture();
- const built=await buildReport(store,owner,{},{interpret:async request=>request.schema.properties.line?{line:'you got to Our Legacy early'}:request.schema.properties.verdict?{verdict:'new year, same black'}:{total:'one colour and a crop top habit'}});
+ const built=await buildReport(store,owner,{},{interpret:async request=>request.schema.properties.line?{line:'you got to Our Legacy early'}:request.schema.properties.verdict?{verdict:'new year, same black'}:{names:[],fine:'one colour and a crop top habit'}});
  const types=built.report.cards.map(c=>c.type);
  assert.ok(types.length>=MIN_CARDS);assert.equal(types[0],'receipt');
  assert.ok(types.indexOf('locked')===-1||types.slice(types.indexOf('locked')).every(t=>t==='locked'));
@@ -517,7 +576,7 @@ test('the built report puts real cards first and locked cards after, and locked 
 
 // The writer answers each card's schema: in-app copy talks to the person, shared copy about them.
 const sharingWriter=async request=>request.schema.properties.line?{line:'you got to Our Legacy early',shared:'Jack got to Our Legacy early'}
- :request.schema.properties.verdict?{verdict:'new year, same black',shared:'Jack kept it black'}:{total:'one colour and a crop top habit'};
+ :request.schema.properties.verdict?{verdict:'new year, same black',shared:'Jack kept it black'}:{names:[],fine:'one colour and a crop top habit'};
 
 test('sharing makes one permanent unguessable link, and a rebuild keeps it',async()=>{
  const store=fixture();await buildReport(store,owner,{},{interpret:sharingWriter});
@@ -536,7 +595,7 @@ test('sharing makes one permanent unguessable link, and a rebuild keeps it',asyn
 test('a friend opening the link needs no sign-in and sees only what the person chose to share',async()=>{
  const store=fixture();await buildReport(store,owner,{},{interpret:sharingWriter});
  // Hide a line, show returns in the app, and mark one card as not for sharing.
- await updateReport(store,owner,{action:'report-lines',card:'receipt',hidden:['colour:black'],show_returns:true});
+ await updateReport(store,owner,{action:'report-lines',card:'receipt',hidden:['type:muscle half crop top'],show_returns:true});
  const {share}=await updateReport(store,owner,{action:'report-share'});
  const open=async token=>{const res=response();await handleSharedReport({method:'GET',url:`/api/wishlist?shared=${token}`,headers:{}},res,{store});return res;};
  let res=await open(share.token);
@@ -559,7 +618,7 @@ test('a friend opening the link needs no sign-in and sees only what the person c
 
 test('shared copy must be about the person, never "you", or it falls back',async()=>{
  const store=fixture();
- const built=await buildReport(store,owner,{},{interpret:async request=>request.schema.properties.line?{line:'you got to Our Legacy early',shared:'you got to Our Legacy early'}:request.schema.properties.verdict?{verdict:'new year, same black',shared:'your closet stayed black'}:{total:'one colour and a crop top habit'}});
+ const built=await buildReport(store,owner,{},{interpret:async request=>request.schema.properties.line?{line:'you got to Our Legacy early',shared:'you got to Our Legacy early'}:request.schema.properties.verdict?{verdict:'new year, same black',shared:'your closet stayed black'}:{names:[],fine:'one colour and a crop top habit'}});
  for(const card of built.report.cards.filter(c=>c.shared))assert.ok(!/\byou(r)?\b/i.test(card.shared),card.shared);
  // Older reports without shared copy still share safely.
  const legacy={...built.report,cards:built.report.cards.map(({shared,...c})=>c)};
@@ -788,4 +847,23 @@ test('the match card says what you both love and what you both hate, each a coun
  // A report built before the two lines keeps its single line.
  const old=sharedView({cards:[{type:'match',pct:94,icon:{key:'frank-ocean',...card.icon,kind:'real',photo:null},shared:card.shared,orders:121,line:'you both love Nike',shared_line:'Jack and Frank both love Nike'}],feedback:[],hidden:{}},'Jack');
  assert.equal(old.cards[0].line,'Jack and Frank both love Nike');
+});
+
+test('a shared receipt shows the last order’s time in the person’s time zone, never its date, and leaves out hidden parts',()=>{
+ const at=Date.UTC(2026,9,3,8,14);
+ const card={type:'receipt',range:{from:2022,to:2026},written:true,fine:'NO EXCHANGES FOR COLOUR',
+  lines:[{key:'a',label:'RIBBED CALF SOCK',n:6},{key:'b',label:'TEES',n:4},{key:'returns',label:'RETURNED',n:2,private:true}],
+  first:{key:'first',at:Date.UTC(2022,2,14),label:'MAAP TEAM JERSEY'},
+  fields:[{key:'field:kept',label:'ITEMS KEPT',value:'70'},{key:'field:stores',label:'STORES USED',value:'3'},{key:'field:last',label:'LAST ORDER',at}]};
+ const report={cards:[card],feedback:[],hidden:{receipt:['field:stores']},timezone:'America/Los_Angeles'};
+ assert.equal(clock(at,'America/Los_Angeles'),'1:14 AM');
+ assert.deepEqual(sharedView(report,'Jack').cards,[{type:'receipt',range:{from:2022,to:2026},fine:'NO EXCHANGES FOR COLOUR',
+  lines:[{label:'RIBBED CALF SOCK',n:6},{label:'TEES',n:4}],
+  fields:[{label:'ITEMS KEPT',value:'70'},{label:'LAST ORDER',value:'1:14 AM'}],first:{at:Date.UTC(2022,2,14),label:'MAAP TEAM JERSEY'}}]);
+ // No time zone yet: the last order is left out rather than shown in someone else's clock.
+ const noZone=sharedView({...report,timezone:undefined,hidden:{receipt:['first']}},'Jack').cards[0];
+ assert.deepEqual(noZone.fields.map(f=>f.label),['ITEMS KEPT','STORES USED']);
+ assert.equal(noZone.first,undefined);
+ // Reports from before the proof receipt still share their TOTAL line.
+ assert.equal(sharedView({cards:[{type:'receipt',total:'NO FURTHER QUESTIONS',range:null,lines:[{key:'a',label:'TEES',n:4}]}],feedback:[],hidden:{}}).cards[0].total,'NO FURTHER QUESTIONS');
 });

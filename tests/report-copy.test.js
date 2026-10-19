@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {buildReport,updateReport,reportView,FALLBACK_TOTAL,plainTotal,validEmojiCaption,writeEmojiCaptions,writeGateLine,gateFallback,plainGateLine,COPY_CARDS} from '../lib/style-report.js';
+import {buildReport,updateReport,reportView,FALLBACK_FINE,validEmojiCaption,writeEmojiCaptions,writeGateLine,gateFallback,plainGateLine,COPY_CARDS} from '../lib/style-report.js';
 import {lineVotes,cardLessons,teach,allows,copyWeek,shownLine,lineKey,promptVersion,EXAMPLES_MAX,MISSES_MAX,NO_LESSONS} from '../lib/report-copy.js';
 import {createAdminHandler} from '../api/admin.js';
 import {JUDGES_PROMPT} from '../lib/style-judges.js';
@@ -37,7 +37,7 @@ function world(){
 // latest writer's, not the judges', who only score).
 function writer(total='one colour and a crop top habit'){
  const seen=[];
- const fn=async request=>{seen.push(request.instructions);return {total};};
+ const fn=async request=>{seen.push(request.instructions);return {names:[],fine:total};};
  fn.seen=seen;fn.last=()=>seen.filter(s=>s!==JUDGES_PROMPT).at(-1);return fn;
 }
 const report=(store,p)=>store.rows.get(p).data.style_report;
@@ -48,17 +48,17 @@ test('every shown line is logged with its card, fact, source and prompt version,
  await buildReport(store,A,{},{interpret:w});
  const first=report(store,A),line=first.copy_log.find(l=>l.card==='receipt');
  assert.equal(line.text,'ONE COLOUR AND A CROP TOP HABIT');
- assert.equal(line.source,'generated');assert.equal(line.slot,'total');assert.equal(line.report_id,first.id);
+ assert.equal(line.source,'generated');assert.equal(line.slot,'fine');assert.equal(line.report_id,first.id);
  assert.equal(line.prompt,promptVersion(COPY_CARDS.receipt.prompt));
  assert.match(line.fact,/MUSCLE HALF CROP TOPS ×6/);
  assert.ok(line.names.includes('John Elliott'),'names on the card are kept so they cannot leak into someone else’s line');
- await buildReport(store,A,{},{interpret:async()=>({total:'your favourite store'})});
+ await buildReport(store,A,{},{interpret:async()=>({names:[],fine:'your favourite store'})});
  const second=report(store,A);
  assert.equal(second.copy_log.length,first.copy_log.length*2,'earlier lines stay, so old votes still land');
- assert.equal(second.copy_log.at(-1).source,'prewritten');assert.equal(second.copy_log.at(-1).text,FALLBACK_TOTAL);
+ assert.equal(second.copy_log.at(-1).source,'prewritten');assert.equal(second.copy_log.at(-1).text,FALLBACK_FINE);
  // The page gets this build's lines for "which one missed?", and a rebuilt card starts unvoted.
  const view=reportView(second);
- assert.deepEqual(view.copy.receipt.map(l=>l.text),[FALLBACK_TOTAL]);
+ assert.deepEqual(view.copy.receipt.map(l=>l.text),[FALLBACK_FINE]);
  assert.equal(view.votes.receipt,null);
 });
 
@@ -75,7 +75,7 @@ test('one 👍 puts a line in the writer prompt on the next build; a 👎 swaps 
  await buildReport(store,A,{},{interpret:w});
  assert.ok(!w.last().includes('Lines people liked'));
  assert.match(w.last(),/Don't write like this:\n- "[^"]*" → "ONE COLOUR AND A CROP TOP HABIT"/);
- assert.equal(report(store,A).cards[0].total,'ONE COLOUR AND A CROP TOP HABIT','A never voted it down, so A can still get it');
+ assert.equal(report(store,A).cards[0].fine,'ONE COLOUR AND A CROP TOP HABIT','A never voted it down, so A can still get it');
 });
 
 test('a person never sees a line they voted down again, including the pre-written one',async()=>{
@@ -83,11 +83,10 @@ test('a person never sees a line they voted down again, including the pre-writte
  await buildReport(store,C,{},{interpret:w});
  await vote(store,C,{vote:'down',reason:'not_funny'});
  await buildReport(store,C,{},{interpret:w});
- assert.equal(report(store,C).cards[0].total,FALLBACK_TOTAL,'the writer offered the same line twice; both were refused');
+ assert.equal(report(store,C).cards[0].fine,FALLBACK_FINE,'the writer offered the same line twice; both were refused');
  await vote(store,C,{vote:'down',reason:'not_funny'});
  await buildReport(store,C,{},{interpret:w});
- assert.equal(report(store,C).cards[0].total,plainTotal({items:10}));
- assert.equal(report(store,C).cards[0].total,'10 ITEMS KEPT');
+ assert.equal(report(store,C).cards[0].fine,null,'no fine print rather than a line they turned down');
 });
 
 test('👎 can name the lines that missed; unnamed it counts half, spread across the card',()=>{
@@ -127,7 +126,7 @@ test('learned lines must still pass their card’s validator, and the banks are 
  assert.ok(!lessons.examples.some(e=>e.text===bad.text));
  // Facts shown in place of a joke never teach.
  const fact=shownLine({report_id:'f',card:'emoji',slot:'🧶',text:'7 knits',fact:'🧶 7 knits',source:'fact',check:{fact:'7 knits'},at:'2026-10-02T00:00:00Z'});
- const misses=[];for(let k=0;k<MISSES_MAX+3;k++){const line=shownLine({report_id:'m'+k,card:'receipt',slot:'total',text:`MISS ${k}`,fact:'',source:'generated',check:{lines:[]},at:'2026-10-01T00:00:00Z'});misses.push({conversation_id:A,copy:[line],feedback:[{card:'receipt',vote:'down',report_id:'m'+k,at:new Date(Date.UTC(2026,9,1,k)).toISOString()}]});}
+ const misses=[];for(let k=0;k<MISSES_MAX+3;k++){const line=shownLine({report_id:'m'+k,card:'receipt',slot:'fine',text:`MISS ${k}`,fact:'',source:'generated',check:{lines:[]},at:'2026-10-01T00:00:00Z'});misses.push({conversation_id:A,copy:[line],feedback:[{card:'receipt',vote:'down',report_id:'m'+k,at:new Date(Date.UTC(2026,9,1,k)).toISOString()}]});}
  const receipt=cardLessons(lineVotes([...misses,{conversation_id:B,copy:[fact],feedback:[{card:'emoji',vote:'down',report_id:'f',at:'2026-10-02T00:00:00Z'}]}]),'receipt');
  assert.equal(receipt.misses.length,MISSES_MAX);assert.equal(receipt.misses[0].text,`MISS ${MISSES_MAX+2}`);
  assert.equal(cardLessons(lineVotes([{conversation_id:B,copy:[fact],feedback:[{card:'emoji',vote:'down',report_id:'f',at:'2026-10-02T00:00:00Z'}]}]),'emoji',{person:B}).misses.length,0);
