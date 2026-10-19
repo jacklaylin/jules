@@ -2,9 +2,16 @@
 // Pure functions so the list logic is testable without a browser.
 
 // Identifiers are phone numbers or emails; spaces are ignored on both sides so "+1 415" finds "+14155550142".
-export function filterPeople(people, query = '') {
+export function filterPeople(people, query = '', access = '') {
   const q = query.replace(/\s/g, '').toLowerCase();
-  return q ? people.filter(p => p.sender_id.replace(/\s/g, '').toLowerCase().includes(q)) : people;
+  return people.filter(p => (!q || p.sender_id.replace(/\s/g, '').toLowerCase().includes(q)) && (!access || p.access === access));
+}
+
+// The waitlist filter's segments with counts; none when no status could be read (db/035 not run).
+export function accessSegments(people) {
+  if (!people.some(p => p.access)) return [];
+  const n = access => people.filter(p => p.access === access).length;
+  return [['', 'All', people.length], ['waitlisted', 'Waitlisted', n('waitlisted')], ['approved', 'Approved', n('approved')]];
 }
 
 // "just now", "5 min ago", "3 hours ago", "yesterday", "4 days ago"; older than a fortnight shows the date.

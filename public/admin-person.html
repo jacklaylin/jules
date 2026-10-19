@@ -7,7 +7,7 @@
 <link rel="icon" href="/brand/icon.svg" type="image/svg+xml"></head>
 <body class="admin-console">
   <main>
-    <div class="person-title"><a class="breadcrumb" href="/admin">People /</a><h1 id="person-name">Loading…</h1><div id="person-badges" class="badges"></div><span class="spacer"></span>
+    <div class="person-title"><a class="breadcrumb" href="/admin">People /</a><h1 id="person-name">Loading…</h1><span id="person-access" hidden></span><div id="person-badges" class="badges"></div><span class="spacer"></span>
       <p class="person-stats">Active <strong id="stat-active">—</strong> · <strong id="stat-messages">—</strong> messages · <strong id="stat-facts">—</strong> facts</p>
       <button class="small quiet" type="button" popovertarget="person-more">More ⋯</button></div>
     <!-- One menu of actions for this person, the same on every tab. Memory and purchase actions open their tab first. -->
@@ -27,6 +27,7 @@
       <button id="report-send" type="button" data-opens-tab="purchases" hidden>Text them the link…</button>
       <hr>
       <span class="mono-label">Person</span>
+      <button id="approve-person" type="button" aria-haspopup="dialog" hidden>Approve from waitlist…</button>
       <button id="reset-onboarding" type="button" aria-haspopup="dialog">Reset onboarding…</button>
     </div>
     <nav class="tabs" aria-label="Person sections">
@@ -96,6 +97,13 @@
       <div id="wishlist-list" class="wishlist-list"></div>
     </section>
   </main>
+  <dialog id="approve-dialog" class="confirm-dialog" aria-labelledby="approve-title">
+    <h2 id="approve-title">Approve from the waitlist?</h2>
+    <p><strong id="approve-person-name">This number</strong> gets full Jules from their next message, with no reply limit.</p>
+    <p id="approve-text-note"></p>
+    <p id="approve-error" class="error" role="alert" hidden></p>
+    <div class="dialog-actions"><button id="approve-confirm" class="btn--butter" type="button">Approve</button><button id="approve-cancel" type="button">Cancel</button></div>
+  </dialog>
   <dialog id="reset-dialog" class="confirm-dialog" aria-labelledby="reset-title">
     <h2 id="reset-title">Reset onboarding?</h2>
     <p>Use this to re-test signup and onboarding with <strong id="reset-person">this number</strong>. It removes, for this person only:</p>
