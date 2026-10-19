@@ -69,3 +69,5 @@
 .suggest-thumb--down svg{transform:rotate(180deg)}
 .detail-suggestion{min-width:0}.detail-suggestion>.photo{aspect-ratio:4/5}
 @media(max-width:800px){.product-card>.suggest-ask{top:9px;left:9px;right:9px;aspect-ratio:3/4;padding:8px;gap:6px}.suggested-label{left:8px;top:8px}}
+/* A thumbnail-sized order photo keeps its own scale (set in wardrobe.js) instead of stretching to the frame. */
+.photo--small img{width:auto;height:auto;object-fit:contain}
