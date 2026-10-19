@@ -95,12 +95,13 @@ async function act(input,{done}={}){
  catch(error){if(error.status===401)login();toast(error.message);return false;}
 }
 
-// A searched photo waiting for the owner: labelled as a suggestion, with a one-tap answer beside it.
-function suggestionLabel(){return el('span',{className:'suggested-label',textContent:'Suggested photo'});}
+// A searched photo waiting for the owner: labelled on the photo, answered with thumbs inside the photo.
+const THUMB='<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 21 L7 10 L11 10 L14 3 C16 3 17 4 17 6 L16 9 L21 9 C22 9 23 10 22.6 11.4 L20.5 19.4 C20.2 20.4 19.4 21 18.4 21 Z M3 10 L7 10 L7 21 L3 21 Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>';
+function suggestionLabel(){return el('span',{className:'suggested-label',textContent:'Is this yours?'});}
 function suggestionAsk(item){
- const answer=(label,value)=>{const b=el('button',{type:'button',className:'chip',textContent:label});b.setAttribute('aria-label',`${label}, this photo shows my ${name(item)}`);
-  b.onclick=()=>act({action:'photo',item_id:item.id,answer:value},{done:()=>toast(value==='yes'?'Photo saved.':'Got it. Jules won’t use that photo.')});return b;};
- return el('div',{className:'suggest-ask'},el('span',{},'Is this yours?'),el('div',{className:'suggest-answers'},answer('Yes','yes'),answer('No','no')));
+ const answer=(value,label)=>{const b=el('button',{type:'button',className:'suggest-thumb'+(value==='no'?' suggest-thumb--down':''),title:label});b.innerHTML=THUMB;b.setAttribute('aria-label',`${label}: ${name(item)}`);
+  b.onclick=event=>{event.stopPropagation();act({action:'photo',item_id:item.id,answer:value},{done:()=>toast(value==='yes'?'Photo saved.':'Got it. Jules won’t use that photo.')});};return b;};
+ return el('div',{className:'suggest-ask'},answer('no','Not mine'),answer('yes','This is mine'));
 }
 function card(item){
  const media=photo(item);
@@ -153,7 +154,7 @@ function render(){
 function openDetail(id){
  const item=view.items.find(i=>i.id===id);if(!item)return;current=id;
  const media=photo(item);
- $('detail-photo').replaceWith(item.suggestion?Object.assign(el('div',{className:'detail-suggestion'},el('div',{className:'suggested-frame'},media,suggestionLabel()),suggestionAsk(item)),{id:'detail-photo'}):Object.assign(media,{id:'detail-photo'}));
+ $('detail-photo').replaceWith(item.suggestion?Object.assign(el('div',{className:'suggested-frame detail-suggestion'},media,suggestionLabel(),suggestionAsk(item)),{id:'detail-photo'}):Object.assign(media,{id:'detail-photo'}));
  $('detail-brand').textContent=item.brand??'';$('detail-title').textContent=name(item);
  const facts=[['Size',item.size??'Unknown'],['Color',item.color??'Unknown'],['Bought',[item.merchant,item.bought_at&&day(item.bought_at)].filter(Boolean).join(' · ')||'Unknown'],
   // A configured product lists the parts chosen for it (the strap and carabiners of a built bag).
