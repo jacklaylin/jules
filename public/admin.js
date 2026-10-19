@@ -75,7 +75,7 @@ $('access-confirm').onclick = async () => {
 
 async function load() {
   loading = true; failed = ''; render();
-  try { const data = await adminJson('/api/admin'); people = data.conversations; waitlist = { allowance: data.waitlist_replies ?? 3, approvalText: data.approval_text ?? null }; refreshedAt = Date.now(); }
+  try { const data = await adminJson('/api/admin'); people = data.conversations; waitlist = { allowance: data.waitlist_replies ?? 3, approvalText: data.approval_text ?? null, approvalAccount: data.approval_account === true }; refreshedAt = Date.now(); }
   catch (error) { failed = `Could not load people: ${error.message} Try Refresh in More.`; }
   finally { loading = false; render(); }
 }

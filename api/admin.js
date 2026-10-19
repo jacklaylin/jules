@@ -14,7 +14,7 @@ import { buildReport, sendReportLink, sendNewCardText, reportView, withReadPhoto
 import { firstName } from '../lib/memory.js';
 import { copyWeek } from '../lib/report-copy.js';
 import { adoptionReport } from '../lib/adoption.js';
-import { approveAccess, waitlistAgain, APPROVED_TEXT, WAITLIST_REPLIES } from '../lib/waitlist.js';
+import { approveAccess, approvalPreview, waitlistAgain, WAITLIST_REPLIES } from '../lib/waitlist.js';
 import { profileFirstName, displayName } from '../lib/memory.js';
 
 export const config = { api: { bodyParser: false }, maxDuration: 30 };
@@ -38,8 +38,8 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
         if (['approve', 'waitlist'].includes(input.action)) {
           if (input.confirm !== true) throw Object.assign(new Error('Confirm the status change first.'), { status: 400 });
           const conversation = await store.conversation(input.conversation);
-          const result = input.action === 'approve' ? await approveAccess(store, conversation, env, send) : await waitlistAgain(store, conversation);
-          console.log(JSON.stringify({ event: input.action === 'approve' ? 'admin_waitlist_approved' : 'admin_waitlist_returned', changed: result.changed, text: result.text }));
+          const result = input.action === 'approve' ? await approveAccess(store, conversation, env, send, fetcher) : await waitlistAgain(store, conversation);
+          console.log(JSON.stringify({ event: input.action === 'approve' ? 'admin_waitlist_approved' : 'admin_waitlist_returned', changed: result.changed, text: result.text, account: result.account ?? null }));
           return json(res, 200, { access: (await store.accessFor([input.conversation])).get(input.conversation) ?? null, ...result });
         }
         if (input.action === 'build-report') {
@@ -87,7 +87,7 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
           const signup = signups.get(c.sender_id), status = statuses.get(c.id);
           const name = signup ? [displayName(signup.first_name), displayName(signup.last_name)].filter(Boolean).join(' ') : displayName(profileFirstName(profiles.get(c.id)));
           return { ...c, name: name || null, source: sources.get(c.sender_id) ?? null, access: status?.access ?? null, waitlist_replies: status?.waitlist_replies ?? null };
-        }), waitlist_enabled: env.WAITLIST_ENABLED === 'true', waitlist_replies: WAITLIST_REPLIES, approval_text: env.WAITLIST_ENABLED === 'true' ? APPROVED_TEXT : null });
+        }), waitlist_enabled: env.WAITLIST_ENABLED === 'true', waitlist_replies: WAITLIST_REPLIES, approval_text: approvalPreview(env)?.text ?? null, approval_account: approvalPreview(env)?.account ?? false });
       }
       if (!uuid(id)) return json(res, 400, { error: 'Invalid conversation.' });
       const conversation = await store.conversation(id);
@@ -105,7 +105,7 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
         if (!uuid(before?.id) || !/^\d{4}-\d{2}-\d{2}T[\d:.]+(?:Z|\+00:00)$/.test(before.at ?? '')) return json(res, 400, { error: 'Invalid history cursor.' });
       }
       const [history, waitlist] = await Promise.all([store.messages(id, before), before ? null : store.accessFor([id]).then(m => m.get(id) ?? null).catch(() => null)]);
-      return json(res, 200, { conversation, ...history, ...(before ? {} : { access: waitlist, approval_text: env.WAITLIST_ENABLED === 'true' ? APPROVED_TEXT : null }) });
+      return json(res, 200, { conversation, ...history, ...(before ? {} : { access: waitlist, approval_text: approvalPreview(env)?.text ?? null, approval_account: approvalPreview(env)?.account ?? false }) });
     } catch (error) {
       console.error(JSON.stringify({ event: 'admin_request_failed', status: error.status ?? null }));
       // Review validation and busy-lease messages are written for the owner; everything else is generic.
