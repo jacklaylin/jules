@@ -30,4 +30,10 @@ Every store link in a sourcing or checkout reply is sent as a signed `/go/<token
 
 The card shows the Jules domain, not the store's. Links stop working if the stored reply row is deleted or the Supabase service key is rotated. No migration, service or credential is added.
 
-iMessage only previews a bubble that is just one link, so links inside a multi-link answer stay plain text. Sending each shown product as its own card is the next step.
+iMessage only previews a bubble that is just one link, so links inside a multi-link answer stay plain text. So after the answer, each product the answer links (the first 3, in result order) goes out as its own `richlink` card for that product's `/go/` link:
+
+- **Text searches:** one card per product, sent right after the answer, with no caption.
+- **Photo searches:** the composer's caption (or a factual "Option N: name. Possible match./Similar alternative." label) threads under the answer, and the card threads under the caption in place of the product photo.
+- **If a card fails**, the product photo is sent instead, under the caption that was already sent. A text-search product has no photo to fall back to, so its text link stands. The answer itself is never changed or resent. Logged as `product_rich_preview_sent` / `product_rich_preview_failed`.
+
+A product linked only through a merchant option or checkout link gets a card for that link. Products beyond the first 3 stay as text links.

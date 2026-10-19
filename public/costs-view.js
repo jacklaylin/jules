@@ -2,7 +2,7 @@
 // month by default (to date, or the whole month once it is over) with a projection; Day is an option. Pure functions so the wording (billed, estimated, manual or
 // unknown) is testable without a browser.
 
-export const VIEWS = [['', 'By service'], ['features', 'By feature'], ['evals', 'Evals']];
+export const VIEWS = [['', 'By service'], ['features', 'By feature'], ['jobs', 'Recurring jobs'], ['evals', 'Evals']];
 export const viewOf = search => { const view = new URLSearchParams(search).get('view') ?? ''; return VIEWS.some(([v]) => v === view) ? view : ''; };
 
 export const PERIODS = [['month', 'Month'], ['day', 'Day']];
@@ -79,7 +79,34 @@ export function meteredText(data, evals, period = 'month') {
   return lines.join(' · ');
 }
 
+// Recurring jobs: one row per scheduled job with its runs, metered cost, budget and what needs attention.
+const STATUS = { over: ['Over', 'warn'], warn: ['Check', 'warn'], ok: ['OK', 'ok'] };
+export const jobColumns = (period, data) => period === 'day' ? [['today', 'Day']] : data && fullMonth(data.date) ? [['month', 'Month']] : [['month', 'Month to date'], ['projected', 'Projected month end (calculated)']];
+export function jobRows(jobs) {
+  return (jobs?.rows ?? []).map(j => ({
+    name: j.name, when: j.when, spends: j.spends, where: j.scheduler === 'vercel' ? 'Vercel cron' : j.scheduler === 'supabase' ? 'Supabase scheduler' : 'Unknown scheduler',
+    today: money(j.today), month: money(j.month), projected: money(j.projected), budget: j.budget === null ? 'None' : money(j.budget),
+    // Supabase jobs check every minute and call Vercel only when there is work: show both counts.
+    runs: [j.runs === null ? (j.ticks === null ? 'Unknown' : '') : `${j.runs}${j.failed ? ` (${j.failed} failed)` : ''}`, j.ticks === null ? '' : `${j.ticks.toLocaleString('en-US')} checks`].filter(Boolean).join(' · '), usage: `${j.calls} AI · ${j.searches} searches`,
+    lastRun: j.lastRun ? when(j.lastRun) : 'None recorded', status: STATUS[j.status][0], badge: STATUS[j.status][1], flags: j.flags.map(f => f.text),
+  }));
+}
+// The status line on every view, so a job running over budget is never hidden behind another tab.
+export function jobsAlert(data) {
+  const j = data?.jobs;
+  if (!j) return { text: '', over: false };
+  if (j.over.length) return { text: `Recurring jobs over budget or untracked: ${j.over.join(', ')}`, over: true };
+  return { text: j.attention.length ? `Recurring jobs to check: ${j.attention.join(', ')}` : '', over: false };
+}
+export function jobsText(data, period = 'month') {
+  const j = data?.jobs;
+  if (!j) return 'Recurring job costs are unavailable';
+  const key = period === 'day' ? 'today' : 'month', count = j.rows.filter(r => !r.unregistered).length;
+  return [`${count} recurring jobs`, `${money(j.totals[key])} metered ${period === 'day' ? 'on this day' : 'this month'}`, period === 'day' ? '' : `projected ${money(j.totals.projected)}`, data.jobsNotice ?? ''].filter(Boolean).join(' · ');
+}
+
 // The amount form saves usage for the chosen day; subscriptions and the budget apply to that day's month.
 export function entryBody({ kind, service, date, amount, note }) {
+  // A job budget's service is the job ('job:<id>'), chosen from the same list.
   return { service: kind === 'budget' ? 'openai' : service, kind, date: kind === 'usage' ? date : `${date.slice(0, 7)}-01`, amount: Number(amount), note };
 }
