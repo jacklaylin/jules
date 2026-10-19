@@ -53,19 +53,29 @@ Style icon photos are a separate case; see Style icon below.
 Jules picks the cards each person's data supports best, so decks differ. Suggested order when all appear: Receipt → Starter pack → Gatekeeper → Then vs now → Style icon → Dating profile → Headline.
 
 ### 1. The receipt (opener)
-A till receipt: "YOUR STYLE, ITEMISED". Lines mix items and stores:
+A deadpan till receipt that proves Jules has read the person's orders (founder, October 18, 2026: the TOTAL punchline didn't land, and the receipt's job is proving knowledge, not commenting). Every line is something the person can check against their own inbox:
 ```
-BLACK TEE                 ×6
-SSENSE ORDERS             ×14
-DRIES VAN NOTEN           ×4
-CYCLING KIT (MAAP)        ×5
-NAVY ANYTHING             ×9
+JACK · MEMBER SINCE MAR 2022
 -----------------------------
-TOTAL: STILL NO BEIGE
+FIRST ORDER · 14 MAR 2022
+MAAP TEAM JERSEY, BLACK
+-----------------------------
+RIBBED CALF SOCK, BLACK   ×6
+VILLAIN HOODIE            ×4
+MUSCLE HALF CROP TOPS     ×6
+-----------------------------
+ITEMS KEPT                26
+ITEMS NOT BLACK            5
+LAST ORDER    1:14 AM · 3 OCT
+-----------------------------
+   NO EXCHANGES FOR COLOUR
 ```
-- 4–7 lines. Each line is a count Jules computed; the punchline total is copy.
-- Footer: date range of orders found ("Orders found 2021–2026"), "Thank you for having taste".
-- Animation: receipt prints line by line.
+- 3–5 lines: products bought more than once first, then item types and brands those products don't already cover. No store order counts.
+- 2–4 fields: items kept and the last order always; then the most telling of items not in a dominant colour, the product reordered most (when it isn't a line) and stores used (when few). No sale counts until receipts carry a sale flag.
+- The model only shortens product names (it may remove words from the receipt's own text, never add them) and writes one line of fine print, in store-policy voice. A failed check falls back to "PLEASE KEEP FOR YOUR RECORDS".
+- The last order shows in the person's own time zone. Shared, it shows the time only, never the date, and is left out until a time zone is known.
+- The person can hide any line, field or the first order.
+- Footer: date range of orders found. Animation: receipt prints line by line.
 
 ### 2. Starter pack
 The meme format: title ("The Quiet Menswear Guy Starter Pack"), 6–9 items in a loose grid with short captions, the person in the middle as "[YOU]" (an illustrated placeholder or initials, not a photo).
