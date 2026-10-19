@@ -120,3 +120,17 @@ test('a pending suggestion is served only as a suggestion; once confirmed it is 
  await decideSuggestion(store,OWNER,'i1','yes',{items});
  assert.equal((await get('photo=i1')).statusCode,200);assert.equal((await get('suggestion=i1')).statusCode,404);
 });
+
+test('a tiny order photo is offered a sharper suggestion, matched against it; yes replaces it, no keeps it',async()=>{
+ const state=createReceiptFeedback(OWNER,[bought('i1'),bought('i2')],[]);
+ const store=memory();const tinyPhoto={mime_type:'image/jpeg',data:'dGlueQ=='};store.purchasePhoto=async(_o,id)=>id==='i1'?tinyPhoto:null;
+ const seen=[];const find=async(item,{reference})=>{seen.push([item.id,reference]);return found()();};
+ const view=()=>wardrobeView(state,{photos:new Map([['i1','order_email'],['i2','order_email']]),tiny:new Set(['i1'])});
+ assert.deepEqual(view().items.map(i=>[i.id,i.photo_small]).sort(),[['i1',true],['i2',false]]);
+ await suggestWardrobePhotos(store,OWNER,view().items,{env,find});
+ assert.deepEqual(seen,[['i1',tinyPhoto]],'only the tiny one is searched, with its order photo as the reference');
+ const withSuggestions=async()=>wardrobeView(state,{photos:new Map([['i1','order_email'],['i2','order_email']]),tiny:new Set(['i1']),suggestions:suggestionState(await store.wardrobePhotoEvidence())}).items.find(i=>i.id==='i1');
+ let i1=await withSuggestions();assert.deepEqual([i1.photo,i1.photo_source,i1.suggestion],[true,'order_email',{seller:'ASICS'}]);
+ await decideSuggestion(store,OWNER,'i1','yes',{items:view().items});
+ i1=await withSuggestions();assert.deepEqual([i1.photo_source,i1.photo_small,i1.suggestion],['search_confirmed',false,null]);
+});

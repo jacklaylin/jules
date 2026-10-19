@@ -38,11 +38,12 @@ function outline(category){
 }
 // The photo from the order email or Shop order, in the shared .photo frame; the outline if it can't load.
 const photoURLs=new Map();
-function photoURL(id,kind='photo'){
- const key=kind+':'+id;
+// kind: 'photo' (the item's photo; source=search for a confirmed searched photo) or 'suggestion' (pending).
+function photoURL(id,kind='photo',source=null){
+ const key=kind+':'+(source??'')+':'+id;
  if(!photoURLs.has(key))photoURLs.set(key,(async()=>{
   // Plain fetch: photo loads don't show the page activity indicator.
-  const send=()=>globalThis.fetch(`/api/wishlist?wardrobe=1&${kind}=${encodeURIComponent(id)}`,{headers:{Authorization:`Bearer ${token}`},cache:'no-store'});
+  const send=()=>globalThis.fetch(`/api/wishlist?wardrobe=1&${kind}=${encodeURIComponent(id)}${source?`&source=${source}`:''}`,{headers:{Authorization:`Bearer ${token}`},cache:'no-store'});
   let response=await send();
   if(response.status===401&&session.read()?.refresh_token){token=await session.token(true);response=await send();}
   if(!response.ok)throw Error('Photo unavailable');
@@ -50,11 +51,16 @@ function photoURL(id,kind='photo'){
  })().catch(error=>{photoURLs.delete(key);throw error;}));
  return photoURLs.get(key);
 }
+// A photo much smaller than its frame is shown at up to twice its own size, not stretched into a blur.
+const SMALL_PHOTO=300;
 function photo(item){
- const kind=item?.photo?'photo':item?.suggestion?'suggestion':null;
+ const kind=item?.suggestion?'suggestion':item?.photo?'photo':null;
  if(!kind)return outline(item?.category);
  const frame=el('div',{className:'photo skeleton'+(kind==='suggestion'?' suggested-photo':'')});
- photoURL(item.id,kind).then(async url=>{const img=el('img',{alt:name(item)});img.src=url;await img.decode();matchPhotoBackground(frame,img);frame.classList.remove('skeleton');frame.replaceChildren(img);})
+ photoURL(item.id,kind,kind==='photo'&&item.photo_source==='search_confirmed'?'search':null).then(async url=>{
+  const img=el('img',{alt:name(item)});img.src=url;await img.decode();
+  if(Math.max(img.naturalWidth,img.naturalHeight)<SMALL_PHOTO){frame.classList.add('photo--small');img.style.maxWidth=img.naturalWidth*2+'px';img.style.maxHeight=img.naturalHeight*2+'px';}
+  matchPhotoBackground(frame,img);frame.classList.remove('skeleton');frame.replaceChildren(img);})
   .catch(()=>{if(frame.parentNode)frame.replaceWith(Object.assign(outline(item.category),{id:frame.id}));});
  return frame;
 }
