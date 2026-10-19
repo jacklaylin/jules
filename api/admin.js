@@ -14,6 +14,7 @@ import { buildReport, sendReportLink, sendNewCardText, reportView, withReadPhoto
 import { firstName } from '../lib/memory.js';
 import { copyWeek } from '../lib/report-copy.js';
 import { adoptionReport } from '../lib/adoption.js';
+import { resendContactCard } from '../lib/onboarding.js';
 import { approveAccess, approvalPreview, waitlistAgain, WAITLIST_REPLIES } from '../lib/waitlist.js';
 import { profileFirstName, displayName } from '../lib/memory.js';
 
@@ -27,14 +28,22 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
       if (access !== 200) return json(res, access, { error: access === 503 ? 'Admin is not configured yet.' : 'Please sign in with the owner account.' });
       if (!['GET','POST'].includes(req.method)) { res.setHeader('Allow', 'GET, POST'); return json(res, 405, { error: 'Method not allowed.' }); }
       if (req.method === 'POST') {
-        // The only writes are purchase-history reviews, tagging, the onboarding reset and waitlist approval; manual replies stay retired.
+        // The only writes are purchase-history reviews, tagging, the onboarding reset, waitlist approval and texting the contact card; manual replies stay retired.
         const input = await readJson(req);
-        if (!['review', 'missed', 'tag', 'build-report', 'send-report', 'reset-onboarding', 'approve', 'waitlist'].includes(input.action)) return json(res, 400, { error: 'Unknown purchase action.' });
+        if (!['review', 'missed', 'tag', 'build-report', 'send-report', 'reset-onboarding', 'approve', 'waitlist', 'send-contact-card'].includes(input.action)) return json(res, 400, { error: 'Unknown purchase action.' });
         if (['approve', 'waitlist'].includes(input.action) && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Change waitlist status from the Jules admin page.' });
         if (input.action === 'reset-onboarding' && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Reset onboarding from the Jules admin page.' });
+        if (input.action === 'send-contact-card' && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Send the contact card from the Jules admin page.' });
         const store = storeFactory(env);
         if (!uuid(input.conversation) || !await store.conversation(input.conversation)) return json(res, 404, { error: 'Conversation not found.' });
         if (input.action === 'reset-onboarding') return json(res, 200, await resetOnboarding(store, input, env, fetcher));
+        if (input.action === 'send-contact-card') {
+          if (input.confirm !== true) throw Object.assign(new Error('Confirm sending the contact card first.'), { status: 400 });
+          const status = await resendContactCard(store, await store.conversation(input.conversation), env, send);
+          console.log(JSON.stringify({ event: 'admin_contact_card', status }));
+          if (status === 'skipped') throw Object.assign(new Error('Set JULES_PUBLIC_LINE in Vercel first; the card needs Jules’s number.'), { status: 409 });
+          return json(res, 200, { contact_card: status });
+        }
         if (['approve', 'waitlist'].includes(input.action)) {
           if (input.confirm !== true) throw Object.assign(new Error('Confirm the status change first.'), { status: 400 });
           const conversation = await store.conversation(input.conversation);

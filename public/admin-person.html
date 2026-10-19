@@ -28,6 +28,7 @@
       <hr>
       <span class="mono-label">Person</span>
       <button id="approve-person" type="button" aria-haspopup="dialog" hidden>Approve from waitlist…</button>
+      <button id="contact-card" type="button" aria-haspopup="dialog">Text them Jules’s contact card…</button>
       <button id="reset-onboarding" type="button" aria-haspopup="dialog">Reset onboarding…</button>
     </div>
     <nav class="tabs" aria-label="Person sections">
@@ -103,6 +104,12 @@
     <div id="approve-text-note"></div>
     <p id="approve-error" class="error" role="alert" hidden></p>
     <div class="dialog-actions"><button id="approve-confirm" class="btn--butter" type="button">Approve</button><button id="approve-cancel" type="button">Cancel</button></div>
+  </dialog>
+  <dialog id="card-dialog" class="confirm-dialog" aria-labelledby="card-title">
+    <h2 id="card-title">Text the contact card?</h2>
+    <p>Jules texts <strong id="card-person">this person</strong> “save me so you know it’s me:” and the jules.vcf contact card with the orb photo, the same pair new testers get after the welcome. Nothing else changes.</p>
+    <p id="card-error" class="error" role="alert" hidden></p>
+    <div class="dialog-actions"><button id="card-confirm" class="btn--butter" type="button">Send</button><button id="card-cancel" type="button">Cancel</button></div>
   </dialog>
   <dialog id="reset-dialog" class="confirm-dialog" aria-labelledby="reset-title">
     <h2 id="reset-title">Reset onboarding?</h2>
