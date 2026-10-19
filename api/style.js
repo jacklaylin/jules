@@ -1,3 +1,5 @@
+// Loads first so the cost meter wraps fetch before any handler below keeps a reference to it.
+import '../lib/usage.js';
 import { createStore } from '../lib/store.js';
 import { withUsage } from '../lib/usage.js';
 import { wishlistUser } from '../lib/wishlist.js';

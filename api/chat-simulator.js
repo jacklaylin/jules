@@ -1,3 +1,5 @@
+// Loads first so the cost meter wraps fetch before any handler below keeps a reference to it.
+import '../lib/usage.js';
 import {authorize} from '../lib/auth.js';
 import {json,readJson} from '../lib/http.js';
 import {simulateTurn,validateSimulation} from '../lib/chat-simulator.js';

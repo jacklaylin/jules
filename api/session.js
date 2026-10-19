@@ -1,3 +1,5 @@
+// Loads first so the cost meter wraps fetch before any handler below keeps a reference to it.
+import '../lib/usage.js';
 import { json, readJson } from '../lib/http.js';
 
 export const config = { api: { bodyParser: false } };
