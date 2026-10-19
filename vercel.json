@@ -53,6 +53,11 @@
       "permanent": false
     },
     {
+      "source": "/adoption.html",
+      "destination": "/admin/adoption",
+      "permanent": false
+    },
+    {
       "source": "/admin.html",
       "destination": "/admin",
       "permanent": false
@@ -126,6 +131,10 @@
     {
       "source": "/admin/costs",
       "destination": "/costs.html"
+    },
+    {
+      "source": "/admin/adoption",
+      "destination": "/adoption.html"
     },
     {
       "source": "/admin/jokes",

@@ -6,7 +6,7 @@ import {captureSignIn} from './admin-session.js';
 import {trackedFetch} from './activity.js';
 
 export const ADMIN_SECTIONS=[
- ['Conversations',[['people','People','/admin','Threads, memory and purchases'],['jokes','Report jokes','/admin/jokes','Best and worst style report lines this week']]],
+ ['Conversations',[['people','People','/admin','Threads, memory and purchases'],['adoption','Adoption','/admin/adoption','How far each tester has got, week by week'],['jokes','Report jokes','/admin/jokes','Best and worst style report lines this week']]],
  ['Test lab',[
   ['test-chat','Test chat','/admin/test-chat','Real Jules logic, no phone messages'],
   ['replays','Replays & evals','/admin/replays','Sourcing replays and routing eval'],

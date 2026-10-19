@@ -99,3 +99,17 @@ p{line-height:1.65}.login-card{max-width:490px;margin:7vh auto}.login-card>p{col
 .jokes-list .dv-row>span.jokes-line{white-space:normal;display:grid;gap:3px}.jokes-line small{font-size:12px;color:var(--text-2)}
 .jokes-prompts{--dv-cols:minmax(0,1fr) minmax(0,1fr) 90px 110px}
 @media(max-width:800px){.jokes-list{--dv-cols:minmax(0,1fr) 92px}.jokes-list .dv-row>span:first-child,.jokes-list .dv-head>span:first-child{display:none}}
+
+/* Adoption: tester grid and weekly ladder (dense .dv-table); rows become labelled cards on phones. */
+.adoption-summary .dv-metric{flex:1 1 140px}
+.adoption-table .num{font:400 12px var(--font-mono);white-space:nowrap}
+.adoption-table td .badge{font-size:11px;padding:3px 8px 3px 5px}.adoption-table td .badge::before{width:13px;height:13px}
+.adoption-table .tester-link{font-weight:600;color:var(--ink);text-decoration:none}.adoption-table .tester-link:hover{color:var(--grape)}
+.adoption-table tr.current td{background:var(--fog)}
+@media(max-width:800px){
+ .adoption-summary .dv-metric{flex-basis:45%;border-bottom:1px solid var(--line)}
+ .adoption-table,.adoption-table tbody,.adoption-table tr,.adoption-table td{display:block}.adoption-table thead{display:none}
+ .adoption-table tr{padding:10px 0;border-bottom:1px solid var(--line)}.adoption-table td{height:auto;padding:2px 0;border:0;text-align:left}
+ .adoption-table td[data-label]{display:flex;justify-content:space-between;gap:12px}.adoption-table td[data-label]::before{content:attr(data-label);font:400 13px var(--font-sans);color:var(--text-2)}
+ .adoption-table tr:hover td{background:none}
+}
