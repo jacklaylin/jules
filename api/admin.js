@@ -60,7 +60,11 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
       if (query.get('view') === 'adoption') return json(res, 200, await adoptionReport(store));
       if (query.get('view') === 'metrics') return json(res, 200, await metricsTrend(store, { days: 7 }));
       const id = query.get('conversation');
-      if (!id) return json(res, 200, { conversations: await store.list() });
+      if (!id) {
+        // Each tester's signup source (db/033). The list never depends on it: before the migration, sources are blank.
+        const [conversations, sources] = await Promise.all([store.list(), store.signupSources?.().catch(() => new Map()) ?? new Map()]);
+        return json(res, 200, { conversations: conversations.map(c => ({ ...c, source: sources.get(c.sender_id) ?? null })) });
+      }
       if (!uuid(id)) return json(res, 400, { error: 'Invalid conversation.' });
       const conversation = await store.conversation(id);
       if (!conversation) return json(res, 404, { error: 'Conversation not found.' });
