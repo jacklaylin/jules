@@ -47,3 +47,40 @@ test('photo persistence updates every encounter by reply ID and leaves item iden
  const writes=requests.filter(r=>r.method==='PATCH');assert.equal(writes.length,3);assert.ok(writes[1].url.includes('reply_id=eq.first'));assert.ok(writes[2].url.includes('reply_id=eq.second'));
  for(const write of writes){const saved=JSON.parse(write.body).product;assert.equal(saved.url,product.url);assert.deepEqual(saved.links,product.links);assert.deepEqual(saved.image,photo);}
 });
+test('a retailer that blocks page reads falls back to images Google indexed for that exact page',async()=>{
+ const store=fixture();const seen=[];
+ const rows=await repairWishlistPhotos([{item_id:'a'}],{conversation:'owned',store,now,photos:async()=>{throw Error('403');},
+  indexed:async(url,name)=>{seen.push(['indexed',url,name]);return {product_images:['https://cdn.example/tee.jpg']};},
+  assets:async(urls,url)=>{seen.push(['assets',urls,url]);return [photo];}});
+ assert.deepEqual(seen,[['indexed',product.url,product.name],['assets',['https://cdn.example/tee.jpg'],product.url]]);
+ assert.equal(rows[0].has_image,'image/jpeg');assert.equal(store.items.get('a').product.photo_status,'ready');assert.equal(store.items.get('a').product.photo_attempts,0);
+});
+test('after three failed attempts the card says unavailable, paid search stops and retries slow to daily',async()=>{
+ const store=fixture();let searches=0,reads=0;
+ const options=at=>({conversation:'owned',store,now:at,photos:async()=>{reads++;throw Error('403');},indexed:async()=>{searches++;return null;}});
+ let rows=[{item_id:'a'}];
+ for(let n=0;n<3;n++)rows=await repairWishlistPhotos(rows,options(now+n*300001));
+ assert.equal(store.items.get('a').product.photo_status,'unavailable');assert.equal(rows[0].photo_status,'unavailable');assert.equal(searches,3);
+ await repairWishlistPhotos(rows,options(now+3*300001));assert.equal(reads,3,'no retry within a day');
+ await repairWishlistPhotos(rows,options(now+2*300001+86400001));assert.equal(reads,4);assert.equal(searches,3,'daily retry reads the page only');
+});
+test('an unverified saved link still gets a photo when the details check is rejected',async()=>{
+ const store=fixture();const p=store.items.get('a').product;p.details_revision=6;p.market_country='US';p.links=[{url:product.url,user_saved:true,verification_status:'unverified'}];
+ store.correctWishlistProduct=async()=>assert.fail('details stay unverified');
+ const rows=await repairWishlistPhotos([{item_id:'a',...p}],{conversation:'owned',store,now,env:{SHOPPING_COUNTRY:'US'},verify:async()=>({status:'blocked'}),photos:async()=>{throw Error('403');},indexed:async()=>({product_images:['https://cdn.example/tee.jpg']}),assets:async()=>[photo]});
+ assert.equal(rows[0].has_image,'image/jpeg');assert.equal(store.items.get('a').product.image,photo);
+});
+test('a blocked page through the API falls back to the index and records the attempt instead of failing',async()=>{
+ const store=fixture();store.wishlistEntries=async()=>[{...product,item_id:'a',reply_id:'reply'}];
+ const handler=createWishlistHandler({env:{WISHLIST_ENABLED:'true'},storeFactory:()=>store,auth:async()=>({status:200,conversation:'owned'}),photos:async()=>{throw Error('403');},verify:async()=>({status:'unavailable'})});
+ const req=Object.assign(Readable.from([JSON.stringify({action:'recover-photos'})]),{method:'POST',url:'/api/wishlist',headers:{authorization:'test','content-type':'application/json'}});
+ const res={setHeader(){},end(body){this.body=body;}};await handler(req,res);
+ assert.equal(res.statusCode,200);assert.equal(store.items.get('a').product.photo_status,'retry_pending');assert.equal(store.items.get('a').product.photo_attempts,1);
+});
+test('rejected details checks stop after three attempts so paid search does not repeat forever',async()=>{
+ const store=fixture();const p=store.items.get('a').product;Object.assign(p,{image:photo,details_revision:6,market_country:'US',links:[{url:product.url,user_saved:true,verification_status:'unverified'}]});
+ store.correctWishlistProduct=async()=>assert.fail('details stay unverified');
+ let checks=0;const run=at=>repairWishlistPhotos([{item_id:'a',has_image:'image/jpeg',...p,details_attempts:p.details_attempts}],{conversation:'owned',store,now:at,env:{SHOPPING_COUNTRY:'US'},verify:async()=>{checks++;return {status:'blocked'};},photos:()=>assert.fail('has a photo'),indexed:()=>assert.fail('has a photo')});
+ for(let n=0;n<5;n++)await run(now+n*300001);
+ assert.equal(checks,3);assert.equal(p.details_attempts,3);assert.equal(p.image,photo);
+});
