@@ -71,12 +71,29 @@ test('the receipt proves it read the orders: repeat products, the first order an
 
 test('the item reordered most gets its own field when it isn’t already a line',()=>{
  seq=0;
- const rows=[...Array.from({length:5},(_,k)=>buy({product:'Tee '+'ABCDE'[k],merchant:'COS',brand:'COS',order_reference:'C'+k,quantity:4})).flat(),
+ const brands=['COS','Arket','Sunspel','Asket','Hanro'];
+ const rows=[...brands.flatMap((b,k)=>buy({product:'Tee',merchant:b,brand:b,order_reference:'C'+k,quantity:4})),
   ...Array.from({length:3},(_,k)=>buy({product:'Ankle Sock',merchant:'Uniqlo',brand:'Uniqlo',order_reference:'U'+k})).flat()];
  const r=receiptLines(projectReceiptEvidence(owner,rows).state,{});
  assert.equal(r.lines.length,5);
  const field=r.fields.find(f=>f.key==='field:reordered');
  assert.equal(field.value,'ANKLE SOCK · 3 ORDERS');
+});
+
+test('product lines are one per brand, so the receipt isn’t a list of one brand’s products',()=>{
+ seq=0;
+ const je=['Villain Hoodie','Flash Tee','Himalayan Pant'].flatMap((product,k)=>[0,1,2].flatMap(o=>buy({product,merchant:'John Elliott',brand:'John Elliott',order_reference:`J${k}${o}`})));
+ const rows=[...je,...[0,1].flatMap(o=>buy({product:'Calf Sock',merchant:'Bombas',brand:'Bombas',order_reference:'B'+o})),
+  ...[0,1,2].flatMap(o=>buy({product:'Team Jersey '+o,merchant:'MAAP',brand:'MAAP',order_reference:'M'+o}))];
+ const r=receiptLines(projectReceiptEvidence(owner,rows).state,{});
+ const products=r.lines.filter(l=>l.key.startsWith('product:'));
+ assert.deepEqual(products.map(l=>l.key.split('|')[0]),['product:john elliott','product:bombas'],'one John Elliott product, not three');
+ assert.ok(r.lines.some(l=>l.key==='brand:maap'),'other brands fill in');
+ assert.ok(!r.lines.some(l=>l.key==='brand:john elliott'),'its product line already speaks for the brand');
+ // Someone who only buys one brand still gets a receipt from that brand's products.
+ seq=0;
+ const solo=receiptLines(projectReceiptEvidence(owner,je).state,{});
+ assert.equal(solo.eligible,true);assert.equal(solo.lines.filter(l=>l.key.startsWith('product:john elliott')).length,3);
 });
 
 test('with no repeat products the receipt fills in with item types and brands',()=>{
