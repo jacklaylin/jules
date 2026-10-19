@@ -65,18 +65,34 @@ const theirs=()=>report.shared?(report.name?`${report.name}’s`:'their'):'your'
 const Theirs=()=>{const t=theirs();return t.charAt(0).toUpperCase()+t.slice(1);};
 // Shared cards end with a question back to the friend reading them.
 const foot=(className='story-foot')=>el('footer',{className},report.shared&&el('span',{className:'story-ask',textContent:'What about you?'}),wordmark());
+// The receipt proves Jules has read the person's orders: member since, their first order, exact
+// products, a few fields (items kept, last order...) and one line of fine print. Reports built before
+// October 18 still end on their TOTAL line.
+const monthYear=at=>new Date(at).toLocaleDateString('en-GB',{month:'short',year:'numeric',...(report.timezone?{timeZone:report.timezone}:{})}).toUpperCase();
+const firstDay=at=>new Date(at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',...(report.timezone?{timeZone:report.timezone}:{})}).toUpperCase();
+// The last order in the person's own time zone (the browser's until their report has saved one).
+const lastOrder=at=>{const zone=report.timezone?{timeZone:report.timezone}:{};
+ const time=new Date(at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',...zone}).replace(/ /g,' ').toUpperCase();
+ const date=new Date(at).toLocaleDateString('en-GB',{day:'numeric',month:'short',...zone}).toUpperCase();
+ return `${time} · ${date}`;};
 function receiptCard(card){
- const lines=card.lines.filter(l=>!l.hidden);
+ const lines=card.lines.filter(l=>!l.hidden),proof=Boolean(card.fields);
  const range=card.range?(card.range.from===card.range.to?`ORDERS ${card.range.from}`:`ORDERS ${card.range.from}–${card.range.to}`):null;
- const paper=el('div',{className:'receipt-paper'},
+ const row=(className,left,right,i,start)=>{const r=el('p',{className},el('span',{textContent:left}),el('b',{textContent:right}));r.style.animationDelay=`${start+i*0.09}s`;return r;};
+ const first=proof&&card.first&&!card.first.hidden?card.first:null,fields=proof?card.fields.filter(f=>!f.hidden):[];
+ const meta=proof?[report.name?.toUpperCase(),first?`MEMBER SINCE ${monthYear(first.at)}`:null]:[day(report.built_at),report.name?.toUpperCase()];
+ const paper=el('div',{className:'receipt-paper'+(proof?' receipt-proof':'')},
   el('div',{className:'receipt-mark'},wordmark()),
   el('p',{className:'receipt-head',textContent:'CUSTOMER COPY · CASHIER: JULES'}),
-  el('p',{className:'receipt-meta',textContent:[day(report.built_at),report.name?.toUpperCase()].filter(Boolean).join(' · ')}),
+  el('p',{className:'receipt-meta',textContent:meta.filter(Boolean).join(' · ')}),
   el('hr'),
-  ...lines.map((l,i)=>{const row=el('p',{className:'receipt-line'},el('span',{textContent:l.label}),el('b',{textContent:`×${l.n}`}));row.style.animationDelay=`${0.5+i*0.09}s`;return row;}),
+  ...(first?[el('p',{className:'receipt-first'},el('span',{textContent:`FIRST ORDER · ${firstDay(first.at)}`}),el('b',{textContent:first.label})),el('hr')]:[]),
+  ...lines.map((l,i)=>row('receipt-line',l.label,`×${l.n}`,i,0.5)),
   el('hr'),
-  el('p',{className:'receipt-total',textContent:`TOTAL: ${card.total}`}),
-  el('hr'),
+  ...(proof?[
+   ...fields.map((f,i)=>row('receipt-line receipt-field',f.label,f.value??lastOrder(f.at),i,0.9)),
+   ...(card.fine?[el('hr'),el('p',{className:'receipt-fine',textContent:card.fine})]:[])]
+  :[el('p',{className:'receipt-total',textContent:`TOTAL: ${card.total}`}),el('hr')]),
   range&&el('p',{className:'receipt-foot',textContent:range}),
   el('div',{className:'receipt-barcode','aria-hidden':'true'}));
  return el('article',{className:'story-card story-receipt','aria-label':'Your receipt'},
@@ -505,12 +521,14 @@ $('edit-lines').onclick=()=>{
  draft={hidden:new Set(card.lines.filter(l=>!l.private&&l.hidden).map(l=>l.key)),show_returns:report.show_returns};
  const toggle=line=>{
   const on=()=>line.private?draft.show_returns:!draft.hidden.has(line.key);
-  const button=el('button',{type:'button',className:'report-toggle'},el('span',{className:'report-toggle-text'},el('span',{className:'report-toggle-label',textContent:`${line.label} ×${line.n}`}),el('span',{className:'report-toggle-note',textContent:line.private?'Private. Off unless you turn it on.':''})),el('span',{className:'report-switch','aria-hidden':'true'}));
+  const text=line.key==='first'?`FIRST ORDER · ${line.label}`:line.n!=null?`${line.label} ×${line.n}`:line.value!=null?`${line.label} ${line.value}`:line.label;
+  const button=el('button',{type:'button',className:'report-toggle'},el('span',{className:'report-toggle-text'},el('span',{className:'report-toggle-label',textContent:text}),el('span',{className:'report-toggle-note',textContent:line.private?'Private. Off unless you turn it on.':''})),el('span',{className:'report-switch','aria-hidden':'true'}));
   const sync=()=>button.setAttribute('aria-pressed',String(on()));
   button.onclick=()=>{if(line.private)draft.show_returns=!draft.show_returns;else draft.hidden.has(line.key)?draft.hidden.delete(line.key):draft.hidden.add(line.key);sync();};
   sync();return button;
  };
- $('line-toggles').replaceChildren(...card.lines.map(toggle));
+ draft.hidden=new Set([...draft.hidden,...(card.first?.hidden?['first']:[]),...(card.fields??[]).filter(f=>f.hidden).map(f=>f.key)]);
+ $('line-toggles').replaceChildren(...[...(card.first?[card.first]:[]),...card.lines,...(card.fields??[])].map(toggle));
  $('sheet-lines').showModal();
 };
 $('lines-save').onclick=()=>{$('sheet-lines').close();save({action:'report-lines',hidden:[...draft.hidden],show_returns:draft.show_returns},'Saved.');};
