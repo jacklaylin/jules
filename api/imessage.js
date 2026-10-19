@@ -1,3 +1,5 @@
+// Loads first so the cost meter wraps fetch before any handler below keeps a reference to it.
+import '../lib/usage.js';
 import { createProcessor, MAX_BYTES } from '../lib/imessage.js';
 import { waitUntil } from '@vercel/functions';
 import { receiveInInbox } from '../lib/inbox.js';

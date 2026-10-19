@@ -1,3 +1,5 @@
+// Loads first so the cost meter wraps fetch before any handler below keeps a reference to it.
+import '../lib/usage.js';
 import { randomUUID } from 'node:crypto';
 import { authorize } from '../lib/auth.js';
 import { createStore } from '../lib/store.js';
