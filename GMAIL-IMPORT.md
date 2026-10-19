@@ -273,3 +273,8 @@ Once a day (17:00 UTC, about 10am Pacific / 1pm Eastern) Jules checks every conn
 2. Redeploy. The new daily job appears under Vercel → Settings → Cron Jobs as `/api/wishlist?gmail=refresh`. Click **Run** there to try it straight away, then check the logs for `gmail_refresh_run`.
 
 No database migration is needed.
+
+### October 19 follow-up: purchase text quality
+
+- **The text went out unpolished.** The composer's claim checks read "added it to your wardrobe" as a wishlist save, so every rewrite was rejected and the plain draft was sent (reproduced 3 of 3 times). The purchase text now passes `facts.wardrobe_added`, and both the composer and its independent check are told that a wardrobe entry is not a wishlist save. With that, rewrites passed 3 of 3 times.
+- **Observations must be true of the wardrobe.** The picker first lists the wardrobe items of the same kind as the new purchase (`similar_owned_item_ids`), then picks an angle. Code refuses "first of its kind" when that list isn't empty, and refuses "another one" without it. Only similar items in the same wardrobe category count. Observations may not state numbers, counts or dates, because the model miscounted them. They may not just describe the item either. The examples in the prompt are deliberately from other categories, because the model copied a cargo example word for word.
