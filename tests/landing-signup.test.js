@@ -24,6 +24,18 @@ test('unchecked consent, stale disclosure, invalid phone, invalid request and cr
 });
 test('disabled signup reports unavailable and does not persist',async()=>{const run=handler(()=>{throw new Error('unexpected write');},{PUBLIC_SIGNUP_ENABLED:'false'}),res=response();await run(request(),res);assert.equal(res.statusCode,503);const config=response();await run({method:'GET'},config);assert.equal(config.data.enabled,false);});
 test('rate limits and database failures do not claim a saved signup',async()=>{for(const [save,status] of [[async()=> 'limited',429],[async()=>{throw new Error('private database error');},503],[async()=>null,503]]){const res=response();await handler(save)(request(),res);assert.equal(res.statusCode,status);assert.equal(res.data.saved,undefined);assert.ok(!res.data.error.includes('private'));}});
+test('signup reports the waitlist only while it is on and the number is not approved',async()=>{
+ const id='00000000-0000-4000-8000-0000000000e1';
+ const store=(conversation,access)=>({signup:async()=> 'saved',conversationForPhone:async()=>conversation,accessFor:async ids=>new Map(ids.map(c=>[c,{access}]))});
+ const run=async(overrides,s)=>{const res=response();await createSignupHandler({env:{...env,...overrides},storeFactory:()=>s,log:()=>{}})(request(),res);return res.data;};
+ assert.equal((await run({WAITLIST_ENABLED:'true'},store(null,null))).waitlisted,true);
+ assert.equal((await run({WAITLIST_ENABLED:'true'},store(id,'waitlisted'))).waitlisted,true);
+ assert.equal((await run({WAITLIST_ENABLED:'true'},store(id,'approved'))).waitlisted,false);
+ assert.equal((await run({},store(null,null))).waitlisted,false);
+ // A failed status read still confirms the saved signup, without claiming a waitlist.
+ const data=await run({WAITLIST_ENABLED:'true'},{signup:async()=> 'saved',conversationForPhone:async()=>{throw new Error('column access does not exist');}});
+ assert.equal(data.saved,true);assert.equal(data.waitlisted,false);
+});
 test('optional Messages link uses only the configured verified-format line',async()=>{const res=response();await handler(undefined,{JULES_PUBLIC_LINE:'+14155550124'})(request(),res);assert.equal(res.data.text_url,'sms:+14155550124');});
 test('timeline scrubs forward and backward consistently and reduced motion shows final state',()=>{
  assert.equal(demoState(4).typing,true);assert.equal(demoState(5.2).typing,false);assert.equal(demoState(DEMO_DURATION).done,true);assert.equal(demoState(2).done,false);assert.equal(demoState(-100).time,0);assert.equal(demoState(999).time,DEMO_DURATION);assert.equal(demoState(0,true).progress,1);assert.equal(demoState(0,true).typing,false);
