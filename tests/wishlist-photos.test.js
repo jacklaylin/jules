@@ -57,7 +57,7 @@ test('a retailer that blocks page reads falls back to images Google indexed for 
 });
 test('after three failed attempts the card says unavailable, paid search stops and retries slow to daily',async()=>{
  const store=fixture();let searches=0,reads=0;
- const options=at=>({conversation:'owned',store,now:at,photos:async()=>{reads++;throw Error('403');},indexed:async()=>{searches++;return null;}});
+ const options=at=>({conversation:'owned',store,now:at,photos:async()=>{reads++;throw Error('403');},indexed:async()=>{searches++;return {sources:[{provider:'google_index',status:'completed'}],product_images:[]};}});
  let rows=[{item_id:'a'}];
  for(let n=0;n<3;n++)rows=await repairWishlistPhotos(rows,options(now+n*300001));
  assert.equal(store.items.get('a').product.photo_status,'unavailable');assert.equal(rows[0].photo_status,'unavailable');assert.equal(searches,3);
@@ -70,12 +70,12 @@ test('an unverified saved link still gets a photo when the details check is reje
  const rows=await repairWishlistPhotos([{item_id:'a',...p}],{conversation:'owned',store,now,env:{SHOPPING_COUNTRY:'US'},verify:async()=>({status:'blocked'}),photos:async()=>{throw Error('403');},indexed:async()=>({product_images:['https://cdn.example/tee.jpg']}),assets:async()=>[photo]});
  assert.equal(rows[0].has_image,'image/jpeg');assert.equal(store.items.get('a').product.image,photo);
 });
-test('a blocked page through the API falls back to the index and records the attempt instead of failing',async()=>{
+test('a blocked page through the API reaches the index fallback without failing; no search key spends no try',async()=>{
  const store=fixture();store.wishlistEntries=async()=>[{...product,item_id:'a',reply_id:'reply'}];
  const handler=createWishlistHandler({env:{WISHLIST_ENABLED:'true'},storeFactory:()=>store,auth:async()=>({status:200,conversation:'owned'}),photos:async()=>{throw Error('403');},verify:async()=>({status:'unavailable'})});
  const req=Object.assign(Readable.from([JSON.stringify({action:'recover-photos'})]),{method:'POST',url:'/api/wishlist',headers:{authorization:'test','content-type':'application/json'}});
  const res={setHeader(){},end(body){this.body=body;}};await handler(req,res);
- assert.equal(res.statusCode,200);assert.equal(store.items.get('a').product.photo_status,'retry_pending');assert.equal(store.items.get('a').product.photo_attempts,1);
+ assert.equal(res.statusCode,200);assert.equal(store.items.get('a').product.photo_status,'retry_pending');assert.equal(store.items.get('a').product.photo_attempts,0);
 });
 test('rejected details checks stop after three attempts so paid search does not repeat forever',async()=>{
  const store=fixture();const p=store.items.get('a').product;Object.assign(p,{image:photo,details_revision:6,market_country:'US',links:[{url:product.url,user_saved:true,verification_status:'unverified'}]});
@@ -83,4 +83,11 @@ test('rejected details checks stop after three attempts so paid search does not 
  let checks=0;const run=at=>repairWishlistPhotos([{item_id:'a',has_image:'image/jpeg',...p,details_attempts:p.details_attempts}],{conversation:'owned',store,now:at,env:{SHOPPING_COUNTRY:'US'},verify:async()=>{checks++;return {status:'blocked'};},photos:()=>assert.fail('has a photo'),indexed:()=>assert.fail('has a photo')});
  for(let n=0;n<5;n++)await run(now+n*300001);
  assert.equal(checks,3);assert.equal(p.details_attempts,3);assert.equal(p.image,photo);
+});
+test('an exhausted or missing search service does not use up the photo attempts',async()=>{
+ const store=fixture();let rows=[{item_id:'a'}];
+ for(let n=0;n<4;n++)rows=await repairWishlistPhotos(rows,{conversation:'owned',store,now:now+n*300001,photos:async()=>{throw Error('403');},indexed:async()=>n%2?null:{sources:[{provider:'google_index',status:'unavailable'}],product_images:[]}});
+ assert.equal(store.items.get('a').product.photo_status,'retry_pending');assert.equal(store.items.get('a').product.photo_attempts,0);
+ await repairWishlistPhotos(rows,{conversation:'owned',store,now:now+5*300001,photos:async()=>{throw Error('403');},indexed:async()=>({sources:[{status:'completed'}],product_images:['https://cdn.example/tee.jpg']}),assets:async()=>[photo]});
+ assert.equal(store.items.get('a').product.image,photo);
 });
