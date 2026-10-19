@@ -119,3 +119,8 @@ p{line-height:1.65}.login-card{max-width:490px;margin:7vh auto}.login-card>p{col
  .adoption-table tr:hover td{background:none}
  .adoption-table td[data-label="What happened"],.adoption-table td[data-label="Meaning"]{display:grid;gap:2px}
 }
+/* Admin › Scorecard: eight figures wrap rather than run off the strip; the turns table reuses the adoption table. */
+.scorecard-metrics{flex-wrap:wrap}.scorecard-metrics .dv-metric{flex:1 1 128px;min-width:0}
+.scorecard-turns td[data-label="Judge"]{max-width:420px}
+.scorecard-turns button[aria-pressed=true]{background:var(--fog);color:var(--ink)}
+@media(max-width:800px){.scorecard-turns td[data-label="Judge"]{max-width:none;display:grid;gap:4px}}

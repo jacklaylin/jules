@@ -1,6 +1,6 @@
 # Recommendation quality scorecard — plan
 
-Status: **approved 2026-10-19 with the low-cost judge** (below). Built one PR at a time.
+Status: **approved 2026-10-19 with the low-cost judge** (below). All four steps built (PRs #172, #179, #200, #205 and the Scorecard page).
 
 Goal: measure how good Jules's search and recommendations are from real tester traffic, without waiting for testers to file `#dev` reports or 👎 a reply.
 

@@ -196,6 +196,10 @@ Labels come only from structured data, never message text: the actions the agent
 
 The Supabase scheduler calls `/api/imessage?job=judge` (same secret as the reply watchdog) every 10 minutes, 09:00–11:50 UTC. Each call refreshes the last three days' outcomes into `sourcing_turns`, then judges due turns within `JUDGE_DAILY_TURNS` (default 50), the global cost cap and the function's time. Calls are metered as the `judge` job (feature `judge`), never against the tester's own cap; about $0.001 per turn on gpt-4.1-mini. Failures appear in feedback-triage packets as `judge_failure`. `node --env-file=.env.local scripts/judge.js --dry --limit 5` scores turns without saving (`--days 7 --negative` picks turns with a negative outcome to check the judge against).
 
+### Admin › Scorecard
+
+`/admin/quality` (`public/scorecard.html`, figures in `public/scorecard-view.js`, data from `lib/scorecard.js`): this week against last week and an 8-week table for verified-result rate, positive next step, judge pass rate, first reply and result times (typical and slowest 10%), failed or nothing found, and cost per search, filterable by request type. Each figure is judged on its own sample (under 5 either week is too few to tell). Older weeks come from `sourcing_turns`; the last three days are computed live. **Turns to read** lists judge failures, then negative outcomes, then failed searches, each linking to the message; the owner can mark the judge right or wrong (`founder_verdict`, shown as an agreement rate) and copy a redacted replay-case draft. `node --env-file=.env.local scripts/judge.js --backfill 56` saves older outcomes without judging them.
+
 `scripts/replay-gate.js` is the pre-deploy check on the same behavior: see `REPLAY-SUITE.md`.
 
 ## Known gaps and existing debt (honest list)
