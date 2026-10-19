@@ -800,3 +800,18 @@ Purpose: show what Jules counts as the person's own, so they can trust it and co
 - **Item detail:** size, colour, store and date; **What goes with this?** opens iMessage to Jules with the question written; **Fix details** (brand, name, size, colour); **Remove**, which asks why: returned it, a gift for someone else, no longer have it, never bought it. Each reason maps to its own correction, so a gift never teaches taste and a return is not a dislike. Every removal is undoable and restorable from **Removed**.
 - **Adding items:** through Gmail and Shop on the account page. Texting Jules a photo to add an item is not supported yet, so the page does not offer it.
 - **Out of scope:** outfits, wear tracking, photo upload, prices, background-removed cutouts.
+
+## 30. Outfit photos into the wardrobe — founder decision, October 19, 2026
+
+The founder assigned adding owned items from outfit photos the person texts to Jules (mirror pics, photos of clothes). This supersedes Section 29's "texting Jules a photo to add an item is not supported yet" and its "adds no new store of facts" for photo-sourced items only. Purchase history stays the record for bought items.
+
+Why: a competitor test (October 19) redrew each garment as a studio image. The redraws changed the products (pockets, colour, cut, a striped sneaker became a checkerboard one) and brands were mostly missing. Jules shows only real images: the person's own photo, or a store photo of the same product.
+
+- **Photo shown, in order:** (1) a store photo, only when Jules identified the exact product with distinctive evidence (readable brand or model text, a logo or trademark, or a signature design detail seen in both images); (2) otherwise the person's own crop of that piece. Never a generated or redrawn image. The crop is the person's original pixels, cropped tight to the garment and without their face.
+- **Brand and model** stay blank unless identified that way or readable. A generic piece (a plain white tank, plain dark jeans) is added as the person's crop with no brand rather than matched to a lookalike.
+- **Every visible piece** is considered: garments, shoes, bags and accessories, not layers that barely show.
+- **Linking to receipts:** when a photographed piece is probably an item already in the wardrobe from a receipt or Shop order, the model proposes the link. Code checks the item is the person's own. A confident link attaches the crop to that item instead of creating a duplicate; an unsure one is asked once. A photo never changes a receipt's size, colour or store.
+- **Consent scope:** only photos the person texts to Jules as their own outfits or clothes. Photos uploaded for the style report are not added without asking.
+- Corrections use the existing `closet_edit` feedback path; every addition is removable and restorable.
+
+Build order, one PR each, checked live before the next: (1) stricter visual identification, so generic pieces are not called matches, and coverage of every visible piece in an outfit; (2) texted outfit photos become wardrobe items with their crop or matched photo, linked to receipt items. Out of scope: redrawn or "prettified" images, outfit building, wear tracking, web photo upload.

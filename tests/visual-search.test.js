@@ -7,7 +7,7 @@ import {rankSources,retailerFor} from '../lib/retailers.js';
 import {formatSearch} from '../lib/search.js';
 const thumb='https://encrypted-tbn0.gstatic.com/images?q=example';
 const candidates=[{id:'1',title:'Barbour Checked Jacket',url:'https://barbour.com/jacket',image:thumb},{id:'2',title:'Barbour Checked Jacket',url:'https://farfetch.com/jacket',image:thumb},{id:'3',title:'Barbour Checked Jacket',url:'https://deeceestyle.ch/jacket',image:thumb}];
-const assessment=id=>({id,brand:'Barbour',name:'Checked Jacket',product_key:'barbour-checked-dark',is_product_listing:true,matched_details:['collar shape','two flap pockets','short silhouette'],distinctive_details:['check alignment at placket','unusual angled flap seam'],contradictions:[],unseen_details:[],reason:'A dark check with a short shape.'});
+const assessment=id=>({id,brand:'Barbour',name:'Checked Jacket',product_key:'barbour-checked-dark',is_product_listing:true,matched_details:['collar shape','two flap pockets','short silhouette'],distinctive_details:['check alignment at placket','unusual angled flap seam'],contradictions:[],unseen_details:[],identity_anchor:'signature_design',anchor_detail:'angled flap seam',generic_item:false,reason:'A dark check with a short shape.'});
 const target={label:'jacket',image_index:0,box:[0,0,1,1],features:['check pattern']};
 test('ambiguous image reference asks a question without searching; explicit outfits preserve separate pieces',async()=>{
  let searched=false;
@@ -40,7 +40,9 @@ test('candidate photo contradictions reject identification even at an official r
  const wrong={...assessment('1'),contradictions:['Different pocket layout']};
  assert.equal(assessCandidates(candidates,{candidates:[wrong]}).length,0);
  assert.equal(assessCandidates(candidates,{candidates:[{...assessment('1'),distinctive_details:[]}]}).length,0);
- assert.equal(assessCandidates(candidates,{candidates:[{...assessment('1'),unseen_details:['pockets hidden','pattern too small']}]}).length,0);
+ assert.equal(assessCandidates(candidates,{candidates:[{...assessment('1'),unseen_details:['pockets hidden','pattern too small','hem cropped out']}]}).length,0);
+ // An anchor seen in both images tolerates two details the thumbnail cannot show.
+ assert.equal(assessCandidates(candidates,{candidates:[{...assessment('1'),unseen_details:['fabric texture','button details']}]})[0].match,'likely_match');
  assert.equal(assessCandidates(candidates,{candidates:[wrong]},true)[0].match,'similar');
  assert.equal(assessCandidates(candidates,{candidates:[{...assessment('1'),id:'invented'}]}).length,0);
 });
@@ -116,7 +118,12 @@ test('screenshot corroboration rejects invented references, contradictions and u
  const response=matches=>async()=>({ok:true,json:async()=>({status:'completed',output:[{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify({matches})}]}]})});
  const match={index:0,match:'likely_match',visible_evidence:'Example Model 12',contradictions:[]};
  for(const bad of [{...match,index:8},{...match,visible_evidence:''},{...match,contradictions:['different model']},{...match,match:'similar'}])assert.equal((await corroborateTextSources({...target,search_mode:'exact'},{mime_type:'image/png',data:'synthetic'},products,{},response([bad]))).length,0);
- assert.equal((await corroborateTextSources({...target,search_mode:'exact'},{mime_type:'image/png',data:'synthetic'},products,{},response([match,match]))).length,1);
+ const labelled={...target,search_mode:'exact',visible_product_text:'EXAMPLE model 12 - black'};
+ assert.equal((await corroborateTextSources(labelled,{mime_type:'image/png',data:'synthetic'},products,{},response([match,match]))).length,1);
+ // Nothing readable in the photo (a plain tank, plain jeans): a description is never a likely match.
+ for(const bad of [{...match,visible_evidence:'white tank top layered under a shirt'},{...match,visible_evidence:'ex'}])assert.equal((await corroborateTextSources(labelled,{mime_type:'image/png',data:'synthetic'},products,{},response([bad]))).length,0);
+ assert.equal((await corroborateTextSources({...target,search_mode:'exact'},{mime_type:'image/png',data:'synthetic'},products,{},response([match]))).length,0);
+ assert.equal((await corroborateTextSources({...target,search_mode:'similar'},{mime_type:'image/png',data:'synthetic'},products,{},response([match])))[0].match,'similar');
  assert.equal((await corroborateTextSources({...target,search_mode:'similar'},{mime_type:'image/png',data:'synthetic'},products,{},response([{...match,match:'similar'}])))[0].match,'similar');
 });
 
@@ -187,4 +194,30 @@ test('text read from a screenshot runs the exact Google query before the model s
  let constraints;
  await visualSearchProducts('Find this',[{}],{},null,{plan:async()=>({scope:'item',items:[named],omitted:[]}),searchText:async(q,i,e,f,c)=>{constraints??=c;return {products:[]};},crop:async()=>({}),retrieve:async()=>[],compare:async()=>({candidates:[]}),verifyListing:async url=>({status:'verified',url})}).catch(()=>{});
  assert.equal(constraints.search_brief,'Jacques Marie Mage Romi');assert.equal(constraints.exact,true);
+});
+test('a generic piece or one without a named identity anchor is never a likely match, however many details agree',()=>{
+ const generic={...assessment('1'),generic_item:true};
+ assert.equal(assessCandidates(candidates,{candidates:[generic]}).length,0);
+ assert.equal(assessCandidates(candidates,{candidates:[generic]},true)[0].match,'similar');
+ for(const anchor of [{identity_anchor:'none',anchor_detail:''},{identity_anchor:'logo_or_trademark',anchor_detail:'  '},{identity_anchor:'looks_right',anchor_detail:'shape'},{identity_anchor:undefined,anchor_detail:undefined}])
+  assert.equal(assessCandidates(candidates,{candidates:[{...assessment('1'),...anchor}]}).length,0);
+ const [match]=assessCandidates(candidates,{candidates:[{...assessment('1'),identity_anchor:'logo_or_trademark',anchor_detail:'three white side stripes'}]});
+ assert.equal(match.match,'likely_match');assert.deepEqual(match.evidence.anchor,{kind:'logo_or_trademark',detail:'three white side stripes'});
+});
+test('an outfit covers every visible piece up to six, each piece before any second option',async()=>{
+ const labels=['shirt','jeans','sneakers','bag','cap'];
+ assert.equal(validatePlan({scope:'outfit',question:'',items:[...labels,'belt'].map(label=>({...target,label})),omitted:[]},1).items.length,6);
+ assert.throws(()=>validatePlan({scope:'outfit',question:'',items:[...labels,'belt','watch'].map(label=>({...target,label})),omitted:[]},1));
+ const result=await visualSearchProducts('What is each piece I am wearing?',[{mime_type:'image/jpeg',data:'fake'}],{},null,{
+  plan:async()=>({scope:'outfit',items:labels.map(label=>({...target,label})),omitted:['undershirt']}),verifyListing:async url=>({status:'verified',url,checked_at:'2026-10-19T00:00:00Z',price_snapshot:null}),crop:async()=>({}),
+  retrieve:async(crop,query)=>candidates.map(c=>({...c,url:c.url+'/'+query.split(' ')[0]})),
+  compare:async t=>({candidates:t.label==='jeans'?[{...assessment('1'),generic_item:true}]:[assessment('1')]})
+ });
+ assert.deepEqual(result.products.map(p=>p.garment),['shirt','sneakers','bag','cap']);
+ assert.deepEqual(result.missing,['jeans']);assert.deepEqual(result.omitted,['undershirt']);
+});
+test('readable text counts as an identity anchor only when the plan read text on that piece',()=>{
+ const claimed={...assessment('1'),identity_anchor:'readable_text',anchor_detail:'Hanes logo'};
+ assert.equal(assessCandidates(candidates,{candidates:[claimed]},false,true,target).length,0);
+ assert.equal(assessCandidates(candidates,{candidates:[claimed]},false,true,{...target,visible_product_text:'Hanes'})[0].match,'likely_match');
 });
