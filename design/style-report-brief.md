@@ -70,7 +70,7 @@ LAST ORDER    1:14 AM · 3 OCT
 -----------------------------
    NO EXCHANGES FOR COLOUR
 ```
-- 3–5 lines: products bought more than once first, then item types and brands those products don't already cover. No store order counts.
+- 3–5 lines: products bought more than once first, one per brand (a second from the same brand only if the receipt would otherwise have under 3 lines), then item types and brands those products don't already cover. No store order counts.
 - 2–4 fields: items kept and the last order always; then the most telling of items not in a dominant colour, the product reordered most (when it isn't a line) and stores used (when few). No sale counts until receipts carry a sale flag.
 - The model only shortens product names (it may remove words from the receipt's own text, never add them) and writes one line of fine print, in store-policy voice. A failed check falls back to "PLEASE KEEP FOR YOUR RECORDS".
 - The last order shows in the person's own time zone. Shared, it shows the time only, never the date, and is left out until a time zone is known.
