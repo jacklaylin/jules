@@ -1,4 +1,5 @@
 import {createLogo,initBrandActivity} from './brand-ui.js';
+import {animate,spring} from './vendor/motion-mini.js';
 let menu,menuButton,nav,header;
 export function mountPublicHeader(){
  for(const link of document.querySelectorAll('.public-header .wordmark'))link.replaceChildren(createLogo());
@@ -24,9 +25,9 @@ export function mountHeader(page){
  const top=document.createElement('div');top.className='menu-header';const menuBrand=brand.cloneNode(true);const close=document.createElement('button');close.type='button';close.textContent='Close ×';close.className='menu-close';close.setAttribute('aria-label','Close menu');top.append(menuBrand,close);
  menu.append(top);document.body.append(menu);
  function restore(){if(menu.open)return;header.insertBefore(nav,menuButton);menuButton.setAttribute('aria-expanded','false');document.body.classList.remove('menu-open');}
- function closeMenu(){if(menu.open)menu.close();restore();}
+ function closeMenu(){if(menu.open)closeDialog(menu);else restore();}
  menuButton.onclick=()=>{menu.append(nav);menuButton.setAttribute('aria-expanded','true');document.body.classList.add('menu-open');menu.showModal();menu.focus?.();};
- close.onclick=closeMenu;menu.addEventListener('close',restore);menu.addEventListener('cancel',event=>{event.preventDefault();closeMenu();});
+ close.onclick=closeMenu;menu.addEventListener('close',restore);
  nav.addEventListener('click',event=>{if(event.target.closest('a,button')&&menu.open)closeMenu();});
  const mobile=matchMedia('(max-width:800px)');mobile.addEventListener('change',event=>{if(!event.matches)closeMenu();});
  header.replaceChildren(brand,nav,menuButton);initBrandActivity();initHeader();
@@ -44,3 +45,37 @@ function initHeader(){
  let headerTick=false;function updateHeader(){header.classList.toggle('compact',scrollY>8);headerTick=false;}
  window.addEventListener('scroll',()=>{if(!headerTick){headerTick=true;requestAnimationFrame(updateHeader);}},{passive:true});updateHeader();
 }
+
+// Shared micro-motion (Motion mini, vendored). Pages call these instead of importing Motion, so every exit,
+// removal and confirmation uses the same springs and all of them respect reduced motion.
+const reducedMotion=()=>Boolean(globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+const settle={type:spring,visualDuration:.35,bounce:.18};
+const exit={duration:.16,ease:[.4,0,1,1]};
+// Paused timelines (background tabs) never finish, so exits also settle on a timer.
+const finished=(...animations)=>Promise.race([Promise.all(animations),new Promise(resolve=>setTimeout(resolve,exit.duration*1000+150))]).catch(()=>{});
+// Plays the exit, then closes, so 'close' listeners still run once the dialog is actually gone.
+const closing=new WeakMap();
+export function closeDialog(dialog){
+ if(closing.has(dialog))return closing.get(dialog);
+ if(!dialog?.open)return Promise.resolve();
+ if(reducedMotion()){dialog.close();return Promise.resolve();}
+ const backdrop=dialog.animate({opacity:[1,0]},{duration:exit.duration*1000,easing:'ease-in',pseudoElement:'::backdrop',fill:'forwards'});
+ const panel=animate(dialog,{opacity:[1,0],transform:['none','translateY(10px) scale(.98)']},exit);
+ const done=finished(panel,backdrop.finished).then(()=>{dialog.close();panel.cancel();backdrop.cancel();dialog.style.opacity=dialog.style.transform='';closing.delete(dialog);});
+ closing.set(dialog,done);return done;
+}
+// Escape on any modal plays the same exit as its Close button.
+globalThis.document?.addEventListener('cancel',event=>{if(event.target.localName==='dialog'){event.preventDefault();closeDialog(event.target);}},true);
+// Fades the element out, removes it, then springs its siblings into their new places.
+export async function removeWithMotion(element){
+ const parent=element.parentElement;
+ if(!parent||reducedMotion()){element.remove();return;}
+ await finished(animate(element,{opacity:0,transform:'scale(.92)'},exit));
+ const siblings=[...parent.children].filter(child=>child!==element),before=siblings.map(child=>child.getBoundingClientRect());
+ element.remove();
+ siblings.forEach((child,i)=>{const after=child.getBoundingClientRect(),dx=before[i].left-after.left,dy=before[i].top-after.top;if(dx||dy)animate(child,{transform:[`translate(${dx}px,${dy}px)`,'none']},settle);});
+}
+// A small springy confirmation when a control turns on.
+export function popIn(element){if(element&&!reducedMotion())animate(element,{transform:['scale(.8)','none']},{type:spring,visualDuration:.3,bounce:.5});}
+// Rises a freshly shown toast or panel into place (its own CSS still owns the fade and position).
+export function riseIn(element){if(element&&!reducedMotion())animate(element,{translate:['0 16px','0 0']},settle);}

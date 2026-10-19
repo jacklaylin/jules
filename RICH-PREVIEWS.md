@@ -19,3 +19,15 @@ Photon adds a best-effort native rich card for one distinct supported public des
 Rebuild art with `node scripts/build-link-previews.js`; set `CHROME_PATH` if Chrome is installed somewhere other than the standard macOS location. The script uses the bundled Instrument Serif font and existing wordmark outlines. Change the image filename version and metadata references when replacing artwork. Static metadata currently uses the existing production origin `https://jules-gamma.vercel.app`; update those references if the public domain changes.
 
 Verification: all 415 application tests passed after this change, including public URL validation, card-send failure, metadata, image size, signed-item privacy and fallback handling. Both generated images were visually inspected. Deployment and a fresh real iMessage preview remain necessary to verify Apple’s final rendering; no real messages were sent during these checks.
+
+## Product links (`/go/…`)
+
+Every store link in a sourcing or checkout reply is sent as a signed `/go/<token>` link, whether or not `LINK_CLICK_TRACKING` is on. The token points at a position in the reply's stored search result, so the link can only reach a product Jules actually showed.
+
+- **A person tapping it** gets an instant 302 to the store. The tap is recorded in `adoption_events` only when `LINK_CLICK_TRACKING=true`.
+- **A preview fetcher** (iMessage's, by user agent; this is a technical header check, not conversational routing) gets a small page with Open Graph tags: the product's brand and name as the title, followed by " · <store>" unless the title already names the store (iMessage shows only the title and domain, not the subtitle). No price, size, stock or shipping appears, so a card can't go stale or overclaim. Stores that block preview bots (e.g. SSENSE) still preview, because Apple never has to fetch the store.
+- **The photo** is the product's Google Lens thumbnail (photo searches; only `encrypted-tbn*.gstatic.com`, via `fetchProductPhoto`), else the first photo from the store page Jules verified for that product (`listing_check.product_images`, via `fetchProductAssets`; text searches). It is placed on an 800×800 white square and cached in the function and CDN. Lens thumbnails are small, so those card images are soft. A product with no photo, or one that can't be fetched, has no image at all (founder decision: repeated brand art would get annoying).
+
+The card shows the Jules domain, not the store's. Links stop working if the stored reply row is deleted or the Supabase service key is rotated. No migration, service or credential is added.
+
+iMessage only previews a bubble that is just one link, so links inside a multi-link answer stay plain text. Sending each shown product as its own card is the next step.
