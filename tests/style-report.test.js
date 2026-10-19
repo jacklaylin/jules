@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {receiptLines,validFine,validName,writeReceipt,fineCheck,clock,buildReport,updateReport,reportView,handleReport,FALLBACK_FINE,gatekeeper,nicheBrand,validGateLine,writeGateLine,reportWriter,REPORT_MODEL,inOut,validInOutLine,writeInOutLine,validEntry,copyLines,lockedCards,MIN_CARDS,sharedView,handleSharedReport,sharePreview,handleSharePage,fourEmojis,EMOJI_PERSONAS,emojiPersona,spectrum,validEmojiCaption,writeEmojiCaptions,styleMatch,validMatchLine,writeMatchLine,sendNewCardText,sendReportLink,newCardsText,missingSources} from '../lib/style-report.js';
+import {referralRef} from '../lib/referral.js';
 import {tagFingerprint} from '../lib/item-tags.js';
 import {purchaseEvidence,projectReceiptEvidence} from '../lib/receipt-extraction.js';
 import {signInLinks} from '../lib/onboarding.js';
@@ -616,9 +617,13 @@ test('a friend opening the link needs no sign-in and sees only what the person c
  const {share}=await updateReport(store,owner,{action:'report-share'});
  const open=async token=>{const res=response();await handleSharedReport({method:'GET',url:`/api/wishlist?shared=${token}`,headers:{}},res,{store});return res;};
  let res=await open(share.token);
+ // Signups from the link credit the person who shared it, by their referral code.
+ const credited=response();await handleSharedReport({method:'GET',url:`/api/wishlist?shared=${share.token}`,headers:{}},credited,{store,env:{SUPABASE_SERVICE_ROLE_KEY:'test-secret'}});
+ assert.equal(credited.body.report.ref,referralRef(owner,{SUPABASE_SERVICE_ROLE_KEY:'test-secret'}));assert.equal(res.body.report.ref,undefined,'no secret, no code');
  assert.equal(res.statusCode,200);
  const view=res.body.report,text=JSON.stringify(view);
  assert.equal(view.name,'Jack');assert.equal(view.shared,true);
+ assert.ok(!text.includes(share.token),'the link itself is never repeated');
  assert.ok(!view.cards.some(c=>c.type==='locked'),'locked cards are never shared');
  const receipt=view.cards.find(c=>c.type==='receipt');
  assert.ok(!receipt.lines.some(l=>l.label==='RETURNED'),'returns stay private even when shown in the app');

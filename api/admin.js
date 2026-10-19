@@ -11,6 +11,7 @@ import { loadTurnOutcomes } from '../lib/turn-outcomes.js';
 import { deleteImportedHistory } from '../lib/gmail-import.js';
 import { tagPurchaseHistory } from '../lib/item-tags.js';
 import { buildReport, sendReportLink, sendNewCardText, reportView, withReadPhoto } from '../lib/style-report.js';
+import { referralRef } from '../lib/referral.js';
 import { firstName } from '../lib/memory.js';
 import { copyWeek } from '../lib/report-copy.js';
 import { adoptionReport } from '../lib/adoption.js';
@@ -92,10 +93,15 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
         const blank = () => new Map();
         const [statuses, signups, profiles] = await Promise.all([store.accessFor(conversations.map(c => c.id)).catch(blank),
           store.signupNames?.(conversations.map(c => c.sender_id)).catch(blank) ?? blank(), store.profilesFor?.(conversations.map(c => c.id)).catch(blank) ?? blank()]);
+        const names = new Map(conversations.map(c => {
+          const signup = signups.get(c.sender_id);
+          return [c.id, (signup ? [displayName(signup.first_name), displayName(signup.last_name)].filter(Boolean).join(' ') : displayName(profileFirstName(profiles.get(c.id)))) || null];
+        }));
+        // A signup from someone's shared link (?ref=u-…) is credited to the person who shared it.
+        const sharers = new Map(conversations.map(c => [referralRef(c.id, env), c.id]).filter(([ref]) => ref));
         return json(res, 200, { conversations: conversations.map(c => {
-          const signup = signups.get(c.sender_id), status = statuses.get(c.id);
-          const name = signup ? [displayName(signup.first_name), displayName(signup.last_name)].filter(Boolean).join(' ') : displayName(profileFirstName(profiles.get(c.id)));
-          return { ...c, name: name || null, source: sources.get(c.sender_id) ?? null, access: status?.access ?? null, waitlist_replies: status?.waitlist_replies ?? null };
+          const status = statuses.get(c.id), source = sources.get(c.sender_id) ?? null, sharer = source ? sharers.get(source) : null;
+          return { ...c, name: names.get(c.id), source, referred_by: sharer && sharer !== c.id ? { id: sharer, name: names.get(sharer) ?? null } : null, access: status?.access ?? null, waitlist_replies: status?.waitlist_replies ?? null };
         }), waitlist_enabled: env.WAITLIST_ENABLED === 'true', waitlist_replies: WAITLIST_REPLIES, approval_text: approvalPreview(env)?.text ?? null, approval_account: approvalPreview(env)?.account ?? false });
       }
       if (!uuid(id)) return json(res, 400, { error: 'Invalid conversation.' });
