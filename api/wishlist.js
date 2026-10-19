@@ -15,6 +15,8 @@ import {fetchListingPhotos,fetchProductAssets} from '../lib/product-photos.js';
 import {verifyListing} from '../lib/listings.js';
 import { inspectAlertLinks, baselineOffers, readSizeOffers, lowestAvailable, initialPriceBaselines } from '../lib/price-alerts.js';
 import { createStore } from '../lib/store.js';
+import {withUsage} from '../lib/usage.js';
+import {lookupIndexedProduct} from '../lib/indexed-product.js';
 import { wishlistUser, sessionHash, groupWishlist } from '../lib/wishlist.js';
 import { authorize } from '../lib/auth.js';
 import { json, readJson, uuid } from '../lib/http.js';
@@ -25,6 +27,8 @@ import {handleWardrobe} from '../lib/wardrobe.js';
 
 export const config = { api: { bodyParser: false }, maxDuration: 120 };
 export function createWishlistHandler({ env = process.env, storeFactory = createStore, auth = wishlistUser, admin = authorize, fetcher = fetch, verify = verifyListing, inspect = inspectAlertLinks, photos = fetchListingPhotos } = {}) {
+  // Resolve the default fetch per call so the usage meter (which wraps global fetch) records recovery searches.
+  const live=fetcher===fetch?(...args)=>globalThis.fetch(...args):fetcher;
   const onboarding=createOnboardingHandler({env,storeFactory});
   const gmail=createGmailHandler({env,storeFactory,auth,fetcher,schedule:(owner,worker)=>scheduleGmail(owner,env,{worker})});
   const phoneLogin=createPhoneLoginHandler({env,storeFactory,fetcher});
@@ -57,7 +61,7 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
         if(input.action==='recover-photos'){
           const access=await auth(req.headers,env,store,fetcher);if(access.status!==200)return json(res,access.status,{error:'Please sign in with your invited email.'});
           const marketEnv=marketEnvironment((await store.profile?.(access.conversation))?.facts??[],env);
-          const rows=await repairWishlistPhotos(await store.wishlistEntries(access.conversation),{conversation:access.conversation,store,env:marketEnv,verify:(url,name)=>verify(url,name,fetcher,undefined,marketEnv,{recoveryOnly:true}),photos:(url,name)=>photos(url,name,fetcher),assets:(urls,url)=>fetchProductAssets(urls,url,fetcher)});
+          const rows=await withUsage({store,env,conversation:access.conversation,operation:'wishlist-recovery:'+new Date().toISOString().slice(0,13),feature:'wishlist_recovery',quiet:true},async()=>repairWishlistPhotos(await store.wishlistEntries(access.conversation),{conversation:access.conversation,store,env:marketEnv,verify:(url,name)=>verify(url,name,live,undefined,marketEnv,{recoveryOnly:true}),photos:(url,name)=>photos(url,name,live),assets:(urls,url)=>fetchProductAssets(urls,url,live),indexed:(url,name)=>lookupIndexedProduct(url,name,{env:marketEnv,siteSearch:true,photos:true})}));
           return json(res,200,{items:groupWishlist(rows,{currency:marketEnv.SHOPPING_CURRENCY,country:marketEnv.SHOPPING_COUNTRY}).map(({links,entries,...group})=>group)});
         }
         if(input.action==='recover-alerts'){
@@ -82,7 +86,7 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
           const access=await auth(req.headers,env,store,fetcher);if(access.status!==200)return json(res,access.status,{error:'Please sign in with your invited email.'});
           if(!uuid(input.item))return json(res,400,{error:'Invalid item.'});
           const marketEnv=marketEnvironment((await store.profile?.(access.conversation))?.facts??[],env);
-          const {update,...result}=await enrichWishlistItem(store,access.conversation,input.item,{env:marketEnv,verify:(url,name)=>verify(url,name,fetcher,undefined,marketEnv,{recoveryOnly:true}),photos:(url,name)=>photos(url,name,fetcher),assets:(urls,url)=>fetchProductAssets(urls,url,fetcher)});
+          const {update,...result}=await withUsage({store,env,conversation:access.conversation,operation:'wishlist-details:'+input.item,feature:'wishlist_recovery',quiet:true},()=>enrichWishlistItem(store,access.conversation,input.item,{env:marketEnv,verify:(url,name)=>verify(url,name,live,undefined,marketEnv,{recoveryOnly:true}),photos:(url,name)=>photos(url,name,live),assets:(urls,url)=>fetchProductAssets(urls,url,live)}));
           return json(res,200,result);
         }
         if (['remove','restore'].includes(input.action)) {
@@ -113,10 +117,11 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
           const {sizes,checks}=await inspect(item.links,link=>readSizeOffers(link,fetcher));
           if(input.action==='alert-options')return json(res,200,{sizes});
           if(typeof input.size!=='string'||!sizes.includes(input.size))return json(res,400,{error:'Select a size found on the retailer listings.'});
-          const baselines=lowestAvailable(baselineOffers(checks,input.size));
-          if(!baselines.length)return json(res,422,{error:'We couldn’t verify an available price for that size. Try another size or check back later.'});
+          // A size sold out everywhere is watched for its return, with its verified price as the reference.
+          const offers=baselineOffers(checks,input.size),available=lowestAvailable(offers),baselines=initialPriceBaselines(offers);
+          if(!baselines.length)return json(res,422,{error:'We couldn’t verify a price for that size. Try another size or check back later.'});
           const alert=await store.enablePriceAlert({p_conversation:access.conversation,p_item:item.image_item,p_group:item.id,p_name:item.name,p_size:input.size,p_baselines:baselines,p_links:item.links.map(({url,name})=>({url,name}))});
-          return json(res,200,{active:alert.active,size:alert.size});
+          return json(res,200,{active:alert.active,size:alert.size,...(available.length?{}:{restock:true})});
         }
         if (input.action === 'refresh') {
           if(typeof input.refresh_token!=='string'||!input.refresh_token||input.refresh_token.length>8192)return json(res,400,{error:'Invalid session.'});

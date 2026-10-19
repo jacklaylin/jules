@@ -1,6 +1,7 @@
 import {mountAdminShell,adminJson,adminFetch,adminToken,anchorMenus} from './admin-console.js';
 import {mountPurchases,loadPurchases,syncPurchaseView} from './admin-purchases.js';
 import {browseKey} from './admin-review.js';
+import {approvalLines,accessResult} from './admin-people-view.js';
 // Admin › People › one person: Personal memory, Conversation, Purchase history and Wishlist tabs.
 // The selected tab lives in the URL (?tab=) so every view can be linked.
 mountAdminShell('people');
@@ -98,7 +99,7 @@ async function loadMessages(earlier = false) {
   const query = new URLSearchParams({ conversation: person });
   if (earlier && cursor) query.set('before', JSON.stringify(cursor));
   const data = await api(`/api/admin?${query}`);
-  if (!earlier) { $('person-name').textContent = data.conversation.sender_id; document.title = `Jules admin · ${data.conversation.sender_id}`; showAccess(data.access?.access ?? null, data.approval_text ?? null); }
+  if (!earlier) { $('person-name').textContent = data.conversation.sender_id; document.title = `Jules admin · ${data.conversation.sender_id}`; showAccess(data.access?.access ?? null, data.approval_text ?? null, data.approval_account === true); }
   messages = earlier ? [...data.messages, ...messages] : data.messages; cursor = data.before;
   renderMessages();
 }
@@ -283,16 +284,16 @@ async function loadWishlist() { wishlist = await api(`/api/admin?view=wishlist&c
 
 // ---------- Waitlist ----------
 // Status beside the name (none before db/035 runs); Approve shows only while they are waitlisted.
-let approvalText = null;
-function showAccess(access, text) {
-  approvalText = text;
+let approvalText = null, approvalAccount = false;
+function showAccess(access, text, account = false) {
+  approvalText = text; approvalAccount = account;
   $('person-access').hidden = !access;
   $('person-access').replaceChildren(...(access ? [badge(access === 'waitlisted' ? 'warn' : 'ok', access === 'waitlisted' ? 'Waitlisted' : 'Approved')] : []));
   $('approve-person').hidden = access !== 'waitlisted';
 }
 $('approve-person').onclick = () => {
   $('approve-person-name').textContent = $('person-name').textContent; $('approve-error').hidden = true;
-  $('approve-text-note').replaceChildren(...(approvalText ? ['Jules texts them once: ', el('em', { textContent: `“${approvalText}”` })] : ['No text is sent, because the waitlist is turned off.']));
+  $('approve-text-note').replaceChildren(...approvalLines(approvalText, approvalAccount).slice(1).map(line => el('p', { textContent: line })));
   $('approve-dialog').showModal();
 };
 $('approve-cancel').onclick = () => $('approve-dialog').close();
@@ -302,8 +303,7 @@ $('approve-confirm').onclick = async () => {
     const data = await api('/api/admin', { method: 'POST', body: JSON.stringify({ action: 'approve', conversation: person, confirm: true }) });
     $('approve-dialog').close();
     showAccess(data.access?.access ?? 'approved', null);
-    const text = { sent: 'Jules texted them that their spot opened.', blocked: 'No text sent: they replied STOP.', uncertain: 'The text may not have been delivered; check the Conversation tab before resending anything.' }[data.text] ?? 'No text was sent.';
-    notice(data.changed ? `Approved. ${text}` : 'Already approved; nothing changed.');
+    notice(accessResult('approved', data));
     loadMessages().catch(error => notice(`Conversation: ${error.message}`));
   } catch (error) { $('approve-error').textContent = error.message; $('approve-error').hidden = false; }
   finally { buttons.forEach(b => { b.disabled = false; }); $('approve-confirm').textContent = 'Approve'; }
