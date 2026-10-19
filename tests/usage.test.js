@@ -21,7 +21,7 @@ test('every billable call inside one user action is attributed to it, with an es
   const [ai,serp]=recorded;
   assert.deepEqual([ai.provider,ai.model,ai.input_tokens,ai.cached_tokens,ai.output_tokens,ai.web_search_calls,ai.action,ai.feature,ai.conversation_id],['openai','gpt-4.1-mini-2025-04-14',1000,400,200,1,'find_products','chat','c1']);
   // (600*0.40 + 400*0.10 + 200*1.60)/1e6 + one web search call at 0.010
-  assert.equal(ai.cost_usd,0.0106);assert.equal(serp.provider,'serpapi');assert.equal(serp.model,'google');assert.equal(serp.cost_usd,0.025);
+  assert.equal(ai.cost_usd,0.0106);assert.equal(serp.provider,'serpapi');assert.equal(serp.model,'google');assert.equal(serp.cost_usd,0.015);
 });
 test('calls outside an action are not metered, and a failed write never fails the action',async()=>{
   await fetch('https://api.openai.com/v1/responses');

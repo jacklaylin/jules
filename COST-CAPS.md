@@ -10,8 +10,8 @@ Checked against production `usage_events` (October 13–19) and SerpApi's own ac
 
 | What | Finding | Fixed? |
 |---|---|---|
-| **SerpApi searches are used up** | SerpApi reports 1,000 of 1,000 searches used and 0 left (Starter plan, renews Nov 12). Jules' last recorded search was Oct 19 17:50 UTC. Until the plan renews or is upgraded, product searches that need SerpApi fail. | **No: needs you** (see below) |
-| SerpApi price per search | Jules recorded each search at $0.015. The Starter plan is $25 for 1,000 searches, so $0.025. Per-person spend was understated by about 40% for searches. | Yes. $0.025 default; set `SERPAPI_COST_PER_SEARCH` if you change plan. Admin › Costs already used the real plan price. |
+| **SerpApi searches were used up** | SerpApi reported 1,000 of 1,000 searches used and 0 left (Starter plan) on Oct 19; Jules' last recorded search was 17:50 UTC. Product searches that needed SerpApi failed until the upgrade. | Yes: upgraded to the Developer plan the same day (see below) |
+| SerpApi price per search | Jules recorded each search at $0.015 while on the Starter plan ($25 / 1,000 = $0.025), so October's per-person search spend was understated by about 40%. Admin › Costs totals already used the real plan price. | Yes. The default now matches the Developer plan Jules moved to on Oct 19 ($75 / 5,000 = $0.015); set `SERPAPI_COST_PER_SEARCH` if the plan changes. Caps price searches at the current rate. |
 | SerpApi refused calls counted | A search SerpApi refused (no searches left, rate limit) was recorded as spend. SerpApi doesn't charge for these. | Yes. Only searches SerpApi ran are counted. |
 | SerpApi count gap | SerpApi counts 1,000 searches this plan month; Jules recorded 655. Likely causes: metering started Oct 13 (the plan month started Oct 12); until today's #185 some handlers bypassed the meter; and local testing with the same key. | Partly. #185 closed the bypass. Use a separate SerpApi key for local testing so it doesn't eat the production allowance. |
 | gpt-5.5 calls stored at $0 | 21 style-report/chat calls made before gpt-5.5 had a price were stored at $0 (about $0.27). | Yes. Caps and Admin › Costs › By person reprice from token counts; `db/036` also fixes the stored rows. |
@@ -22,17 +22,14 @@ Checked against production `usage_events` (October 13–19) and SerpApi's own ac
 | Hosted browser (rendering store pages, report images) | Runs inside Vercel functions, so it's part of the Vercel bill, not per person. | Nothing to fix; shared cost |
 | Recurring jobs | Price checks at 13:00 UTC today ran before job tracking (#178) deployed at 18:08 UTC, so no job runs are recorded yet. | Should appear from tomorrow |
 
-Metered spend so far (Oct 13–19, at corrected prices): about $27, roughly $11 OpenAI and $16 SerpApi
-(655 searches). Two people account for nearly all of it: about $17 and $4.40, and about $2.30 each today.
+Metered spend so far (Oct 13–19, at corrected prices): about $21, roughly $11 OpenAI and $10 SerpApi
+(655 searches at today's $0.015). Two people account for nearly all of it: about $17 and $4.40, and about $2.30 each today.
 
-### Needs you now: SerpApi
+### SerpApi plan
 
-1. **Why:** product search is out of credits until November 12.
-2. **Action:** sign in at https://serpapi.com/pricing and upgrade the plan (or wait for the Nov 12 renewal). If you
-   upgrade, note the new price per search (plan price ÷ searches per month).
-3. **Value:** the new per-search price, e.g. `0.015` for $75 / 5,000.
-4. **Where:** Vercel → Project → Settings → Environment Variables → `SERPAPI_COST_PER_SEARCH` (Production).
-   Also create a second SerpApi key for local testing and keep it only in your local `.env.local`.
+Upgraded to the Developer plan ($75 for 5,000 searches a month, renews the 12th) on Oct 19, which matches
+the $0.015 default. If the plan changes, set `SERPAPI_COST_PER_SEARCH` in Vercel (Production) to the plan
+price ÷ searches per month. Use a separate SerpApi key for local testing, kept only in your local `.env.local`.
 
 ## How the caps work
 

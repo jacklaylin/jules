@@ -33,7 +33,7 @@ test('caps are off unless a positive dollar amount is set, and then no spend is 
 test('spend is priced from token and search counts at current prices, so calls stored at $0 still count', () => {
   // gpt-5.5 rows written before it had a price were stored with cost_usd 0.
   assert.equal(rowCost({ provider: 'openai', model: 'gpt-5.5-2026-04-23', input_tokens: 1e6, cached_tokens: 0, output_tokens: 1e5, web_search_calls: 0, cost_usd: 0 }), 8);
-  assert.equal(rowCost({ provider: 'serpapi', model: 'google', units: 4, cost_usd: 0.06 }), 0.1);
+  assert.equal(rowCost({ provider: 'serpapi', model: 'google', units: 4, cost_usd: 0.1 }), 0.06);
   assert.equal(rowCost({ provider: 'serpapi', units: 4 }, { SERPAPI_COST_PER_SEARCH: '0.01' }), 0.04);
   // Before db/036 the per-person fallback view has only the stored estimate.
   assert.equal(rowCost({ day: TODAY, cost_usd: '0.42' }), 0.42);
@@ -86,7 +86,7 @@ test('a SerpApi call it refused (no searches left) is not recorded as spend', as
   await withUsage({ store: { recordUsage: async rows => recorded.push(...rows) }, env: {}, conversation: 'c', operation: 'o', feature: 'chat', quiet: true }, async () => {
     await fetch('https://serpapi.com/search?fail=1'); await fetch('https://serpapi.com/search?engine=google');
   });
-  assert.equal(recorded.length, 1); assert.equal(recorded[0].cost_usd, 0.025);
+  assert.equal(recorded.length, 1); assert.equal(recorded[0].cost_usd, 0.015);
 });
 
 // Chat: a capped person gets one fixed notice, their message stays stored, and the agent never runs.
