@@ -47,3 +47,26 @@ test('photo persistence updates every encounter by reply ID and leaves item iden
  const writes=requests.filter(r=>r.method==='PATCH');assert.equal(writes.length,3);assert.ok(writes[1].url.includes('reply_id=eq.first'));assert.ok(writes[2].url.includes('reply_id=eq.second'));
  for(const write of writes){const saved=JSON.parse(write.body).product;assert.equal(saved.url,product.url);assert.deepEqual(saved.links,product.links);assert.deepEqual(saved.image,photo);}
 });
+test('a retailer that blocks page reads falls back to images Google indexed for that exact page',async()=>{
+ const store=fixture();const seen=[];
+ const rows=await repairWishlistPhotos([{item_id:'a'}],{conversation:'owned',store,now,photos:async()=>{throw Error('403');},
+  indexed:async(url,name)=>{seen.push(['indexed',url,name]);return {product_images:['https://cdn.example/tee.jpg']};},
+  assets:async(urls,url)=>{seen.push(['assets',urls,url]);return [photo];}});
+ assert.deepEqual(seen,[['indexed',product.url,product.name],['assets',['https://cdn.example/tee.jpg'],product.url]]);
+ assert.equal(rows[0].has_image,'image/jpeg');assert.equal(store.items.get('a').product.photo_status,'ready');assert.equal(store.items.get('a').product.photo_attempts,0);
+});
+test('after three failed attempts the card says unavailable, paid search stops and retries slow to daily',async()=>{
+ const store=fixture();let searches=0,reads=0;
+ const options=at=>({conversation:'owned',store,now:at,photos:async()=>{reads++;throw Error('403');},indexed:async()=>{searches++;return null;}});
+ let rows=[{item_id:'a'}];
+ for(let n=0;n<3;n++)rows=await repairWishlistPhotos(rows,options(now+n*300001));
+ assert.equal(store.items.get('a').product.photo_status,'unavailable');assert.equal(rows[0].photo_status,'unavailable');assert.equal(searches,3);
+ await repairWishlistPhotos(rows,options(now+3*300001));assert.equal(reads,3,'no retry within a day');
+ await repairWishlistPhotos(rows,options(now+2*300001+86400001));assert.equal(reads,4);assert.equal(searches,3,'daily retry reads the page only');
+});
+test('an unverified saved link still gets a photo when the details check is rejected',async()=>{
+ const store=fixture();const p=store.items.get('a').product;p.details_revision=6;p.market_country='US';p.links=[{url:product.url,user_saved:true,verification_status:'unverified'}];
+ store.correctWishlistProduct=async()=>assert.fail('details stay unverified');
+ const rows=await repairWishlistPhotos([{item_id:'a',...p}],{conversation:'owned',store,now,env:{SHOPPING_COUNTRY:'US'},verify:async()=>({status:'blocked'}),photos:async()=>{throw Error('403');},indexed:async()=>({product_images:['https://cdn.example/tee.jpg']}),assets:async()=>[photo]});
+ assert.equal(rows[0].has_image,'image/jpeg');assert.equal(store.items.get('a').product.image,photo);
+});
