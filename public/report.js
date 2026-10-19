@@ -67,7 +67,7 @@ const Theirs=()=>{const t=theirs();return t.charAt(0).toUpperCase()+t.slice(1);}
 // An exported Story image also says where to get one, for when it's reposted without the link sticker.
 const foot=(className='story-foot')=>el('footer',{className},report.shared&&el('span',{className:'story-ask'},'What about you?',exportCard&&el('span',{className:'story-where',textContent:`Text Jules · ${location.host}`})),wordmark());
 // A friend's way in: signup credited to this share link (Admin shows whose report brought them).
-const signupHref=()=>`/signup?ref=${/^r-[0-9a-f]{12}$/.test(report?.ref??'')?report.ref:'shared-report'}`;
+const signupHref=()=>`/signup?ref=${/^u-[0-9a-f]{12}$/.test(report?.ref??'')?report.ref:'shared-report'}`;
 // The receipt proves Jules has read the person's orders: member since, their first order, exact
 // products, a few fields (items kept, last order...) and one line of fine print. Reports built before
 // October 18 still end on their TOTAL line.
