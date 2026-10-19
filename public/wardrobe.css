@@ -59,13 +59,14 @@
 .removed-row .fine{margin:0}
 .removed-row .chip{padding:0 14px;font-size:13px}
 
-/* Suggested photos: a searched photo waiting for the owner's answer. Labelled on the photo, answered beside it. */
+/* Suggested photos: a searched photo waiting for the owner's answer. The question and the thumbs sit
+   inside the photo. On cards the thumbs overlay the tile's photo area (buttons can't nest in the tile). */
 .suggested-frame{position:relative}
 .suggested-label{position:absolute;left:10px;top:10px;padding:4px 8px;border-radius:999px;background:var(--photo-overlay);color:var(--ink);font:500 10px/1.4 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;pointer-events:none}
-.suggest-ask{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:8px;padding:0 4px}
-.suggest-ask>span{font-size:14px;font-weight:600}
-.suggest-answers{display:flex;gap:8px}
-.suggest-answers .chip{padding:0 16px;font-size:13px}
-.detail-suggestion{display:flex;flex-direction:column;gap:12px;min-width:0}
-.detail-suggestion .photo{aspect-ratio:4/5}
-.detail-suggestion .suggest-ask{padding:0}
+.suggest-ask{position:absolute;display:flex;gap:8px;align-items:flex-end;justify-content:flex-end;padding:10px;pointer-events:none}
+.product-card>.suggest-ask{top:11px;left:11px;right:11px;aspect-ratio:4/5}
+.suggested-frame>.suggest-ask{inset:0}
+.suggest-thumb{pointer-events:auto;width:44px;height:44px;min-height:44px;padding:0;display:grid;place-items:center;border-radius:50%;background:var(--photo-overlay);color:var(--ink)}
+.suggest-thumb--down svg{transform:rotate(180deg)}
+.detail-suggestion{min-width:0}.detail-suggestion>.photo{aspect-ratio:4/5}
+@media(max-width:800px){.product-card>.suggest-ask{top:9px;left:9px;right:9px;aspect-ratio:3/4;padding:8px;gap:6px}.suggested-label{left:8px;top:8px}}
