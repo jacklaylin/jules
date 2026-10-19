@@ -120,6 +120,34 @@ test('unsupported choices fall back to a plain "added to your wardrobe" text',as
  assert.equal((await announcePurchases(store,OWNER,{},{interpret:async()=>{throw Error('down');},send:send(store),now:NOW})).angle,'just_added');
 });
 
+test('an observation must agree with what they already own',()=>{
+ const items=[{id:'cargo',product:'Wide Leg Cargo Pants',category:'bottoms'}];
+ const wardrobe=[{id:'old-cargo',product:'Straight-Leg Cargo Trousers',category:'bottoms'},{id:'oxford',product:'Oxford Shirt',category:'tops'},{id:'jeans',product:'Straight Jeans',category:'bottoms'}];
+ const choose=extra=>validPick({send:true,lead_item_id:'cargo',related_item_ids:[],hook:'another pair for the collection (a uniform is forming)',...extra},items,wardrobe);
+ // "Their first of its kind" is refused when they own one; it stands when they own none.
+ assert.equal(choose({angle:'new_direction',similar_owned_item_ids:['old-cargo']}).angle,'just_added');
+ assert.equal(choose({angle:'new_direction',similar_owned_item_ids:[]}).angle,'new_direction');
+ // "Another one" needs the similar items it repeats, of the same kind; invented or off-category ones don't count.
+ assert.equal(choose({angle:'pattern',similar_owned_item_ids:[]}).angle,'just_added');
+ assert.equal(choose({angle:'pattern',similar_owned_item_ids:['oxford','invented']}).angle,'just_added');
+ const pattern=choose({angle:'pattern',similar_owned_item_ids:['old-cargo','oxford']});
+ assert.deepEqual([pattern.angle,pattern.related],['pattern',['old-cargo']]);
+ // Counts and dates are left out of observations; the model miscounts them.
+ assert.equal(choose({angle:'pattern',similar_owned_item_ids:['old-cargo'],hook:'your 5th pair of cargos'}).angle,'just_added');
+});
+
+test('the composer is told the purchase was recorded in the wardrobe, not saved to the wishlist',async()=>{
+ const {composeReply}=await import('../lib/compose.js');const bodies=[];
+ const reply=text=>new Response(JSON.stringify({status:'completed',output:[{content:[{type:'output_text',text}]}]}),{status:200});
+ const fetcher=async(url,init)=>{const body=JSON.parse(init.body);bodies.push(body);
+  return body.text.format.name==='claim_audit'?reply(JSON.stringify({saved_now:false,alerts_turned_on:false,alerts_turned_off:false,names_other_saved_item:false}))
+   :reply(JSON.stringify({reply:'added your cargos to your wardrobe. yet another pair (a uniform is forming).',claims:{saved_now:false,alerts_turned_on:false,alerts_turned_off:false},photo_captions:[]}));};
+ const result=await composeReply({draft:'i saw your new Cargo Pants in your email and added it to your wardrobe.',facts:{wardrobe_added:['Cargo Pants']},purpose:'new_purchase',env:{OPENAI_API_KEY:'k',WISHLIST_ENABLED:'true'},fetcher});
+ assert.equal(result.composed,true);
+ assert.ok(JSON.stringify(bodies[0].input).includes('wardrobe_added'));
+ assert.ok(bodies[1].input.some(m=>m.content.startsWith('ADDED_TO_WARDROBE')));
+});
+
 test('a person\'s daily run reads, then texts about what it found',async()=>{
  const store=storage();let clock=NOW;
  const result=await refreshOwner(store,OWNER,{},{step:finding([cargos]),now:()=>clock,deadline:NOW+60000,
