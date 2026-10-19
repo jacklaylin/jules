@@ -11,9 +11,10 @@ let people = [], refreshedAt = null, loading = false, failed = '';
 
 function render() {
   const shown = filterPeople(people, $('people-search').value);
-  const head = el('div', { className: 'dv-head', ariaHidden: 'true' }, el('span', { textContent: 'Identifier' }), el('span', { textContent: 'Last activity' }), el('span', { className: 'end' }));
+  const head = el('div', { className: 'dv-head', ariaHidden: 'true' }, el('span', { textContent: 'Identifier' }), el('span', { textContent: 'Source' }), el('span', { textContent: 'Last activity' }), el('span', { className: 'end' }));
   $('people').replaceChildren(head, ...shown.map(person => el('a', { className: 'dv-row', href: `/admin/people/${person.id}`, ariaLabel: `Open ${person.sender_id}` },
     el('span', {}, el('strong', { textContent: person.sender_id })),
+    el('span', { className: 'muted', textContent: person.source ?? 'Direct', title: person.source ? `Signed up from a ?ref=${person.source} link` : 'No source on their signup link' }),
     el('span', { className: 'muted', textContent: ago(person.updated_at), title: exact(person.updated_at) }),
     el('span', { className: 'end', textContent: 'Open →' }))));
   if (!shown.length) $('people').append(el('p', { className: 'dv-empty', textContent: loading ? 'Loading…' : failed ? '' : !people.length ? 'No testers yet.' : 'No testers match this search.' }));
