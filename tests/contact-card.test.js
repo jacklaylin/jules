@@ -83,3 +83,41 @@ test('sendGreeting sends the lead-in text, then the file as an attachment',async
  assert.equal(sends[1].type,'attachment');assert.equal(sends[1].name,'jules.vcf');
  assert.match(logs.join('\n'),/imessage_file_sent/);
 });
+
+// Admin › person › Text them Jules's contact card: a one-phone re-test that resets nothing.
+import {createAdminHandler} from '../api/admin.js';
+const person='00000000-0000-4000-8000-0000000000a1';
+async function adminPost(handler,input,origin='https://jules.example'){
+ const res={headers:{},setHeader(k,v){this.headers[k]=v;},end(value){this.status=this.statusCode;this.data=JSON.parse(value);}};
+ await handler({method:'POST',url:'/api/admin',headers:{'content-type':'application/json',...(origin?{origin}:{})},async *[Symbol.asyncIterator](){yield Buffer.from(JSON.stringify(input));}},res);
+ return res;
+}
+function adminWorld(){
+ const f=fixture();
+ f.store.conversation=async id=>id===person?{id:person,sender_id:'synthetic-tester',line:'synthetic-line'}:null;
+ return f;
+}
+
+test('admin can text the contact card again without resetting onboarding',async()=>{
+ const f=adminWorld();
+ // Welcome and first card already went out during onboarding.
+ await welcomeTester('synthetic',f.store,env,f.send);
+ const before=[...f.operations.keys()];
+ const handler=createAdminHandler({auth:async()=>200,env,storeFactory:()=>f.store,send:f.send});
+ const first=await adminPost(handler,{action:'send-contact-card',conversation:person,confirm:true});
+ assert.equal(first.data.contact_card,'sent');
+ const second=await adminPost(handler,{action:'send-contact-card',conversation:person,confirm:true});
+ assert.equal(second.data.contact_card,'sent','each click is its own send');
+ const cards=f.sent.filter(m=>m.files.includes('jules.vcf'));
+ assert.equal(cards.length,3);assert.ok(cards.every(m=>m.body===CONTACT_CARD_TEXT));
+ for(const key of before)assert.equal(f.operations.get(key).status,'sent','onboarding ledger untouched');
+});
+
+test('admin contact card needs the admin page, confirmation and a configured line',async()=>{
+ const f=adminWorld();
+ const handler=(e=env)=>createAdminHandler({auth:async()=>200,env:e,storeFactory:()=>f.store,send:f.send});
+ for(const origin of [null,'https://evil.example'])assert.match((await adminPost(handler(),{action:'send-contact-card',conversation:person,confirm:true},origin)).data.error,/admin page/);
+ assert.match((await adminPost(handler(),{action:'send-contact-card',conversation:person})).data.error,/Confirm/);
+ assert.match((await adminPost(handler({...env,JULES_PUBLIC_LINE:''}),{action:'send-contact-card',conversation:person,confirm:true})).data.error,/JULES_PUBLIC_LINE/);
+ assert.equal(f.sent.length,0);
+});
