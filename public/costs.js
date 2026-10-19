@@ -1,5 +1,5 @@
 import {mountAdminShell,adminJson,anchorMenus} from './admin-console.js';
-import {viewOf,periodOf,apiDate,pickerValue,totalLine,coverageText,budgetText,serviceColumns,featureColumn,serviceRow,featureRows,meteredText,entryBody,jobColumns,jobRows,jobsAlert,jobsText} from './costs-view.js';
+import {viewOf,periodOf,apiDate,pickerValue,totalLine,coverageText,budgetText,serviceColumns,featureColumn,serviceRow,featureRows,meteredText,entryBody,jobColumns,jobRows,jobsAlert,jobsText,reconcileText} from './costs-view.js';
 // Admin › Costs as a data view: a month by default (Day is an option, ?period=day), its total beside the title,
 // views By service · By feature · Evals, the period and its picker in the toolbar, coverage/budget in the status line. Update an amount opens its form above the table.
 mountAdminShell('costs');
@@ -54,6 +54,7 @@ function render() {
   $('coverage').textContent = data ? coverageText(data) : '';
   const budget = data ? budgetText(data, p) : { text: '', over: false };
   $('budget-status').textContent = budget.text; $('budget-status').className = budget.over ? 'error' : '';
+  const reconcile = data ? reconcileText(data) : { text: '', over: false }; $('reconcile-status').textContent = reconcile.text; $('reconcile-status').className = reconcile.over ? 'error' : '';
   const jobsStatus = jobsAlert(data); $('jobs-status').textContent = jobsStatus.text; $('jobs-status').className = jobsStatus.over ? 'error' : '';
   summary();
   if (!data) return;
