@@ -5,6 +5,7 @@ import { purchaseReview, reviewPurchase, reportMissedPurchase } from '../lib/pur
 import { groupWishlist } from '../lib/wishlist.js';
 import { marketEnvironment } from '../lib/shopping-market.js';
 import { metricsTrend } from '../lib/chat-metrics.js';
+import { loadTurnOutcomes } from '../lib/turn-outcomes.js';
 import { deleteImportedHistory } from '../lib/gmail-import.js';
 import { tagPurchaseHistory } from '../lib/item-tags.js';
 import { buildReport, sendReportLink, sendNewCardText, reportView, withReadPhoto } from '../lib/style-report.js';
@@ -59,6 +60,8 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
       if (query.get('view') === 'report-copy') return json(res, 200, copyWeek(await store.reportCopyRows()));
       if (query.get('view') === 'adoption') return json(res, 200, await adoptionReport(store));
       if (query.get('view') === 'metrics') return json(res, 200, await metricsTrend(store, { days: 7 }));
+      // Per sourcing turn outcomes (lib/turn-outcomes.js): ids, counts and labels only, no message text.
+      if (query.get('view') === 'turn-outcomes') return json(res, 200, await loadTurnOutcomes(store, { days: Math.min(56, Math.max(1, Number(query.get('days')) || 7)) }));
       const id = query.get('conversation');
       if (!id) {
         // Each tester's signup source (db/033). The list never depends on it: before the migration, sources are blank.

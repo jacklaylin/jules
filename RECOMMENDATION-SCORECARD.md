@@ -61,19 +61,21 @@ Then a pure labeler, `lib/turn-outcomes.js` (rows in, records out, like `chat-me
 | `purchase_intent` | `prepare_checkout` ran | positive |
 | `clicked` | a `link_click` on this reply (existing `/go/` tracking, #159; counted whenever `LINK_CLICK_TRACKING` is on) | positive |
 | `reacted` | a tapback on this reply: ❤️ 👍 😂 ‼️ positive, ❓ / 👎 negative | by emoji |
-| `rejected` | `respond_to_options` decision `decline` | negative |
-| `asked_for_other` | `find_products` on the same request asking for different results | negative |
-| `refined` | `find_products` on the same request with added/changed constraints | neutral |
+| `rejected` | `respond_to_options` decision `decline`, or a new search that rules shown options out (`exclude_option_indices`) | negative |
+| `missed` / `flagged` / `confused` | a quality signal on the next message / a 👎 or `#dev` on the results / a ❓ tapback | negative |
+| `refined` | `find_products` on the same request (more, other or narrower results; options it keeps count as `picked`) | neutral |
 | `clarified` | `respond_to_options` decision `clarify` | neutral |
-| `moved_on` | next turn is a new request or something else | neutral |
+| `replied` | anything else while the options were pending | neutral |
+| `moved_on` | a new request | neutral |
+| `not_recorded` | a reply from before actions were recorded, with no stored intent; left out of engagement rates | neutral |
 | `silent` | no message from the user within 24 h | neutral (reported separately) |
 
 Rules: a turn can carry several labels (picked two, rejected one → `picked` + `rejected`); the headline uses the strongest (positive beats neutral; negative is still counted). A threaded reply or tapback attaches to the turn it **targets**, not the newest one. A quality signal on the next message marks the turn `missed` regardless.
 
-Persisted nightly (PR 3's job) into a new `sourcing_turns` table keyed by the reply's operation id, so labels are frozen next to the judge's scores; the admin page computes today's not-yet-saved turns live with the same labeler.
+Built (PR 2): outcomes are computed from these rows on read (`scripts/turn-outcomes.js`, `/api/admin?view=turn-outcomes`), the same way chat metrics are. "Same request, asking for different results" is not a separate field the agent gives, so it isn't a separate label: it shows as `refined`, plus `rejected` when the search rules options out and `missed` when the quality check says the results missed. Persisting them next to the judge's scores moves to PR 3, which creates the `sourcing_turns` table it writes to.
 
 - Tests: the labeler across varied multi-turn sequences — subsets, all, none, a correction, uncertainty (`clarify`), a topic change, a reply to an older result set, a tapback on an older reply, rapid double messages, silence — asserting labels from tool calls, never from text.
-- **Migration `db/034_turn_outcomes.sql`**: allow `reaction` in `adoption_events.kind`, add a `detail` column (the emoji), and create `sourcing_turns`. Code before it runs: reactions are logged only (as today), nothing breaks.
+- **Migration `db/034_turn_outcomes.sql`**: allow `reaction` in `adoption_events.kind` and add a `detail` column (the tapback kind). Code before it runs: reactions are logged only (as today), nothing breaks.
 
 ### PR 3 — Nightly LLM judge
 
@@ -91,7 +93,7 @@ Persisted nightly (PR 3's job) into a new `sourcing_turns` table keyed by the re
 - **Failures → triage:** the feedback-triage packet gains judge failures as a third source next to `#dev`/👎 and quality signals, so the daily triage task clusters and fixes them. Each failed turn has a **Copy as replay case** button on the drill-down that produces a draft case for `lib/replay.js` / `evals/IDENTIFICATION.md`; real turns stay private and are anonymised before they go in a case.
 - **Trust check:** on the drill-down you can mark "judge was wrong" on a turn; the page shows judge agreement so you know when to trust the pass rate.
 - Tests: rubric response parsing, the two code-checked criteria, batching/idempotency, cap.
-- **Migration `db/035_judge_schedule.sql`**: the cron job only (`sourcing_turns` already exists from 034).
+- **Migration `db/035_judge_schedule.sql`**: the `sourcing_turns` table (outcome labels frozen next to the judge's scores) and the cron job.
 
 ### PR 4 — Admin › Scorecard
 
