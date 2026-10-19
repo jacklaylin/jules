@@ -98,7 +98,7 @@ async function loadMessages(earlier = false) {
   const query = new URLSearchParams({ conversation: person });
   if (earlier && cursor) query.set('before', JSON.stringify(cursor));
   const data = await api(`/api/admin?${query}`);
-  if (!earlier) { $('person-name').textContent = data.conversation.sender_id; document.title = `Jules admin · ${data.conversation.sender_id}`; }
+  if (!earlier) { $('person-name').textContent = data.conversation.sender_id; document.title = `Jules admin · ${data.conversation.sender_id}`; showAccess(data.access?.access ?? null, data.approval_text ?? null); }
   messages = earlier ? [...data.messages, ...messages] : data.messages; cursor = data.before;
   renderMessages();
 }
@@ -281,6 +281,33 @@ function renderWishlist() {
 }
 async function loadWishlist() { wishlist = await api(`/api/admin?view=wishlist&conversation=${encodeURIComponent(person)}`); renderWishlist(); }
 
+// ---------- Waitlist ----------
+// Status beside the name (none before db/035 runs); Approve shows only while they are waitlisted.
+let approvalText = null;
+function showAccess(access, text) {
+  approvalText = text;
+  $('person-access').hidden = !access;
+  $('person-access').replaceChildren(...(access ? [badge(access === 'waitlisted' ? 'warn' : 'ok', access === 'waitlisted' ? 'Waitlisted' : 'Approved')] : []));
+  $('approve-person').hidden = access !== 'waitlisted';
+}
+$('approve-person').onclick = () => {
+  $('approve-person-name').textContent = $('person-name').textContent; $('approve-error').hidden = true;
+  $('approve-text-note').replaceChildren(...(approvalText ? ['Jules texts them once: ', el('em', { textContent: `“${approvalText}”` })] : ['No text is sent, because the waitlist is turned off.']));
+  $('approve-dialog').showModal();
+};
+$('approve-cancel').onclick = () => $('approve-dialog').close();
+$('approve-confirm').onclick = async () => {
+  const buttons = [$('approve-confirm'), $('approve-cancel')]; buttons.forEach(b => { b.disabled = true; }); $('approve-confirm').textContent = 'Approving…';
+  try {
+    const data = await api('/api/admin', { method: 'POST', body: JSON.stringify({ action: 'approve', conversation: person, confirm: true }) });
+    $('approve-dialog').close();
+    showAccess(data.access?.access ?? 'approved', null);
+    const text = { sent: 'Jules texted them that their spot opened.', blocked: 'No text sent: they replied STOP.', uncertain: 'The text may not have been delivered; check the Conversation tab before resending anything.' }[data.text] ?? 'No text was sent.';
+    notice(data.changed ? `Approved. ${text}` : 'Already approved; nothing changed.');
+    loadMessages().catch(error => notice(`Conversation: ${error.message}`));
+  } catch (error) { $('approve-error').textContent = error.message; $('approve-error').hidden = false; }
+  finally { buttons.forEach(b => { b.disabled = false; }); $('approve-confirm').textContent = 'Approve'; }
+};
 // ---------- Reset onboarding ----------
 // Owner re-test of signup and onboarding with an existing number; the dialog lists what is removed.
 $('reset-onboarding').onclick = () => { $('reset-person').textContent = $('person-name').textContent; $('reset-error').hidden = true; $('reset-dialog').showModal(); };

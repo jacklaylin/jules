@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 // The meter wraps the global fetch, so the stub must be in place first.
-const calls=[];
-globalThis.fetch=async url=>{calls.push(String(url));
+const calls=[],bodies=[];
+globalThis.fetch=async (url,init)=>{calls.push(String(url));bodies.push(init?.body??null);
   if(String(url).startsWith('https://api.openai.com/'))return new Response(JSON.stringify({model:'gpt-4.1-mini-2025-04-14',status:'completed',usage:{input_tokens:1000,input_tokens_details:{cached_tokens:400},output_tokens:200},output:[{type:'web_search_call'},{type:'message'}]}));
   if(String(url).startsWith('https://serpapi.com/'))return new Response('{"organic_results":[]}');
   return new Response('<html>retailer page</html>');};
@@ -49,4 +49,32 @@ test('a scheduled job tags its calls, nested actions inherit the job, and costs 
   // Calls by people (no job) are written without the column, as before.
   recorded.length=0;await withUsage({store,env:{},conversation:'c',operation:'ai:m',feature:'chat',quiet:true},()=>fetch('https://serpapi.com/search'));
   assert.equal('job' in recorded[0],false);
+});
+test('gpt-5.5 and its dated snapshots are priced at the standard list rate',()=>{
+  // (1M uncached input * $5 + 1M cached * $0.50 + 1M output * $30) / 1M
+  assert.equal(priceFor({provider:'openai',model:'gpt-5.5-2026-04-23',input_tokens:2e6,cached_tokens:1e6,output_tokens:1e6,web_search_calls:0}),35.5);
+});
+test('a billable call outside any metered action is recorded as unattributed with the line that made it',async()=>{
+  const {flushUnattributed}=await import('../lib/usage.js');
+  const sent=[];const original=globalThis.fetch;
+  process.env.SUPABASE_URL='https://db.test.invalid';process.env.SUPABASE_SERVICE_ROLE_KEY='service-role-test';
+  try{
+    // The meter wrapped the stub at import; the store's own write goes to the (local, .invalid) database.
+    const before=calls.length;
+    await (await fetch('https://api.openai.com/v1/responses',{method:'POST'})).json();
+    await flushUnattributed();
+    const at=calls.findIndex((u,i)=>i>=before&&u.startsWith('https://db.test.invalid/rest/v1/usage_events'));
+    assert.ok(at>=0,'usage row written');
+    const [row]=JSON.parse(bodies[at]);
+    assert.deepEqual([row.feature,row.provider,row.conversation_id,row.cost_usd],['unattributed','openai',null,0.0256]);
+    assert.match(row.operation,/^unmetered:(tests\/usage\.test\.js|unknown)/);
+  }finally{delete process.env.SUPABASE_URL;delete process.env.SUPABASE_SERVICE_ROLE_KEY;globalThis.fetch=original;}
+});
+test('every API entry point loads the meter before anything else, so no handler keeps an unmetered fetch',async()=>{
+  const {readdirSync,readFileSync}=await import('node:fs');
+  const dir=new URL('../api/',import.meta.url);
+  for(const file of readdirSync(dir).filter(f=>f.endsWith('.js'))){
+    const first=readFileSync(new URL(file,dir),'utf8').split('\n').find(l=>/^import\b/.test(l));
+    assert.equal(first,"import '../lib/usage.js';",`api/${file} imports lib/usage.js first`);
+  }
 });

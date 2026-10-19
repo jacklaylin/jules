@@ -79,6 +79,20 @@ export function meteredText(data, evals, period = 'month') {
   return lines.join(' · ');
 }
 
+// OpenAI billed vs what Jules recorded, on every view: a gap is spend made outside the meter.
+const shortDay = day => new Date(`${day}T00:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+export function reconcileText(data) {
+  const r = data?.reconciliation;
+  if (!r || r.status === 'not_connected') return { text: 'OpenAI billing not connected, so spend Jules didn’t record can’t be checked', over: false };
+  if (r.status === 'unavailable') return { text: 'Jules’ recorded calls are unavailable, so OpenAI billing can’t be checked against them', over: false };
+  if (r.status === 'waiting') return { text: 'OpenAI hasn’t finished reporting any day this month yet, so billed vs recorded can’t be checked', over: false };
+  const through = `through ${shortDay(r.through)} (UTC)`, scope = r.scope === 'organization' ? ' · billing covers the whole OpenAI organization, so other apps on it count too' : '';
+  const unpriced = r.unpriced.length ? ` · calls to ${r.unpriced.join(', ')} have no list price, so part of the gap may be those` : '';
+  if (r.status === 'matched') return { text: `OpenAI billed ${money(r.billed)} ${through}; Jules recorded ${money(r.recorded)}, so nothing is going unrecorded`, over: false };
+  if (r.status === 'unrecorded') return { text: `OpenAI billed ${money(r.gap)} that Jules didn’t record ${through} (${money(r.billed)} billed, ${money(r.recorded)} recorded): some calls are made outside the cost meter${scope}${unpriced}`, over: true };
+  return { text: `Jules recorded ${money(-r.gap)} more than OpenAI billed ${through} (${money(r.recorded)} recorded, ${money(r.billed)} billed): list prices in lib/usage.js may be out of date`, over: false };
+}
+
 // Recurring jobs: one row per scheduled job with its runs, metered cost, budget and what needs attention.
 const STATUS = { over: ['Over', 'warn'], warn: ['Check', 'warn'], ok: ['OK', 'ok'] };
 export const jobColumns = (period, data) => period === 'day' ? [['today', 'Day']] : data && fullMonth(data.date) ? [['month', 'Month']] : [['month', 'Month to date'], ['projected', 'Projected month end (calculated)']];

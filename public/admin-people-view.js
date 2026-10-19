@@ -1,10 +1,35 @@
 // Admin › People data view: which testers a search shows, how long ago things happened, and the chat quality strip.
 // Pure functions so the list logic is testable without a browser.
 
-// Identifiers are phone numbers or emails; spaces are ignored on both sides so "+1 415" finds "+14155550142".
-export function filterPeople(people, query = '') {
-  const q = query.replace(/\s/g, '').toLowerCase();
-  return q ? people.filter(p => p.sender_id.replace(/\s/g, '').toLowerCase().includes(q)) : people;
+// Matches the identifier (a phone number or email) or the name; spaces are ignored on both sides so
+// "+1 415" finds "+14155550142" and "janedoe" finds "Jane Doe".
+export function filterPeople(people, query = '', access = '') {
+  const q = query.replace(/\s/g, '').toLowerCase(), squash = v => (v ?? '').replace(/\s/g, '').toLowerCase();
+  return people.filter(p => (!q || squash(p.sender_id).includes(q) || squash(p.name).includes(q)) && (!access || p.access === access));
+}
+
+// What a status change will do, in plain words for the confirmation dialog. allowance is the
+// waitlist reply limit; approvalText is the text Jules sends on approval (null when nothing is sent).
+export function accessChange(person, to, { allowance, approvalText }) {
+  if (to === 'approved') return { title: 'Approve from the waitlist?', confirm: 'Approve',
+    lines: ['They get full Jules from their next message, with no reply limit.', approvalText ? `Jules texts them once: “${approvalText}”` : 'No text is sent, because the waitlist is turned off.'] };
+  const used = Math.min(person.waitlist_replies ?? 0, allowance), left = allowance - used;
+  return { title: 'Move back to the waitlist?', confirm: 'Move to waitlist',
+    lines: [`They have used ${used} of ${allowance} waitlist replies, so their next message gets ${left ? `${left} more ${left === 1 ? 'reply' : 'replies'} from Jules` : 'the waitlist text instead of a reply'}.`, 'Nothing is sent now. Approving them again later does not resend the spot-opened text.'] };
+}
+
+// The result of a status change for the status line.
+export function accessResult(to, { changed, text }) {
+  if (!changed) return 'Nothing changed: their status was already updated.';
+  if (to === 'waitlisted') return 'Moved back to the waitlist. Nothing was sent.';
+  return `Approved. ${{ sent: 'Jules texted them that their spot opened.', already_sent: 'They already got the spot-opened text earlier, so nothing new was sent.', blocked: 'No text sent: they replied STOP.', uncertain: 'The text may not have been delivered; check their Conversation tab before resending anything.' }[text] ?? 'No text was sent.'}`;
+}
+
+// The waitlist filter's segments with counts; none when no status could be read (db/035 not run).
+export function accessSegments(people) {
+  if (!people.some(p => p.access)) return [];
+  const n = access => people.filter(p => p.access === access).length;
+  return [['', 'All', people.length], ['waitlisted', 'Waitlisted', n('waitlisted')], ['approved', 'Approved', n('approved')]];
 }
 
 // "just now", "5 min ago", "3 hours ago", "yesterday", "4 days ago"; older than a fortnight shows the date.

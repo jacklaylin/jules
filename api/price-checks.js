@@ -1,3 +1,5 @@
+// Loads first so the cost meter wraps fetch before any handler below keeps a reference to it.
+import '../lib/usage.js';
 import { composeReply } from '../lib/compose.js';
 const TEST_LABEL='[test alert — not a real price]\n';
 import { timingSafeEqual, randomUUID } from 'node:crypto';
