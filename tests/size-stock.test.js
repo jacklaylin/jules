@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {shopifyCommerce,sizeFor,withSizes,priceText,sizeText} from '../lib/size-stock.js';
+import {shopifyCommerce,sizeFor,withSizes,sizeKeysFor,priceText,sizeText} from '../lib/size-stock.js';
 import {verifyListing} from '../lib/listings.js';
 import {formatSearch} from '../lib/search.js';
 import {textWishlistAction} from '../lib/text-wishlist.js';
@@ -63,7 +63,7 @@ test('a price shared by every color is kept even when size stock across colors i
 
 test('options sold out in the user’s size go last and say so; a sized price and a sale are shown',()=>{
  const sold=listing([{size:'12',available:false}]),open={...listing([{size:'12',available:true}]),url:page+'-2'},unknown={...listing([]),url:page+'-3'};
- const ranked=withSizes([sold,unknown,open],facts,['shoes/us_men']);
+ const ranked=withSizes([sold,unknown,open],facts,[['shoes/us_men'],['shoes/us_men'],['shoes/us_men']]);
  assert.deepEqual(ranked.map(p=>p.your_size.status),['in_stock','unknown','sold_out']);
  assert.equal(sizeText(ranked[0]),'size 12 in stock');assert.equal(sizeText(ranked[2]),'size 12 sold out');assert.equal(sizeText(ranked[1]),null);
  assert.equal(priceText({listing_check:{price_was:{amount:260,currency:'USD'}},price_snapshot:{amount:221,currency:'USD'}}),'$221.00 (on sale, was $260.00)');
@@ -85,6 +85,20 @@ test('the page check reads sizes, a missing offer currency and the sale price fr
  assert.deepEqual(check.size_options.map(o=>[o.size,o.available]),[['M',false],['L',true]]);
 });
 
+// The October 19 production miss: the search named Thursday's own page "Men's Desperado Square Toe
+// Cowboy Boots Black Matte", the page title is "Desperado | Black Matte", and the page was rejected.
+test('a short store title is read with its own page path; a different product still fails',async()=>{
+ const page='https://thursday.example/products/mens-desperado-square-toe-cowboy-boots-black-matte';
+ const html=title=>`<script>Shopify.country = "US";Shopify.currency = {"active":"USD","rate":"1.0"};</script><script type="application/ld+json">${JSON.stringify({'@type':'Product',name:title,brand:'Thursday',offers:{'@type':'Offer',price:'249.00',priceCurrency:'USD'}})}</script>`;
+ const boots={options:[{name:'Size'}],variants:[{id:1,option1:'12',available:true,price:24900},{id:2,option1:'13',available:false,price:24900}]};
+ const env={SHOPPING_COUNTRY:'US',SHOPPING_CURRENCY:'USD'},noBrowser=async()=>{throw Error('no browser');};
+ const check=(title,name,url=page+'?ymal=mens-maverick-cowboy-western-boots-brandy')=>verifyListing(url,name,store(html(title),boots),noBrowser,env);
+ const found=await check('Desperado | Black Matte',"Men's Desperado Square Toe Cowboy Boots Black Matte");
+ assert.equal(found.status,'verified');assert.deepEqual(found.size_options.map(o=>[o.size,o.available]),[['12',true],['13',false]]);
+ assert.equal((await check('Maverick | Brandy',"Men's Desperado Square Toe Cowboy Boots Black Matte")).status,'not_product','a title that disagrees with the request is not rescued by a path');
+ assert.equal((await check('Desperado | Black Matte',"Men's Desperado Square Toe Cowboy Boots Black Matte",'https://thursday.example/products/desperado-bm')).status,'not_product','a path that doesn’t describe it adds nothing');
+});
+
 test('a store that charges in euros shows its own price, labelled, and never as dollars',async()=>{
  const check=await verifyListing('https://trevise.example/products/printed-mesh-top','Arena Stripe Track Jacket',store(shopifyPage('EUR',[{'@type':'Offer',price:'320.00',priceCurrency:'EUR'}]),jacket),async()=>{throw Error('no browser');},{SHOPPING_COUNTRY:'US',SHOPPING_CURRENCY:'USD'});
  assert.equal(check.price_snapshot,null);assert.deepEqual(check.foreign_price,{amount:320,currency:'EUR'});
@@ -98,7 +112,7 @@ test('a search for the user’s own item leads with the option in stock in their
   listing_check:{status:'verified',url:'https://thursday.example/products/'+slug,product_brand:'Thursday',product_name:'Desperado Boot '+slug,availability:'InStock',size_options:sizes}});
  const found=[option('black',[{size:'12',available:false},{size:'13',available:true}]),option('brown',[{size:'12',available:true,amount:249,currency:'USD'}])];
  let recorded;
- const run=keys=>textWishlistAction({action:'start',query:'Thursday Desperado boots',search_plan:null,profile_size_keys:keys},{state:null,facts,env:{},record:async r=>{recorded=r;},search:async()=>({products:found,refinement_attempted:true})});
+ const run=keys=>textWishlistAction({action:'start',query:'Thursday Desperado boots',search_plan:null},{state:null,facts,env:{},record:async r=>{recorded=r;},search:async()=>({products:found,refinement_attempted:true}),sizeKeys:async products=>products.map(()=>keys)});
  const body=await run(['shoes/us_men']);
  assert.ok(body.indexOf('/brown')<body.indexOf('/black'),'the option in stock in the user’s size comes first');
  assert.match(body,/size 12 in stock/);assert.match(body,/size 12 sold out/);
@@ -109,22 +123,39 @@ test('a search for the user’s own item leads with the option in stock in their
  assert.equal(optionFacts(recorded.text_wishlist_state)[0].your_size,'no saved size applied');
 });
 
-test('the agent names which saved size applies to the search; the next round sees that size’s stock',async()=>{
+// The October 19 production miss: the agent's own search call left the size keys empty whenever the
+// conversation already had pending options. The keys now come from a separate, enum-bound reading.
+const boot={brand:'Thursday',name:'Desperado Boot',url:'https://thursday.example/products/desperado',match:'likely_match',sourcing_status:'store_found',price_snapshot:{amount:249,currency:'USD'},
+ listing_check:{status:'verified',url:'https://thursday.example/products/desperado',product_brand:'Thursday',product_name:'Desperado Boot',availability:'InStock',size_options:[{size:'12',available:true},{size:'13',available:false}]}};
+const reading=(output,status=200)=>{const calls=[];const fetcher=async(_url,options)=>{calls.push(JSON.parse(options.body));return new Response(JSON.stringify({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(output)}]}]}),{status});};return {fetcher,calls};};
+test('the size reading may only answer with saved keys, and offers no key that carries no category',async()=>{
+ const withStoreKey=[...facts,{field:'size',key:'mfpen retail aps',value:'31'}];
+ const {fetcher,calls}=reading({products:[{index:0,keys:['shoes/us_men','shoes/eu','made/up']}]});
+ assert.deepEqual(await sizeKeysFor([boot],withStoreKey,{OPENAI_API_KEY:'test'},fetcher),[['shoes/us_men','shoes/eu']]);
+ const enumKeys=calls[0].text.format.schema.properties.products.items.properties.keys.items.enum;
+ assert.deepEqual(enumKeys,['shoes/us_men','shoes/eu','trousers/waist'],'only category/system keys are offered');
+ assert.deepEqual(await sizeKeysFor([boot],withStoreKey,{OPENAI_API_KEY:'test'},reading({},500).fetcher),[[]],'a failed reading claims no size');
+ assert.deepEqual(await sizeKeysFor([{...boot,listing_check:{...boot.listing_check,size_options:[]}}],facts,{OPENAI_API_KEY:'test'},()=>assert.fail('no sizes, no call')),[[]]);
+ assert.deepEqual(await sizeKeysFor([boot],[],{OPENAI_API_KEY:'test'},()=>assert.fail('no saved sizes, no call')),[[]]);
+});
+
+test('a search with options already pending still shows stock in the user’s size; the next round sees it',async()=>{
  const {generateReply}=await import('../lib/ai.js');
  const {agentTurn,tool,toolOutputs,isAgentRequest,isConsentCheck,consentResponse}=await import('./helpers/agent.js');
- const boot={brand:'Thursday',name:'Desperado Boot',url:'https://thursday.example/products/desperado',match:'likely_match',sourcing_status:'store_found',price_snapshot:{amount:249,currency:'USD'},
-  listing_check:{status:'verified',url:'https://thursday.example/products/desperado',product_brand:'Thursday',product_name:'Desperado Boot',availability:'InStock',size_options:[{size:'12',available:true},{size:'13',available:false}]}};
  let recorded,told,n=0;
  const rounds=[
-  ()=>[tool('find_products',{query:'Thursday Desperado boots',profile_size_keys:['shoes/us_men']})],
+  ()=>[tool('find_products',{query:'Thursday Desperado boots'})],
   options=>{told=toolOutputs(options)[0];return [tool('conversation_reply',{response:'found it, and your 12 is in stock: $249.00.\n'+boot.url})];}];
  const fetcher=async(_url,options)=>{
   if(isConsentCheck(options))return consentResponse(true);
   if(!isAgentRequest(options))throw Error('Unexpected request');
   return agentTurn(...rounds[n++](options));
  };
- const memory={facts,outcome:{saved_now:false,alerts_turned_on:false,alerts_turned_off:false},
-  wishlistAction:(args,state)=>textWishlistAction(args,{state,facts,env:{},record:async r=>{recorded=r;},search:async()=>({products:[boot],refinement_attempted:true})}),
+ const pending={stage:'offer_set',options:[{brand:'enfants riches déprimés',name:'ERD Ripped Tee Red',url:'https://erd.example/product/tee',listing_check:{status:'verified'}}],selected_set:[],offered_urls:[]};
+ const {fetcher:sizeFetcher}=reading({products:[{index:0,keys:['shoes/us_men']}]});
+ const memory={facts,wishlistState:pending,outcome:{saved_now:false,alerts_turned_on:false,alerts_turned_off:false},
+  wishlistAction:(args,state)=>textWishlistAction(args,{state,facts,env:{OPENAI_API_KEY:'test'},record:async r=>{recorded=r;},search:async()=>({products:[boot],refinement_attempted:true}),
+   sizeKeys:(products,f,e)=>sizeKeysFor(products,f,e,sizeFetcher)}),
   shoppingState:()=>recorded?.text_wishlist_state};
  await generateReply([{direction:'inbound',status:'received',body:'find me the thursday desperado boots'}],{OPENAI_API_KEY:'test',SEARCH_ENABLED:'true'},fetcher,memory);
  assert.equal(recorded.text_wishlist_state.options[0].your_size.status,'in_stock');
