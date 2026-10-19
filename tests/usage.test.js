@@ -20,8 +20,8 @@ test('every billable call inside one user action is attributed to it, with an es
   assert.equal(result,'reply');assert.equal(recorded.length,2);
   const [ai,serp]=recorded;
   assert.deepEqual([ai.provider,ai.model,ai.input_tokens,ai.cached_tokens,ai.output_tokens,ai.web_search_calls,ai.action,ai.feature,ai.conversation_id],['openai','gpt-4.1-mini-2025-04-14',1000,400,200,1,'find_products','chat','c1']);
-  // (600*0.40 + 400*0.10 + 200*1.60)/1e6 + one web search call at 0.025
-  assert.equal(ai.cost_usd,0.0256);assert.equal(serp.provider,'serpapi');assert.equal(serp.model,'google');assert.equal(serp.cost_usd,0.015);
+  // (600*0.40 + 400*0.10 + 200*1.60)/1e6 + one web search call at 0.010
+  assert.equal(ai.cost_usd,0.0106);assert.equal(serp.provider,'serpapi');assert.equal(serp.model,'google');assert.equal(serp.cost_usd,0.015);
 });
 test('calls outside an action are not metered, and a failed write never fails the action',async()=>{
   await fetch('https://api.openai.com/v1/responses');
@@ -34,7 +34,7 @@ test('calls outside an action are not metered, and a failed write never fails th
 test('onUsage receives the priced rows even with no store, so a script can keep a running total',async()=>{
   const seen=[];
   await withUsage({env:{},conversation:null,operation:'eval:run',feature:'eval_agent',onUsage:rows=>seen.push(...rows)},async()=>{await (await fetch('https://api.openai.com/v1/responses',{method:'POST'})).json();});
-  assert.deepEqual(seen.map(r=>[r.feature,r.operation,r.conversation_id,r.cost_usd]),[['eval_agent','eval:run',null,0.0256]]);
+  assert.deepEqual(seen.map(r=>[r.feature,r.operation,r.conversation_id,r.cost_usd]),[['eval_agent','eval:run',null,0.0106]]);
 });
 test('a scheduled job tags its calls, nested actions inherit the job, and costs survive a database without the job column',async()=>{
   const recorded=[];const store={recordUsage:async rows=>recorded.push(...rows)};
@@ -45,7 +45,7 @@ test('a scheduled job tags its calls, nested actions inherit the job, and costs 
   assert.deepEqual(recorded.map(r=>[r.provider,r.job]),[['serpapi','price_checks'],['openai','price_checks']]);
   const kept=[];let tries=0;
   await withUsage({store:{recordUsage:async rows=>{tries++;if(rows.some(r=>'job' in r))throw Error('column usage_events.job does not exist');kept.push(...rows);}},env:{},conversation:'c',operation:'o',feature:'chat',job:'reply_watchdog',quiet:true},async()=>{await (await fetch('https://api.openai.com/v1/responses',{method:'POST'})).json();});
-  assert.equal(tries,2);assert.equal(kept.length,1);assert.equal(kept[0].job,undefined);assert.equal(kept[0].cost_usd,0.0256);
+  assert.equal(tries,2);assert.equal(kept.length,1);assert.equal(kept[0].job,undefined);assert.equal(kept[0].cost_usd,0.0106);
   // Calls by people (no job) are written without the column, as before.
   recorded.length=0;await withUsage({store,env:{},conversation:'c',operation:'ai:m',feature:'chat',quiet:true},()=>fetch('https://serpapi.com/search'));
   assert.equal('job' in recorded[0],false);
@@ -66,7 +66,7 @@ test('a billable call outside any metered action is recorded as unattributed wit
     const at=calls.findIndex((u,i)=>i>=before&&u.startsWith('https://db.test.invalid/rest/v1/usage_events'));
     assert.ok(at>=0,'usage row written');
     const [row]=JSON.parse(bodies[at]);
-    assert.deepEqual([row.feature,row.provider,row.conversation_id,row.cost_usd],['unattributed','openai',null,0.0256]);
+    assert.deepEqual([row.feature,row.provider,row.conversation_id,row.cost_usd],['unattributed','openai',null,0.0106]);
     assert.match(row.operation,/^unmetered:(tests\/usage\.test\.js|unknown)/);
   }finally{delete process.env.SUPABASE_URL;delete process.env.SUPABASE_SERVICE_ROLE_KEY;globalThis.fetch=original;}
 });

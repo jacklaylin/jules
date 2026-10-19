@@ -55,7 +55,8 @@ function consentCard(){
 
 function threadItems(){
  const a=state.answers,items=[];
- if(state.phase==='closed')return jules('closed',['hey, it’s jules. signups aren’t open yet.','check back soon.']);
+ // The server can say why signup is closed (for example, Jules is over its spending cap: lib/cost-caps.js).
+ if(state.phase==='closed')return jules('closed',state.closedMessage?['hey, it’s jules.',state.closedMessage]:['hey, it’s jules. signups aren’t open yet.','check back soon.']);
  if(state.phase==='unreachable')return jules('unreachable',['hey, it’s jules. i couldn’t check whether signups are open.','reload to try again.'],{error:true});
  items.push(...jules('intro',['hey, it’s jules. i’m a personal shopper who lives in your texts.','a few quick things and i’ll text you first.','what should i call you?']));
  if(state.phase==='checking')return items;
@@ -168,7 +169,7 @@ async function send(){
 render();
 try{
  const response=await fetch('/api/wishlist?public_signup=1');const config=await response.json();
- state.available=response.ok&&config.enabled===true;state.phase=state.available?'chat':'closed';
+ state.available=response.ok&&config.enabled===true;state.phase=state.available?'chat':'closed';if(typeof config.message==='string')state.closedMessage=config.message;
 }catch{state.phase='unreachable';}
 // Desktop starts typing straight away; phones wait for a tap so the keyboard doesn't cover the welcome.
 render(matchMedia('(pointer:fine)').matches);

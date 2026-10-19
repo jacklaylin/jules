@@ -12,6 +12,7 @@
       <div id="cost-views" class="dv-views" role="group" aria-label="Cost views">
         <button type="button" data-view="">By service</button>
         <button type="button" data-view="features">By feature</button>
+        <button type="button" data-view="people">By person</button>
         <button type="button" data-view="jobs">Recurring jobs</button>
         <button type="button" data-view="evals">Evals</button>
       </div>
@@ -25,7 +26,7 @@
     <div id="costs-more" class="dv-pop dv-menu" popover aria-label="More actions">
       <button id="refresh" type="button">Refresh <span class="hint">re-reads connected billing</span></button>
     </div>
-    <div class="dv-status"><span id="loader" class="dv-loader" aria-hidden="true" hidden></span><span id="refreshed"></span><span id="coverage"></span><span id="budget-status"></span><span id="jobs-status"></span><span id="reconcile-status"></span><span id="view-summary"></span><span id="notice" role="status" aria-live="polite"></span></div>
+    <div class="dv-status"><span id="loader" class="dv-loader" aria-hidden="true" hidden></span><span id="refreshed"></span><span id="coverage"></span><span id="budget-status"></span><span id="jobs-status"></span><span id="reconcile-status"></span><span id="caps-status"></span><span id="view-summary"></span><span id="notice" role="status" aria-live="polite"></span></div>
 
     <section id="tool-entry" class="dv-tool" aria-labelledby="tool-entry-title" hidden>
       <div class="dv-tool-head"><h2 id="tool-entry-title">Update an amount</h2><button id="entry-close" class="small" type="button">Close ×</button></div>
@@ -49,6 +50,10 @@
     <section data-view-panel="features" aria-label="By feature" hidden>
       <div class="dv-table-wrap"><table class="dv-table costs-table costs-narrow"><thead><tr id="feature-head"></tr></thead><tbody id="feature-rows"></tbody></table></div>
       <p class="dv-note">Estimates from every OpenAI and SerpApi call Jules makes. OpenAI calls are priced from their token counts at list prices; SerpApi searches as a share of the plan price. Eval test runs are under Evals. Billed totals (By service) are the source of truth.</p>
+    </section>
+    <section data-view-panel="people" aria-label="By person" hidden>
+      <div class="dv-table-wrap"><table class="dv-table costs-table costs-narrow"><thead><tr><th>Person</th><th class="end">Today</th><th class="end">This month</th><th>Cap</th></tr></thead><tbody id="people-rows"></tbody></table></div>
+      <p class="dv-note">Each person’s metered OpenAI and SerpApi spend for today and this month (UTC), priced at today’s list prices, against their spending cap. It always shows the current day and month, whatever date is picked. Caps are set in Vercel (COST-CAPS.md); with none set, nobody is limited. Photon, Vercel and Supabase fees are shared and not split per person.</p>
     </section>
     <section data-view-panel="jobs" aria-label="Recurring jobs" hidden>
       <div class="dv-table-wrap"><table class="dv-table costs-table"><thead><tr id="jobs-head"></tr></thead><tbody id="jobs-rows"></tbody></table></div>
