@@ -138,7 +138,7 @@ test('judge failures reach feedback triage with their reasons and the conversati
   assert.deepEqual(packet.judge.reasons, { identity: 'Showed brown, asked for black.' });
   assert.equal(packet.context.find(m => m.is_reported_message).text, 'black thursday desperado boots, my email is [email]');
   assert.equal(out.judge_failures_available, true);
-  // Before db/037 the read fails and triage still works.
+  // Before db/038 the read fails and triage still works.
   const before = await triagePackets({ ...store, judgeFailuresSince: async () => { throw Object.assign(new Error('x'), { database_status: 404 }); } }, {});
   assert.equal(before.judge_failures_available, false); assert.equal(before.packets.length, 0);
 });

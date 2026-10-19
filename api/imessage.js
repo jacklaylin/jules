@@ -16,7 +16,7 @@ const process = createProcessor({ handle: (delivery, env) => receiveInInbox(deli
 export default async function handler(req, res) {
   // The Supabase scheduler (db/028_reply_reliability.sql) calls this while a reply is stuck.
   if (req.method === 'GET' && new URL(req.url, 'https://jules.invalid').searchParams.get('watchdog') === 'replies') return handleReplyWatchdog(req, res, globalThis.process.env);
-  // The nightly judge (db/037_nightly_judge.sql), on the same scheduler and secret.
+  // The nightly judge (db/038_nightly_judge.sql), on the same scheduler and secret.
   if (req.method === 'GET' && new URL(req.url, 'https://jules.invalid').searchParams.get('job') === 'judge') return handleJudgeRun(req, res, globalThis.process.env);
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');

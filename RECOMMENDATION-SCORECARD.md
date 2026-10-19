@@ -93,7 +93,7 @@ Built (PR 2): outcomes are computed from these rows on read (`scripts/turn-outco
 - **Failures → triage:** the feedback-triage packet gains judge failures as a third source next to `#dev`/👎 and quality signals, so the daily triage task clusters and fixes them. Each failed turn has a **Copy as replay case** button on the drill-down that produces a draft case for `lib/replay.js` / `evals/IDENTIFICATION.md`; real turns stay private and are anonymised before they go in a case.
 - **Trust check:** on the drill-down you can mark "judge was wrong" on a turn; the page shows judge agreement so you know when to trust the pass rate.
 - Tests: rubric response parsing, the two code-checked criteria, batching/idempotency, cap.
-- **Migration `db/037_nightly_judge.sql`** (035 and 036 were taken by other work): the `sourcing_turns` table (outcome labels frozen next to the judge's scores) and the cron job.
+- **Migration `db/038_nightly_judge.sql`** (035–037 were taken by other work): the `sourcing_turns` table (outcome labels frozen next to the judge's scores) and the cron job.
 
 ### PR 4 — Admin › Scorecard
 
@@ -127,6 +127,6 @@ Each PR says it again; run in the Supabase SQL editor **right after merging** th
 
 - PR 1 → `db/033_signup_ref.sql`
 - PR 2 → `db/034_turn_outcomes.sql`
-- PR 3 → `db/037_nightly_judge.sql` (needs `db/023_gmail_sweep.sql` and `db/034_recurring_jobs.sql`, both applied)
+- PR 3 → `db/038_nightly_judge.sql` (needs `db/023_gmail_sweep.sql` and `db/034_recurring_jobs.sql`, both applied)
 
 Every PR's code works before its migration runs (it degrades and logs), so a late migration doesn't take Jules down.
