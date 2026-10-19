@@ -16,7 +16,8 @@ export function mountHeader(page){
   const textNode=document.createElement('span');textNode.textContent=text;
   // Account is an avatar in the desktop bar and a labelled row in the phone menu.
   if(key==='account'){control.className='nav-item nav-account';textNode.className='nav-text';const avatar=document.createElement('span');avatar.className='avatar';avatar.setAttribute('aria-hidden','true');avatar.innerHTML='<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8.5" r="3.8"/><path d="M4.8 20c1.2-3.6 4-5.4 7.2-5.4s6 1.8 7.2 5.4"/></svg>';control.append(avatar,textNode);nav.append(control);continue;}
-  const mark=document.createElement('span');mark.className='nav-mark';mark.setAttribute('aria-hidden','true');const orb=document.createElement('span');orb.className='orb';mark.append(orb);control.append(textNode,mark);nav.append(control);
+  // Each section owns one Jules colour, drawn as a bar under its label on hover and on the current page.
+  control.classList.add('nav-item--'+key);textNode.className='nav-label';control.append(textNode);nav.append(control);
  }
  menuButton=document.createElement('button');menuButton.type='button';menuButton.className='menu-toggle';menuButton.textContent='Menu';menuButton.setAttribute('aria-expanded','false');menuButton.setAttribute('aria-controls','mobile-menu');menuButton.setAttribute('aria-haspopup','dialog');
  menu=document.createElement('dialog');menu.id='mobile-menu';menu.className='mobile-menu';menu.setAttribute('aria-label','Main navigation');menu.tabIndex=-1;
