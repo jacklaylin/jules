@@ -11,7 +11,7 @@ const env = { OPENAI_API_KEY:'test', SEARCH_ENABLED:'true', PRICE_ALERTS_ENABLED
 const url = 'https://www.brand-store.example/products/ripped-tee-red';
 const option = { brand:'Brand', name:'Ripped Tee', url, match:'likely_match', listing_check:{ status:'verified', product_name:'Ripped Tee', product_brand:'Brand', url } };
 const choice = { stage:'choice', query:'distressed tees', options:[option, { ...option, url:url.replace('red', 'grey') }] };
-const reading = (newest_message_answers, asks_itself, authorizes = true) => ({ newest_message_answers, asks_itself, authorizes });
+const reading = (newest_message_answers, asks_itself, authorizes = true, newest_message_asks_for = asks_itself ? ['save_or_add_to_list'] : []) => ({ newest_message_asks_for, newest_message_answers, asks_itself, authorizes });
 const consentReply = value => ({ ok:true, json:async () => ({ status:'completed', output:[{ type:'message', content:[{ type:'output_text', text:JSON.stringify(value) }] }] }) });
 const reply = response => tool('conversation_reply', { response, claims:{ saved_now:false, alerts_turned_on:false, alerts_turned_off:false } });
 
@@ -25,9 +25,12 @@ test('the verdict needs a reason: asking, an open offer, or an earlier approval 
   assert.equal(consentVerdict(reading('the_save_or_alert_offer', false), { earlier:{ approved:'save to wishlist' } }), true);
   assert.equal(consentVerdict(reading('the_detail_for_the_approved_action', false)), false);
   assert.equal(consentVerdict(reading('the_detail_for_the_approved_action', false), { earlier:{ approved:'save to wishlist' } }), true);
-  // A reason never overrides a "no".
-  assert.equal(consentVerdict(reading('nothing_in_particular', true, false)), false);
+  // A reply to an offer or a detail question can be a no. A message whose own requests include saving
+  // is not overruled by a separate overall "no" (October 19: that second opinion blocked real requests).
   assert.equal(consentVerdict(reading('the_save_or_alert_offer', false, false), { offer:true }), false);
+  assert.equal(consentVerdict(reading('the_detail_for_the_approved_action', false, false), { earlier:{ approved:'save to wishlist' } }), false);
+  assert.equal(consentVerdict(reading('nothing_in_particular', true, false)), true);
+  assert.equal(consentVerdict(reading('nothing_in_particular', true, false, ['find_or_show'])), false);
   assert.equal(consentVerdict({}), false);
 });
 
@@ -43,7 +46,7 @@ test('the consent check uses the state for the offer and approval, and reports i
   assert.equal(await check({ ...choice, stage:'offer_set' }, reading('the_save_or_alert_offer', false)), true);
   assert.equal(await check({ ...choice, stage:'size_set', confirmed_consent:'wishlist' }, reading('the_detail_for_the_approved_action', false)), true);
   assert.deepEqual(seen.map(r => r.allowed), [false, false, true, true]);
-  assert.deepEqual(Object.keys(seen[0]).sort(), ['allowed', 'answers', 'approved_earlier', 'asks_itself', 'authorizes', 'open_offer', 'tool']);
+  assert.deepEqual(Object.keys(seen[0]).sort(), ['allowed', 'answers', 'approved_earlier', 'asks_for', 'asks_itself', 'authorizes', 'found_this_turn', 'open_offer', 'tool']);
   assert.ok(!JSON.stringify(seen).includes(url));
 });
 
