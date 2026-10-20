@@ -14,8 +14,9 @@ const photo={mime_type:'image/jpeg',data:Buffer.from('jpeg').toString('base64'),
 function memory(){
  const rows=[];
  return {rows,
-  wardrobePhotoEvidence:async()=>rows.map(r=>({id:r.id,item_id:r.data.item_id,asset_url:r.data.asset_url??null,title:r.data.title??null,seller:r.data.seller??null,suggestion_id:r.data.suggestion_id??null,decision:r.data.decision??null})),
-  recordEvidence:async(_owner,add)=>{for(const r of add)if(!rows.some(x=>x.id===r.id))rows.push(r);},
+  wardrobePhotoEvidence:async()=>rows.map(r=>({id:r.id,created_at:r.created_at,result:r.data.result??null,item_id:r.data.item_id,asset_url:r.data.asset_url??null,title:r.data.title??null,seller:r.data.seller??null,suggestion_id:r.data.suggestion_id??null,decision:r.data.decision??null})),
+  clock:Date.now(),
+  recordEvidence:async function(_owner,add){for(const r of add)if(!rows.some(x=>x.id===r.id))rows.push({...r,created_at:new Date(this.clock).toISOString()});},
  };
 }
 const found=(url='https://cdn.example/gt2160.jpg')=>async()=>({asset_url:url,title:'ASICS GT-2160 Black Pure Silver',seller:'ASICS',link:'https://www.asics.com/p/1',photo});
@@ -139,14 +140,21 @@ test('a tiny order photo is offered a sharper suggestion, matched against it; ye
  assert.notEqual(i1.photo_version,'v1');
 });
 
-test('one item failing is recorded and never blocks the items behind it; two failures retire it',async()=>{
- const store=memory();const items=['bad','next','later'].map(id=>({id,photo:false}));const searched=[];
+test('one item failing is recorded, never blocks the items behind it, and is retried after an hour',async()=>{
+ const store=memory();const items=['bad','next','later'].map(id=>({id,photo:false}));const searched=[];const t0=Date.parse('2026-10-20T03:00:00Z');
  const find=async item=>{searched.push(item.id);if(item.id==='bad')throw Error('The operation was aborted due to timeout');return null;};
- for(let n=0;n<3;n++)await suggestWardrobePhotos(store,OWNER,items,{env,find,searchDown:()=>false});
- assert.deepEqual(searched.slice(0,2).sort(),['bad','next'],'first request searches both, side by side');
- assert.ok(searched.includes('later'),'the queue moved past the failing item');
- assert.equal(searched.filter(id=>id==='bad').length,2,'a failing item is tried twice, then left on its outline');
+ const run=at=>{store.clock=at;return suggestWardrobePhotos(store,OWNER,items,{env,find,searchDown:()=>false,now:at});};
+ await run(t0);await run(t0+60000);
+ assert.deepEqual([...new Set(searched)].sort(),['bad','later','next'],'the queue moved past the failing item');
+ assert.equal(searched.filter(id=>id==='bad').length,1,'not retried within the hour');
  assert.ok(store.rows.some(r=>r.data.item_id==='bad'&&r.data.result==='error'));
+ searched.length=0;await run(t0+3600001);assert.ok(searched.includes('bad'),'retried after the cool-down');
+ assert.equal(suggestionState(await store.wardrobePhotoEvidence()).get('bad').empty,0,'a failure is never "nothing found"');
+});
+test('an AI service failure (rate limit, no credit) stops the batch and records nothing',async()=>{
+ const store=memory();const items=['a','b'].map(id=>({id,photo:false}));
+ const result=await suggestWardrobePhotos(store,OWNER,items,{env,searchDown:()=>false,find:async()=>{throw Object.assign(Error('Visual model request failed'),{provider_status:429});}});
+ assert.equal(store.rows.length,0);assert.equal(result.remaining,0);
 });
 test('tiny order photos are searched before items with no photo',async()=>{
  const store=memory();const searched=[];
