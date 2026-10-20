@@ -91,28 +91,34 @@ test('listed shipping requires an unconditional rate to a named country in the i
  assert.equal(shippingTo(parseSizeOffers(page,'Waxed jacket',home)[0],'US').amount,0);
 });
 
-const serp=(stores)=>async url=>{
- const engine=new URL(url).searchParams.get('engine');
- if(engine==='google_shopping')return new Response(JSON.stringify({shopping_results:[{title:'Waxed jacket',product_id:'1'}]}));
- return new Response(JSON.stringify({product_results:{stores:stores.map(link=>({link}))}}));
+// Shopping rows as Google returns them since October 20, 2026: a seller name and a page token, no link.
+const storeLinks={ModeSens:'https://modesens.com/product/waxed-jacket-1',Barbour:'https://www.barbour.com/other',SSENSE:'https://www.ssense.com/en-us/men/product/waxed-jacket/1','MR PORTER':'https://www.mrporter.com/jacket',Mytheresa:'https://www.mytheresa.com/jacket'};
+const serp=(sellers,seen=[])=>async url=>{
+ const p=new URL(url).searchParams,engine=p.get('engine');seen.push(engine==='google_shopping'?engine:p.get('page_token'));
+ if(engine==='google_shopping')return new Response(JSON.stringify({shopping_results:sellers.map(source=>({title:'Waxed jacket',source,immersive_product_page_token:source,product_link:'https://www.google.com/search?ibp=oshop',extracted_price:90}))}));
+ return new Response(JSON.stringify({product_results:{stores:[{name:p.get('page_token'),link:storeLinks[p.get('page_token')]}]}}));
 };
 const env={SERPAPI_API_KEY:'test-key',SHOPPING_COUNTRY:'US',SHOPPING_CURRENCY:'USD'};
 
-test('discovery adds only registry stores whose own page matches the product and lists the size',async()=>{
+test('discovery looks up only trusted stores not already watched, two at most, and adds those whose own page lists the size',async()=>{
  const alert={id,name:'Waxed jacket',size:'M',links:[{url:home,name:'Waxed jacket'}]};
- const candidates=['https://www.ssense.com/en-us/men/product/waxed-jacket/1','https://cheap-designer-outlet.shop/jacket','https://www.barbour.com/other','https://www.mrporter.com/jacket','https://www.mytheresa.com/jacket'];
  const read=async(link,_fetcher,options)=>{
   assert.equal(options.minimumMatch,1);assert.equal(link.market_country,'US');
   if(link.url.includes('ssense'))return {url:link.url,status:'checked',offers:[offer(80,{url:link.url})]};
   if(link.url.includes('mrporter'))return {url:link.url,status:'checked',offers:[offer(80,{url:link.url,size:'L'})]};
   return {url:link.url,status:'checked',offers:[offer(80,{url:link.url})],color:'Olive'};
  };
- const result=await discoverAlertLinks(alert,[],{env:{...env,SERPAPI_API_KEY:'discovery-1'},fetcher:serp(candidates),read,sizes:['M']});
- assert.deepEqual(result.links.map(l=>l.url),[candidates[0]],'unregistered, already-watched, wrong-size and unverifiable-color stores are rejected');
+ const seen=[];
+ const result=await discoverAlertLinks(alert,[],{env:{...env,SERPAPI_API_KEY:'discovery-1'},fetcher:serp(['ModeSens','Barbour','SSENSE','MR PORTER','Mytheresa'],seen),read,sizes:['M']});
+ assert.deepEqual(seen,['google_shopping','SSENSE','MR PORTER'],'an untrusted seller and the watched store cost no lookup');
+ assert.deepEqual(result.links.map(l=>l.url),[storeLinks.SSENSE],'the wrong-size store is rejected');
+ assert.equal(result.searches,3);
  assert.ok(result.links[0].discovered_at);assert.equal(result.links[0].market_country,undefined);
  const coloured={...alert,links:[{...alert.links[0],color:'Olive'}]};
- const withColor=await discoverAlertLinks(coloured,[],{env:{...env,SERPAPI_API_KEY:'discovery-2'},fetcher:serp(candidates),read,sizes:['M']});
+ const withColor=await discoverAlertLinks(coloured,[],{env:{...env,SERPAPI_API_KEY:'discovery-2'},fetcher:serp(['Mytheresa']),read,sizes:['M']});
  assert.ok(withColor.links.some(l=>l.url.includes('mytheresa')&&l.color==='Olive'));
+ const unverifiedColor=await discoverAlertLinks({...alert,name:'Waxed field jacket',links:[{url:home,name:'Waxed field jacket'}]},[],{env:{...env,SERPAPI_API_KEY:'discovery-3'},fetcher:serp(['Mytheresa']),read,sizes:['M']});
+ assert.equal(unverifiedColor.links.length,0,'a page that declares a colour is not bound to an alert with none');
  assert.equal((await discoverAlertLinks(alert,[],{env:{},read:()=>assert.fail(),sizes:['M']})).status,'unavailable');
 });
 
