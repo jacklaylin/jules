@@ -36,7 +36,7 @@ test('concurrent profile updates merge without losing independent facts',async()
  const version=(await store.profile(id)).version;await saveChanges(store,id,[fact]);assert.equal((await store.profile(id)).version,version);
 });
 test('extraction uses strict structured output and excludes temporary budgets and inferred gender in instructions',async()=>{
- assert.match(MEMORY_PROMPT,/not an occasion/);assert.match(MEMORY_PROMPT,/Do not infer gender/);
+ assert.match(MEMORY_PROMPT,/never one request's limit, a gift budget/);assert.match(MEMORY_PROMPT,/Do not infer gender/);
  const changes=await extractChanges([message],{facts:[]},env,async(_url,options)=>{
  const input=JSON.parse(options.body);assert.equal(input.store,false);assert.equal(input.text.format.strict,true);
  return {ok:true,json:async()=>({status:'completed',output:[{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify({changes:[change]})}]}]})};});
@@ -96,7 +96,7 @@ test('validation checks formats only: fixed-value fields need allowed values; du
  assert.throws(()=>validateChanges([{...change,field:'shopping_range',key:'clothing',value:'men’s formal shoes',evidence:'I wear menswear.'}],[source]),/range/);
  assert.equal(validateChanges([{...change,field:'gender',key:'identity',value:'man',evidence:'I’m a man.'}],[source]).length,1);
  assert.equal(validateChanges([{...change,field:'shopping_range',key:'clothing',value:'men',evidence:'I wear menswear.'}],[source]).length,1);
- assert.equal(validateChanges([{...change,field:'budget',key:'shoes/usd',value:'300',evidence:'My usual shoe budget is USD 300.'}],[source]).length,1);
+ assert.equal(validateChanges([{...change,field:'budget',key:'shoes/usd',value:'-300',evidence:'My usual shoe budget is USD 300.'}],[source]).length,1);
 });
 
 test('a first name the person states is remembered, checked as a name, and used when signup has none',async()=>{
@@ -123,7 +123,10 @@ test('size and budget keys keep their shape: a store name alone is not a size ke
  assert.equal(one({ field: 'size', key: 'trousers/waist', value: '31', evidence: 'Size 31 is also fine' }).length, 1);
  assert.equal(one({ field: 'size', key: 'trousers/unknown/a.p.c.', value: '31', evidence: 'Size 31 is also fine' }).length, 1);
  assert.equal(one({ field: 'budget', key: 'jeans', value: '$300', evidence: 'I usually spend $300 on jeans.' }).length, 0);
- assert.equal(one({ field: 'budget', key: 'jeans/usd', value: '$300', evidence: 'I usually spend $300 on jeans.' }).length, 1);
+ assert.equal(one({ field: 'budget', key: 'jeans/usd', value: '-300', evidence: 'I usually spend $300 on jeans.' }).length, 1);
+ // A budget value is MIN-MAX in plain numbers; free text or a bare dash is a format error.
+ assert.equal(one({ field: 'budget', key: 'jeans/usd', value: '$300', evidence: 'I usually spend $300 on jeans.' }).length, 0);
+ assert.equal(one({ field: 'budget', key: 'jeans/usd', value: '-', evidence: 'I usually spend $300 on jeans.' }).length, 0);
  assert.equal(one({ field: 'size', key: 'mfpen retail aps', value: '', action: 'remove', evidence: 'Size 31 is also fine' }).length, 1);
 });
 
