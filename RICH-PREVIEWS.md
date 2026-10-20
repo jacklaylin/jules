@@ -34,6 +34,7 @@ iMessage only previews a bubble that is just one link, so links inside a multi-l
 
 - **Text searches:** one card per product, sent right after the answer, with no caption.
 - **Photo searches:** the composer's caption (or a factual "Option N: name. Possible match./Similar alternative." label) threads under the answer, and the card threads under the caption in place of the product photo.
-- **If a card fails**, the product photo is sent instead, under the caption that was already sent. A text-search product has no photo to fall back to, so its text link stands. The answer itself is never changed or resent. Logged as `product_rich_preview_sent` / `product_rich_preview_failed`.
+- **The card replaces the link in the text** (founder, October 20: links in the body looked broken next to the cards). A product link that gets a card is taken out of the answer before it is sent: a line holding only the link goes, an inline link is dropped. Links without a card (a fourth product, other pages) stay. An answer that would be left empty keeps its text.
+- **If a card fails**, its link goes out on its own, under the caption or the answer, so every product stays clickable (`product_link_sent` / `product_link_failed`). A photo search then also sends the product photo under the caption, as before. The answer itself is never resent. Logged as `product_rich_preview_sent` / `product_rich_preview_failed`.
 
 A product linked only through a merchant option or checkout link gets a card for that link. Products beyond the first 3 stay as text links.
