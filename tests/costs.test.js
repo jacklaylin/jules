@@ -160,3 +160,18 @@ test('a billing connection that is not set up says what to add',()=>{
  const report=buildReport({date:'2026-10-10',entries:[],providers:{...noBilling,vercel:{status:'not_connected',message:'Add VERCEL_BILLING_TOKEN and VERCEL_BILLING_TEAM_SLUG in Vercel to read Vercel billing.'}},metered:[]});
  assert.ok(row(report,'vercel').notes[0].includes('VERCEL_BILLING_TOKEN'));
 });
+
+test('OpenRouter calls get their own row, stay out of the OpenAI bill comparison, and use the reported cost when unlisted',()=>{
+ const metered=[
+  {day:'2026-10-05',feature:'chat',provider:'openai',model:'gpt-6-luna',calls:2,units:2,input_tokens:1e6,cached_tokens:0,output_tokens:0,web_search_calls:0,cost_usd:0.1,last_at:'2026-10-05T10:00:00Z'},
+  {day:'2026-10-05',feature:'chat',provider:'openrouter',model:'anthropic/claude-haiku-5.5',calls:1,units:1,input_tokens:1e6,cached_tokens:0,output_tokens:0,web_search_calls:0,cost_usd:0.1,last_at:'2026-10-05T10:00:00Z'},
+  {day:'2026-10-05',feature:'chat',provider:'openrouter',model:'openai/gpt-oss-120b',calls:1,units:1,input_tokens:5000,cached_tokens:0,output_tokens:100,web_search_calls:0,cost_usd:0.0042,last_at:'2026-10-05T11:00:00Z'},
+ ];
+ const priced=priceMetered(metered,null);
+ assert.deepEqual(priced.rows.map(r=>[r.provider,Number(r.cost.toFixed(4))]),[['openai',0.1],['openrouter',0.1],['openrouter',0.0042]]);
+ assert.deepEqual(priced.unpriced,[]);
+ const report=buildReport({date:'2026-10-05',entries:[],providers:noBilling,metered});
+ close(row(report,'openai').today,0.1);close(row(report,'openrouter').today,0.1042);
+ assert.equal(row(report,'openrouter').complete,true);
+ assert.equal(buildReport({date:'2026-10-05',entries:[],providers:noBilling,metered:metered.slice(0,1)}).rows.some(r=>r.id==='openrouter'),false);
+});
