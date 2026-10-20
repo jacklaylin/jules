@@ -466,3 +466,22 @@ button.quiet{border-color:transparent;box-shadow:none;background:transparent;col
 .filter-chips .chip{flex:none;min-height:38px;padding:0 14px;font-size:13px}
 .filter-bar .filter-count{flex:none}
 }
+
+/* A row that needs one more answer opens in place (wardrobe Remove asks why; wishlist "I bought this" asks
+   where): the row becomes its question with a round × and one line of chips, so no dialog stacks on the detail. */
+.row-ask{padding:0 4px 14px;border-bottom:1px solid var(--line)}
+.row-ask__head{display:flex;align-items:center;gap:12px;min-height:56px;font:600 16px var(--font-sans)}
+.row-ask__head>svg{flex:none}
+.row-ask__head>span{flex:1}
+.row-ask__cancel{flex:none;width:44px;height:44px;min-height:44px;padding:0;display:grid;place-items:center;border:1px solid var(--line);border-radius:50%;background:var(--white);color:var(--text-2);box-shadow:none}
+.row-ask__cancel::after{display:none}
+.row-ask__chips{display:flex;flex-wrap:wrap;gap:8px;padding-left:34px}
+.row-ask__chips .chip{flex:none;min-height:38px;padding:0 14px;font-size:13px;animation:row-ask-in .28s var(--ease-out-expo) backwards}
+.row-ask__chips .chip:nth-child(2){animation-delay:.04s}.row-ask__chips .chip:nth-child(3){animation-delay:.08s}.row-ask__chips .chip:nth-child(4){animation-delay:.12s}
+/* The entrance holds only its first frame (backwards), so the shared hover lift and press nudge still apply.
+   While the answer saves, the tapped chip fills like a selected chip and the others dim. */
+.row-ask__chips .chip:disabled{opacity:.45;cursor:default}
+.row-ask__chips .chip.chip--on:disabled{opacity:1;cursor:wait}
+@keyframes row-ask-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media(pointer:coarse){.row-ask__chips .chip{min-height:44px}}
+@media(prefers-reduced-motion:reduce){.row-ask__chips .chip{animation:none}}

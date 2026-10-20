@@ -41,24 +41,6 @@
 .detail-actions{display:flex;flex-direction:column;gap:20px;padding-top:8px}
 @media(max-width:800px){.wardrobe-detail{width:100%;max-width:100%;height:100dvh;max-height:100dvh;margin:0;border-radius:0;border:0;box-shadow:none;padding:16px var(--page-gutter) 32px}.detail-close{position:sticky;top:0;z-index:2}.detail-body{grid-template-columns:1fr;gap:20px}.detail-body>.photo{aspect-ratio:4/5}}
 
-/* Remove opens in place: the Remove row becomes a "Why remove it?" row with one line of reason chips,
-   so the item stays in view and no second dialog stacks on the detail. */
-.remove-reasons{padding:0 4px 14px;border-bottom:1px solid var(--line)}
-.remove-reasons__head{display:flex;align-items:center;gap:12px;min-height:56px;font:600 16px var(--font-sans)}
-.remove-reasons__head>svg{flex:none}
-.remove-reasons__head>span{flex:1}
-.remove-cancel{flex:none;width:44px;height:44px;min-height:44px;padding:0;display:grid;place-items:center;border:1px solid var(--line);border-radius:50%;background:var(--white);color:var(--text-2);box-shadow:none}
-.remove-cancel::after{display:none}
-.reason-chips{display:flex;flex-wrap:wrap;gap:8px;padding-left:34px}
-.reason-chips .chip{flex:none;min-height:38px;padding:0 14px;font-size:13px;animation:reason-in .28s var(--ease-out-expo) backwards}
-.reason-chips .chip:nth-child(2){animation-delay:.04s}.reason-chips .chip:nth-child(3){animation-delay:.08s}.reason-chips .chip:nth-child(4){animation-delay:.12s}
-/* The entrance holds only its first frame (backwards), so the shared hover lift and press nudge still apply.
-   While a removal saves, the tapped reason fills like a selected chip and the others dim. */
-.reason-chips .chip:disabled{opacity:.45;cursor:default}
-.reason-chips .chip.chip--on:disabled{opacity:1;cursor:wait}
-@keyframes reason-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-@media(pointer:coarse){.reason-chips .chip{min-height:44px}}
-@media(prefers-reduced-motion:reduce){.reason-chips .chip{animation:none}}
 
 /* Sheets: fix details, add item, removed list. */
 .wardrobe-sheet{width:min(440px,calc(100vw - 32px))}
