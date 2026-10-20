@@ -60,13 +60,29 @@ test('an order shipped to someone else stays in history but never teaches the ac
  assert.equal(learned(state).learning_observations.length,0);
 });
 
-// Known gap: a "self" claim is accepted whenever its quote appears anywhere in the email, so a model
-// that reads the inner greeting of the forwarded original as the addressee teaches the owner size M.
-// Fix proposed in the PR; this flips to a passing test once that lands.
-test('a self claim that quotes only the original recipient\'s greeting does not teach the owner a size',{todo:'needs the proposed addressee check'},async()=>{
- const source=await prepare();
- const {state}=reconcileReceipt(emptyReceiptState('owner'),source,{events:[purchase({recipient:{value:'self',quote:'Hi Sam Example'}})]});
- assert.equal(learned(state).learning_observations.length,0);
+// A model that reads the forwarded original's greeting or ship-to as the addressee still cannot teach
+// the account holder a size: a self claim must name the person in the email's To header.
+test('a self claim must name the account holder from the To header; other people\'s names never pass',async()=>{
+ const source=await prepare();assert.equal(source.addressee,'Alex Owner');
+ for(const quote of ['Hi Sam Example','shipped to Sam Example']){
+  const result=reconcileReceipt(emptyReceiptState('owner'),source,{events:[purchase({recipient:{value:'self',quote}})]});
+  assert.equal(learned(result.state).learning_observations.length,0,quote);assert.ok(result.records[0].withheld_fields.includes('recipient'));
+  assert.equal(result.state.items.length,1,'the purchase itself is kept');
+ }
+ // A relative who shares the account holder's surname is still someone else.
+ const relative=await prepare(html.replaceAll('Sam Example','Sam Owner'));
+ assert.equal(learned(reconcileReceipt(emptyReceiptState('owner'),relative,{events:[purchase({recipient:{value:'self',quote:'shipped to Sam Owner'}})]}).state).learning_observations.length,0);
+ // The account holder's own order, shipped to them, still teaches softly, whatever the letter case.
+ const ownHTML=html.replaceAll('Sam Example','ALEX OWNER'),own=await prepare(ownHTML);
+ const mine=reconcileReceipt(emptyReceiptState('owner'),own,{events:[purchase({recipient:{value:'self',quote:'shipped to ALEX OWNER'}})]});
+ assert.equal(learned(mine.state).learning_observations.length,1);assert.equal(learned(mine.state).learning_observations[0].purchased_size,'M');
+ // A To header with no name gives nothing to verify against, so self stays unknown.
+ const bare=message(ownHTML);bare.payload.headers[2].value='alex.owner@example.test';
+ const unnamed=await prepareReceiptEmail(bare,tokens);assert.equal(unnamed.addressee,null);
+ assert.equal(learned(reconcileReceipt(emptyReceiptState('owner'),unnamed,{events:[purchase({recipient:{value:'self',quote:'shipped to ALEX OWNER'}})]}).state).learning_observations.length,0);
+ // Sources without a To header (connected stores, screenshots) are not subject to the check.
+ const {addressee,...connected}=own;
+ assert.equal(learned(reconcileReceipt(emptyReceiptState('owner'),connected,{events:[purchase({recipient:{value:'self',quote:'shipped to ALEX OWNER'}})]}).state).learning_observations.length,1);
 });
 
 test('a truncated listing title is kept as printed and a brand is kept only when the title states it',async()=>{
