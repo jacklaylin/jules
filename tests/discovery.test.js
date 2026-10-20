@@ -89,6 +89,17 @@ test('rejected discovery results trigger a bounded replacement search before ask
  assert.equal(calls,2);assert.ok(reply.includes(p('right').url));assert.ok(!reply.includes(p('wrong').url));assert.equal(result.text_wishlist_state.stage,'choice');
 });
 
+test('the question before searching keeps pages that state no department and sets aside only the other department',async()=>{
+ let result,seen;const found=[p('bedale','Barbour'),p('beadnell','Barbour')];
+ const args={action:'clarify_search',query:'Barbour waxed jacket',department:'men',search_plan:{...plan,mode:'identify'},response:'Was it the longer or the shorter one?'};
+ await textWishlistAction(args,{env:{},record:async r=>{result=r;},search:()=>assert.fail('No web search to ask a question'),
+  candidates:async(brief,constraints)=>{seen=constraints;return found;},
+  departments:async(list,range)=>{assert.equal(range,'men');return list.map(x=>x.name.includes('beadnell')?{...x,listing_check:{...x.listing_check,department_read:{range:'women',quote:'women\u2019s fit',basis:'listing_text'}}}:x);},
+  discriminate:async(_b,draft)=>draft});
+ assert.equal(seen.allow_unknown_range,true,'the lookup keeps pages that state no department');
+ assert.deepEqual(result.text_wishlist_state.options.map(o=>o.url),[found[0].url]);
+});
+
 test('search before asking: real candidates shape the question and become selectable options, with no web search',async()=>{
  let result;const found=[p('geobasket','Rick Owens'),p('ramones','Rick Owens')].map((x,i)=>({...x,listing_check:{...x.listing_check,color:['Black','Milk'][i]}}));
  const args={action:'clarify_search',query:'Rick Owens sneakers seen today',search_plan:{...plan,mode:'identify'},response:'Were they high tops or low tops?'};
