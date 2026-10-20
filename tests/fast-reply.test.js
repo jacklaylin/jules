@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { receiveInInbox, searchUpdates } from '../lib/inbox.js';
 import { generateReply, searchFollowup } from '../lib/ai.js';
-import { agentTurn, tool, agentTurns } from './helpers/agent.js';
+import { agentTurn, tool } from './helpers/agent.js';
 
 const env = { AI_ENABLED: 'true', OPENAI_API_KEY: 'fake-test-key' };
 const delivery = (id = 'fake-message') => ({ space: { phone: 'fake-line' }, message: { id, sender: { id: 'fake-person' }, content: { text: 'Find a navy waxed jacket' } } });
@@ -180,7 +180,7 @@ test('compact agent input keeps the newest turns and pending options but drops o
   const history = Array.from({ length: 20 }, (_, i) => ({ direction: i % 2 ? 'outbound' : 'inbound', status: 'sent', body: 'x'.repeat(1500) + i }));
   for (const compact of [false, true]) {
     await generateReply(history, env, async (_url, options) => {
-      const turns = agentTurns(JSON.parse(options.body).input);
+      const turns = JSON.parse(options.body).input.slice(1);
       assert.equal(turns.length, compact ? 6 : 20); assert.ok(turns.every(t => t.content.length <= (compact ? 600 : 2000)));
       return agentTurn(tool('conversation_reply', { response: 'Noted.' }));
     }, { compact });
