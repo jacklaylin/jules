@@ -16,7 +16,7 @@
 .link-preview strong{font-weight:400;color:var(--ink);line-height:1.5}
 .link-action{font-size:12px}
 .info .price-range{font-size:20px;color:var(--ink)}
-.info .activity-line{display:grid;gap:2px;margin-top:var(--space-5);font-size:12px;line-height:1.5;color:var(--text-2)}
+.info .activity-line{display:grid;gap:2px;margin-top:24px;font-size:12px;line-height:1.5;color:var(--text-2)}
 .skeleton-title{height:32px;width:85%;margin:22px 0}
 .skeleton-date{height:10px;width:40%;margin:12px 0}
 .skeleton-line{height:16px;width:90%;margin:12px 0}
@@ -57,6 +57,8 @@
 #alert-size{margin-top:8px}
 #alert-save:disabled{opacity:.4;cursor:default}
 .info .action-rows{margin-top:20px}
+/* Under the store list, the last store's hairline is the rows' top line: no second rule, no empty band. */
+.info .links+.action-rows{margin-top:-28px;border-top:0}
 .info .bought-line{font-size:15px;color:var(--ink)}
 /* Product detail has a full-screen phone presentation; other dialogs use shared defaults. */
 @media(max-width:800px){#detail{border-radius:0;border:0;width:100%;height:100dvh;max-width:100%;max-height:100dvh;margin:0;padding:16px var(--page-gutter) 32px;box-shadow:none}#detail[open]{animation:enter .22s ease both}}
