@@ -10,7 +10,7 @@ test('every labeled case offers its expected tools in its own context, and runs 
     const report=await runAgentEval(c,{OPENAI_API_KEY:'test'},{fetcher:async(url,options)=>{
       assert.equal(url,'https://api.openai.com/v1/responses','Eval turns never reach search providers');
       offered=JSON.parse(options.body).tools.map(t=>t.name);return agentTurn(tool('conversation_reply',{response:'ok'}));}});
-    const expected=[...[].concat(c.expect.tool??[]).filter(Boolean),...Object.keys(c.expect.also??{}),...(c.expect.then??[])];
+    const expected=[...[].concat(c.expect.tool??[]).filter(Boolean),...Object.keys(c.expect.also??{}),...(c.expect.then??[]),...(c.expect.calls??[]).map(x=>x.name)];
     assert.ok(expected.some(name=>offered.includes(name))||!expected.length,`${c.id}: none of ${expected} offered`);
     for(const name of expected.filter(n=>n!=='conversation_reply'))assert.ok(offered.includes(name),`${c.id}: ${name} not offered`);
     if(c.expect.signal!==undefined)assert.ok(offered.includes('record_quality_signal'),`${c.id}: record_quality_signal not offered`);
