@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import {readFileSync,readdirSync,existsSync} from 'node:fs';
 
 const read=path=>readFileSync(new URL(`../${path}`,import.meta.url),'utf8');
-const PUBLIC_PAGES={'/':'index.html','/signup':'signup.html','/privacy':'privacy.html','/terms':'terms.html'};
+const PUBLIC_PAGES={'/':'index.html','/signup':'signup.html','/faq':'faq.html','/privacy':'privacy.html','/terms':'terms.html'};
 const rewrites=JSON.parse(read('vercel.json')).rewrites;
 const html=readdirSync(new URL('../public/',import.meta.url)).filter(f=>f.endsWith('.html'));
 
@@ -62,7 +62,7 @@ test('the landing page has a canonical URL, truthful Organization and WebSite da
 });
 
 test('machine-facing copy never brands Jules as AI',()=>{
- const page=read('public/index.html'),machine=[read('public/llms.txt'),page.match(/ld\+json">(.*?)<\/script>/s)[1],page.match(/<h1>(.*?)<\/h1>/s)[1]].join('\n');
+ const page=read('public/index.html'),faq=read('public/faq.html'),machine=[read('public/llms.txt'),page.match(/ld\+json">(.*?)<\/script>/s)[1],page.match(/<h1>(.*?)<\/h1>/s)[1],page.match(/<p class="landing-intro">(.*?)<\/p>/s)[1],faq.match(/<main.*<\/main>/s)[0],faq.match(/ld\+json">(.*?)<\/script>/s)[1]].join('\n');
  assert.doesNotMatch(machine,/\bAI\b|\bagent\b|artificial intelligence|AI stylist/i);
  assert.match(read('public/llms.txt'),/^# Jules\n\n> /);
 });
@@ -79,4 +79,42 @@ test('internal links and assets on public pages resolve to a file or a rewrite',
    assert.ok(exists(url.split('?')[0]),`${file} → ${url}`);
   }
  }
+});
+
+// Answer engines quote the FAQ's structured data, so it must say exactly what the page says.
+const plain=html=>html.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').replace(/ ([.,;:])/g,'$1').trim();
+const words=text=>text.split(' ').length;
+
+test('the FAQ page opens with what Jules is, dated, and its FAQPage data matches the visible questions and answers',()=>{
+ const page=read('public/faq.html');
+ assert.match(page,/<link rel="canonical" href="https:\/\/textjules\.com\/faq">/);
+ assert.ok(rewrites.some(r=>r.source==='/faq'&&r.destination==='/faq.html'));
+ const items=[...page.matchAll(/<section class="faq-item" id="([^"]+)"><h2>(.*?)<\/h2>(.*?)<\/section>/gs)].map(([,id,q,a])=>({id,q:plain(q),a:plain(a)}));
+ assert.ok(items.length>=8);
+ assert.equal(page.match(/<h2[ >].*?<\/h2>/s)[0],'<h2>What is Jules?</h2>');
+ assert.ok(words(items[0].a)<=100,`${words(items[0].a)} words`);
+ assert.match(items[0].a,/personal shopper you text by iMessage/);
+ assert.ok(page.indexOf('Updated October 2026.')<page.indexOf('<h2>'));
+ const compare=items.find(i=>i.id==='compare');assert.ok(compare&&words(compare.a)<=100);assert.match(compare.a,/As of October 2026/);
+ const data=JSON.parse(page.match(/<script type="application\/ld\+json">(.*?)<\/script>/s)[1]);
+ assert.equal(data['@type'],'FAQPage');assert.equal(data.url,'https://textjules.com/faq');
+ assert.deepEqual(data.mainEntity.map(e=>({q:e.name,a:e.acceptedAnswer.text})),items.map(({q,a})=>({q,a})));
+ for(const e of data.mainEntity){assert.equal(e['@type'],'Question');assert.equal(e.acceptedAnswer['@type'],'Answer');}
+ // Every question is reachable from the section list.
+ const toc=[...page.match(/<nav class="legal-toc"[^>]*>(.*?)<\/nav>/s)[1].matchAll(/href="#([^"]+)"/g)].map(m=>m[1]);
+ assert.deepEqual(toc,items.map(i=>i.id));
+});
+
+test('the landing page defines Jules, dates its example prices and links FAQ, Privacy and Terms',()=>{
+ const page=read('public/index.html');
+ for(const copy of page.match(/<p class="landing-intro">(.*?)<\/p>/s)[1].match(/<span class="(?:desktop|mobile)-copy">.*?<\/span>/g))assert.match(copy,/personal shopper you text by iMessage/);
+ assert.match(page,/<p class="demo-note">[^<]*Prices as of October 2026\.<\/p>/);
+ assert.match(page.match(/<section class="sr-only"[^>]*>(.*?)<\/section>/s)[1],/^<h2>What can you text Jules\?<\/h2><p>[^<]*Prices as of October 2026\.<\/p>/);
+ assert.equal(page.match(/<footer class="landing-legal">(.*?)<\/footer>/s)[1],'<a href="/faq">FAQ</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a>');
+ for(const file of ['faq.html','privacy.html','terms.html']){
+  const other=read(`public/${file}`);
+  assert.deepEqual([...other.match(/<footer class="site-legal">(.*?)<\/footer>/s)[1].matchAll(/href="([^"]+)"/g)].map(m=>m[1]),['/faq','/privacy','/terms'],file);
+  assert.deepEqual([...other.match(/<nav class="header-actions legal-nav"[^>]*>(.*?)<\/nav>/s)[1].matchAll(/href="([^"]+)"/g)].map(m=>m[1]),['/faq','/privacy','/terms'],file);
+ }
+ assert.match(read('public/llms.txt'),/\(https:\/\/textjules\.com\/faq\)/);
 });

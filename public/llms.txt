@@ -1,8 +1,8 @@
 # Jules
 
-> Jules is a personal shopper you text in iMessage. Send it a screenshot, a photo or a link to something you want to wear, and it tells you what the item is and where to get it in your size, including cheaper options and resale.
+> Jules is a personal shopper you text by iMessage, for anyone who’d rather text a screenshot than hunt through tabs. Send it a screenshot, a photo or a link to something you want to wear, and it tells you what the item is and where to get it in your size, including cheaper options and resale.
 
-Jules is in early access. People sign up at https://textjules.com/signup and then text Jules from their phone.
+As of October 2026, Jules is in early access and free, and it works only in iMessage on iPhone (Android isn’t supported yet). People sign up at https://textjules.com/signup and then text Jules from their iPhone.
 
 ## What Jules does
 
@@ -16,6 +16,7 @@ Jules is in early access. People sign up at https://textjules.com/signup and the
 ## Pages
 
 - [Home](https://textjules.com/): what Jules is, with example conversations
+- [FAQ](https://textjules.com/faq): what Jules is, how it works, cost, phones, stores, privacy, and how it compares with Phia, Google Lens and ChatGPT
 - [Sign up](https://textjules.com/signup): request early access
 - [Privacy Policy](https://textjules.com/privacy)
 - [Terms](https://textjules.com/terms)
