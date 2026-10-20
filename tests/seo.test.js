@@ -10,14 +10,21 @@ const rewrites=JSON.parse(read('vercel.json')).rewrites;
 const html=readdirSync(new URL('../public/',import.meta.url)).filter(f=>f.endsWith('.html'));
 
 test('robots.txt opens public pages to search and assistant crawlers, keeps personal pages out, and names the sitemap',()=>{
- const robots=read('public/robots.txt'),agents=robots.match(/^User-agent: .+$/gm).map(l=>l.slice(12));
+ const robots=read('public/robots.txt'),agents=robots.split(/\n\s*\n/).find(b=>/^User-agent: \*$/m.test(b)).match(/^User-agent: .+$/gm).map(l=>l.slice(12));
  for(const agent of ['Googlebot','Bingbot','OAI-SearchBot','ChatGPT-User','PerplexityBot','Perplexity-User','Claude-SearchBot','Claude-User','meta-webindexer','meta-externalfetcher','*'])assert.ok(agents.includes(agent),agent);
- // One group: every named crawler gets the same rules as *, so nobody is accidentally unrestricted.
- assert.equal(robots.split(/\n\s*\n/).filter(block=>/^User-agent:/m.test(block)).length,1);
+ // Two groups: search, answer and assistant crawlers share the * rules, so nobody is accidentally
+ // unrestricted; training-only crawlers are blocked entirely.
+ const groups=robots.split(/\n\s*\n/).filter(block=>/^User-agent:/m.test(block));
+ assert.equal(groups.length,2);
+ assert.match(groups[0],/^User-agent: \*$/m);
+ const training=groups[1].match(/^User-agent: .+$/gm).map(l=>l.slice(12));
+ assert.deepEqual(training,['GPTBot','ClaudeBot','Google-Extended','meta-externalagent']);
+ assert.match(groups[1],/^Disallow: \/$/m);assert.doesNotMatch(groups[1],/^Allow:/m);
+ for(const agent of training)assert.ok(!groups[0].includes(`User-agent: ${agent}\n`),agent);
  for(const path of ['/api/','/r/','/go/','/admin','/account$','/wishlist$','/wardrobe$','/style$','/report$','/onboarding','/login$'])assert.match(robots,new RegExp(`^Disallow: ${path.replace(/[$/]/g,'\\$&')}$`,'m'),path);
  assert.match(robots,/^Sitemap: https:\/\/textjules\.com\/sitemap\.xml$/m);
  // Rules are anchored, so the public pages' own styles and scripts stay crawlable.
- const rules=robots.match(/^Disallow: .+$/gm).map(l=>l.slice(10));
+ const rules=groups[0].match(/^Disallow: .+$/gm).map(l=>l.slice(10));
  const blocked=path=>rules.some(rule=>rule.endsWith('$')?path===rule.slice(0,-1):path.startsWith(rule));
  for(const path of [...Object.keys(PUBLIC_PAGES),'/design-system.css','/landing.css','/landing.js','/signup.js','/signup-ref.js','/brand-ui.js','/llms.txt','/sitemap.xml'])assert.equal(blocked(path),false,path);
  for(const path of ['/admin/people/x','/account','/wishlist','/r/abc','/report','/style','/login','/onboarding/connect'])assert.equal(blocked(path),true,path);

@@ -1,7 +1,7 @@
 # textjules.com: public pages are open to search engines, answer engines and assistants.
 # Personal pages (accounts, wishlists, reports, shared /r/ links) and admin are not for indexing;
-# they also send noindex. Training crawlers (GPTBot, ClaudeBot, Google-Extended, meta-externalagent)
-# are currently allowed by the * group.
+# they also send noindex. Crawlers that only collect training data are blocked (founder decision,
+# Oct 20 2026); blocking them doesn't affect search or answer results.
 
 User-agent: Googlebot
 User-agent: Bingbot
@@ -42,5 +42,11 @@ Disallow: /costs.html
 Disallow: /adoption.html
 Disallow: /scorecard.html
 Disallow: /demo-transcript.html
+
+User-agent: GPTBot
+User-agent: ClaudeBot
+User-agent: Google-Extended
+User-agent: meta-externalagent
+Disallow: /
 
 Sitemap: https://textjules.com/sitemap.xml
