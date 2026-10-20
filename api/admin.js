@@ -1,5 +1,6 @@
 // Loads first so the cost meter wraps fetch before any handler below keeps a reference to it.
 import '../lib/usage.js';
+import { readCoverage } from '../lib/coverage.js';
 import { authorize } from '../lib/auth.js';
 import { createStore } from '../lib/store.js';
 import { json, readJson, uuid } from '../lib/http.js';
@@ -147,6 +148,8 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
         return json(res, 200, { report: await withReadPhoto(reportView(row?.data?.style_report, name ?? null), row?.data?.style_report, store, id), status: row?.data?.style_report ? 'built' : 'not_built' });
       }
       if (query.get('view') === 'wishlist') return json(res, 200, await personWishlist(store, id, env));
+      // How much of the taste profile is known, per dimension (lib/coverage.js). Read-only, computed fresh.
+      if (query.get('view') === 'coverage') return json(res, 200, await readCoverage(store, id));
       let before;
       if (query.has('before')) {
         try { before = JSON.parse(query.get('before')); } catch { return json(res, 400, { error: 'Invalid history cursor.' }); }
