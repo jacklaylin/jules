@@ -77,3 +77,13 @@ test('agreement counts the baseline’s own reruns separately and lists each dif
   assert.deepEqual(disagreements.map(d => [d.email, d.model, d.run]), [['m0', 'cand', 1]]);
   assert.equal(Number(summary[1].cost_per_100_emails.toFixed(6)), 0.1);
 });
+
+test('a Gmail failure tells the owner which step stopped and what Google answered', async () => {
+  const expired = { ...imports[owner], token_ciphertext: sealToken({ access_token: 'a', refresh_token: 'r', expires_at: 0 }, owner, env) };
+  const s = { ...store, gmailImport: async id => id === owner ? expired : null };
+  const fetcher = async url => { if (String(url) === 'https://oauth2.googleapis.com/token') return new Response('{"error":"invalid_grant"}', { status: 400 }); throw new Error('unexpected ' + url); };
+  const res = await post(createAdminHandler({ auth: async () => 200, env, fetcher, storeFactory: () => s }), { action: 'extract-compare', conversation: owner, email: 0, confirm: true });
+  assert.equal(res.statusCode, 409);
+  assert.match(res.body.error, /^Opening the Gmail sign-in failed \(Google answered 400: the Gmail sign-in has expired or was revoked/);
+  assert.doesNotMatch(res.body.error, /invalid_grant|refresh/);
+});
