@@ -108,3 +108,22 @@ test('found stores join the saved item with sizes unconfirmed and show on the ca
   const none = async () => assert.fail('no scan without a search key');
   assert.deepEqual(await scanSavedItems({ store, operation: 'op-1', env: { ...env, SERPAPI_API_KEY: '' }, search: none, verify: none, same: none }), []);
 });
+
+test('best price: one strictly cheapest in-stock store with a page-read price, among two or more', async () => {
+  const { bestPriceURL } = await import('../lib/wishlist.js');
+  const link = (url, amount, extra = {}) => ({ url, price: { amount, currency: 'USD' }, verification_status: 'verified', availability: null, ...extra });
+  const a = 'https://www.ssense.com/a', b = 'https://www.lemaire.fr/b', c = 'https://www.mrporter.com/c';
+  assert.equal(bestPriceURL([link(a, 2682), link(b, 3395)]), a);
+  assert.equal(bestPriceURL([link(a, 2682)]), null, 'a lone store');
+  assert.equal(bestPriceURL([link(a, 2682), link(b, 2682)]), null, 'a tie');
+  assert.equal(bestPriceURL([link(c, 2450, { availability: 'OutOfStock' }), link(a, 2682), link(b, 3395)]), a, 'a sold-out store never takes it');
+  assert.equal(bestPriceURL([link(c, 2450, { availability: 'OutOfStock' }), link(a, 2682)]), null, 'one store left to buy from');
+  assert.equal(bestPriceURL([link(a, 2000, { price: { amount: 2000, currency: 'USD', evidence_level: 'indexed' } }), link(b, 3395), link(c, 3000)]), c, 'an indexed price never takes it');
+  assert.equal(bestPriceURL([link(a, 2000, { verification_status: 'unverified' }), link(b, 3395)]), null);
+  assert.equal(bestPriceURL([link(a, 2000), link(b, 1800, { price: { amount: 1800, currency: 'EUR' } })]), null, 'mixed currencies');
+  assert.equal(bestPriceURL([link(a, 2682), { url: b, price: null, verification_status: 'verified' }]), null, 'a store without a price');
+  const rows = [{ item_id: 'i', reply_id: 'r', text_origin: true, brand: 'LEMAIRE', name: 'Jacket', messages: { created_at: '2026-10-20' },
+    links: [a, b].map((url, i) => ({ url, verification_status: 'verified', price_snapshot: { amount: [2682, 3395][i], currency: 'USD', source_url: url, checked_at: '2026-10-20T00:00:00Z' } }))}];
+  const [card] = groupWishlist(rows, { currency: 'USD' });
+  assert.deepEqual(card.links.map(l => [l.url, l.best_price]), [[a, true], [b, false]]);
+});
