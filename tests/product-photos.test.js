@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import sharp from 'sharp';
 import { fetchProductPhoto, productPhotoURL, listingPhotos, fetchListingPhotos } from '../lib/product-photos.js';
-import { sendGreeting } from '../lib/photon.js';
+import { sendGreeting, withoutLinks } from '../lib/photon.js';
 import { receiveInInbox } from '../lib/inbox.js';
 
 const photoURL = 'https://encrypted-tbn0.gstatic.com/images?q=test';
@@ -173,4 +173,21 @@ test('a failed card falls back to the photo under the same caption; the answer i
   const text = transport({ failCard: true });
   const sent = await sendGreeting(delivery, 'Picks https://jules.example/go/a', {}, { ...text.options, products: [{ name: 'Muscle Tee', preview_url: card }], loadPhoto: assert.fail });
   assert.equal(sent.id, 'test-sent-1'); assert.equal(text.sent.length, 2, 'no photo to fall back to: the text link stands');
+});
+test('a product with its own card is not also linked in the answer; a failed card sends the link instead', async () => {
+  const second = card.replace('.0.', '.1.');
+  const sdk = transport();
+  await sendGreeting(delivery, `Two picks:\n\n1. Muscle tee, $40\n${card}\n\n2. Ripped tee, $55\n${second}\n\nWhich one?`, {}, { ...sdk.options,
+    products: [{ name: 'Muscle Tee', preview_url: card }, { name: 'Ripped tee', preview_url: second }], loadPhoto: assert.fail });
+  assert.equal(sdk.sent[0].text, 'Two picks:\n\n1. Muscle tee, $40\n\n2. Ripped tee, $55\n\nWhich one?');
+  assert.deepEqual(sdk.sent.slice(1).map(c => cardOf(c)?.url), [card, second]);
+  const failing = transport({ failCard: true });
+  await sendGreeting(delivery, `Pick:\n1. Muscle tee\n${card}`, {}, { ...failing.options, products: [{ name: 'Muscle Tee', preview_url: card }], loadPhoto: assert.fail });
+  assert.equal(failing.sent[0].text, 'Pick:\n1. Muscle tee');
+  assert.equal(failing.sent.at(-1).content.text, card, 'the link goes out on its own, under the answer');
+  assert.equal(failing.sent.at(-1).target.id, 'test-sent-1');
+  assert.deepEqual(failing.logs.map(l => l.event), ['product_rich_preview_failed', 'product_link_sent']);
+  // A product link without a card, and other links, stay in the text.
+  assert.equal(withoutLinks('See https://textjules.com/wishlist', [card]), 'See https://textjules.com/wishlist');
+  assert.equal(withoutLinks(card, [card]), card, 'an answer that is only the link keeps it');
 });
