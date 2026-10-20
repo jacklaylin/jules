@@ -75,4 +75,11 @@ The OpenAI key in `.env.local` has run out of credits (`credit_balance_exhausted
 | urbanoutfitters.com/womens-going-out-tops | blocked → title stand-in, verified, likely match, no price | still reaches the judge; can no longer answer the search |
 | instyle.com/best-going-out-tops-11872192 | blocked → title stand-in, verified, likely match, no price | still reaches the judge; can no longer answer the search |
 
-Not yet verified live: whether the real judge marks the Urban Outfitters and InStyle titles `not_a_product`. That needs a replay with a funded OpenAI key. Either way, stylist directions no longer run this query, so in the tester's request none of these pages could appear through the exact pass.
+With the real judge (run once the OpenAI key was funded, same cached Google results): on main it accepted Urban Outfitters and InStyle as likely matches; on this branch it marked both `not_a_product`, so the exact pass returned no options at all.
+
+### Live replay — October 19, 2026
+
+Full discovery flow: real stylist, model search, Google and store checks; synthetic profile (budget up to $500 for special pieces, minimal/The Row taste, size 8 tops, Zara receipts); no message sent and nothing saved. Before is main at 417e969; after is this branch. The stylist's directions differ run to run, so the two runs show what reaches the shopper, not taste quality.
+
+- **Before (10 s).** Directions: silk camisole, asymmetric jersey, minimal satin halter. All three options came from the first direction's exact pre-search: the Urban Outfitters and Fashion Nova going-out-tops category pages and the InStyle "28 Cool-Girl Going-Out Tops" article, none with a price. The other two directions never searched their own concepts.
+- **After (13 s).** Directions: minimal satin halter, draped one-shoulder, Kate Moss sheer camisoles. One product per direction, each from that direction's own search: Rebecca Vallance Elise halterneck silk satin top at Mytheresa (price not confirmed: the store blocks our reader and Google showed no price), Nili Lotan Isabella silk cami $320, A.L.C. Celeste top at Elyse Walker $395. No category pages or articles.
