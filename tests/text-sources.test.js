@@ -17,6 +17,13 @@ test('direct recovery rejects provider errors and empty brand evidence',async()=
  assert.equal(result.products.length,0);
 });
 import {collectionProductLinks} from '../lib/text-sources.js';
+// October 20: a direct recovery checked off-topic pages and nothing recorded the query it sent.
+test('direct recovery records the search query it sent, never the key',async()=>{
+ const result=await recoverTextSources("Men's department: Thursday Desperado boots brown",{SERPAPI_API_KEY:'fake-direct-key'},async()=>({ok:true,json:async()=>({organic_results:[]})}),{range:'men'},async url=>({status:'not_product',url}));
+ assert.equal(result.direct_query,"Thursday Desperado boots brown men's product");
+ assert.ok(!JSON.stringify(result).includes('fake-direct-key'));
+});
+
 test('collection recovery follows matching same-origin product links and rejects invented or unsafe destinations',async()=>{
  const page='https://mfpen.com/collections/footwear',product='https://mfpen.com/products/scout-deck-shoe-scratched-black';
  const html='<a href="/products/scout-deck-shoe-scratched-black">Scout Deck Shoe Scratched Black</a><a href="https://mfpen.com.evil.example/products/scout-deck">Scout Deck</a><a href="/collections/scout-deck">Scout Deck</a><a href="/products/another-shirt">Shirt</a>';

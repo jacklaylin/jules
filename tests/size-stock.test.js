@@ -99,6 +99,27 @@ test('a short store title is read with its own page path; a different product st
  assert.equal((await check('Desperado | Black Matte',"Men's Desperado Square Toe Cowboy Boots Black Matte",'https://thursday.example/products/desperado-bm')).status,'not_product','a path that doesn’t describe it adds nothing');
 });
 
+// October 19 again: the same page was rejected under another of the search's names for it, and a
+// shop.app copy was shown instead of the brand's own store. The brand's real page data says "Thursday
+// Boots - Men's", and the requested names vary in brand form, plurals, category words and filler.
+test('the brand’s own page matches the varied names a search gives it; another colour or model still fails',async()=>{
+ const page='https://thursday.example/products/mens-desperado-square-toe-cowboy-boots-black-matte';
+ const html=title=>`<script>Shopify.country = "US";Shopify.currency = {"active":"USD","rate":"1.0"};</script><script type="application/ld+json">${JSON.stringify({'@type':'Product',name:title,brand:{'@type':'Thing',name:"Thursday Boots - Men's"},offers:{'@type':'Offer',price:'249.00',priceCurrency:'USD'}})}</script>`;
+ const boots={options:[{name:'Size'}],variants:[{id:1,option1:'12',available:true,price:24900}]};
+ const env={SHOPPING_COUNTRY:'US',SHOPPING_CURRENCY:'USD'},noBrowser=async()=>{throw Error('no browser');};
+ const check=(name,title='Desperado | Black Matte')=>verifyListing(page+'?ymal=mens-maverick-cowboy-western-boots-brandy',name,store(html(title),boots),noBrowser,env);
+ for(const name of ['Desperado Cowboy Boot Black','Thursday Boot Company Desperado Boot Black','Thursday Boot Co. Desperado Western Boot in Black',
+   'Desperado Black Matte boots by Thursday Boot Company','Thursday Desperado boots black',"Men's Desperado Square Toe Cowboy Boots Black Matte"])
+  assert.equal((await check(name)).status,'verified',name);
+ for(const name of ['Desperado Tobacco Brown','Desperado Boot Brown','Maverick Brandy','Thursday Captain Boot Black']){
+  const rejected=await check(name);
+  assert.equal(rejected.status,'not_product',name);assert.equal(rejected.reason,'name_mismatch','a page with a different product says so');
+ }
+ assert.equal((await check('Desperado Cowboy Boot Black','Desperado | Tobacco Brown')).status,'not_product','a page path never covers for a title in another colour');
+ const empty=await verifyListing(page,'Desperado Black',store('<html><title>Boots</title></html>',boots),noBrowser,env);
+ assert.equal(empty.status,'not_product');assert.equal(empty.reason,undefined,'a page without a product has no name to disagree with');
+});
+
 test('a store that charges in euros shows its own price, labelled, and never as dollars',async()=>{
  const check=await verifyListing('https://trevise.example/products/printed-mesh-top','Arena Stripe Track Jacket',store(shopifyPage('EUR',[{'@type':'Offer',price:'320.00',priceCurrency:'EUR'}]),jacket),async()=>{throw Error('no browser');},{SHOPPING_COUNTRY:'US',SHOPPING_CURRENCY:'USD'});
  assert.equal(check.price_snapshot,null);assert.deepEqual(check.foreign_price,{amount:320,currency:'EUR'});
