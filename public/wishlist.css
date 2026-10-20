@@ -56,6 +56,18 @@
 #alert-close{display:block;margin-left:auto}
 #alert-size{margin-top:8px}
 #alert-save:disabled{opacity:.4;cursor:default}
+/* "I bought this": store and size, both optional (lib/wishlist-purchases.js). */
+#bought-picker{width:min(420px,calc(100vw - 32px));height:fit-content;max-height:85dvh;overflow:auto;padding:24px;margin:auto}
+#bought-picker[open]{display:block}
+#bought-picker h2{font-size:30px}
+#bought-picker p{font-size:13px;line-height:1.6;color:var(--text-2)}
+#bought-close{display:block;margin-left:auto}
+#bought-stores{display:flex;flex-wrap:wrap;gap:8px;border:0;margin:0;padding:0;min-width:0}
+#bought-stores legend{font:500 11px/1.6 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--text-2);padding:0 0 8px}
+#bought-picker input[type=text]{margin-top:8px}
+#bought-save{justify-self:start}
+.info .action-rows{margin-top:20px}
+.info .bought-line{font-size:15px;color:var(--ink)}
 /* Product detail has a full-screen phone presentation; other dialogs use shared defaults. */
 @media(max-width:800px){#detail{border-radius:0;border:0;width:100%;height:100dvh;max-width:100%;max-height:100dvh;margin:0;padding:16px var(--page-gutter) 32px;box-shadow:none}#detail[open]{animation:enter .22s ease both}}
 @media(min-width:801px){#detail{height:min(760px,90dvh);max-height:90dvh;overflow:hidden}#detail[open]{display:grid;grid-template-rows:auto minmax(0,1fr)}}
