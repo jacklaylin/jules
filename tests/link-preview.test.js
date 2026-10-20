@@ -27,7 +27,7 @@ test('public cards have correct titles and bundled, compact 1200×630 artwork',a
  for(const [page,title,art] of [['index','Have to have it? Text Jules.','fallback'],['wishlist','Your wishlist','fallback'],['style','Your style reading','style']]){
   const html=await readFile(new URL(`../public/${page}.html`,import.meta.url),'utf8');
   assert.ok(html.includes(`<meta property="og:title" content="${title}">`));
-  assert.ok(html.includes(`https://jules-gamma.vercel.app/brand/previews/${art}-v1.png`));
+  assert.ok(html.includes(`https://textjules.com/brand/previews/${art}-v1.png`));
   const bytes=await readFile(new URL(`../public/brand/previews/${art}-v1.png`,import.meta.url));
   const metadata=await sharp(bytes).metadata();assert.equal(metadata.width,1200);assert.equal(metadata.height,630);assert.ok(bytes.length<600000);
  }
