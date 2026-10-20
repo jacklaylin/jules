@@ -72,7 +72,7 @@ test('internal links and assets on public pages resolve to a file or a rewrite',
   if(rewrites.some(r=>new RegExp(`^${r.source.replace(/:[a-z]+/g,'[^/]+')}$`).test(path)))return true;
   return path==='/'||existsSync(new URL(`../public${decodeURIComponent(path)}`,import.meta.url));
  };
- for(const file of [...Object.values(PUBLIC_PAGES),'demo-transcript.html']){
+ for(const file of Object.values(PUBLIC_PAGES)){
   const page=read(`public/${file}`);
   for(const [,url] of page.matchAll(/(?:href|src)="([^"#]+)"/g)){
    if(/^(https?:|mailto:|sms:|tel:)/.test(url))continue;

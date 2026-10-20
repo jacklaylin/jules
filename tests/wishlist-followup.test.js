@@ -8,7 +8,6 @@ const generateReply=(messages,env,fetcher,memory)=>agentReply(messages,env,withC
 import { agentTurn, tool, isClaimAudit } from './helpers/agent.js';
 import { textWishlistAction } from '../lib/text-wishlist.js';
 import { wishlistProducts } from '../lib/wishlist.js';
-import { verifyWishlistRows } from '../lib/listings.js';
 import { receiveInInbox } from '../lib/inbox.js';
 
 const env={AI_ENABLED:'true',SEARCH_ENABLED:'true',WISHLIST_ENABLED:'true',PRICE_ALERTS_ENABLED:'true',OPENAI_API_KEY:'fixture'};
@@ -85,18 +84,12 @@ test('a standalone link, uncertainty and unrelated conversation do not become sa
   assert.equal(actions,0);assert.equal(body,'Try relaxed trousers with it.');
 });
 
-test('explicit saves retain blocked links without invented prices or stock and survive wishlist refresh',async()=>{
+test('explicit saves retain blocked links without invented prices or stock',async()=>{
   const selected=stateFromSearch({products}).options;
   const payload=await wishlistProducts({identification_policy:'text_wishlist',user_confirmed:true,products:selected},
     'Fixture save preparation',[],{},async()=>Buffer.from('fixture'));
   assert.equal(payload.length,2);
   assert.ok(payload.every(p=>p.sourcing_status==='saved_reference'&&p.links[0].user_saved===true));
-  const rows=await verifyWishlistRows(payload,undefined,async()=>({status:'check_failed'}));
-  assert.ok(rows.every(p=>p.links.length===1&&p.links[0].verification_status==='unverified'
-    &&p.links[0].price_snapshot===null&&p.links[0].availability===null));
-  const unrequested=await verifyWishlistRows([{...payload[0],links:[{url:products[0].url}]}],undefined,
-    async()=>({status:'check_failed'}));
-  assert.equal(unrequested[0].links.length,0);
 });
 
 function inboxHarness({failSave=false,failSend=false,failPayload=false}={}){

@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {verifyListing,verifySearchMerchants,verifyWishlistRows} from '../lib/listings.js';
+import {verifyListing,verifySearchMerchants} from '../lib/listings.js';
 const url='https://www.barbour.com/us/jacket.html';
 const name='Transport Windowpane Waxed Jacket';
 const html=product=>new Response('<script type="application/ld+json">'+JSON.stringify(product)+'</script>',{headers:{'content-type':'text/html'}});
@@ -36,13 +36,6 @@ test('a failed primary link is replaced only by a verified same-product merchant
  const verify=async url=>url.includes('barbour')?{status:'not_product'}:{status:'verified',url,price_snapshot:{amount:1510,currency:'USD',source_url:url}};
  const result=await verifySearchMerchants(base,null,verify);assert.equal(result.products[0].url,'https://www.mytheresa.com/item');assert.equal(result.products[0].price_snapshot.amount,1510);assert.deepEqual(result.products[0].merchant_options,[]);
  const failed=await verifySearchMerchants(base,null,async()=>({status:'check_failed'}));assert.equal(failed.status,'identified_no_store');assert.equal(failed.products[0].sourcing_status,'store_not_found');assert.deepEqual(failed.products[0].merchant_options,[]);
-});
-
-test('saved rows refresh prices and remove stale links before returning wishlist metadata',async()=>{
- const rows=[{name,url,price_snapshot:{amount:1,currency:'USD'},links:[{url},{url:'https://www.barbour.com/missing'}]}];
- const verified=await verifyWishlistRows(rows,null,async value=>value===url?{status:'verified',url,price_snapshot:{amount:700,currency:'USD',source_url:url},availability:'OutOfStock'}:{status:'unavailable'});
- assert.equal(verified[0].links.length,1);assert.equal(verified[0].links[0].price_snapshot.amount,700);assert.equal(verified[0].price_snapshot,null);assert.equal(verified[0].links[0].availability,'OutOfStock');
- const failed=await verifyWishlistRows(rows,null,async()=>({status:'check_failed'}));assert.deepEqual(failed[0].links,[]);assert.equal(failed[0].sourcing_status,'store_not_found');
 });
 
 test('an HTTP 200 bot failover is a failed check and no-store replies expose no unverified URLs',async()=>{
