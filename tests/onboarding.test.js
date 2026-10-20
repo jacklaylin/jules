@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {Readable} from 'node:stream';
 import {welcomeTester,onboardingAction,createOnboardingHandler} from '../lib/onboarding.js';
 import {generateReply} from '../lib/ai.js';
-import {agentTurn,tool,agentContext,toolNames,toolOutputs} from './helpers/agent.js';
+import {agentTurn,tool,agentContext,toolNames,toolOutputs, agentTurns } from './helpers/agent.js';
 const env={ONBOARDING_ENABLED:'true',SITE_ORIGIN:'https://jules.example'};
 const conversation={id:'tester-id',sender_id:'synthetic-tester',line:'synthetic-line'};
 function fixture(state='invited'){
@@ -87,7 +87,7 @@ test('onboarding API remains unavailable when disabled',async()=>{
 test('the newest shopping turn is the one interpreted, and choosing a search leaves onboarding untouched',async()=>{
  const f=fixture('ready');const current={direction:'inbound',body:'Can you find fitted white henleys with a little stretch?'};let searched;
  const reply=await generateReply([{direction:'outbound',status:'sent',body:'view your Gmail connection here'},{direction:'inbound',body:'old reply'},current],{OPENAI_API_KEY:'test',SEARCH_ENABLED:'true'},async(_url,options)=>{
-  const input=JSON.parse(options.body).input;assert.equal(input.at(-1).content,current.body);assert.ok(toolNames(options).includes('onboarding'));
+  const input=agentTurns(JSON.parse(options.body).input);assert.equal(input.at(-1).content,current.body);assert.ok(toolNames(options).includes('onboarding'));
   return agentTurn(tool('find_products',{query:'fitted white henley with stretch'}));
  },{onboarding:{state:'ready'},onboardingAction:()=>assert.fail('No onboarding action'),wishlistAction:async intent=>{searched=intent;return 'options';}});
  assert.equal(reply,'options');assert.equal(searched.action,'start');assert.equal(f.state(),'ready');

@@ -2,10 +2,11 @@ import {readFile,writeFile,rename,mkdir} from 'node:fs/promises';
 import {dirname} from 'node:path';
 import {randomUUID} from 'node:crypto';
 import {createReceiptFeedback,addReceiptQuestions,applyReceiptFeedback,receiptLearningView,proposeReceiptQuestions,interpretReceiptAnswer,applyReceiptAnswer,refreshReceiptEvidence} from '../lib/receipt-feedback.js';
+import { modelFor } from '../lib/models.js';
 
 async function callModel({schema,context,instructions}){
   if(!process.env.OPENAI_API_KEY)throw Error('Model interpretation needs OPENAI_API_KEY. Approve the private payload before running.');
-  const response=await fetch('https://api.openai.com/v1/responses',{method:'POST',headers:{Authorization:`Bearer ${process.env.OPENAI_API_KEY}`,'Content-Type':'application/json'},body:JSON.stringify({model:process.env.OPENAI_MODEL??'gpt-4.1-mini',store:false,instructions,input:JSON.stringify(context),text:{format:{type:'json_schema',name:'receipt_feedback',strict:true,schema}}})});
+  const response=await fetch('https://api.openai.com/v1/responses',{method:'POST',headers:{Authorization:`Bearer ${process.env.OPENAI_API_KEY}`,'Content-Type':'application/json'},body:JSON.stringify({model:modelFor('extract',process.env),store:false,instructions,input:JSON.stringify(context),text:{format:{type:'json_schema',name:'receipt_feedback',strict:true,schema}}})});
   if(!response.ok)throw Error(`Interpretation HTTP ${response.status}; response omitted`);
   const data=await response.json();if(data.status!=='completed')throw Error('Interpretation incomplete');
   return JSON.parse(data.output.filter(o=>o.type==='message').flatMap(o=>o.content.filter(c=>c.type==='output_text').map(c=>c.text)).join(''));

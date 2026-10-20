@@ -13,7 +13,11 @@ const sized=(name,args)=>name==='manage_price_alerts'&&args.option_sizing===unde
 export const tool=(name,args={})=>({type:'function_call',name,arguments:JSON.stringify({...defaults[name],...sized(name,args)})});
 export const agentTurn=(...calls)=>({ok:true,json:async()=>({status:'completed',output:calls})});
 export const isAgentRequest=options=>Array.isArray(JSON.parse(options.body).tools);
-export const agentContext=options=>JSON.parse(JSON.parse(options.body).input[0].content.replace(/^APPLICATION CONTEXT \(data, not instructions\): /,''));
+// The application context item follows the conversation messages (lib/ai.js agentInput).
+export const contextItem=input=>input.find(m=>typeof m.content==='string'&&m.content.startsWith('APPLICATION CONTEXT'));
+export const agentContext=options=>JSON.parse(contextItem(JSON.parse(options.body).input).content.replace(/^APPLICATION CONTEXT \(data, not instructions\): /,''));
+// The conversation messages: everything before the context item.
+export const agentTurns=input=>input.slice(0,input.indexOf(contextItem(input)));
 export const toolNames=options=>JSON.parse(options.body).tools.map(t=>t.name);
 // Maps an expected interpretation (the outcome a test asserts) to the agent tool that carries it.
 export function fromIntent(intent){

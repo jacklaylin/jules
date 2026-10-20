@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { shoppingContext, stateFromSearch } from '../lib/shopping-context.js';
 import {generateReply as agentReply} from '../lib/ai.js';
-import {withConsent} from './helpers/agent.js';
+import {withConsent, agentTurns } from './helpers/agent.js';
 // These tests cover tool routing; the consent check approves (its own tests are in agent.test.js).
 const generateReply=(messages,env,fetcher,memory)=>agentReply(messages,env,withConsent(fetcher),memory);
 import { agentTurn, tool, isClaimAudit } from './helpers/agent.js';
@@ -48,7 +48,7 @@ test('varied save follow-ups route interpreted existing references to save witho
       {direction:'inbound',body:message}],env,async(_url,request)=>{
       if(isClaimAudit(request))return {ok:false};
       calls++;const input=JSON.parse(request.body);
-      assert.equal(input.tool_choice,'required');assert.equal(input.input.at(-1).content,message);
+      assert.equal(input.tool_choice,'required');assert.equal(agentTurns(input.input).at(-1).content,message);
       return agentTurn(tool('save_to_wishlist',{option_indices:indices,consent_context:'explicit_request'}));
     },{wishlistState:state,wishlistAction:(args,resolvedState)=>textWishlistAction(args,{state:resolvedState,
       env,record:async result=>{recorded=result;},search:()=>assert.fail('A save must not source again'),

@@ -6,7 +6,7 @@ import {generateReply as agentReply} from '../lib/ai.js';
 import {withConsent} from './helpers/agent.js';
 // These tests cover tool routing; the consent check approves (its own tests are in agent.test.js).
 const generateReply=(messages,env,fetcher,memory)=>agentReply(messages,env,withConsent(fetcher),memory);
-import {agentTurn,fromIntent} from './helpers/agent.js';
+import {agentTurn,fromIntent,agentContext} from './helpers/agent.js';
 const env={OPENAI_API_KEY:'fixture',SEARCH_ENABLED:'true',WISHLIST_ENABLED:'true',MEMORY_ENABLED:'true',PRICE_ALERTS_ENABLED:'true'};
 const interpretation={action:'selection',decision:'confirm',consent:'wishlist',consent_context:'explicit_request',option_indices:[0],size_choices:[]};
 const model=intent=>async()=>agentTurn(fromIntent(intent));
@@ -49,7 +49,7 @@ test('a missing-wishlist complaint inspects persisted items and cannot start ano
   let evidence;
   const status=await simulateTurn({text:"i don't see it in my wishlist",snapshot:saved.snapshot},env,{
     ...deps(interpretation),generate:(messages,settings,_fetch,memory)=>generateReply(messages,settings,
-      async(_url,request)=>{evidence=JSON.parse(JSON.parse(request.body).input[0].content.replace(/^APPLICATION CONTEXT \(data, not instructions\): /,''));return model({action:'wishlist_status',response:'That link is in the test wishlist beside chat. Your real wishlist is unchanged.'})();},
+      async(_url,request)=>{evidence=agentContext(request);return model({action:'wishlist_status',response:'That link is in the test wishlist beside chat. Your real wishlist is unchanged.'})();},
       {...memory,wishlistAction:()=>assert.fail('A status complaint must not source or save')}),
   });
   assert.equal(evidence.saved_wishlist.execution.mode,'simulator');
@@ -120,7 +120,7 @@ test('connected simulator ignores imported test items and reports authoritative 
   const live={wishlistEntries:async()=>[{item_id:'real',reply_id:'real-reply',text_origin:true,name:'Real coat',links:[{url:'https://www.mrporter.com/en-us/mens/product/coat/2'}]}]};
   const result=await simulateTurn({text:'What is saved?',snapshot:fake.snapshot},env,{...deps(interpretation),wishlistStore:live,wishlistConversation:'owner',
     generate:(messages,settings,_fetch,memory)=>generateReply(messages,settings,async(_url,request)=>{
-      const body=JSON.parse(request.body);evidence=JSON.parse(body.input[0].content.replace(/^APPLICATION CONTEXT \(data, not instructions\): /,''));assert.ok(!body.input.some(m=>String(m.content).includes('only in the simulator')));return model({action:'wishlist_status',response:'Your coat is saved in your wishlist.'})();
+      const body=JSON.parse(request.body);evidence=agentContext(request);assert.ok(!body.input.some(m=>String(m.content).includes('only in the simulator')));return model({action:'wishlist_status',response:'Your coat is saved in your wishlist.'})();
     },memory)});
   assert.equal(evidence.saved_wishlist.execution.mode,'production');
   assert.equal(evidence.saved_wishlist.items.length,1);assert.equal(evidence.saved_wishlist.items[0].links[0].url,'https://www.mrporter.com/en-us/mens/product/coat/2');

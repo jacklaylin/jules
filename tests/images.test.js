@@ -4,7 +4,7 @@ import sharp from 'sharp';
 import {randomBytes} from 'node:crypto';
 import {incomingContent,readImage,MAX_IMAGE_BYTES,MAX_DOWNLOAD_BYTES} from '../lib/images.js';
 import {generateReply} from '../lib/ai.js';
-import {agentTurn,tool} from './helpers/agent.js';
+import {agentTurn,tool, agentTurns } from './helpers/agent.js';
 import {receiveInInbox} from '../lib/inbox.js';
 import {createImageHandler} from '../api/image.js';
 const png=Buffer.from([137,80,78,71,13,10,26,10,0]);
@@ -32,11 +32,11 @@ test('vision uses private inline bytes and treats inferred taste as unconfirmed'
     return agentTurn(tool('conversation_reply',{response:'Relaxed tailoring. Which details do you like?'}));
   },{images:[{mime_type:'image/png',data:png.toString('base64')}],facts:[]});
   assert.match(reply,/Relaxed/);
-  assert.equal(sent.input.at(-1).content[1].type,'input_image');
-  assert.match(sent.input.at(-1).content[1].image_url,/^data:image\/png;base64,/);
+  assert.equal(agentTurns(sent.input).at(-1).content[1].type,'input_image');
+  assert.match(agentTurns(sent.input).at(-1).content[1].image_url,/^data:image\/png;base64,/);
   assert.match(sent.instructions,/Seeing an image alone never saves a taste preference/);
-  assert.equal(sent.input[1].content,'Wedding shoes under $300');
-  assert.equal(sent.input.at(-1).content[0].text,'I love this outfit');
+  assert.equal(sent.input[0].content,'Wedding shoes under $300');
+  assert.equal(agentTurns(sent.input).at(-1).content[0].text,'I love this outfit');
   assert.equal(sent.store,false);
 });
 test('image receipt saves private bytes, skips inference-to-memory, and sends one reply across retries',async()=>{
