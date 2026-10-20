@@ -127,6 +127,13 @@ async function loadCoverage() {
   });
   $('coverage').replaceChildren(el('span', { className: 'mono-label', textContent: `Coverage · ${data.level}` }), el('span', { className: 'badges' }, ...chips));
   $('coverage').hidden = false;
+  loadEarlyRead().catch(() => {});
+}
+// The early read Jules would send this person now (thin profiles only; rich ones get the purchase summary).
+async function loadEarlyRead() {
+  const data = await api(`/api/admin?view=early-read&conversation=${encodeURIComponent(person)}`);
+  $('early-read-text').textContent = !data.used ? 'Profile is rich: Jules sends the purchase summary instead.' : data.text ?? 'Nothing to say yet: no stated answers, orders, outfit photos or saved items.';
+  $('early-read').hidden = false;
 }
 
 // ---------- Personal memory ----------
