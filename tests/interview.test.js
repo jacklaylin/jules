@@ -235,3 +235,81 @@ test('a round outside an import ends with the early read and the offer, in one t
  assert.match(last,/want them now, or another time/);
  assert.equal(store.sent.length,BATCH+1,'the read and the offer are one text');
 });
+
+// October 20 reports: asked to talk about their style, the tester got "i just sent you the first
+// question" before any question existed, then the question 20 to 50 seconds later as its own text,
+// and "ready to keep going whenever you are" right before the next one. A turn that only answers or
+// asks for style questions now sends the agent's lead-in and the question as one text.
+test('deliver false records the question and returns it to send with the reply; a close waits for a normal send',async()=>{
+ const store=fakeStore();
+ const first=await startInterview(store,owner,env,'request',{send:store.send,log:quiet,deliver:false});
+ assert.deepEqual([first.question,first.status],['wear_most','joined']);assert.match(first.text,/3 things you wear all the time/);
+ assert.equal(store.sent.length,0,'nothing sent on its own');assert.deepEqual(asked(store),['wear_most']);
+ assert.equal(await continueInterview(store,owner,env,{send:store.send,log:quiet,deliver:false}),null,'the open question holds the round');
+ for(const [i,id] of ['m1','m2'].entries()){await answer(store,asked(store)[i],'answered',id);const q=await continueInterview(store,owner,env,{send:store.send,log:quiet,deliver:false});assert.equal(q.status,'joined');}
+ assert.equal(asked(store).length,BATCH);
+ await answer(store,asked(store)[2],'answered','m3');
+ const before=structuredClone(store.state);
+ assert.deepEqual(await continueInterview(store,owner,env,{send:store.send,log:quiet,deliver:false}),{deferred:true});
+ assert.deepEqual(store.state,before,'a close is not written without its send');
+ await next(store);assert.match(store.sent.at(-1),/want them now, or another time/);assert.equal(interviewOpen(store.state),false);
+});
+
+async function interviewTurn(store,body,rounds){
+ const {receiveInInbox}=await import('../lib/inbox.js');const {generateReply}=await import('../lib/ai.js');
+ const delivered=[],requests=[];let round=0;
+ Object.assign(store,{receive:async()=>'conversation',claimAI:async()=>true,prepareAI:async()=>{},searchResult:async()=>{},replyDiagnostics:async()=>{},recordDelivery:async()=>{},
+  context:async()=>[{id:'c1',provider_id:'p-now',direction:'inbound',body,created_at:'2026-10-20T18:50:00Z'}],
+  finish:async(k,status)=>{const o=store.operations.get(k);if(o)o.status=status;}});
+ await receiveInInbox({space:{phone:'line'},message:{id:'p-now',sender:{id:'tester'},content:{type:'text',text:body},attachments:[]}},{AI_ENABLED:'true',OPENAI_API_KEY:'fake',...env},{store,
+  generate:(m,e,_f,memory)=>generateReply(m,e,async(_u,o)=>{requests.push(JSON.parse(o.body));return rounds[Math.min(round++,rounds.length-1)];},memory),
+  send:async(_d,text)=>{delivered.push(text);return {id:'sent-'+delivered.length};},progress:async()=>async()=>{}});
+ // The interview's own sends go through the ledger (store.send); the turn's reply through send.
+ return {delivered:[...delivered,...store.sent],requests};
+}
+
+test('a request for style questions sends the lead-in and the first question as one text',async()=>{
+ const {agentTurn,tool}=await import('./helpers/agent.js');
+ for(const [body,lead] of [['can you ask me some questions about my style?','sure, let’s talk about your style.'],['lets continue the style interview','ok, picking up where we left off.'],['style chat','sure.']]){
+  const store=fakeStore();
+  const {delivered,requests}=await interviewTurn(store,body,[agentTurn(tool('style_interview',{action:'start',question_id:null,outcome:null,quote:null})),agentTurn(tool('conversation_reply',{response:lead}))]);
+  assert.equal(delivered.length,1,body);
+  assert.ok(delivered[0].startsWith(lead));assert.match(delivered[0],/\n\n.*3 things you wear all the time/);
+  assert.deepEqual(asked(store),['wear_most']);
+  // The agent is told the question is added to its own text, never that it was already sent.
+  assert.match(JSON.stringify(requests[1]),/adds its next style question to the end of your message/);
+ }
+});
+
+test('an answer gets a short acknowledgment with the next question in the same text; the round’s close still follows on its own',async()=>{
+ const {agentTurn,tool}=await import('./helpers/agent.js');
+ const store=fakeStore();
+ await startInterview(store,owner,env,'request',{send:store.send,log:quiet});store.sent.length=0;
+ const reply=(qid,quote,ack)=>[agentTurn(tool('style_interview',{action:'answer',question_id:qid,outcome:'answered',quote})),agentTurn(tool('conversation_reply',{response:ack}))];
+ let turn=await interviewTurn(store,'dries jeans and jacket, john elliott tees',reply('wear_most','dries jeans and jacket','love that mix.'));
+ assert.equal(turn.delivered.length,1);assert.ok(turn.delivered[0].startsWith('love that mix.\n\n'));assert.equal(asked(store).length,2);
+ assert.match(JSON.stringify(turn.requests[1]),/do not say you are ready whenever they are/);
+ store.sent.length=0;
+ turn=await interviewTurn(store,'mostly pinterest',reply(asked(store)[1],'pinterest','got it.'));
+ assert.equal(turn.delivered.length,1);assert.equal(asked(store).length,BATCH);
+ store.sent.length=0;
+ // The third answer ends the round: the acknowledgment, then the close as its own message.
+ turn=await interviewTurn(store,'a silk shirt i never wear',reply(asked(store)[2],'a silk shirt','noted.'));
+ assert.equal(turn.delivered.length,2);assert.equal(turn.delivered[0],'noted.');assert.match(turn.delivered[1],/want them now, or another time/);
+});
+
+test('the joined question is reworded to fit the conversation, after the lead-in; the written question is the fallback',async()=>{
+ const {agentTurn,tool}=await import('./helpers/agent.js');const {receiveInInbox}=await import('../lib/inbox.js');const {generateReply}=await import('../lib/ai.js');
+ for(const [compose,expected] of [[async({draft,conversation})=>{assert.match(draft,/3 things you wear/);assert.match(JSON.stringify(conversation.at(-1)),/sure\./,'the composer sees the lead-in');return {body:'what do you wear on repeat?',composed:true};},'sure.\n\nwhat do you wear on repeat?'],
+  [async()=>{throw new Error('model down');},null]]){
+  const store=fakeStore(),delivered=[];let round=0;
+  const rounds=[agentTurn(tool('style_interview',{action:'start',question_id:null,outcome:null,quote:null})),agentTurn(tool('conversation_reply',{response:'sure.'}))];
+  Object.assign(store,{receive:async()=>'conversation',claimAI:async()=>true,prepareAI:async()=>{},searchResult:async()=>{},replyDiagnostics:async()=>{},recordDelivery:async()=>{},
+   context:async()=>[{id:'c1',provider_id:'p-now',direction:'inbound',body:'ask me about my style',created_at:'2026-10-20T18:50:00Z'}],finish:async(k,st)=>{const o=store.operations.get(k);if(o)o.status=st;}});
+  await receiveInInbox({space:{phone:'line'},message:{id:'p-now',sender:{id:'tester'},content:{type:'text',text:'ask me about my style'},attachments:[]}},{AI_ENABLED:'true',OPENAI_API_KEY:'fake',...env},{store,compose,
+   generate:(m,e,_f,memory)=>generateReply(m,e,async()=>rounds[Math.min(round++,1)],memory),send:async(_d,text)=>{delivered.push(text);return {id:'s'};},progress:async()=>async()=>{}});
+  assert.equal(delivered.length,1);
+  if(expected)assert.equal(delivered[0],expected);else{assert.ok(delivered[0].startsWith('sure.\n\n'));assert.match(delivered[0],/3 things you wear all the time/);}
+  assert.equal(store.state.asked[0].text.includes('3 things you wear'),true,'the written question is what is recorded as asked');
+ }
+});
