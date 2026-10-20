@@ -1,6 +1,7 @@
 // Loads first so the cost meter wraps fetch before any handler below keeps a reference to it.
 import '../lib/usage.js';
 import { readCoverage } from '../lib/coverage.js';
+import { adminStartInterview } from '../lib/interview.js';
 import { authorize } from '../lib/auth.js';
 import { createStore } from '../lib/store.js';
 import { json, readJson, uuid } from '../lib/http.js';
@@ -36,11 +37,12 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
       if (req.method === 'POST') {
         // The only writes are purchase-history reviews, tagging, the onboarding reset, waitlist approval and texting the contact card, re-reading a failed photo; manual replies stay retired.
         const input = await readJson(req);
-        if (!['review', 'missed', 'tag', 'build-report', 'send-report', 'reset-onboarding', 'approve', 'waitlist', 'send-contact-card', 'reread-image', 'judge-mark', 'replay-draft', 'extract-compare'].includes(input.action)) return json(res, 400, { error: 'Unknown purchase action.' });
+        if (!['review', 'missed', 'tag', 'build-report', 'send-report', 'reset-onboarding', 'approve', 'waitlist', 'send-contact-card', 'start-interview', 'reread-image', 'judge-mark', 'replay-draft', 'extract-compare'].includes(input.action)) return json(res, 400, { error: 'Unknown purchase action.' });
         if (input.action === 'judge-mark' && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Mark the judge from the Jules admin page.' });
         if (['approve', 'waitlist'].includes(input.action) && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Change waitlist status from the Jules admin page.' });
         if (input.action === 'extract-compare' && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Run the comparison from the Jules admin page.' });
         if (input.action === 'reset-onboarding' && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Reset onboarding from the Jules admin page.' });
+        if (input.action === 'start-interview' && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Send style questions from the Jules admin page.' });
         if (input.action === 'send-contact-card' && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Send the contact card from the Jules admin page.' });
         if (input.action === 'reread-image' && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Re-read photos from the Jules admin page.' });
         const store = storeFactory(env);
@@ -74,6 +76,17 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
           console.log(JSON.stringify({ event: 'admin_contact_card', status }));
           if (status === 'skipped') throw Object.assign(new Error('Set JULES_PUBLIC_LINE in Vercel first; the card needs Jules’s number.'), { status: 409 });
           return json(res, 200, { contact_card: status });
+        }
+        // Texts the person the next style question (lib/interview.js), as if they had asked for it.
+        if (input.action === 'start-interview') {
+          if (input.confirm !== true) throw Object.assign(new Error('Confirm sending the style questions first.'), { status: 400 });
+          const result = await adminStartInterview(store, input.conversation, env, send ? { send } : {});
+          const refusal = { off: 'Style questions are off. Set INTERVIEW_ENABLED=true in Vercel and redeploy first.',
+            declined: `They said no to more style questions on ${String(result.at ?? '').slice(0, 10)}. Only they can turn them back on, by asking Jules.`,
+            waiting: 'A style question is already waiting for their reply. The next one goes out after they answer.',
+            nothing_left: 'There is nothing left to ask them right now: what the questions cover is already known.' }[result.status];
+          if (refusal) throw Object.assign(new Error(refusal), { status: 409 });
+          return json(res, 200, { interview: result });
         }
         if (input.action === 'reread-image') {
           if (input.confirm !== true) throw Object.assign(new Error('Confirm re-reading the photo first.'), { status: 400 });

@@ -29,6 +29,7 @@
       <span class="mono-label">Person</span>
       <button id="approve-person" type="button" aria-haspopup="dialog" hidden>Approve from waitlist…</button>
       <button id="contact-card" type="button" aria-haspopup="dialog">Text them Jules’s contact card…</button>
+      <button id="ask-style" type="button" aria-haspopup="dialog">Ask them style questions…</button>
       <button id="reset-onboarding" type="button" aria-haspopup="dialog">Reset onboarding…</button>
     </div>
     <nav class="tabs" aria-label="Person sections">
@@ -111,6 +112,12 @@
     <p>Jules texts <strong id="card-person">this person</strong> “save me so you know it’s me:” and the jules.vcf contact card with the orb photo, the same pair new testers get after the welcome. Nothing else changes.</p>
     <p id="card-error" class="error" role="alert" hidden></p>
     <div class="dialog-actions"><button id="card-confirm" class="btn--butter" type="button">Send</button><button id="card-cancel" type="button">Cancel</button></div>
+  </dialog>
+  <dialog id="ask-dialog" class="confirm-dialog" aria-labelledby="ask-title">
+    <h2 id="ask-title">Text them style questions?</h2>
+    <p>Jules texts <strong id="ask-person">this person</strong> the first of up to three short questions about the gaps in their taste profile (the Coverage chips), then each next one after they reply, as if they had asked. Their answers show in Conversation. Nothing is sent if they said no to more questions.</p>
+    <p id="ask-error" class="error" role="alert" hidden></p>
+    <div class="dialog-actions"><button id="ask-confirm" class="btn--butter" type="button">Send</button><button id="ask-cancel" type="button">Cancel</button></div>
   </dialog>
   <dialog id="reread-dialog" class="confirm-dialog" aria-labelledby="reread-title">
     <h2 id="reread-title">Re-read this photo?</h2>
