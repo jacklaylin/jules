@@ -37,8 +37,8 @@ test('a follow-up that finishes a report is added to it, acknowledged, and never
     assert.equal(options.reports.get('report-1'), `${report.developer_feedback}\n${body}`);
     assert.equal(options.reports.get('follow-1'), CONTINUATION_NOTE);
     assert.deepEqual(options.sent, [CONTINUATION_ACK]); assert.equal(options.agent.length, 0);
-    // The check sees the report and the message, never anything else.
-    assert.deepEqual(options.checks[0], { report:report.developer_feedback, message:body, images:0, secondsAfter:2 });
+    // The check sees the report, the message and Jules's last message (none here), never anything else.
+    assert.deepEqual(options.checks[0], { report:report.developer_feedback, message:body, images:0, secondsAfter:2, julesLast:null });
   }
 });
 
@@ -77,10 +77,10 @@ test('multi-turn: a report finished over several messages keeps adding to the fi
 
 test('the continuation check is a structured model reading of the report and the message', async () => {
   let request;
-  const reply = value => async (_url, options) => { request = JSON.parse(options.body); return { ok:true, json:async () => ({ status:'completed', output:[{ type:'message', content:[{ type:'output_text', text:JSON.stringify({ newest_message:value }) }] }] }) }; };
+  const reply = (value, answers = false) => async (_url, options) => { request = JSON.parse(options.body); return { ok:true, json:async () => ({ status:'completed', output:[{ type:'message', content:[{ type:'output_text', text:JSON.stringify({ newest_message:value, answers_jules_last_message:answers }) }] }] }) }; };
   const input = { report:'the links look like spam', message:'https://real.example/', images:0, secondsAfter:2 };
   assert.equal(await continuesReport(input, env, reply('adds_to_the_report')), true);
-  assert.deepEqual(JSON.parse(request.input), { developer_note:input.report, newest_message:input.message, newest_message_images:0, seconds_after_the_note:2 });
+  assert.deepEqual(JSON.parse(request.input), { developer_note:input.report, jules_last_message:null, newest_message:input.message, newest_message_images:0, seconds_after_the_note:2 });
   assert.equal(request.text.format.name, 'report_continuation');
   assert.equal(await continuesReport(input, env, reply('new_message')), false);
   assert.equal(await continuesReport(input, {}, () => assert.fail('no model without a key')), false);
@@ -101,4 +101,43 @@ test('a continuation is never listed or counted as a report of its own', async (
   await store.inboundBefore('conversation', 'follow-1');
   assert.ok(paths.slice(0, 2).every(p => p.includes(`developer_feedback=neq.${CONTINUATION_NOTE}`)));
   assert.match(paths[2], /direction=eq\.inbound&provider_id=neq\.follow-1/); assert.doesNotMatch(paths[2], /select=[^&]*body/);
+});
+
+// October 20: Jules offered more style questions ("want them now, or another time?"), the tester sent a
+// #dev note asking Jules to just ask, then answered the offer. The answer was added to the report and
+// the questions never came. The check now sees Jules's last message, and a reply to it goes to Jules.
+test('an answer to Jules’s own question after a report reaches the agent, even when the model calls it part of the report', async () => {
+  const offer = 'that helps a lot. i’ve got a couple more questions that would sharpen this. want them now, or another time?';
+  let request;
+  const reply = (value, answers) => async (_url, options) => { request = JSON.parse(options.body); return { ok:true, json:async () => ({ status:'completed', output:[{ type:'message', content:[{ type:'output_text', text:JSON.stringify({ newest_message:value, answers_jules_last_message:answers }) }] }] }) }; };
+  for (const message of ['yes now', 'now please', 'sure go ahead', 'later tonight']) {
+    const input = { report:'why do you keep saying you are ready whenever i am. just ask the next question', message, images:0, secondsAfter:7, julesLast:offer };
+    assert.equal(await continuesReport(input, env, reply('adds_to_the_report', true)), false, message);
+    assert.equal(JSON.parse(request.input).jules_last_message, offer);
+  }
+  // More about the problem itself still joins the report.
+  assert.equal(await continuesReport({ report:'the second link is wrong', message:'it goes to the wishlist, not the product', images:0, secondsAfter:4, julesLast:offer }, env, reply('adds_to_the_report', false)), true);
+  // With no Jules message to answer, the field cannot hold a message back.
+  assert.equal(await continuesReport({ report:'the link is wrong', message:'https://real.example/', images:0, secondsAfter:2 }, env, reply('adds_to_the_report', true)), true);
+});
+
+test('the inbox gives the check Jules’s last sent message before the report, never a later or unsent one', async () => {
+  const offer = { direction:'outbound', status:'sent', body:'want them now, or another time?', created_at:ago(20) };
+  for (const [recent, expected] of [
+    [[{ direction:'inbound', status:'received', body:'my answer', created_at:ago(40) }, offer, { direction:'inbound', status:'received', body:'yes now', created_at:ago(0) }], offer.body],
+    [[offer, { direction:'outbound', status:'generating', body:'AI reply is being prepared.', created_at:ago(1) }], offer.body],
+    [[{ ...offer, created_at:ago(1) }], null],
+    [[], null],
+  ]) {
+    const options = fixture({ continues:false });
+    options.store.recent = async (_c, limit) => { assert.ok(limit <= 8); return recent; };
+    await receiveInInbox(follow('yes now'), env, options);
+    assert.equal(options.checks[0].julesLast, expected);
+    assert.equal(options.agent.length, 1, 'the answer reaches the agent');
+  }
+  // A failed history read never blocks the check.
+  const options = fixture({ continues:false });
+  options.store.recent = async () => { throw new Error('db down'); };
+  await receiveInInbox(follow('yes now'), env, options);
+  assert.equal(options.checks[0].julesLast, null);
 });
