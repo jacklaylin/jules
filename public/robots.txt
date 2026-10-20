@@ -41,7 +41,6 @@ Disallow: /identification-test.html
 Disallow: /costs.html
 Disallow: /adoption.html
 Disallow: /scorecard.html
-Disallow: /demo-transcript.html
 
 User-agent: GPTBot
 User-agent: ClaudeBot
