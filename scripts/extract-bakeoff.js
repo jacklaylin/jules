@@ -17,7 +17,7 @@ import { openToken, accessToken, gmailGet } from '../lib/gmail-client.js';
 import { prepareReceiptEmail } from '../lib/receipt-email.js';
 import { modelSource } from '../lib/order-media.js';
 import { receiptModel, RECEIPT_SCHEMA, RECEIPT_PROMPT, reconcileReceipt, emptyReceiptState } from '../lib/receipt-extraction.js';
-import { withUsage, priceFor } from '../lib/usage.js';
+import { withUsage } from '../lib/usage.js';
 import { assertPrivateDataAllowed } from '../lib/models.js';
 
 const args = process.argv.slice(2), option = name => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : undefined; };
@@ -55,6 +55,7 @@ function kept(source, proposal) {
   } catch (error) { return { refused: error.message.split(':')[0] }; }
 }
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+const inTurn = async (n, work) => { const out = []; for (let i = 0; i < n; i++) out.push(await work()); return out; };
 
 const results = [];
 let spent = 0;
@@ -66,14 +67,16 @@ for (const [n, s] of sample.entries()) {
   const readings = {};
   await Promise.all(models.map(async model => {
     const [id, effort] = model.split(/:(?=[a-z]+$)/);
-    readings[model] = await Promise.all(Array.from({ length: runs }, async () => {
+    // One model's runs go one after another, so at most one call per model is in flight (production
+    // shares these rate limits).
+    readings[model] = await inTurn(runs, async () => {
       const started = Date.now(); let cost = 0;
       try {
-        const proposal = await withUsage({ env: {}, conversation: null, operation: 'eval:bakeoff:extract', feature: 'eval_extract', quiet: true, onUsage: rows => { cost = rows.reduce((t, r) => t + priceFor(r), 0); } },
+        const proposal = await withUsage({ env: {}, conversation: null, operation: 'eval:bakeoff:extract', feature: 'eval_extract', quiet: true, onUsage: rows => { cost = rows.reduce((t, r) => t + r.cost_usd, 0); } },
           () => receiptModel({ schema: RECEIPT_SCHEMA, instructions: RECEIPT_PROMPT, context: { source: modelSource(source), existing_items: [] } }, { ...env, MODEL_EXTRACT: id, ...(effort ? { MODEL_EXTRACT_REASONING: effort } : {}) }));
         return { kept: kept(source, proposal), ms: Date.now() - started, cost };
       } catch (error) { return { kept: { failed: error.message }, ms: Date.now() - started, cost }; }
-    }));
+    });
   }));
   for (const r of Object.values(readings).flat()) spent += r.cost;
   results.push({ id: s.id, subject, readings });
