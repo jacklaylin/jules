@@ -125,6 +125,23 @@ test('inbound saves before sending one confirmation and offers alerts without re
   assert.ok(!h.sends[0].includes('I’ll add'));
 });
 
+test('a save schedules the better-price scan in the background; a failed save or no background runner does not',async()=>{
+  // Background work can schedule more background work; wait for all of it.
+  const drain=async queue=>{for(let i=0;i<queue.length;i++)await queue[i];};
+  const h=inboxHarness(),deferred=[],scans=[];
+  await receiveInInbox(delivery,env,{...h,progress:async()=>async()=>{},defer:work=>deferred.push(work),scanStores:async args=>{scans.push(args.operation);}});
+  assert.equal(h.saved,true);assert.equal(h.sends.length,1,'the confirmation does not wait for the scan');
+  await drain(deferred);
+  assert.equal(scans.length,1);
+  const failed=inboxHarness({failSave:true}),later=[];
+  await receiveInInbox(delivery,env,{...failed,progress:async()=>async()=>{},defer:work=>later.push(work),scanStores:async()=>assert.fail('no scan without a save')});
+  await drain(later);
+  const off=inboxHarness(),none=[];
+  await receiveInInbox(delivery,{...env,STORE_SCAN_ENABLED:'false'},{...off,progress:async()=>async()=>{},defer:work=>none.push(work),scanStores:async()=>assert.fail('scan turned off')});
+  await drain(none);
+  assert.equal(failed.saved,false);
+});
+
 test('save or snapshot failure cannot claim success or enable alerts',async()=>{
   for(const extra of [{failSave:true},{failPayload:true}]){
     const h=inboxHarness(extra);await receiveInInbox(delivery,env,{...h,progress:async()=>async()=>{}});
