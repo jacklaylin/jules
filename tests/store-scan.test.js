@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { scanItem, scanSavedItems, scanKey, scanQuery, excludedSites, candidatePages } from '../lib/store-scan.js';
+import { domainToASCII } from 'node:url';
+import { scanItem, scanSavedItems, scanKey, scanQuery, excludedSites, candidatePages, unreviewedAddressRisk } from '../lib/store-scan.js';
 import { groupWishlist } from '../lib/wishlist.js';
 
 const env = { SERPAPI_API_KEY: 'fixture', SHOPPING_COUNTRY: 'US', SHOPPING_CURRENCY: 'USD' };
@@ -27,12 +28,43 @@ test('the search leaves out the stores on the card and the brand’s own site, a
   assert.doesNotMatch(scanQuery({ ...product, name: 'Lemaire Biker Blouson Black' }, []), /Black Black|LEMAIRE Lemaire/i);
 });
 
-test('only trusted stores’ pages are read, one per store, never a store already on the card', () => {
+test('store pages come in two tiers, one per store: trusted, then other stores that aren’t spam, copycat or resale', () => {
   const pages = candidatePages([
-    { link: lemaireURL }, { link: ssense }, { link: ssense + '?color=black' }, { link: 'https://www.bluefly.com/products/lemaire' },
-    { link: 'https://www.ssense-sale.shop/lemaire' }, { link: farfetch }, { link: 'https://www.mrporter.com/en-us/mens/product/lemaire/1' }, { link: 'https://www.mytheresa.com/us/en/men/lemaire' },
+    { link: lemaireURL }, { link: ssense }, { link: ssense + '?color=black' }, { link: 'https://www.cettire.com/products/lemaire-zip-up-leather-jacket-963318344' },
+    { link: 'https://www.ssense-sale.shop/lemaire' }, { link: 'https://www.lyst.com/clothing/lemaire-jacket' }, { link: 'https://www.grailed.com/listings/1' },
+    { link: farfetch }, { link: 'https://www.mrporter.com/en-us/mens/product/lemaire/1' }, { link: 'https://www.mytheresa.com/us/en/men/lemaire' }, { link: 'https://www.' + domainToASCII('ѕsense.com') + '/x' }, { link: 'https://lemaireoutlet.com/jacket' }, { link: 'https://www.antonioli.eu/en/US/men/products/lemaire' },
   ], ['lemaire.fr'], 'LEMAIRE');
-  assert.deepEqual(pages.map(u => new URL(u).hostname), ['www.ssense.com', 'www.farfetch.com', 'www.mrporter.com']);
+  assert.deepEqual(pages.trusted.map(u => new URL(u).hostname), ['www.ssense.com', 'www.farfetch.com', 'www.mrporter.com']);
+  assert.deepEqual(pages.other.map(u => new URL(u).hostname), ['www.cettire.com', 'www.antonioli.eu'], 'never an aggregator, resale, look-alike-alphabet or store-name-plus-words site');
+  assert.equal(unreviewedAddressRisk('https://www.ssense-sale.shop/x', 'LEMAIRE'), 'risky_domain_ending');
+  assert.equal(unreviewedAddressRisk('https://ssensesale.com/x', 'LEMAIRE'), 'store_name_in_domain');
+  assert.equal(unreviewedAddressRisk('https://lemaire-official.co.uk/x', 'LEMAIRE'), 'store_name_in_domain');
+  assert.equal(unreviewedAddressRisk('https://www.cettire.com/x', 'LEMAIRE'), null);
+  assert.equal(unreviewedAddressRisk('https://www.vitkac.com/x', 'LEMAIRE'), null);
+});
+
+test('other stores are read only when no trusted store has it for less, and are labelled unreviewed', async () => {
+  const cettire = 'https://www.cettire.com/products/lemaire-zip-up-leather-jacket-963318344';
+  const reads = [];
+  const verify = async url => { reads.push(new URL(url).hostname); return url === farfetch ? page(url, { price_snapshot: { amount: 3400, currency: 'USD', source_url: url } }) : page(url, { price_snapshot: { amount: 2500, currency: 'USD', source_url: url } }); };
+  const result = await scanItem(product, { env, search: results([farfetch, cettire]), verify, same: sameAs(cettire), store: emptyStore() });
+  assert.deepEqual(reads, ['www.farfetch.com', 'www.cettire.com']);
+  assert.deepEqual(result.offers.map(o => [o.url, o.tier]), [[cettire, 'unreviewed']]);
+  assert.equal(result.searches, 1, 'the same search; no extra cost');
+  const trustedWins = [];
+  const both = await scanItem(product, { env, search: results([ssense, cettire]), verify: async url => { trustedWins.push(url); return page(url); }, same: sameAs(ssense, cettire), store: emptyStore() });
+  assert.deepEqual(trustedWins, [ssense], 'a trusted store with it for less ends the scan');
+  assert.deepEqual(both.offers.map(o => o.tier), ['trusted']);
+  const tooCheap = await scanItem(product, { env, search: results([cettire]), verify: async url => page(url, { price_snapshot: { amount: 900, currency: 'USD', source_url: url } }), same: sameAs(cettire), store: emptyStore() });
+  assert.equal(tooCheap.offers.length, 0); assert.equal(tooCheap.checked[0].outcome, 'implausible_discount', 'an unreviewed store far under the saved price is not believed');
+  const added = [];
+  const store = { ...emptyStore(), savedWishlistItems: async () => [{ id: 'item-1', conversation_id: 'c-1', product }], addWishlistLinks: async (c, id, links) => { added.push(...links); return links.length; } };
+  await scanSavedItems({ store, operation: 'op', env, search: results([farfetch, cettire]), verify, same: sameAs(cettire) });
+  assert.equal(added[0].store_tier, 'unreviewed');
+  const [card] = groupWishlist([{ item_id: 'item-1', reply_id: 'r', text_origin: true, brand: product.brand, name: product.name, links: [...product.links, added[0]], messages: { created_at: '2026-10-20' } }], { currency: 'USD' });
+  const found = card.links.find(l => l.url === cettire);
+  assert.equal(found.unreviewed, true); assert.equal(found.best_price, false, 'an unreviewed store never takes the badge');
+  assert.ok(card.links.every(l => !l.best_price), 'nor does a pricier trusted store');
 });
 
 test('a store is added only when its own page is this product for less, decided by the same-product check', async () => {
