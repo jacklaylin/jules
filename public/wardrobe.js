@@ -17,7 +17,7 @@ if(fragment.has('access_token'))token=fragment.get('access_token'),sessionStorag
 if(location.hash)history.replaceState(null,'','/wardrobe'+location.search);
 
 const el=(tag,props={},...children)=>{const node=Object.assign(document.createElement(tag),props);node.append(...children.filter(c=>c!=null&&c!==false));return node;};
-const CATEGORY_LABELS={tops:'Tops',bottoms:'Bottoms',dresses:'Dresses',outerwear:'Outerwear',suits:'Suits',shoes:'Shoes',bags:'Bags',accessories:'Accessories',other:'Other'};
+const CATEGORY_LABELS={tops:'Tops',bottoms:'Bottoms',dresses:'Dresses',outerwear:'Outerwear',suits:'Suits',swimwear:'Swimwear',shoes:'Shoes',bags:'Bags',accessories:'Accessories',eyewear:'Eyewear',other:'Other'};
 const REASON_LABELS={returned:'Returned',cancelled:'Order cancelled',gift:'Gift for someone',gone:'Don’t have it anymore',never_bought:'Never bought'};
 const ANSWER_LABELS={mine:'Mine',gift:'A gift',bought:'I bought it',not_bought:'I didn’t',kept:'Kept it',returned:'Returned',same:'Same item',not_sure:'Not sure'};
 // Outline drawings stand in when there is no photo: none in the purchase itself and no searched photo the
@@ -28,9 +28,11 @@ const OUTLINES={
  dresses:'M122 50 L178 50 L174 124 L232 358 L68 358 L126 124 Z M128 50 L122 24 M172 50 L178 24',
  outerwear:'M100 46 L130 36 L150 64 L170 36 L200 46 L240 90 L262 330 L232 334 L218 150 L226 372 L74 372 L82 150 L68 334 L38 330 L60 90 Z',
  suits:'M96 62 L130 50 L150 150 L170 50 L204 62 L244 106 L258 316 L230 320 L216 160 L216 340 L84 340 L84 160 L70 320 L42 316 L56 106 Z M130 50 L116 112 L150 196 L184 112 L170 50',
+ swimwear:'M70 96 Q110 150 150 150 Q190 150 230 96 L230 300 Q190 260 150 260 Q110 260 70 300 Z M96 96 L96 40 M204 96 L204 40',
  shoes:'M42 262 L44 226 Q48 200 80 196 L132 176 Q156 160 178 176 L206 200 Q248 208 262 232 L262 262 Z M40 262 L264 262 L264 286 L40 286 Z',
  bags:'M110 164 Q110 96 150 96 Q190 96 190 164 M78 160 L222 160 L234 332 Q234 342 224 342 L76 342 Q66 342 66 332 Z',
  accessories:'M70 250 Q70 140 150 140 Q230 140 230 250 Z M40 250 L260 250',
+ eyewear:'M40 196 Q40 262 92 262 Q138 262 138 206 L138 186 L40 186 Z M162 186 L162 206 Q162 262 208 262 Q260 262 260 196 L260 186 L162 186 Z M138 196 Q150 184 162 196 M40 186 L22 170 M260 186 L278 170',
  other:'M150 150 L56 236 L244 236 Z M150 150 Q150 112 172 108'
 };
 function outline(category){
@@ -172,7 +174,7 @@ function openDetail(id){
  const media=photo(item);
  $('detail-photo').replaceWith(item.suggestion?Object.assign(el('div',{className:'suggested-frame detail-suggestion'},media,suggestionLabel(),suggestionAsk(item)),{id:'detail-photo'}):Object.assign(media,{id:'detail-photo'}));
  $('detail-brand').textContent=item.brand??'';$('detail-title').textContent=name(item);
- const facts=[['Size',item.size??'Unknown'],['Color',item.color??'Unknown'],['Bought',[item.merchant,item.bought_at&&day(item.bought_at)].filter(Boolean).join(' · ')||'Unknown'],
+ const facts=[['Category',CATEGORY_LABELS[item.category]??'Not sorted yet'],['Size',item.size??'Unknown'],['Color',item.color??'Unknown'],['Bought',[item.merchant,item.bought_at&&day(item.bought_at)].filter(Boolean).join(' · ')||'Unknown'],
   // A configured product lists the parts chosen for it (the strap and carabiners of a built bag).
   ...(item.parts?.length?[['Built with',item.parts.map(p=>[p.product,p.color].filter(Boolean).join(', ')).join(' · ')]]:[])];
  $('detail-facts').replaceChildren(...facts.flatMap(([k,v])=>[el('dt',{},k),el('dd',{},v)]));
@@ -192,6 +194,9 @@ function showReasons(open){
 function openFix(item){
  current=item.id;
  $('fix-product').value=item.product??'';$('fix-brand').value=item.brand??'';$('fix-size').value=item.size??'';$('fix-color').value=item.color??'';
+ // Not sorted yet: the first option asks for a category and can't be saved as one.
+ $('fix-category').replaceChildren(...(item.category?[]:[el('option',{value:'',textContent:'Choose a category'})]),...Object.entries(CATEGORY_LABELS).map(([value,label])=>el('option',{value,textContent:label})));
+ $('fix-category').value=item.category??'';
  $('fix-error').hidden=true;$('fix').showModal();
 }
 
@@ -212,6 +217,9 @@ for(const button of $('remove-reasons').querySelectorAll('[data-reason]'))button
 $('fix-form').onsubmit=async event=>{
  event.preventDefault();
  const values=Object.fromEntries(['product','brand','size_label','color'].map(f=>[f,$('fix-form').elements[f].value]));
+ const item=view.items.find(i=>i.id===current),category=$('fix-category').value;
+ // Sent only when changed, so saving other details never pins the tagger's guess as the owner's choice.
+ if(category&&category!==item?.category)values.wardrobe_category=category;
  try{view=await api('POST',{action:'fix',item_id:current,values});$('fix').close();render();if($('detail').open)openDetail(current);toast('Saved.');}
  catch(error){if(error.status===401)return login();$('fix-error').textContent=error.message;$('fix-error').hidden=false;}
 };
