@@ -3,11 +3,14 @@ let active=[],timer,panel,failed=false;
 function show(success=false){
  if(!panel){
   const css=document.createElement('link');css.rel='stylesheet';css.href='/activity.css';document.head.append(css);
-  panel=document.createElement('div');panel.className='app-activity';panel.setAttribute('role','status');panel.setAttribute('aria-live','polite');
+  panel=document.createElement('div');panel.className='app-activity';panel.setAttribute('role','status');panel.setAttribute('aria-live','polite');panel.setAttribute('popover','manual');panel.hidden=true;
   const orb=document.createElement('span');orb.className='orb';orb.setAttribute('aria-hidden','true');
   const label=document.createElement('span');label.className='activity-label';const loader=document.createElement('span');loader.className='aqua';loader.setAttribute('aria-hidden','true');panel.append(orb,label,loader);document.body.append(panel);
  }
  panel.hidden=!active.length;
+ // Open modal dialogs sit in the top layer. Showing the panel as a manual popover each time it appears puts it
+ // above any dialog opened earlier, so a save from inside a dialog is never dimmed by that dialog's backdrop.
+ if(panel.showPopover&&!!active.length!==panel.matches(':popover-open'))active.length?panel.showPopover():panel.hidePopover();
  if(active.length){const item=active.at(-1),elapsed=Date.now()-item.started;panel.querySelector('.activity-label').textContent=item.label+(elapsed>3000?` · ${Math.floor(elapsed/1000)}s`:'');}
  document.dispatchEvent(new CustomEvent('jules:activity',{detail:{busy:!!active.length,agentWorking:active.some(item=>item.agent),success}}));
 }
