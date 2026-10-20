@@ -1,0 +1,46 @@
+# textjules.com: public pages are open to search engines, answer engines and assistants.
+# Personal pages (accounts, wishlists, reports, shared /r/ links) and admin are not for indexing;
+# they also send noindex. Training crawlers (GPTBot, ClaudeBot, Google-Extended, meta-externalagent)
+# are currently allowed by the * group.
+
+User-agent: Googlebot
+User-agent: Bingbot
+User-agent: OAI-SearchBot
+User-agent: ChatGPT-User
+User-agent: PerplexityBot
+User-agent: Perplexity-User
+User-agent: Claude-SearchBot
+User-agent: Claude-User
+User-agent: meta-webindexer
+User-agent: meta-externalfetcher
+User-agent: facebookexternalhit
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /r/
+Disallow: /go/
+Disallow: /admin
+Disallow: /account$
+Disallow: /account.html
+Disallow: /wishlist$
+Disallow: /wishlist.html
+Disallow: /wardrobe$
+Disallow: /wardrobe.html
+Disallow: /style$
+Disallow: /style.html
+Disallow: /report$
+Disallow: /report.html
+Disallow: /report-jokes.html
+Disallow: /onboarding
+Disallow: /login$
+Disallow: /login.html
+Disallow: /simulator.html
+Disallow: /replay.html
+Disallow: /search-diagnostic.html
+Disallow: /identification-test.html
+Disallow: /costs.html
+Disallow: /adoption.html
+Disallow: /scorecard.html
+Disallow: /demo-transcript.html
+
+Sitemap: https://textjules.com/sitemap.xml

@@ -2,13 +2,13 @@
 // The page only asks fixed questions and checks formats: it never interprets free text as intent.
 import {createLogo,initBrandActivity} from './brand-ui.js';
 import {SIGNUP_CONSENT,SIGNUP_VERSION} from './signup-consent.js';
-import {refFromSearch} from './signup-ref.js';
+import {refFromSearch,rememberArrival} from './signup-ref.js';
 import {splitName,maskBirthday,parseBirthday,starSign,GENDERS,validPhone,formatPhone,outcomeLines} from './signup-chat.js';
 
 const $=id=>document.getElementById(id),thread=$('thread'),dock=$('dock');
 $('signup-logo').replaceChildren(createLogo());initBrandActivity();
 $('privacy-open').onclick=()=>$('signup-privacy').showModal();
-const ref=refFromSearch(location.search);
+const ref=refFromSearch(location.search),arrival=rememberArrival(()=>sessionStorage,{referrer:document.referrer,search:location.search,host:location.hostname});
 const el=(tag,props={},...kids)=>{const node=Object.assign(document.createElement(tag),props);node.append(...kids.filter(k=>k!==null&&k!==undefined&&k!==false));return node;};
 
 let state,seen=new Set();
@@ -156,7 +156,7 @@ async function send(){
  const a=state.answers;
  state.phase='saving';state.error='';render();
  try{
-  const response=await fetch('/api/wishlist?public_signup=1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phone:a.phone.e164,profile:{first_name:a.first,last_name:a.last,birthday:a.birthday.iso,gender:a.gender},consent:state.consent,consent_version:SIGNUP_VERSION,request_id:state.requestId,...(ref?{ref}:{})})});
+  const response=await fetch('/api/wishlist?public_signup=1',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phone:a.phone.e164,profile:{first_name:a.first,last_name:a.last,birthday:a.birthday.iso,gender:a.gender},consent:state.consent,consent_version:SIGNUP_VERSION,request_id:state.requestId,...(ref?{ref}:{}),...(arrival?{arrival}:{})})});
   const result=await response.json().catch(()=>({}));
   if(!response.ok||result.saved!==true)throw new Error(result.error||'Could not save your signup. Please try again.');
   // Jules's closing lines say what actually happened; a waitlisted number is asked to text first (lib/waitlist.js).
