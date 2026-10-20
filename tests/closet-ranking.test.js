@@ -123,3 +123,11 @@ test('one owned piece is suggested for one pick at most in a reply',async()=>{
  assert.equal(reply.match(/black Dries Van Noten jeans/g).length,1);
  assert.match(reply,/could go with your brown Dries Van Noten jacket\./);
 });
+
+test('the model sees short refs, never item ids, and its refs map back to wardrobe pieces',async()=>{
+ const call=answer({asks_for_owned_kind:false,candidates:[{index:0,group:'shirts',duplicate_of:null,goes_with:['p2','p9']}]});
+ const run=await closetRank([p('shirt')],{query:'q',owned,env,call});
+ const sent=JSON.parse(call.calls[0].input[0].content);
+ assert.deepEqual(sent.owned.map(o=>o.ref),['p1','p2','p3']);assert.ok(!JSON.stringify(sent).includes('jeans-1'));
+ assert.deepEqual(run.products[0].goes_with,[{id:'jeans-1',name:'black Dries Van Noten jeans'}]);assert.equal(run.outcome.rejected_ids,1);
+});
