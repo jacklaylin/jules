@@ -114,15 +114,17 @@ async function act(input,{done,quiet=false}={}){
 
 // A searched photo waiting for the owner: labelled on the photo, answered with thumbs inside the photo.
 const THUMB='<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 21 L7 10 L11 10 L14 3 C16 3 17 4 17 6 L16 9 L21 9 C22 9 23 10 22.6 11.4 L20.5 19.4 C20.2 20.4 19.4 21 18.4 21 Z M3 10 L7 10 L7 21 L3 21 Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>';
-function suggestionLabel(){return el('span',{className:'suggested-label',textContent:'Is this yours?'});}
+// One control inside the photo: the question and its two answers together (design: "Wardrobe photo feedback", option A).
 function suggestionAsk(item){
  const answer=(value,label)=>{const b=el('button',{type:'button',className:'suggest-thumb'+(value==='no'?' suggest-thumb--down':''),title:label});b.innerHTML=THUMB;b.setAttribute('aria-label',`${label}: ${name(item)}`);
   b.onclick=event=>{event.stopPropagation();act({action:'photo',item_id:item.id,answer:value},{done:()=>toast(value==='yes'?'Photo saved.':'Got it. Jules won’t use that photo.')});};return b;};
- return el('div',{className:'suggest-ask'},answer('no','Not mine'),answer('yes','This is mine'));
+ const pill=el('div',{className:'suggest-pill'},el('span',{className:'suggest-question'},'Is this photo right?'),el('span',{className:'suggest-answers'},answer('no','No, wrong photo'),answer('yes','Yes, this is mine')));
+ pill.setAttribute('role','group');pill.setAttribute('aria-label','Is this photo right?');
+ return el('div',{className:'suggest-ask'},pill);
 }
 function card(item){
  const media=photo(item);
- const tile=el('button',{type:'button',className:'tile'},item.suggestion?el('div',{className:'suggested-frame'},media,suggestionLabel()):media,el('strong',{},name(item)),line(item)?el('span',{className:'card-price'},line(item)):null);
+ const tile=el('button',{type:'button',className:'tile'},item.suggestion?el('div',{className:'suggested-frame'},media):media,el('strong',{},name(item)),line(item)?el('span',{className:'card-price'},line(item)):null);
  tile.onclick=()=>openDetail(item.id);
  return el('div',{className:'product-card'+(item.suggestion?' has-suggestion':'')},tile,item.suggestion?suggestionAsk(item):null);
 }
@@ -172,7 +174,7 @@ function render(){
 function openDetail(id){
  const item=view.items.find(i=>i.id===id);if(!item)return;current=id;
  const media=photo(item);
- $('detail-photo').replaceWith(item.suggestion?Object.assign(el('div',{className:'suggested-frame detail-suggestion'},media,suggestionLabel(),suggestionAsk(item)),{id:'detail-photo'}):Object.assign(media,{id:'detail-photo'}));
+ $('detail-photo').replaceWith(item.suggestion?Object.assign(el('div',{className:'suggested-frame detail-suggestion'},media,suggestionAsk(item)),{id:'detail-photo'}):Object.assign(media,{id:'detail-photo'}));
  $('detail-brand').textContent=item.brand??'';$('detail-title').textContent=name(item);
  const facts=[['Category',CATEGORY_LABELS[item.category]??'Not sorted yet'],['Size',item.size??'Unknown'],['Color',item.color??'Unknown'],['Bought',[item.merchant,item.bought_at&&day(item.bought_at)].filter(Boolean).join(' · ')||'Unknown'],
   // A configured product lists the parts chosen for it (the strap and carabiners of a built bag).
