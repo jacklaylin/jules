@@ -42,7 +42,7 @@ test('"not mine" leads to one more search that skips the rejected photo, then st
 
 test('nothing found is recorded and tried once more; a search outage records nothing',async()=>{
  const store=memory();const items=[{id:'i1',photo:false},{id:'i2',photo:true}];let calls=0;
- const outage=await suggestWardrobePhotos(store,OWNER,items,{env,find:async()=>{calls++;throw Error('Search source unavailable');}});
+ const outage=await suggestWardrobePhotos(store,OWNER,items,{env,searchDown:()=>true,find:async()=>{calls++;throw Error('Search source unavailable');}});
  assert.equal(store.rows.length,0);assert.equal(outage.remaining,0);
  await suggestWardrobePhotos(store,OWNER,items,{env,find:async()=>{calls++;return null;}});
  await suggestWardrobePhotos(store,OWNER,items,{env,find:async()=>{calls++;return null;}});
@@ -137,4 +137,25 @@ test('a tiny order photo is offered a sharper suggestion, matched against it; ye
  i1=await withSuggestions();assert.deepEqual([i1.photo_source,i1.photo_small,i1.suggestion],['search_confirmed',false,null]);
  // The confirmed photo has its own version, so the browser never shows the cached thumbnail in its place.
  assert.notEqual(i1.photo_version,'v1');
+});
+
+test('one item failing is recorded and never blocks the items behind it; two failures retire it',async()=>{
+ const store=memory();const items=['bad','next','later'].map(id=>({id,photo:false}));const searched=[];
+ const find=async item=>{searched.push(item.id);if(item.id==='bad')throw Error('The operation was aborted due to timeout');return null;};
+ for(let n=0;n<3;n++)await suggestWardrobePhotos(store,OWNER,items,{env,find,searchDown:()=>false});
+ assert.deepEqual(searched.slice(0,2).sort(),['bad','next'],'first request searches both, side by side');
+ assert.ok(searched.includes('later'),'the queue moved past the failing item');
+ assert.equal(searched.filter(id=>id==='bad').length,2,'a failing item is tried twice, then left on its outline');
+ assert.ok(store.rows.some(r=>r.data.item_id==='bad'&&r.data.result==='error'));
+});
+test('tiny order photos are searched before items with no photo',async()=>{
+ const store=memory();const searched=[];
+ await suggestWardrobePhotos(store,OWNER,[{id:'none1',photo:false},{id:'none2',photo:false},{id:'tiny',photo:true,photo_small:true}],{env,limit:1,find:async item=>{searched.push(item.id);return null;}});
+ assert.deepEqual(searched,['tiny']);
+});
+test('an empty Google result page is "nothing found", not a search outage',async()=>{
+ const {serpApiJSON}=await import('../lib/serpapi.js');
+ const data=await serpApiJSON('https://serpapi.com/search.json?q=x',{},{SERPAPI_API_KEY:'empty-fixture'},async()=>new Response(JSON.stringify({search_metadata:{status:'Success'},error:"Google hasn't returned any results for this query."})));
+ assert.deepEqual(data.images_results??[],[]);
+ await assert.rejects(serpApiJSON('https://serpapi.com/search.json?q=x',{},{SERPAPI_API_KEY:'broken-fixture'},async()=>new Response(JSON.stringify({error:'Invalid API key.'}),{status:401})));
 });
