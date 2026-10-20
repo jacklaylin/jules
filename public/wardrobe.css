@@ -88,7 +88,8 @@
 .suggest-thumb{width:44px;height:44px;min-height:44px;padding:0;display:grid;place-items:center;border:0;border-radius:50%;background:var(--fog);color:var(--ink);box-shadow:none}
 .suggest-thumb::after{display:none}
 @media(hover:hover) and (pointer:fine){.suggest-thumb:hover{background:var(--butter);transform:none}}
-.suggest-thumb:active{background:var(--butter)}
+.suggest-thumb:active,.suggest-thumb.is-pressed{background:var(--butter)}
+.suggest-thumb:disabled{opacity:1;cursor:default}
 .suggest-thumb--down svg{transform:rotate(180deg)}
 .detail-suggestion{min-width:0}.detail-suggestion>.photo{aspect-ratio:4/5}
 /* Phones: the two-column card is too narrow for one row, so the question sits above the thumbs, still one shape. */
