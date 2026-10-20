@@ -42,6 +42,13 @@
   --imsg-ink: #000000;     /* iMessage simulation details */
   --imsg-typing: #8E8E93;
   --imsg-receipt: #6E6E73;
+  /* signup only: the animated brand haze (the one exception to the white ground) */
+  --haze-base: #FFF4EE;
+  --haze-bubblegum: #FF8FC7B3;
+  --haze-tangerine: #FF7A2F8C;
+  --haze-grape: #6C3BFF59;
+  --haze-butter: #FFC93CA6;
+  --frost: #FFFFFFC7;      /* Jules's chat lines and cards over the haze */
 
   /* type */
   --font-sans: "Bricolage Grotesque", system-ui, sans-serif;
