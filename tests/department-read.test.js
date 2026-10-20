@@ -2,14 +2,17 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {relevanceCheck,relevantProducts} from '../lib/relevance.js';
 import {readDepartments} from '../lib/department-read.js';
-import {shopifyRange} from '../lib/structured-product.js';
+import {shopifyRange,shopifyProductLabels} from '../lib/structured-product.js';
+import {listingEvidence} from '../lib/department-read.js';
 import {textWishlistAction} from '../lib/text-wishlist.js';
 
 const plan={continuation:false,mode:'discover',hard_constraints:[],guidance:[],keep_option_indices:[],exclude_option_indices:[]};
 // A store page's listing check: structured department (shopping_range) or none, and its own text.
 const listing=(id,{range=null,read=null,description='A relaxed cotton shirt with a button-down front.',sizes=['S','M','L']}={})=>({brand:'Brand '+id,name:'Shirt '+id,url:`https://${id}.example/products/shirt`,match:'similar',sourcing_status:'store_found',
  listing_check:{status:'verified',product_name:'Shirt '+id,product_brand:'Brand '+id,shopping_range:range,description,size_options:sizes.map(size=>({size,available:true})),...(read?{department_read:{range:read,quote:'x',basis:'listing_text'}}:{})}});
-const model=value=>{const calls=[];const fetcher=async(_url,options)=>{calls.push(JSON.parse(options.body));return {ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(value)}]}]})};};fetcher.calls=calls;return fetcher;};
+// One call per listing; the stub answers by the listing's store (unknown when not listed).
+const model=byStore=>{const calls=[];const fetcher=async(_url,options)=>{const body=JSON.parse(options.body);calls.push(body);const store=JSON.parse(body.input[0].content).store;
+ return {ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(byStore[store]??{department:'unknown',quote:''})}]}]})};};fetcher.calls=calls;return fetcher;};
 const env={OPENAI_API_KEY:'test'};
 // The MAYE listing from the October 20 replay: a women's label on Shopify with no department data.
 const maye={...listing('mayethelabel',{description:'The Sadie Embroidered Shirt is a timeless blend of effortless style and feminine detail. Embroidered cotton fabric - best with nude bra.',sizes:['2XS','XS','S']}),brand:'M A Y E',name:'Sadie Embroidered Shirt – Ivory'};
@@ -33,6 +36,8 @@ test('department eligibility: men’s, women’s and unisex scopes against label
 });
 
 test('Shopify product type and tags are structured department data; mixed or missing labels say nothing',()=>{
+ // Size labels are kept as written for every colour, for the text read (dāl's shirt: US 2–10).
+ assert.deepEqual(shopifyProductLabels({type:'Shirt',tags:[],options:[{name:'Color',values:['White']},{name:'Size',values:['2','4','6']}]}).size_labels,['2','4','6']);
  assert.equal(shopifyRange({type:'Mens Shirts',tags:['Linen']}),'men');
  assert.equal(shopifyRange({type:'Tops',tags:'womens, new in'}),'women');
  assert.equal(shopifyRange({type:'Shirt',tags:['Unisex']}),'unisex');
@@ -43,13 +48,12 @@ test('Shopify product type and tags are structured department data; mixed or mis
 
 test('a listing’s own quoted words decide its department; unquoted or invented evidence is ignored',async()=>{
  const products=[maye,listing('plain'),listing('labelled',{range:'men'}),listing('everyone',{description:'Made for everyone: a unisex boxy shirt.'})];
- const fetcher=model({listings:[{index:0,department:'women',quote:'feminine detail'},{index:1,department:'women',quote:'designed for her'},{index:2,department:'unisex',quote:'Made for everyone'}]});
+ const fetcher=model({'mayethelabel.example':{department:'women',quote:'feminine detail'},'plain.example':{department:'women',quote:'designed for her'},'everyone.example':{department:'unisex',quote:'Made for everyone'}});
  const read=await readDepartments(products,'men',{env,fetcher});
- // Only unlabelled verified listings are sent, in one call.
- assert.equal(fetcher.calls.length,1);
- const sent=JSON.parse(fetcher.calls[0].input[0].content);
- assert.deepEqual(sent.map(s=>s.store),['mayethelabel.example','plain.example','everyone.example']);
+ // Only unlabelled verified listings are sent, one per call.
+ assert.deepEqual(fetcher.calls.map(c=>JSON.parse(c.input[0].content).store),['mayethelabel.example','plain.example','everyone.example']);
  assert.deepEqual(read[0].listing_check.department_read,{range:'women',quote:'feminine detail',basis:'listing_text'});
+ assert.deepEqual(listingEvidence({url:'https://x.example/p',listing_check:{size_options:[{size:'S'}],size_labels:['S','M']}}).sizes,['S','M']);
  // "designed for her" is not in that listing's text, so it stays unknown and eligible.
  assert.equal(read[1].listing_check.department_read,undefined);
  assert.equal(read[2],products[2]);
@@ -58,27 +62,31 @@ test('a listing’s own quoted words decide its department; unquoted or invented
 });
 
 test('department read is skipped without a gendered scope and fails open to today’s behaviour',async()=>{
- for(const range of [null,'unisex']){const fetcher=model({listings:[]}),list=[maye];assert.equal(await readDepartments(list,range,{env,fetcher}),list);assert.equal(fetcher.calls.length,0);}
+ for(const range of [null,'unisex']){const fetcher=model({}),list=[maye];assert.equal(await readDepartments(list,range,{env,fetcher}),list);assert.equal(fetcher.calls.length,0);}
  const products=[maye];
  assert.equal(await readDepartments(products,'men',{env,fetcher:async()=>{throw Error('offline');}}),products);
- assert.equal(await readDepartments(products,'men',{env:{},fetcher:model({listings:[]})}),products);
- // Malformed answers (unknown index, bad department, duplicate) are dropped, not guessed.
- const read=await readDepartments(products,'men',{env,fetcher:model({listings:[{index:5,department:'women',quote:'feminine detail'},{index:0,department:'girls',quote:'feminine detail'}]})});
+ assert.equal(await readDepartments(products,'men',{env:{},fetcher:model({})}),products);
+ // A malformed answer (a department outside the list) is dropped, not guessed.
+ const read=await readDepartments(products,'men',{env,fetcher:model({'mayethelabel.example':{department:'girls',quote:'feminine detail'}})});
  assert.equal(read[0].listing_check.department_read,undefined);
+ // One failed read leaves only that listing unknown.
+ let n=0;const flaky=async(...a)=>{if(n++===0)throw Error('timeout');return model({'everyone.example':{department:'women',quote:'Made for everyone'}})(...a);};
+ const partial=await readDepartments([maye,listing('everyone',{description:'Made for everyone.'})],'men',{env,fetcher:flaky});
+ assert.equal(partial[0].listing_check.department_read,undefined);assert.equal(partial[1].listing_check.department_read.range,'women');
 });
 
 test('a men’s discovery leaves out a listing whose own text is women’s and keeps unlabelled men’s options',async()=>{
  let result;
  const products=[maye,listing('plain'),listing('mens',{range:'men'}),listing('another')];
- const fetcher=model({listings:[{index:0,department:'women',quote:'best with nude bra'},{index:1,department:'unknown',quote:''},{index:2,department:'unknown',quote:''}]});
+ const fetcher=model({'mayethelabel.example':{department:'women',quote:'best with nude bra'}});
  await textWishlistAction({action:'start',query:'a few casual shirts',department:'men',search_plan:plan},{env:{},text:'find me a few casual shirts',record:async r=>{result=r;},
   search:async()=>({products,refinement_attempted:true}),rank:async x=>x,departments:(list,range,options)=>readDepartments(list,range,{...options,env,fetcher})});
  const shown=result.text_wishlist_state.options.map(o=>o.url);
  assert.equal(shown.length,3);assert.ok(!shown.includes(maye.url));
  assert.ok(shown.includes(listing('plain').url)&&shown.includes(listing('another').url));
- assert.equal(fetcher.calls.length,1);
+ assert.equal(fetcher.calls.length,3);
  // A women's request reads the same listing as a match.
  await textWishlistAction({action:'start',query:'a few casual shirts',department:'women',search_plan:plan},{env:{},text:'find me a few casual shirts',record:async r=>{result=r;},
-  search:async()=>({products:[maye],refinement_attempted:true}),rank:async x=>x,departments:(list,range,options)=>readDepartments(list,range,{...options,env,fetcher:model({listings:[{index:0,department:'women',quote:'feminine detail'}]})})});
+  search:async()=>({products:[maye],refinement_attempted:true}),rank:async x=>x,departments:(list,range,options)=>readDepartments(list,range,{...options,env,fetcher:model({'mayethelabel.example':{department:'women',quote:'feminine detail'}})})});
  assert.deepEqual(result.text_wishlist_state.options.map(o=>o.url),[maye.url]);
 });

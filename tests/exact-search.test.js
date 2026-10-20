@@ -221,3 +221,15 @@ test('chat search asks verification to skip paid re-lookups: the search result i
  await exactSearch('Dries Van Noten Peyter pants black',env,serp({organic}),{},async(url,name,fetcher,opts)=>{options.push(opts);return {status:'check_failed'};},{judge:async()=>[]});
  assert.ok(options.length>0);assert.ok(options.every(o=>o?.indexed===false));
 });
+
+test('in discovery a blocked page needs the index’s single price: a title alone may be a category page',async()=>{
+ const lee='https://www.lee.com/browse/mens-casual-work-shirts.html',priced='https://www.example-store.com/item/oxford-shirt';
+ const organic=[{link:lee,title:"Men's Casual Work Shirts | Lee"}],shopping=[{link:priced,title:"Men's Relaxed Oxford Shirt",extracted_price:120,price:'$120.00'}];
+ const judge=async(b,c)=>c.map(()=>({match:'meets_brief',brand:''}));
+ const blocked=async()=>({status:'check_failed',checked_at:'x'});
+ const discovery=await exactSearch("casual work shirts",env,serp({organic,shopping}),{range:'men',allow_unknown_range:true},blocked,{judge,expand:async()=>[],mode:'discover'});
+ assert.deepEqual(discovery.products.map(p=>p.url),[priced]);
+ // Identifying a named item still keeps a blocked page's indexed title, as before.
+ const identify=await exactSearch("casual work shirts",env,serp({organic,shopping}),{range:'men',allow_unknown_range:true},blocked,{judge,expand:async()=>[],mode:'identify'});
+ assert.ok(identify.products.some(p=>p.url===lee));
+});

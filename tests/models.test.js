@@ -52,3 +52,10 @@ test('the style report writes with the write role even when the extract role is 
   await receiptModel({ schema: {}, instructions: 'i', context: {} }, { OPENAI_API_KEY: 'k', MODEL_EXTRACT: 'gpt-5-nano', MODEL_EXTRACT_REASONING: 'minimal' }, fetcher);
   assert.deepEqual(sent.map(b => [b.model, b.reasoning?.effort ?? null]), [['gpt-5.5', 'low'], ['gpt-5.6-luna', 'low'], ['gpt-5-nano', 'minimal']]);
 });
+
+test('a model setting that is not a model id (a stray comma or space) is skipped for the next setting or the default',()=>{
+  assert.equal(modelFor('stylist', { MODEL_STYLIST: 'gpt-5.5,' }), 'gpt-5.5');
+  assert.equal(modelFor('stylist', { MODEL_STYLIST: 'gpt 5.5', STYLIST_MODEL: 'gpt-5.4' }), 'gpt-5.4');
+  assert.equal(modelFor('stylist', { MODEL_STYLIST: ' gpt-5.4-mini ' }), 'gpt-5.4-mini');
+  assert.equal(modelFor('chat', { MODEL_CHAT: 'openrouter:anthropic/claude-haiku-5.5@anthropic' }), 'openrouter:anthropic/claude-haiku-5.5@anthropic');
+});
