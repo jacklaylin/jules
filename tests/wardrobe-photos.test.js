@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import sharp from 'sharp';
 import {createReceiptFeedback} from '../lib/receipt-feedback.js';
 import {wardrobeView} from '../lib/wardrobe.js';
-import {suggestionState,needsSuggestion,suggestWardrobePhotos,decideSuggestion,findProductPhoto,WARDROBE_ORIGIN} from '../lib/wardrobe-photos.js';
+import {suggestionState,needsSuggestion,suggestWardrobePhotos,decideSuggestion,findProductPhoto,titleMatches,CHECKS_VERSION,WARDROBE_ORIGIN} from '../lib/wardrobe-photos.js';
 
 const OWNER='owner-1';
 const env={SERPAPI_API_KEY:'fixture'};
@@ -14,7 +14,7 @@ const photo={mime_type:'image/jpeg',data:Buffer.from('jpeg').toString('base64'),
 function memory(){
  const rows=[];
  return {rows,
-  wardrobePhotoEvidence:async()=>rows.map(r=>({id:r.id,created_at:r.created_at,result:r.data.result??null,item_id:r.data.item_id,asset_url:r.data.asset_url??null,title:r.data.title??null,seller:r.data.seller??null,suggestion_id:r.data.suggestion_id??null,decision:r.data.decision??null})),
+  wardrobePhotoEvidence:async()=>rows.map(r=>({id:r.id,created_at:r.created_at,result:r.data.result??null,checks:r.data.checks??null,item_id:r.data.item_id,asset_url:r.data.asset_url??null,title:r.data.title??null,seller:r.data.seller??null,suggestion_id:r.data.suggestion_id??null,decision:r.data.decision??null})),
   clock:Date.now(),
   recordEvidence:async function(_owner,add){for(const r of add)if(!rows.some(x=>x.id===r.id))rows.push({...r,created_at:new Date(this.clock).toISOString()});},
  };
@@ -105,12 +105,28 @@ test('resale listings are never candidates, and a photo needs the model, a blind
  const blind=prompts[1].content.map(c=>c.text??'').join(' ');assert.ok(!blind.includes('Pure Silver'),'colour is named without the receipt colour');
 });
 test('an unsure colour or a contradicting title is no photo; the image search is tried before giving up',async()=>{
- for(const [colour,title] of [['unsure','same'],['consistent','different']]){
-  const web=fakeWeb([{title:'ASICS GT-2160',source:'ASICS',product_link:'https://www.asics.com/p/1',thumbnail:'https://img.example/a.jpg'}],[{title:'ASICS GT-2160',source:'FWRD',link:'https://www.fwrd.com/p/2',original:'https://img.example/b.jpg'}]);
-  const vision=async instructions=>instructions.startsWith('You check product photos')?{choice:0,model_match:true,reason:''}:instructions.startsWith('Describe only')?{colours:'grey'}:instructions.startsWith('A purchase receipt')?{verdict:colour}:{verdict:title};
+ for(const [colour,conflicts] of [['unsure',[]],['consistent',[{kind:'other_name',listing_words:'JJJJound',receipt_words:''}]]]){
+  const web=fakeWeb([{title:'ASICS GT-2160 JJJJound',source:'ASICS',product_link:'https://www.asics.com/p/1',thumbnail:'https://img.example/a.jpg'}],[{title:'ASICS GT-2160 JJJJound',source:'FWRD',link:'https://www.fwrd.com/p/2',original:'https://img.example/b.jpg'}]);
+  const vision=async instructions=>instructions.startsWith('You check product photos')?{choice:0,model_match:true,reason:''}:instructions.startsWith('Describe only')?{colours:'grey'}:instructions.startsWith('A purchase receipt line')?{conflicts}:{verdict:colour};
   assert.equal(await findProductPhoto(bought('i1'),{env,fetcher:web.fetcher,vision}),null);
   assert.deepEqual(web.seen,['google_shopping','google_images']);
  }
+});
+test('a title conflict counts only with real evidence: words in the title, not the store, not on the receipt',async()=>{
+ const item={brand:'Acne Studios',product:'Eram M College',color:'Off white/grey blue'};
+ const check=(title,seller,conflicts)=>titleMatches(item,{title,seller},{env,vision:async()=>({conflicts})});
+ assert.equal(await check('Eram College T-Shirt Off White | Grey Blue',null,[{kind:'version',listing_words:'Eram College',receipt_words:'Eram M College'}]),true,'a dropped letter is not a different model');
+ assert.equal(await check('Graphic T-shirt in Off White and Grey Blue – Stoy','Stoy',[{kind:'other_name',listing_words:'Stoy',receipt_words:''}]),true,'the store name is not another brand');
+ assert.equal(await check('Acne Studios Eram M College','Acne',[{kind:'other_name',listing_words:'Acne Studios',receipt_words:''}]),true,'words already on the receipt are not a conflict');
+ assert.equal(await check('Eram M College Kith','Ssense',[{kind:'other_name',listing_words:'Supreme',receipt_words:''}]),true,'quoted words must really be in the title');
+ assert.equal(await check('Eram M College Kith edition','Ssense',[{kind:'other_name',listing_words:'Kith',receipt_words:''}]),false,'a collaborator the receipt never names');
+ assert.equal(await check('Eram M College Off White Burgundy','Ssense',[{kind:'colourway',listing_words:'Burgundy',receipt_words:'grey blue'}]),false,'a different named colour');
+ assert.equal(await check('Eram M College Burgundy','Ssense',[{kind:'colourway',listing_words:'Burgundy',receipt_words:'Navy'}]),true,'what it contradicts must be on the receipt');
+});
+test('"nothing found" from older, stricter checks does not keep an item retired',async()=>{
+ const rows=[{id:'photo_search:i1:0',item_id:'i1',result:'none'},{id:'photo_search:i1:1',item_id:'i1',result:'none'}];
+ assert.equal(needsSuggestion(suggestionState(rows).get('i1')),true);
+ assert.equal(needsSuggestion(suggestionState(rows.map(r=>({...r,checks:String(CHECKS_VERSION)}))).get('i1')),false);
 });
 test('a pending suggestion is served only as a suggestion; once confirmed it is the item photo',async()=>{
  const {handleWardrobe}=await import('../lib/wardrobe.js');

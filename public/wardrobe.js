@@ -77,7 +77,9 @@ function photo(item,{reuse=false}={}){
  return frame;
 }
 const name=item=>item.product||item.brand||'Item';
-const line=item=>[item.brand,item.size].filter(Boolean).join(' · ');
+// Brand · colour · size under the name, so two of the same product (a black and a white 3-pack) read as
+// different at a glance. The colour is left out when the product name already says it.
+const line=item=>[item.brand,item.color&&!String(item.product??'').toLowerCase().includes(String(item.color).toLowerCase())?item.color:null,item.size].filter(Boolean).join(' · ');
 const day=at=>new Date(at).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric',timeZone:'UTC'});
 
 let view=null,category='all',current=null,undo=null,toastTimer;
