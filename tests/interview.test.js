@@ -142,10 +142,11 @@ test('a thin import (case A): completion, then the questions, and the summary on
  assert.equal(store.sent.length,2);assert.equal(asked(store)[0],'wear_most');
  assert.equal(await sendProfile(store,owner,env,store.send),null,'the summary waits while a round is open');
  for(let i=0;i<BATCH;i++){await answer(store,asked(store).at(-1),'answered','a'+i);await next(store);}
- assert.match(store.sent.at(-2),/want them now, or another time/);
- assert.match(store.sent.at(-1),/what your purchases show so far/,'the summary follows the close');
+ // A thin profile's summary is the early read; it goes first, then the offer of more questions.
+ assert.match(store.sent.at(-2),/early read/);
+ assert.match(store.sent.at(-1),/want them now, or another time/);
  await nextReceiptQuestion(store,owner,env,store.send);
- assert.equal(store.sent.filter(t=>/what your purchases show/.test(t)).length,1,'and is sent once');
+ assert.equal(store.sent.filter(t=>/early read/.test(t)).length,1,'and is sent once');
 });
 
 test('the 24-hour sweep still sends the summary while questions wait',async()=>{
@@ -154,7 +155,7 @@ test('the 24-hour sweep still sends the summary while questions wait',async()=>{
  await announceImport(store,owner,env,store.send);
  assert.ok(interviewOpen(store.state));
  await sendProfile(store,owner,env,store.send,null,{force:true});
- assert.match(store.sent.at(-1),/what your purchases show so far/);
+ assert.match(store.sent.at(-1),/early read/);
 });
 
 test('asking for questions when nothing is left says so instead of sending an empty round',async()=>{
@@ -222,4 +223,15 @@ test('the owner’s button reports nothing left to ask for a complete profile',a
  const store=fakeStore({facts,rows,job:{status:'ready',started_at:'s1'},tags:tagsFor(rows,()=>({color_family:'black',resale:false})),outfits:3});
  assert.deepEqual(await adminStartInterview(store,owner,env,{send:store.send,log:quiet}),{status:'nothing_left'});
  assert.equal(store.sent.length,0);
+});
+
+test('a round outside an import ends with the early read and the offer, in one text',async()=>{
+ const store=fakeStore({facts:[{field:'size',key:'tops/us',value:'M',basis:'stated',evidence_ids:['c1']}]});
+ await startInterview(store,owner,env,'declined',{send:store.send,log:quiet});
+ for(let i=0;i<BATCH;i++){await answer(store,asked(store).at(-1),'answered','a'+i);await next(store);}
+ const last=store.sent.at(-1);
+ assert.match(last,/early read, from what you told me/);
+ assert.match(last,/sizes you told me: M in tops/);
+ assert.match(last,/want them now, or another time/);
+ assert.equal(store.sent.length,BATCH+1,'the read and the offer are one text');
 });

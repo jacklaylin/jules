@@ -1,6 +1,6 @@
 # Cold-start taste: coverage check, gap-filling interview, early read
 
-Status: October 20, 2026. Step 1 (coverage check) is live (#241). Step 2 (interview) is built behind `INTERVIEW_ENABLED`; steps 3–6 are not built yet. Founder answered the open questions on October 19 (see "Founder decisions"). Extends `design/closet-interview-brief.md` (October 15 draft).
+Status: October 20, 2026. Step 1 (coverage check) is live (#241). Step 2 (interview) is live behind `INTERVIEW_ENABLED` (#244, #261). Step 3 (text early read) is built behind the same flag; steps 4–6 are not built yet. Founder answered the open questions on October 19 (see "Founder decisions"). Extends `design/closet-interview-brief.md` (October 15 draft).
 
 **October 20: checked against `main`.** This brief was first written on an older branch. `main` already has several pieces it planned, so they are reused, not rebuilt: the `store` taste field (and `fit`, `avoid`, `inspiration`, `owned`) in `lib/memory.js`; screenshots of Depop/Poshmark likes kept as liked items (`LIKED-ITEMS.md`, tool `add_liked_items`); outfit photos asked for during the import (`lib/outfit-photos.js`); item tags with a colour family and a resale flag for every purchase (`lib/item-tags.js`); and a resale marketplace list (`RESALE_MARKETPLACES`, `lib/source-registry.js`). The style report is now the purchase-based report in `lib/style-report.js`. Sections below are updated to match.
 
@@ -266,6 +266,12 @@ New behaviour, all still sent once per import through the same ledger key:
 
 The text never lists a dimension as known that coverage marks weak, never calls a store a favourite unless the person said so, and labels a resale-heavy spend band as secondhand spend.
 
+**As built (step 3, October 20):** `lib/early-read.js`, behind `INTERVIEW_ENABLED`.
+- **Draft from code, not the model.** Code builds every line from the same sources coverage reads, each labelled: "what you told me" (stated or confirmed facts, as saved, plus sizes and a usual spend), "what you've ordered" (main categories, secondhand / new / a mix, the store bought from most, brands bought more than once, spend, labelled as secondhand spend when most priced items were), "from your outfit photos" (the stored reading, the only source that speaks to what they wear) and "from what you saved". Then "still learning: …" names open gaps, and the read invites outfit photos when there are fewer than two. The reply composer puts it in Jules's voice, as for every text. This replaces the model-written-with-citations plan: a code-built draft cannot cite something it didn't read.
+- **Where it's sent.** For a thin import, it replaces the purchase summary, after the interview round, or after 24 hours via the sweep. A round outside an import (Gmail skipped, asked for, admin button) ends with it, together with the offer of more questions in one text. Rich profiles keep the existing purchase summary.
+- **Admin:** Personal memory shows an "Early read preview" under the coverage chips: what Jules would text now. Nothing is sent.
+- **Not built:** the separate "learn as we go" line for an empty profile that declined. The chat reply to the decline already says it.
+
 `profileText` stays deterministic for the rich case. The early read is written by the model from the coverage entries and their evidence, then checked: every line must cite evidence ids that exist and match the dimension it's about. A failed check falls back to a plain deterministic list of known facts.
 
 ---
@@ -401,7 +407,7 @@ Revised October 20 (the `store` field already existed, and the coverage check ne
 
 1. **Coverage check**, with its log line and the admin chips. *Built in this PR.*
 2. **Interview planner and inspo ask**, with `stated_answer` evidence and `db/040_taste_interview.sql` (`evidence.kind` value, `interview` evidence origin row, `taste_interviews` table). *Built; behind `INTERVIEW_ENABLED`.*
-3. **Text early read** in place of silence for thin profiles.
+3. **Text early read** in place of silence for thin profiles. *Built; behind `INTERVIEW_ENABLED`.*
 4. **Resale extraction changes** (quoted condition), after the real emails have been checked.
 5. **Early read on `/style`**, re-designed against `lib/style-report.js` with Claude Design.
 6. **Phase 2 quiz**, only if the testers' results call for it.

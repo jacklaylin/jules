@@ -2,6 +2,7 @@
 import '../lib/usage.js';
 import { readCoverage } from '../lib/coverage.js';
 import { adminStartInterview } from '../lib/interview.js';
+import { previewEarlyRead } from '../lib/early-read.js';
 import { authorize } from '../lib/auth.js';
 import { createStore } from '../lib/store.js';
 import { json, readJson, uuid } from '../lib/http.js';
@@ -167,6 +168,8 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
       if (query.get('view') === 'wishlist') return json(res, 200, await personWishlist(store, id, env));
       // How much of the taste profile is known, per dimension (lib/coverage.js). Read-only, computed fresh.
       if (query.get('view') === 'coverage') return json(res, 200, await readCoverage(store, id));
+      // What the early read would text this person now (lib/early-read.js). Nothing is sent.
+      if (query.get('view') === 'early-read') return json(res, 200, await previewEarlyRead(store, id));
       let before;
       if (query.has('before')) {
         try { before = JSON.parse(query.get('before')); } catch { return json(res, 400, { error: 'Invalid history cursor.' }); }

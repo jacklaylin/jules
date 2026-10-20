@@ -127,3 +127,5 @@ p{line-height:1.65}.login-card{max-width:490px;margin:7vh auto}.login-card>p{col
 
 /* Admin › People › person: taste coverage chips above Personal memory (lib/coverage.js). */
 .coverage-strip{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin:0 0 12px}
+/* The early read preview under the coverage chips: the text as Jules would send it, line breaks kept. */
+.early-read{margin:0 0 12px}.early-read .muted{color:var(--text-2);font-size:12px}.early-read-text{white-space:pre-line;margin:8px 0 0}
