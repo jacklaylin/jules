@@ -122,10 +122,17 @@ test('transient search server failure retries once with the same request',async(
   assert.notEqual(requests[0].signal,requests[1].signal);assert.equal(found.products.length,0);
 });
 test('search retries are bounded and do not retry authentication or quota failures',async()=>{
-  for(const status of [500,502,503,504,400,401,403,429]){
+  for(const status of [500,502,503,504,400,401,403]){
     let calls=0;
     await assert.rejects(searchProducts('Trail sneakers',[],{},async()=>{calls++;return {ok:false,status};}),/Product search failed/);
     assert.equal(calls,[500,502,503,504].includes(status)?2:1);
+  }
+  // Exhausted quota is never retried; a short rate limit is waited out once (lib/model-call.js).
+  const refused=code=>new Response(JSON.stringify({error:{code}}),{status:429,headers:{'retry-after-ms':'1'}});
+  for(const [code,expected] of [['insufficient_quota',1],['rate_limit_exceeded',2]]){
+    let calls=0;
+    await assert.rejects(searchProducts('Trail sneakers',[],{},async()=>{calls++;return refused(code);}),/Product search failed/);
+    assert.equal(calls,expected,code);
   }
 });
 

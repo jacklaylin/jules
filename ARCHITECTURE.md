@@ -227,6 +227,7 @@ The Supabase scheduler calls `/api/imessage?job=judge` (same secret as the reply
 - **`messages` mixes transcript and workflow** (`search_result`, `wishlist_payload`). Acceptable at this scale.
 - **Live model behavior needs regular checks.** Unit tests mock the model's tool choice. The routing eval (`lib/agent-eval-cases.js`, 50 labeled turns, "Run routing eval" on `/admin/replays`) scores the real model's tool and argument choices with tools stubbed; run it after any prompt or tool change. Replace synthetic cases with real turns over time (keep those private).
 - **Cost estimates use list prices** in `lib/usage.js`; update them when provider prices change.
+- **Every model call goes through `lib/model-call.js`** (`callModel` for structured calls, `modelResponse` for the agent loop and search). It picks the role's model, waits out one short HTTP 429 (not exhausted credit), and keeps each caller's own error messages. Metering and OpenRouter routing still happen in `lib/usage.js`'s fetch wrapper, which `lib/model-call.js` loads, so a new model call needs no import-order care. Do not add a direct `fetch` to the model API.
 
 ## Deployment order
 
