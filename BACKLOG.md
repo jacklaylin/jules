@@ -21,3 +21,7 @@ Ideas the founder wants kept, not built yet. Nothing here is assigned work: buil
 
 - **Receipt forwarding address.** Users forward order emails (or set a Gmail filter to auto-forward them) to a Jules address. Captures new purchases from any store without the Gmail restricted-scope review.
 - **Store data exports.** Amazon "Request your data" order history and similar exports, uploaded once. Slow (days) and clunky; lower priority.
+
+## Discovery
+
+- **Jules inside ChatGPT and Claude.** An app (MCP server) that lets an assistant hand off "keep watching this in my size" to Jules, and shows up when people ask those assistants for shopping help. Real build plus each platform's review. Revisit after launch; see [GTM.md](GTM.md) "Search and answer-engine discovery".

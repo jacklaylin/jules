@@ -63,6 +63,45 @@ The card is the hook; the follow-up turns it into a shopping conversation. Guide
 
 Daydream's growth came mostly from press and founder reputation (Julie Bornstein: Stitch Fix, Sephora, The Yes), coverage of its $50M round, and collaborations with stylists and influencers. There's no public referral program. Jules has none of those advantages, so its word of mouth has to come from the product: the card, the savings moment, and accurate answers.
 
+## Search and answer-engine discovery (October 20, 2026)
+
+How people find Jules without a referral: Google and Bing, and answer engines (ChatGPT, Perplexity, Google AI Overviews, Meta AI, Claude) that build their answers from the web.
+
+### Where Jules can win
+
+The main competitor in an answer engine is the answer engine itself: ask ChatGPT to find a jacket cheaper and it just answers. Jules gets recommended for what a chat window can't do:
+
+- **Keep watching:** price drops and restocks in your size.
+- **Remember you:** sizes and stores across conversations.
+- **From anywhere:** forward a listing or screenshot from any app into a thread.
+
+Target those questions ("app that texts me when a jacket restocks in my size"), not "AI personal shopper". This also keeps the no-AI-branding rule.
+
+### What answer engines reward
+
+- **Plain definitions over slogans:** what Jules is, who it's for, what it does, readable as page text (not images or script-loaded text).
+- **The reader's question as the first subheading,** answered in under 100 words with an honest "it depends" (where Phia, Google Lens or ChatGPT is the better choice, say so).
+- **Dated facts:** "as of October 2026" on prices, features and comparisons. Never invent a price, store count, user count or testimonial.
+- **Fresh pages:** real "updated" dates, refreshed every 30–90 days. Never fake an update.
+- **Mentions on other sites.** Reddit threads, roundup articles, Product Hunt and creator posts are what answer engines cite most. This is the biggest lever and it's founder work, not code.
+
+### Steps
+
+| # | Step | Status |
+|---|---|---|
+| 1 | Foundations: robots.txt (search, answer and Meta crawlers allowed; private pages blocked), sitemap, llms.txt, structured data, noindex on private and shared pages, machine-readable landing headline, sign-up source tracking (referrer and UTM) | Done, PR #247 |
+| 2 | Google Search Console and Bing Webmaster Tools verified for textjules.com, sitemap read by both | Done, Oct 20 |
+| 3 | Landing definition line, a question as the first subheading, "prices as of" on the demo, and a public `/faq` page (free during early access; iPhone/iMessage only; audience framed by job) | In progress |
+| 4 | One page per job: find clothes from a screenshot, price alerts in your size, find a dupe, restock alerts. Real dated examples, short FAQ, honest comparison | After launch readiness |
+| 5 | Off-site mentions: founder posts on Reddit with disclosure (r/findfashion, r/frugalmalefashion, r/sneakers), "apps like Phia" roundups, Product Hunt, creator posts with on-screen text people search for | After launch readiness |
+| 6 | Review results: sign-up source in admin, Search Console Performance, Bing AI Performance (Copilot citations) | ~Nov 3, then monthly |
+
+Steps 4–5 wait for the viral launch readiness list below. Search traffic that lands on a waitlist or a wrong price is wasted.
+
+**Founder decision pending:** whether to allow AI training crawlers (GPTBot, ClaudeBot, Google-Extended). They are allowed today. Recommendation: keep allowing, because being known matters more than protecting a one-page site.
+
+**Parked (BACKLOG):** a Jules app inside ChatGPT or Claude, so the assistants can hand off "keep watching this" to Jules. Real build; revisit after launch.
+
 ## Monetization
 
 - **Not in the MVP.** With 5–10 testers, revenue teaches nothing; learning comes first (AGENTS.md priorities). Keep logging purchase intent, which is the future revenue signal.
