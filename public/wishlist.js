@@ -197,24 +197,29 @@ function toast(text,undo){
 }
 function removeButton(item,card){
  const button=node('button','×','icon-button remove-item');button.type='button';button.setAttribute('aria-label',`Remove ${item.name} from wishlist`);button.title='Remove from wishlist';
- button.onclick=async()=>{button.disabled=true;try{await alertPost({action:'remove',group:item.id});if(card)await removeWithMotion(card);itemCache.delete(item.id);applyFilter();$('empty').hidden=itemCache.size>0;toast(item.price_alert?.active?'Removed. Price alert turned off.':'Removed from your wishlist.',async()=>{await alertPost({action:'restore',group:item.id});await load();});const next=$('grid').querySelector('.product-card:not([hidden]) .tile');if(next)next.focus();}catch(e){message(e.message);button.disabled=false;}};
+ button.onclick=async()=>{button.disabled=true;try{await alertPost({action:'remove',group:item.id});if(card)await removeWithMotion(card);itemCache.delete(item.id);applyFilter();$('empty').hidden=itemCache.size>0;toast(item.price_alert?.active?'Removed. Alert turned off.':'Removed from your wishlist.',async()=>{await alertPost({action:'restore',group:item.id});await load();});const next=$('grid').querySelector('.product-card:not([hidden]) .tile');if(next)next.focus();}catch(e){message(e.message);button.disabled=false;}};
  return button;
 }
+// One status line for an active alert, sold out or not; the alert covers price drops and restocks.
+function alertStatus(item,soldOut){
+ const line=node('p',null,'alert-status');
+ line.innerHTML='<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 21h4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
+ line.append(node('span',`Price & stock alert on for size ${item.price_alert.size}. ${soldOut?'We’ll text you when it’s back or if the price drops.':'We’ll text you if the price drops or it sells out and comes back.'}`));
+ return line;
+}
 function stockSummary(item){
- const stock=item.stock;if(!stock)return [];
+ const stock=item.stock,cached=itemCache.get(item.id),alertOn=Boolean(item.alerts_enabled&&cached?.price_alert?.active);
+ if(!stock)return alertOn?[alertStatus(cached,false)]:[];
  const box=node('div',null,'stock-summary'),line=node('p',null,'stock-line');
  if(stock.fresh)line.append(stockTag('Sold out'),node('span',stock.stores>1?`At all ${stock.stores} stores we checked`:'At the store we checked'),node('span',' · checked '+shortDate(stock.checked_at),'stock-when'));
  else line.append(node('span',`${stock.stores>1?'Sold out at every store':'Sold out'} when we checked${stock.checked_at?' on '+shortDate(stock.checked_at):''}. It may be back since then.`));
  box.append(line);
- const cached=itemCache.get(item.id);
- if(item.alerts_enabled&&cached){
-  if(cached.price_alert?.active)box.append(node('p',`Alert on for size ${cached.price_alert.size}. We’ll text you if it comes back.`,'stock-alert-on'));
-  else{
-   const button=node('button','Text me when it’s back','btn btn--butter stock-alert');button.type='button';
-   const card=()=>[...$('grid').children].find(card=>card.dataset.group===item.id);
-   button.onclick=()=>openAlertPicker(cached,{button,update:()=>{card()?.querySelector('.alert-toggle')?.replaceWith(alertToggle(cached));if($('detail').open&&$('detail-content').dataset.group===item.id)void detail(item.id);}}).catch(e=>{$('alert-note').textContent=e.message;});
-   box.append(button);
-  }
+ if(alertOn)box.append(alertStatus(cached,true));
+ else if(item.alerts_enabled&&cached){
+  const button=node('button','Text me when it’s back','btn btn--butter stock-alert');button.type='button';
+  const card=()=>[...$('grid').children].find(card=>card.dataset.group===item.id);
+  button.onclick=()=>openAlertPicker(cached,{button,update:()=>{card()?.querySelector('.alert-toggle')?.replaceWith(alertToggle(cached));if($('detail').open&&$('detail-content').dataset.group===item.id)void detail(item.id);}}).catch(e=>{$('alert-note').textContent=e.message;});
+  box.append(button);
  }
  return [box];
 }
@@ -224,16 +229,16 @@ async function openAlertPicker(item,selection){
  const {sizes}=await alertPost({action:'alert-options',group:item.id});
  if(alertSelection!==selected||!$('alert-picker').open)return;
  for(const size of sizes){const option=node('option',size);option.value=size;$('alert-size').append(option);}
- $('alert-size').disabled=!sizes.length;$('alert-note').textContent=sizes.length?'Sizes come from the retailer listings; availability can change.':'We couldn’t read sizes from these listings. Price alerts are unavailable for this item for now.';
+ $('alert-size').disabled=!sizes.length;$('alert-note').textContent=sizes.length?'Sizes come from the retailer listings; availability can change.':'We couldn’t read sizes from these listings, so alerts aren’t available for this item yet.';
 }
 function alertToggle(item){
  const button=node('button',null,'icon-button alert-toggle');button.type='button';
  button.innerHTML=`<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path class="bell-shape" d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path class="bell-clapper" d="M10 21h4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><span class="alert-on" aria-hidden="true">ON</span>`;
- const update=()=>{const active=Boolean(item.price_alert?.active);button.setAttribute('aria-pressed',String(active));button.setAttribute('aria-label',`${active?'Turn off':'Set up'} price alert for ${item.name}`);button.dataset.baselinePending=String(Boolean(active&&item.price_alert.baseline_pending));button.title=active?`Price alert on · ${item.price_alert.size}${item.price_alert.baseline_pending?' · Starting price not verified yet':''}`:'Set up price alert';};update();
+ const update=()=>{const active=Boolean(item.price_alert?.active);button.setAttribute('aria-pressed',String(active));button.setAttribute('aria-label',`${active?'Turn off':'Set up'} price and stock alert for ${item.name}`);button.dataset.baselinePending=String(Boolean(active&&item.price_alert.baseline_pending));button.title=active?`Price & stock alert on · ${item.price_alert.size}${item.price_alert.baseline_pending?' · Starting price not verified yet':''}`:'Set up price & stock alert';};update();
  button.onclick=async()=>{
    button.disabled=true;
    try{
-     if(item.price_alert?.active){await alertPost({action:'alert-disable',group:item.id});item.price_alert.active=false;update();applyFilter(false);toast('Price alert turned off.');return;}
+     if(item.price_alert?.active){await alertPost({action:'alert-disable',group:item.id});item.price_alert.active=false;update();applyFilter(false);toast('Alert turned off.');return;}
      await openAlertPicker(item,{update,button});
    }catch(e){$('alert-note').textContent=e.message;message(e.message);}finally{button.disabled=false;}
  };return button;
@@ -244,7 +249,7 @@ $('alert-picker').addEventListener('close',()=>{alertSelection=null;});
 $('alert-form').onsubmit=async event=>{
  event.preventDefault();if(!alertSelection||!$('alert-size').value)return;
  const selected=alertSelection;$('alert-save').disabled=true;$('alert-size').disabled=true;$('alert-close').disabled=true;
- try{const data=await alertPost({action:'alert-enable',group:selected.item.id,size:$('alert-size').value});selected.item.price_alert=data;selected.update();applyFilter(false);popIn(selected.button);closeDialog($('alert-picker'));toast(data.restock?`We’ll text you when size ${data.size} is back in stock.`:"We'll text you if the price drops more than 10% or your size comes back in stock");}
+ try{const data=await alertPost({action:'alert-enable',group:selected.item.id,size:$('alert-size').value});selected.item.price_alert=data;selected.update();applyFilter(false);popIn(selected.button);closeDialog($('alert-picker'));toast(data.restock?`We’ll text you when size ${data.size} is back in stock, or if the price drops.`:'We’ll text you if the price drops or your size comes back in stock.');}
  catch(e){$('alert-note').textContent=e.message;}finally{$('alert-save').disabled=!$('alert-size').value;$('alert-size').disabled=false;$('alert-close').disabled=false;}
 };
 const closeDetail=()=>{detailVersion++;closeDialog($('detail'));};
