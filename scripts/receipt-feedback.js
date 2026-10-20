@@ -2,14 +2,12 @@ import {readFile,writeFile,rename,mkdir} from 'node:fs/promises';
 import {dirname} from 'node:path';
 import {randomUUID} from 'node:crypto';
 import {createReceiptFeedback,addReceiptQuestions,applyReceiptFeedback,receiptLearningView,proposeReceiptQuestions,interpretReceiptAnswer,applyReceiptAnswer,refreshReceiptEvidence} from '../lib/receipt-feedback.js';
-import { modelFor } from '../lib/models.js';
+import { callModel as modelCall } from '../lib/model-call.js';
 
 async function callModel({schema,context,instructions}){
   if(!process.env.OPENAI_API_KEY)throw Error('Model interpretation needs OPENAI_API_KEY. Approve the private payload before running.');
-  const response=await fetch('https://api.openai.com/v1/responses',{method:'POST',headers:{Authorization:`Bearer ${process.env.OPENAI_API_KEY}`,'Content-Type':'application/json'},body:JSON.stringify({model:modelFor('extract',process.env),store:false,instructions,input:JSON.stringify(context),text:{format:{type:'json_schema',name:'receipt_feedback',strict:true,schema}}})});
-  if(!response.ok)throw Error(`Interpretation HTTP ${response.status}; response omitted`);
-  const data=await response.json();if(data.status!=='completed')throw Error('Interpretation incomplete');
-  return JSON.parse(data.output.filter(o=>o.type==='message').flatMap(o=>o.content.filter(c=>c.type==='output_text').map(c=>c.text)).join(''));
+  return modelCall({role:'extract',env:process.env,instructions,input:JSON.stringify(context),name:'receipt_feedback',schema,
+    failed:response=>Error(`Interpretation HTTP ${response.status}; response omitted`),incomplete:'Interpretation incomplete'});
 }
 
 const [command,inputPath,outputPath,eventPath]=process.argv.slice(2);
