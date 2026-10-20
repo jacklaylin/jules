@@ -26,6 +26,7 @@ and liked items never reached search constraints).
 |---|---|---|
 | Stated facts | style, brand, avoid, size, budget, … | Chat and the signup form (`lib/memory.js`, `taste_profiles`) |
 | Purchases | `shopping_history` | Gmail, Shop and order screenshots, with closet edits applied. Chat and search see a summary; ranking sees each item. |
+| Wardrobe | `wardrobe` | What they own now by category (types, colours, patterns, fits, formality, recurring details), from the wardrobe view, item tags and photo tags (`lib/closet-summary.js`). Owning is not wearing or liking: soft context, never a filter or a preference. |
 | Liked items | `liked_items` | Screenshots of likes and shown options the person liked |
 | Outfit photos | `outfit_photos` | Outfit photos kept for the style reading |
 
