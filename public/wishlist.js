@@ -209,11 +209,16 @@ function toast(text,undo,extra){
 }
 function removeButton(item,card){
  const button=node('button','×','icon-button remove-item');button.type='button';button.setAttribute('aria-label',`Remove ${item.name} from wishlist`);button.title='Remove from wishlist';
- button.onclick=async()=>{button.disabled=true;try{await alertPost({action:'remove',group:item.id});if(card)await removeWithMotion(card);itemCache.delete(item.id);applyFilter();
-   // Someone who bought it often just removes it: one tap records the purchase instead (store and size unknown).
-   toast(item.price_alert?.active?'Removed. Alert turned off.':'Removed from your wishlist.',async()=>{await alertPost({action:'restore',group:item.id});await load();},
-    item.bought?null:{label:'I bought it',run:()=>markBought(item,{via:'remove_toast'})});const next=$('grid').querySelector('.product-card:not([hidden]) .tile');if(next)next.focus();}catch(e){message(e.message);button.disabled=false;}};
+ button.onclick=async()=>{button.disabled=true;try{await removeItem(item,card);}catch(e){message(e.message);button.disabled=false;}};
  return button;
+}
+// One removal for the card's × and the detail's Remove row.
+async function removeItem(item,card=[...$('grid').children].find(c=>c.dataset.group===item.id)){
+ await alertPost({action:'remove',group:item.id});if(card)await removeWithMotion(card);itemCache.delete(item.id);applyFilter();
+ // Someone who bought it often just removes it: one tap records the purchase instead (store and size unknown).
+ toast(item.price_alert?.active?'Removed. Alert turned off.':'Removed from your wishlist.',async()=>{await alertPost({action:'restore',group:item.id});await load();},
+  item.bought?null:{label:'I bought it',run:()=>markBought(item,{via:'remove_toast'})});
+ const next=$('grid').querySelector('.product-card:not([hidden]) .tile');if(next)next.focus();
 }
 // "I bought this" (lib/wishlist-purchases.js): the item moves to Bought, its alert stops and it joins the wardrobe.
 const boughtLine=bought=>['Bought '+date(bought.at),bought.store].filter(Boolean).join(' · ');
@@ -224,10 +229,15 @@ function actionRow(label,icon,onclick){
 // Choices open in place (DESIGN-SYSTEM.md): "I bought this" turns into "Where did you get it?" with a round ×
 // and one line of store chips. One tap records the purchase; Undo comes from the toast.
 const BAG='<path d="M5 8h14l-1.2 12H6.2z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/><path d="M9.5 14l2 2 3.5-3.5"/>';
+const BIN='<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>';
+function removeRow(item){
+ return actionRow('Remove from wishlist',BIN,async event=>{const button=event.currentTarget;button.disabled=true;try{closeDialog($('detail'));await removeItem(item);}catch(e){message(e.message);button.disabled=false;}});
+}
 function purchaseActions(item){
  const rows=node('div',null,'action-rows');
  if(item.bought){
   rows.append(actionRow('Not bought? Move it back','<path d="M4 12a8 8 0 1 0 2.3-5.6"/><path d="M4 4v4h4"/>',async event=>{const button=event.currentTarget;button.disabled=true;try{await unmarkBought(item);closeDialog($('detail'));}catch(e){message(e.message);button.disabled=false;}}));
+  rows.append(removeRow(item));
   return [node('p',boughtLine(item.bought)+'. It’s in your wardrobe too.','bought-line'),rows];
  }
  const ask=node('div',null,'row-ask');ask.hidden=true;ask.setAttribute('role','group');
@@ -251,7 +261,7 @@ function purchaseActions(item){
  ask.append(head,chips);
  const row=actionRow('I bought this',BAG,event=>{open(true);if(event.detail===0)chips.firstChild?.focus();});
  cancel.onclick=()=>{open(false);row.focus();};
- rows.append(row,ask);
+ rows.append(row,ask,removeRow(item));
  return [rows];
 }
 async function markBought(item,{store=null,size=null,via='wishlist_page'}={}){
