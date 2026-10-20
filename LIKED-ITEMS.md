@@ -9,6 +9,7 @@ There's no button or keyword. The chat agent decides what the screenshot shows:
 | Screenshot shows | Tool | Where it goes |
 |---|---|---|
 | Things they liked or saved | `add_liked_items` | Taste signals (this feature) |
+| Several named products they want on their Jules wishlist ("add these to my wishlist") | `read_screenshot_products` | Looked up as those exact products and offered for saving; saved only once they say which (Oct 20) |
 | Their own orders or receipts | `add_order_screenshot` | Purchase history / wardrobe (existing) |
 | Their own outfits | `add_outfit_photos` | Style photos (existing) |
 | An item to find | `find_products` | Search (existing) |
