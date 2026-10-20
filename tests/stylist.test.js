@@ -164,3 +164,51 @@ test('stylist directions never run the shopper’s whole brief as an exact Googl
   search:async(q,images,env,fetcher,opts)=>{single.push(opts);return {products:[p('x')]};},rank:async x=>x});
  assert.equal(single.length,1);assert.notEqual(single[0].exact,false,'a named model read as discovery is still found by the exact search');
 });
+
+// October 20: the stylist inherited a slow long-form write model, timed out on every discovery and fell back silently.
+test('the stylist has its own model role, unaffected by the write model',async()=>{
+ const fetcher=model({concepts});
+ await stylistConcepts({query:'x',plan,env:{OPENAI_API_KEY:'k',MODEL_WRITE:'gpt-6-luna'},fetcher});
+ assert.equal(model.last.model,STYLIST_MODEL);
+ await stylistConcepts({query:'x',plan,env:{OPENAI_API_KEY:'k',MODEL_WRITE:'gpt-6-luna',MODEL_STYLIST:'gpt-5.4-mini'},fetcher});
+ assert.equal(model.last.model,'gpt-5.4-mini');
+ await stylistConcepts({query:'x',plan,env:{OPENAI_API_KEY:'k',STYLIST_MODEL:'gpt-5-mini'},fetcher});
+ assert.equal(model.last.model,'gpt-5-mini','the older variable is still honoured');
+});
+
+test('every stylist outcome is reported: ok, off, timeout, provider error, unreadable output',async()=>{
+ const seen=[],onOutcome=o=>seen.push(o.status==='ok'?`ok:${o.count}`:o.status);
+ await stylistConcepts({query:'x',plan,env:{OPENAI_API_KEY:'k'},fetcher:model({concepts}),onOutcome});
+ await stylistConcepts({query:'x',plan,env:{OPENAI_API_KEY:'k',STYLIST_ENABLED:'false'},onOutcome});
+ await stylistConcepts({query:'x',plan,env:{OPENAI_API_KEY:'k'},fetcher:async()=>{throw Object.assign(Error('slow'),{name:'TimeoutError'});},onOutcome});
+ await stylistConcepts({query:'x',plan,env:{OPENAI_API_KEY:'k'},fetcher:async()=>({ok:false,status:429}),onOutcome});
+ await stylistConcepts({query:'x',plan,env:{OPENAI_API_KEY:'k'},fetcher:async()=>({ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:'not json'}]}]})}),onOutcome});
+ assert.deepEqual(seen,['ok:2','off','timeout','http_429','invalid']);
+});
+
+test('a discovery that falls back records why, and gets no taste-free catalog results',async()=>{
+ let result,shopQueries=[];
+ const shop=async query=>{shopQueries.push(query);return {products:[{...p('generic'),source_provider:'shop_catalog'}]};};
+ await textWishlistAction({action:'start',query:'casual shirts',search_plan:plan},{env:{SHOP_CATALOG_ENABLED:'true'},facts:[],record:async r=>{result=r;},
+  stylist:async({onOutcome})=>{onOutcome({status:'timeout',model:'m',ms:20000});return [];},shop,search:async()=>({status:'found',products:[p('web1')]}),rank:async x=>x});
+ assert.deepEqual(shopQueries,[],'no catalog search on the bare request');
+ assert.equal(result.text_wishlist_diagnostics.stylist.status,'timeout');
+ assert.deepEqual(result.text_wishlist_state.options.map(o=>o.url),[p('web1').url]);
+});
+
+test('with directions, Shop’s catalog searches each direction, and its results are tagged with it',async()=>{
+ let result,shopQueries=[];
+ const shop=async query=>{shopQueries.push(query);return {products:[{...p('shop-'+shopQueries.length),source_provider:'shop_catalog'}],diagnostics:{offers:1}};};
+ await textWishlistAction({action:'start',query:'going out top',search_plan:plan},{env:{SHOP_CATALOG_ENABLED:'true'},facts:[],record:async r=>{result=r;},
+  stylist:async({onOutcome})=>{onOutcome({status:'ok',count:2});return concepts;},shop,search:async()=>({status:'found',products:[]}),rank:async x=>x});
+ assert.deepEqual(shopQueries.sort(),concepts.map(c=>c.search_query).sort());
+ assert.deepEqual(result.text_wishlist_state.options.map(o=>o.concept).sort(),concepts.map(c=>c.label).sort());
+ assert.equal(result.text_wishlist_diagnostics.stylist.status,'ok');
+});
+
+test('a named or pictured item still searches the catalog with the request itself',async()=>{
+ const shopQueries=[];
+ await textWishlistAction({action:'start',query:'Salomon XT-6',search_plan:{...plan,mode:'identify'}},{env:{SHOP_CATALOG_ENABLED:'true'},facts:[],record:async()=>{},
+  stylist:async()=>assert.fail('no stylist for identify'),shop:async q=>{shopQueries.push(q);return null;},search:async()=>({status:'found',products:[p('xt6')]}),rank:async x=>x});
+ assert.deepEqual(shopQueries,['Salomon XT-6']);
+});
