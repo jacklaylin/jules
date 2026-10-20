@@ -40,7 +40,7 @@ Live replay of her "structured and luxe" request (local code, real search, no me
 
 First production test (founder, base-layer tops): the first search took 73 seconds, and the follow-up search ran past the 105-second turn deadline, so the founder got the fallback "couldn’t prepare a reply". The same requests take about 14 seconds locally. The third option, a basic Stanfield’s top, came from the Shop catalog, not a stylist direction: the interleave gave the Shop list a turn alongside the directions.
 
-Fixes: sourcing now counts the time left in the whole turn (`turnLeft` from the inbox) and keeps 20 seconds for the reply. The stylist runs only with at least 25 seconds of room (timeout 12 seconds). The direction searches share one hard cap (at most 40 seconds); results finished by then are used and slow directions are left behind (`stylist_searches.timed_out`). After directions ran, the extra refinement, in-stock and replacement searches are skipped. Shop catalog results come after every direction’s results, so they only fill an empty slot. Vercel logs were not reachable, so the exact slow step in production is not established.
+Fixes: sourcing now counts the time left in the whole turn (`turnLeft` from the inbox) and keeps 20 seconds for the reply. The stylist runs only with at least 25 seconds of room (timeout 12 seconds; 20 seconds from October 20). The direction searches share one hard cap (at most 40 seconds); results finished by then are used and slow directions are left behind (`stylist_searches.timed_out`). After directions ran, the extra refinement, in-stock and replacement searches are skipped. Shop catalog results come after every direction’s results, so they only fill an empty slot. Vercel logs were not reachable, so the exact slow step in production is not established.
 
 ### Speed — October 19, 2026
 
@@ -106,3 +106,25 @@ Full discovery flow: real stylist, model search, Google and store checks; synthe
 
 - **Before (10 s).** Directions: silk camisole, asymmetric jersey, minimal satin halter. All three options came from the first direction's exact pre-search: the Urban Outfitters and Fashion Nova going-out-tops category pages and the InStyle "28 Cool-Girl Going-Out Tops" article, none with a price. The other two directions never searched their own concepts.
 - **After (13 s).** Directions: minimal satin halter, draped one-shoulder, Kate Moss sheer camisoles. One product per direction, each from that direction's own search: Rebecca Vallance Elise halterneck silk satin top at Mytheresa (price not confirmed: the store blocks our reader and Google showed no price), Nili Lotan Isabella silk cami $320, A.L.C. Celeste top at Elyse Walker $395. No category pages or articles.
+
+### Silent stylist fallback — October 20, 2026
+
+Founder test "find me a few casual shirts": two generic shirts from unreviewed Shopify stores (BYLT Basics, UNTUCKit). Cause: the stylist never ran. Model roles (#234) had moved it onto the shared long-form `write` model; production switched that to gpt-6-luna, which takes 8–16 s on a real stylist input against a 12 s cut-off. The timed-out call returned no directions, unbilled and unlogged in the turn record, so the turn ran one generic search, and Shop's catalog, searched with the bare request and no taste, filled the set. The closet summary was present but reached the stylist cut to 600 characters, and grouped activewear under tops.
+
+Fixes:
+- The stylist has its own model role (`MODEL_STYLIST`, legacy `STYLIST_MODEL`, default gpt-5.5, low reasoning; `lib/models.js`). Changing the write model no longer changes it. Its cut-off is the smaller of 20 s and the sourcing time left beyond what the directions need.
+- Every stylist outcome (ok, off, no_time, timeout, http_<status>, incomplete, invalid, with model and ms) is kept in `text_wishlist_diagnostics.stylist` and logged as `stylist_fallback` when it isn't ok.
+- Shop's catalog searches each stylist direction for discovery and is skipped for a discovery without directions; named and pictured items still search it with the request.
+- The closet summary reaches the stylist whole as its own `closet` field, grouped by item type (shirts, tops, knitwear, activewear…), without the silhouette line.
+
+Offline replays of the same request with the stylist working all returned designer shirts on-brand for the founder (Dries Van Noten, Saint Laurent, Lemaire, Auralee); see the PR for the after-fix replays.
+
+### Wrong-department listings — October 20, 2026
+
+After Shop's catalog began searching the stylist's directions (#253), an offline replay of the founder's men's "find me a few casual shirts" showed MAYE's Sadie Embroidered Shirt, from a women's label. Cause: a search with a plan sets `allow_unknown_range`, so a listing whose page states no department passes the department check, and most Shopify pages state none. MAYE's own product data (type `SHIRT`, merchandising tags) has no department either; its description does ("feminine detail", "best with nude bra").
+
+Fix:
+- A Shopify store's product type and tags are now structured department data (`shopifyRange` in `lib/structured-product.js`), used when the page's other data says nothing. Mixed labels say nothing.
+- For a men's or women's search with a plan, each verified listing that still has no department gets one batched model read of its own text (`lib/department-read.js`: name, brand, store, type, tags, description, size labels; never the user's message). An answer must quote that listing's text; a quote that isn't there counts as unknown. A listing whose text says the other department is set aside (`range_contradicted`) before slots are filled; unisex, unclear and unlabelled listings stay. Brand knowledge from elsewhere and a model's height or measurements are not evidence. A failed or unavailable read keeps today's behaviour.
+
+Offline replays (founder profile, real stylist, search, Shop catalog and page checks; nothing sent or saved): three runs on this branch showed no women's items; the read set aside a Studio Nicholson shirt at namu-shop tagged "woman" and, in another run, two listings read as women's. The actual MAYE page is set aside for a men's search and kept for a women's one.
