@@ -24,6 +24,7 @@ import {createSignupHandler} from '../lib/public-signup.js';
 import {handleReport,handleSharedReport,handleSharePage} from '../lib/style-report.js';
 import {readFile} from 'node:fs/promises';
 import {handleWardrobe} from '../lib/wardrobe.js';
+import {markBought,markNotBought,wishlistGroup} from '../lib/wishlist-purchases.js';
 
 export const config = { api: { bodyParser: false }, maxDuration: 120 };
 export function createWishlistHandler({ env = process.env, storeFactory = createStore, auth = wishlistUser, admin = authorize, fetcher = fetch, verify = verifyListing, inspect = inspectAlertLinks, photos = fetchListingPhotos } = {}) {
@@ -105,6 +106,18 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
           await store.setWishlistRemoved(access.conversation,item.entries,input.action==='remove');
           await store.recordEvidence(access.conversation,[wishlistEvidence(input.action==='remove'?'removed':'restored',item)]);
           return json(res,200,{ok:true});
+        }
+        // "I bought this" and its undo (lib/wishlist-purchases.js). A bought item leaves All for the Bought
+        // filter, its alert stops and it joins the wardrobe; a repeat changes nothing.
+        if (['bought','unbought'].includes(input.action)) {
+          const access=await auth(req.headers,env,store,fetcher);
+          if(access.status!==200)return json(res,access.status,{error:'Please sign in with your invited email.'});
+          if(!uuid(input.group))return json(res,400,{error:'Invalid item.'});
+          const item=await wishlistGroup(store,access.conversation,input.group);
+          if(!item)return json(res,404,{error:'Item not found.'});
+          if(input.action==='unbought'){const {changed}=await markNotBought(store,access.conversation,item);return json(res,200,{ok:true,...(changed?{}:{unchanged:true})});}
+          const {changed,bought}=await markBought(store,access.conversation,item,{store:input.store,size:input.size,via:input.via==='remove_toast'?'remove_toast':'wishlist_page'});
+          return json(res,200,{ok:true,bought,...(changed?{}:{unchanged:true})});
         }
         if (['alert-options','alert-enable','alert-disable'].includes(input.action)) {
           if(env.PRICE_ALERTS_ENABLED!=='true')return json(res,503,{error:'Price alerts are not enabled yet.'});

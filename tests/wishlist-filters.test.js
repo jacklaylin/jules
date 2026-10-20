@@ -34,9 +34,20 @@ test('the filter round-trips through the link and ignores unknown values',()=>{
 });
 
 test('the count says how many are shown out of the whole list',()=>{
- assert.equal(countLabel(6,6,false),'6 items');
- assert.equal(countLabel(1,1,false),'1 item');
- assert.equal(countLabel(2,6,true),'2 of 6 items');
+ assert.equal(countLabel(6,6,'all'),'6 items');
+ assert.equal(countLabel(1,1,'all'),'1 item');
+ assert.equal(countLabel(2,6,'alerts'),'2 of 6 items');
+ assert.equal(countLabel(3,6,'bought'),'3 bought');
+});
+
+test('bought items are hidden by default and shown only under Bought',()=>{
+ const bought={id:'e',bought:{at:'2026-10-20T00:00:00Z',store:null},price_alert:{active:true,size:'M'},stock:{status:'sold_out'}};
+ const items=[watched,soldOut,plain,bought];
+ assert.deepEqual(items.filter(i=>matchesFilter(i,'all')).map(i=>i.id),['a','b','d']);
+ assert.deepEqual(items.filter(i=>matchesFilter(i,'bought')).map(i=>i.id),['e']);
+ // A bought item is never counted under the other states it still carries.
+ assert.deepEqual(filterChips(items).map(c=>[c.id,c.count]),[['all',3],['alerts',1],['sold-out',1],['bought',1]]);
+ assert.equal(filterFromURL('?filter=bought'),'bought');
 });
 
 test('both collection pages put the count on the filter row, not the heading',async()=>{

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { scanItem, scanSavedItems, scanKey, scanQuery, excludedSites, candidatePages } from '../lib/store-scan.js';
+import { domainToASCII } from 'node:url';
+import { scanItem, scanSavedItems, scanKey, scanQuery, excludedSites, candidatePages, unreviewedAddressRisk } from '../lib/store-scan.js';
 import { groupWishlist } from '../lib/wishlist.js';
 
 const env = { SERPAPI_API_KEY: 'fixture', SHOPPING_COUNTRY: 'US', SHOPPING_CURRENCY: 'USD' };
@@ -27,12 +28,44 @@ test('the search leaves out the stores on the card and the brand’s own site, a
   assert.doesNotMatch(scanQuery({ ...product, name: 'Lemaire Biker Blouson Black' }, []), /Black Black|LEMAIRE Lemaire/i);
 });
 
-test('only trusted stores’ pages are read, one per store, never a store already on the card', () => {
+test('store pages come in two tiers, one per store: trusted, then other stores that aren’t spam, copycat or resale', () => {
   const pages = candidatePages([
-    { link: lemaireURL }, { link: ssense }, { link: ssense + '?color=black' }, { link: 'https://www.bluefly.com/products/lemaire' },
-    { link: 'https://www.ssense-sale.shop/lemaire' }, { link: farfetch }, { link: 'https://www.mrporter.com/en-us/mens/product/lemaire/1' }, { link: 'https://www.mytheresa.com/us/en/men/lemaire' },
+    { link: lemaireURL }, { link: ssense }, { link: ssense + '?color=black' }, { link: 'https://www.northboutique.com/products/lemaire-zip-up-leather-jacket-963318344' },
+    { link: 'https://www.ssense-sale.shop/lemaire' }, { link: 'https://www.lyst.com/clothing/lemaire-jacket' }, { link: 'https://www.grailed.com/listings/1' },
+    { link: farfetch }, { link: 'https://www.mrporter.com/en-us/mens/product/lemaire/1' }, { link: 'https://www.mytheresa.com/us/en/men/lemaire' }, { link: 'https://www.' + domainToASCII('ѕsense.com') + '/x' }, { link: 'https://lemaireoutlet.com/jacket' }, { link: 'https://www.atelierbleu.eu/en/US/men/products/lemaire' },
   ], ['lemaire.fr'], 'LEMAIRE');
-  assert.deepEqual(pages.map(u => new URL(u).hostname), ['www.ssense.com', 'www.farfetch.com', 'www.mrporter.com']);
+  assert.deepEqual(pages.trusted.map(u => new URL(u).hostname), ['www.ssense.com', 'www.farfetch.com', 'www.mrporter.com']);
+  assert.deepEqual(pages.other.map(u => new URL(u).hostname), ['www.northboutique.com', 'www.atelierbleu.eu'], 'never an aggregator, resale, look-alike-alphabet or store-name-plus-words site');
+  assert.equal(unreviewedAddressRisk('https://www.ssense-sale.shop/x', 'LEMAIRE'), 'risky_domain_ending');
+  assert.equal(unreviewedAddressRisk('https://ssensesale.com/x', 'LEMAIRE'), 'store_name_in_domain');
+  assert.equal(unreviewedAddressRisk('https://lemaire-official.co.uk/x', 'LEMAIRE'), 'store_name_in_domain');
+  assert.equal(unreviewedAddressRisk('https://www.cettire.com/x', 'LEMAIRE'), null);
+  assert.equal(unreviewedAddressRisk('https://www.vitkac.com/x', 'LEMAIRE'), null);
+});
+
+test('other stores are read only when no trusted store has it for less, and are labelled unreviewed', async () => {
+  // An unreviewed store (Cettire, Vitkac and Antonioli joined the trusted list in #277).
+  const cettire = 'https://www.northboutique.com/products/lemaire-zip-up-leather-jacket-963318344';
+  const reads = [];
+  const verify = async url => { reads.push(new URL(url).hostname); return url === farfetch ? page(url, { price_snapshot: { amount: 3400, currency: 'USD', source_url: url } }) : page(url, { price_snapshot: { amount: 2500, currency: 'USD', source_url: url } }); };
+  const result = await scanItem(product, { env, search: results([farfetch, cettire]), verify, same: sameAs(cettire), store: emptyStore() });
+  assert.deepEqual(reads, ['www.farfetch.com', 'www.northboutique.com']);
+  assert.deepEqual(result.offers.map(o => [o.url, o.tier]), [[cettire, 'unreviewed']]);
+  assert.equal(result.searches, 1, 'the same search; no extra cost');
+  const trustedWins = [];
+  const both = await scanItem(product, { env, search: results([ssense, cettire]), verify: async url => { trustedWins.push(url); return page(url); }, same: sameAs(ssense, cettire), store: emptyStore() });
+  assert.deepEqual(trustedWins, [ssense], 'a trusted store with it for less ends the scan');
+  assert.deepEqual(both.offers.map(o => o.tier), ['trusted']);
+  const tooCheap = await scanItem(product, { env, search: results([cettire]), verify: async url => page(url, { price_snapshot: { amount: 900, currency: 'USD', source_url: url } }), same: sameAs(cettire), store: emptyStore() });
+  assert.equal(tooCheap.offers.length, 0); assert.equal(tooCheap.checked[0].outcome, 'implausible_discount', 'an unreviewed store far under the saved price is not believed');
+  const added = [];
+  const store = { ...emptyStore(), savedWishlistItems: async () => [{ id: 'item-1', conversation_id: 'c-1', product }], addWishlistLinks: async (c, id, links) => { added.push(...links); return links.length; } };
+  await scanSavedItems({ store, operation: 'op', env, search: results([farfetch, cettire]), verify, same: sameAs(cettire) });
+  assert.equal(added[0].store_tier, 'unreviewed');
+  const [card] = groupWishlist([{ item_id: 'item-1', reply_id: 'r', text_origin: true, brand: product.brand, name: product.name, links: [...product.links, added[0]], messages: { created_at: '2026-10-20' } }], { currency: 'USD' });
+  const found = card.links.find(l => l.url === cettire);
+  assert.equal(found.unreviewed, true); assert.equal(found.best_price, false, 'an unreviewed store never takes the badge');
+  assert.ok(card.links.every(l => !l.best_price), 'nor does a pricier trusted store');
 });
 
 test('a store is added only when its own page is this product for less, decided by the same-product check', async () => {
@@ -126,4 +159,33 @@ test('best price: one strictly cheapest in-stock store with a page-read price, a
     links: [a, b].map((url, i) => ({ url, verification_status: 'verified', price_snapshot: { amount: [2682, 3395][i], currency: 'USD', source_url: url, checked_at: '2026-10-20T00:00:00Z' } }))}];
   const [card] = groupWishlist(rows, { currency: 'USD' });
   assert.deepEqual(card.links.map(l => [l.url, l.best_price]), [[a, true], [b, false]]);
+});
+
+test('a store the scan adds joins the item’s price alert in the alert’s sizes, and the alert text names it as found', async () => {
+  const { watchFoundStores } = await import('../lib/store-scan.js');
+  const { decidePriceCheck } = await import('../lib/alert-decision.js');
+  const rows = [{ item_id: 'item-1', reply_id: 'r', text_origin: true, brand: product.brand, name: product.name, links: product.links, messages: { created_at: '2026-10-20' } }];
+  const [group] = groupWishlist(rows);
+  const alertLink = { url: lemaireURL, name: 'LEMAIRE BIKER BLOUSON', requested_sizes: ['L'], market_country: 'US', market_currency: 'USD' };
+  const saved = [];
+  const store = { wishlistEntries: async () => rows, setPriceAlertLinks: async (id, links) => saved.push({ id, links }),
+    priceAlerts: async () => [{ id: 'a1', group_id: group.id, active: true, links: [alertLink] }, { id: 'off', group_id: group.id, active: false, links: [alertLink] }, { id: 'other', group_id: 'x', active: true, links: [] }] };
+  const offers = [{ url: ssense, tier: 'trusted', color: 'Black', price_snapshot: {} }, { url: lemaireURL, tier: 'trusted', price_snapshot: {} }];
+  assert.equal(await watchFoundStores(store, { id: 'item-1', conversation_id: 'c', product }, offers), 1);
+  assert.equal(saved.length, 1); assert.equal(saved[0].id, 'a1', 'only the item’s active alert');
+  const joined = saved[0].links[1];
+  assert.deepEqual([joined.url, joined.requested_sizes, joined.color, joined.discovered_via], [ssense, ['L'], 'Black', 'store_scan']);
+  // The alert's next check: SSENSE's lower page price in size L is announced as a store Jules found.
+  const offer = (url, amount) => ({ url, size: 'L', key: 'L', amount, currency: 'USD', available: true, name: 'Jacket', checked_at: '2026-10-21T00:00:00Z' });
+  const alert = { id: 'a1', name: 'LEMAIRE Black Leather Biker Jacket', size: 'L', links: saved[0].links, baselines: [{ ...offer(lemaireURL, 3395), drop_percent: 0 }], last_result: { stock: 'in_stock' } };
+  const decision = decidePriceCheck(alert, [{ url: lemaireURL, status: 'checked', offers: [offer(lemaireURL, 3395)] }, { url: ssense, status: 'checked', offers: [offer(ssense, 2682)] }]);
+  assert.equal(decision.event.kind, 'price_drop');
+  assert.match(decision.event.body, /at ssense\.com, a store I found for you for \$2,682 \(was \$3,395, 21% off\)\. shipping and other fees not included\./);
+  const unreviewed = { ...alert, links: alert.links.map(l => l.url === ssense ? { ...l, store_tier: 'unreviewed' } : l) };
+  assert.match(decidePriceCheck(unreviewed, [{ url: ssense, status: 'checked', offers: [offer(ssense, 2682)] }]).event.body, /a store I found for you \(not one i’ve reviewed yet\)/);
+  // Nothing new to add, or no group for the item: no write.
+  saved.length = 0;
+  assert.equal(await watchFoundStores(store, { id: 'item-1', conversation_id: 'c', product }, [{ url: lemaireURL }]), 0);
+  assert.equal(await watchFoundStores(store, { id: 'missing', conversation_id: 'c', product }, offers), 0);
+  assert.equal(saved.length, 0);
 });
