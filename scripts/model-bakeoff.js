@@ -29,7 +29,7 @@ const runs = Number(option('--runs') ?? 3), concurrency = Number(option('--concu
 const only = option('--cases')?.split(',').map(s => s.trim()).filter(Boolean);
 const out = resolve(option('--out') ?? `.eval-local/bakeoff-${role}-${new Date().toISOString().replace(/[:.]/g, '-')}`);
 if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY.startsWith('replace-with')) throw Error('OPENAI_API_KEY is missing; run with --env-file=.env.local');
-if (models.some(m => m.startsWith('openrouter:')) && !process.env.OPENROUTER_API_KEY) throw Error('OPENROUTER_API_KEY is missing: create a key at openrouter.ai/settings/keys and add it to .env.local (never to Git)');
+if (models.some(m => m.startsWith('openrouter:')) && (!process.env.OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY.startsWith('replace-with'))) throw Error('OPENROUTER_API_KEY is missing: create a key at openrouter.ai/settings/keys and add it to .env.local (never to Git)');
 await mkdir(out, { recursive: true, mode: 0o700 });
 
 // Which role a request belongs to, from the request itself: the agent loop offers function tools, the

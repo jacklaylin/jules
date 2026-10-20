@@ -33,6 +33,7 @@ test('an openrouter: model goes to OpenRouter with its own key, never the OpenAI
   const plain = { body: JSON.stringify({ model: 'gpt-4.1-mini' }) };
   assert.equal(routeRequest(OPENAI_RESPONSES, plain, {}).init, plain);
   assert.throws(() => routeRequest(OPENAI_RESPONSES, init, {}), /OPENROUTER_API_KEY is not set/);
+  assert.throws(() => routeRequest(OPENAI_RESPONSES, init, { OPENROUTER_API_KEY: 'replace-with-your-private-openrouter-api-key' }), /OPENROUTER_API_KEY is not set/);
 });
 
 test('receipts never go to DeepSeek or an unpinned or non-US provider', async () => {
