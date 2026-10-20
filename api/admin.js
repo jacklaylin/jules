@@ -18,6 +18,7 @@ import { firstName } from '../lib/memory.js';
 import { copyWeek } from '../lib/report-copy.js';
 import { adoptionReport } from '../lib/adoption.js';
 import { resendContactCard } from '../lib/onboarding.js';
+import { compareEmail, sampleSources, COMPARE_MODELS } from '../lib/extract-compare.js';
 import { rereadImage } from '../lib/image-reread.js';
 import { approveAccess, approvalPreview, waitlistAgain, WAITLIST_REPLIES } from '../lib/waitlist.js';
 import { profileFirstName, displayName } from '../lib/memory.js';
@@ -34,15 +35,27 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
       if (req.method === 'POST') {
         // The only writes are purchase-history reviews, tagging, the onboarding reset, waitlist approval and texting the contact card, re-reading a failed photo; manual replies stay retired.
         const input = await readJson(req);
-        if (!['review', 'missed', 'tag', 'build-report', 'send-report', 'reset-onboarding', 'approve', 'waitlist', 'send-contact-card', 'reread-image', 'judge-mark', 'replay-draft'].includes(input.action)) return json(res, 400, { error: 'Unknown purchase action.' });
+        if (!['review', 'missed', 'tag', 'build-report', 'send-report', 'reset-onboarding', 'approve', 'waitlist', 'send-contact-card', 'reread-image', 'judge-mark', 'replay-draft', 'extract-compare'].includes(input.action)) return json(res, 400, { error: 'Unknown purchase action.' });
         if (input.action === 'judge-mark' && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Mark the judge from the Jules admin page.' });
         if (['approve', 'waitlist'].includes(input.action) && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Change waitlist status from the Jules admin page.' });
+        if (input.action === 'extract-compare' && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Run the comparison from the Jules admin page.' });
         if (input.action === 'reset-onboarding' && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Reset onboarding from the Jules admin page.' });
         if (input.action === 'send-contact-card' && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Send the contact card from the Jules admin page.' });
         if (input.action === 'reread-image' && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Re-read photos from the Jules admin page.' });
         const store = storeFactory(env);
         if (!uuid(input.conversation) || !await store.conversation(input.conversation)) return json(res, 404, { error: 'Conversation not found.' });
         if (input.action === 'reset-onboarding') return json(res, 200, await resetOnboarding(store, input, env, fetcher));
+        // Model bake-off (MODEL-BAKEOFF.md): one sampled receipt email read by each candidate extract
+        // model. Only the owner's own connected Gmail; nothing is saved and no email text is returned.
+        if (input.action === 'extract-compare') {
+          if (input.confirm !== true) throw Object.assign(new Error('Confirm the comparison first.'), { status: 400 });
+          const row = await store.gmailImport(input.conversation);
+          const own = env.ADMIN_EMAIL && JSON.stringify(row?.data?.account ?? '').toLowerCase().includes(env.ADMIN_EMAIL.toLowerCase());
+          if (!row?.token_ciphertext || !own) return json(res, 403, { error: 'The comparison reads only the owner’s own connected Gmail.' });
+          const sample = sampleSources(row, 40);
+          if (!Number.isInteger(input.email) || input.email < 0 || input.email >= sample.length) return json(res, 400, { error: `Choose an email from 0 to ${sample.length - 1}.` });
+          return json(res, 200, { total: sample.length, models: COMPARE_MODELS, result: await compareEmail({ store, row, owner: input.conversation, env, id: sample[input.email].id, fetcher }) });
+        }
         // Scorecard (lib/scorecard.js): the owner's "judge was right / wrong" mark, and a draft replay case.
         if (['judge-mark', 'replay-draft'].includes(input.action)) {
           if (typeof input.operation !== 'string' || !/^ai:[A-Za-z0-9:_-]{1,200}$/.test(input.operation)) return json(res, 400, { error: 'Unknown turn.' });
