@@ -5,6 +5,7 @@ const calls=[],bodies=[];
 globalThis.fetch=async (url,init)=>{calls.push(String(url));bodies.push(init?.body??null);
   if(String(url).startsWith('https://api.openai.com/'))return new Response(JSON.stringify({model:'gpt-4.1-mini-2025-04-14',status:'completed',usage:{input_tokens:1000,input_tokens_details:{cached_tokens:400},output_tokens:200},output:[{type:'web_search_call'},{type:'message'}]}));
   if(String(url).startsWith('https://serpapi.com/'))return new Response('{"organic_results":[]}');
+  if(String(url).startsWith('https://openrouter.ai/'))return new Response(JSON.stringify({model:JSON.parse(init.body).model,status:'completed',usage:{input_tokens:1000,output_tokens:100,cost:0.0042},output:[]}));
   return new Response('<html>retailer page</html>');};
 const {withUsage,priceFor,labelUsage}=await import('../lib/usage.js');
 
@@ -77,4 +78,26 @@ test('every API entry point loads the meter before anything else, so no handler 
     const first=readFileSync(new URL(file,dir),'utf8').split('\n').find(l=>/^import\b/.test(l));
     assert.equal(first,"import '../lib/usage.js';",`api/${file} imports lib/usage.js first`);
   }
+});
+
+test('new GPT-5 family and luna models are priced, and an unknown model is logged and never free',()=>{
+  const m=model=>priceFor({provider:'openai',model,input_tokens:1e6,cached_tokens:0,output_tokens:1e6,web_search_calls:0});
+  assert.deepEqual(['gpt-5-nano','gpt-5.4-nano','gpt-5.4-mini','gpt-5.6-luna','gpt-6-luna'].map(m),[0.45,1.45,5.25,1.4,0.6]);
+  const logs=[];const log=console.log;console.log=line=>logs.push(line);
+  try{assert.equal(m('gpt-7-nova'),35);}finally{console.log=log;}
+  assert.match(logs.join(''),/usage_unpriced_model.*gpt-7-nova/);
+});
+test('a role pointed at OpenRouter is sent there and metered at the reported or listed price',async()=>{
+  process.env.OPENROUTER_API_KEY='or-test';
+  const recorded=[];
+  try{
+    await withUsage({store:{recordUsage:async rows=>recorded.push(...rows)},env:{},conversation:'c',operation:'o',feature:'chat',quiet:true},async()=>{
+      for(const model of ['openrouter:anthropic/claude-haiku-5.5','openrouter:openai/gpt-oss-120b@groq'])
+        await (await fetch('https://api.openai.com/v1/responses',{method:'POST',headers:{Authorization:'Bearer sk-openai'},body:JSON.stringify({model,input:'hi'})})).json();
+    });
+  }finally{delete process.env.OPENROUTER_API_KEY;}
+  assert.equal(calls.filter(u=>u==='https://openrouter.ai/api/v1/responses').length,2);
+  assert.doesNotMatch(String(bodies.at(-1)),/sk-openai/);
+  // Haiku from the table: (1000*0.10 + 100*0.50)/1e6; gpt-oss from OpenRouter's reported cost.
+  assert.deepEqual(recorded.map(r=>[r.provider,r.model,r.cost_usd,'reported_cost' in r]),[['openrouter','anthropic/claude-haiku-5.5',0.00015,false],['openrouter','openai/gpt-oss-120b',0.0042,false]]);
 });

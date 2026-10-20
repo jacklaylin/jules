@@ -17,6 +17,7 @@ import { gateReport, spendTracker } from '../lib/replay-gate.js';
 import { withUsage } from '../lib/usage.js';
 import { createStore } from '../lib/store.js';
 import { checkSchema, schemaReport, formatSchemaReport } from '../lib/schema-check.js';
+import { modelFor } from '../lib/models.js';
 
 const args = process.argv.slice(2), option = name => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : undefined; };
 const runs = Number(option('--runs') ?? 3), threshold = Number(option('--threshold') ?? 0.8), concurrency = Number(option('--concurrency') ?? 4);
@@ -41,7 +42,7 @@ const store = process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY 
 const spend = spendTracker(maxCost), gateRun = 'eval:' + new Date().toISOString();
 // One cheap request first, so a bad key fails in a second with a clear message instead of as every case failing.
 const preflight = await fetch('https://api.openai.com/v1/responses', { method: 'POST', headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
-  body: JSON.stringify({ model: env.OPENAI_MODEL || 'gpt-4.1-mini', input: 'ok', max_output_tokens: 16, store: false }) }).catch(() => null);
+  body: JSON.stringify({ model: modelFor('extract',env), input: 'ok', max_output_tokens: 16, store: false }) }).catch(() => null);
 if (!preflight?.ok) {
   const code = preflight ? (await preflight.json().catch(() => ({}))).error?.code ?? preflight.status : 'network error';
   console.error(`OpenAI rejected the request (${code}). Check OPENAI_API_KEY in .env.local matches the key in Vercel; nothing was run.`);
@@ -82,7 +83,7 @@ if (shaky.length) {
 }
 const total = jobs.length * runs;
 console.log(`\nEstimated cost: $${spend.spent.toFixed(2)} (${spend.openai_calls} OpenAI calls, ${spend.searches} SerpApi searches; list prices, cap $${maxCost.toFixed(2)}). ${store ? 'Recorded on the admin Costs page.' : 'Not recorded: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are not set.'}`);
-if (spend.unpriced.size) console.log(`Cost unknown for ${[...spend.unpriced].join(', ')}: add its prices to lib/usage.js PRICES. Those calls are counted as $0 and do not count toward the cap.`);
+if (spend.unpriced.size) console.log(`Cost unknown for ${[...spend.unpriced].join(', ')}: add its prices to lib/usage.js PRICES. Those calls are costed at the dearest known rate.`);
 if (results.length < total) {
   console.log(`\nStopped at the $${maxCost.toFixed(2)} spending cap after ${results.length} of ${total} runs; the gate is incomplete. Rerun with fewer cases (--cases, --category), fewer --runs, or a higher --max-cost.`);
   process.exit(3);
