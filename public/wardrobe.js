@@ -58,10 +58,17 @@ function photoURL(id,kind='photo',source=null,version){
 }
 // A photo much smaller than its frame is shown at up to twice its own size, not stretched into a blur.
 const SMALL_PHOTO=300;
-function photo(item){
+// Grid cards keep their loaded photo frame across re-renders (keyed by the photo itself), so a card that
+// changes for another reason never goes back to the placeholder. The detail view always builds its own.
+const photoFrames=new Map();
+const photoKey=item=>item?.suggestion?`suggestion::${item.id}:${item.suggestion.version}`:item?.photo?`photo:${item.photo_source==='search_confirmed'?'search':''}:${item.id}:${item.photo_version}`:null;
+function photo(item,{reuse=false}={}){
  const kind=item?.suggestion?'suggestion':item?.photo?'photo':null;
  if(!kind)return outline(item?.category);
+ const key=photoKey(item),kept=reuse&&photoFrames.get(key);
+ if(kept&&!kept.classList.contains('skeleton'))return kept;
  const frame=el('div',{className:'photo skeleton'+(kind==='suggestion'?' suggested-photo':'')});
+ if(reuse)photoFrames.set(key,frame);
  whenNear(frame,()=>photoURL(item.id,kind,kind==='photo'&&item.photo_source==='search_confirmed'?'search':null,kind==='photo'?item.photo_version:item.suggestion.version).then(async url=>{
   const img=el('img',{alt:name(item)});img.src=url;await img.decode();
   if(Math.max(img.naturalWidth,img.naturalHeight)<SMALL_PHOTO){frame.classList.add('photo--small');img.style.maxWidth=img.naturalWidth*2+'px';img.style.maxHeight=img.naturalHeight*2+'px';}
@@ -108,29 +115,49 @@ function toast(text,action=null){
 
 // One wardrobe action, then the fresh view from the server.
 async function act(input,{done,quiet=false}={}){
- try{view=await api('POST',input,{quiet});render();done?.();return true;}
+ try{const started=Date.now();applyView(await api('POST',input,{quiet}),started);done?.();return true;}
  catch(error){if(error.status===401)login();toast(error.message);return false;}
 }
 
 // A searched photo waiting for the owner: labelled on the photo, answered with thumbs inside the photo.
 const THUMB='<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 21 L7 10 L11 10 L14 3 C16 3 17 4 17 6 L16 9 L21 9 C22 9 23 10 22.6 11.4 L20.5 19.4 C20.2 20.4 19.4 21 18.4 21 Z M3 10 L7 10 L7 21 L3 21 Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>';
 // One control inside the photo: the question and its two answers together (design: "Wardrobe photo feedback", option A).
-// The answer plays its motion while the request runs; the new view replaces the card once both are done.
-// A "yes" keeps showing the photo already on screen (it is now the item's photo), so nothing reloads.
+// The answer plays its motion while the request runs, then only that card changes, from that answer's own
+// response: other cards (and their answers in flight) are never redrawn or overwritten by it. A "yes" keeps the
+// photo already on screen (it is now the item's photo), so nothing reloads.
+const answering=new Set(),localAnswers=new Map();
 async function answerPhoto(item,value,button,pill){
  for(const b of pill.querySelectorAll('button'))b.disabled=true;
+ const started=Date.now();answering.add(item.id);
  const motion=answerWithMotion(button,pill,{tilt:value==='yes'?-14:14});
  try{
   const [next]=await Promise.all([api('POST',{action:'photo',item_id:item.id,answer:value}),motion]);
-  const saved=next.items.find(i=>i.id===item.id),shown=photoURLs.get(`suggestion::${item.id}:${item.suggestion?.version}`);
-  if(value==='yes'&&saved?.photo_source==='search_confirmed'&&shown)photoURLs.set(`photo:search:${item.id}:${saved.photo_version}`,shown);
-  view=next;render();toast(value==='yes'?'Photo saved.':'Got it. Jules won’t use that photo.');
+  const saved=next.items.find(i=>i.id===item.id)??{...item,suggestion:null},shownKey=photoKey(item);
+  if(value==='yes'&&saved.photo_source==='search_confirmed'){
+   const savedKey=photoKey(saved),url=photoURLs.get(`suggestion::${item.id}:${item.suggestion?.version}`),frame=photoFrames.get(shownKey);
+   if(url)photoURLs.set(`photo:search:${item.id}:${saved.photo_version}`,url);
+   if(frame){frame.classList.remove('suggested-photo');photoFrames.set(savedKey,frame);}
+  }
+  photoFrames.delete(shownKey);
+  localAnswers.set(item.id,{item:saved,at:started});answering.delete(item.id);
+  view={...view,items:view.items.map(i=>i.id===item.id?saved:i)};render();
+  toast(value==='yes'?'Photo saved.':'Got it. Jules won’t use that photo.');
  }catch(error){
+  answering.delete(item.id);
   if(error.status===401)return login();
   pill.getAnimations?.().forEach(a=>a.cancel());pill.style.opacity=pill.style.transform='';
   for(const b of pill.querySelectorAll('button')){b.disabled=false;b.classList.remove('is-pressed');b.getAnimations?.().forEach(a=>a.cancel());b.style.opacity=b.style.transform='';}
   toast(error.message);
  }
+}
+// A whole view from the server replaces the page's copy, except for photo answers made after its request was
+// sent: those keep the answered item, so a slower, older response can't bring a question back.
+function applyView(next,startedAt){
+ for(const [id,{item,at}] of localAnswers){
+  if(at<startedAt){localAnswers.delete(id);continue;}
+  const i=next.items.findIndex(x=>x.id===id);if(i>=0)next.items[i]=item;
+ }
+ view=next;render();
 }
 function suggestionAsk(item){
  const answer=(value,label)=>{const b=el('button',{type:'button',className:'suggest-thumb'+(value==='no'?' suggest-thumb--down':''),title:label});b.innerHTML=THUMB;b.setAttribute('aria-label',`${label}: ${name(item)}`);
@@ -140,14 +167,18 @@ function suggestionAsk(item){
  return el('div',{className:'suggest-ask'},pill);
 }
 function card(item){
- const media=photo(item);
+ const media=photo(item,{reuse:true});
  const tile=el('button',{type:'button',className:'tile'},item.suggestion?el('div',{className:'suggested-frame'},media):media,el('strong',{},name(item)),line(item)?el('span',{className:'card-price'},line(item)):null);
  tile.onclick=()=>openDetail(item.id);
  return el('div',{className:'product-card'+(item.suggestion?' has-suggestion':'')},tile,item.suggestion?suggestionAsk(item):null);
 }
 
+// Redrawn only when the questions (or the items they show) change, so saving something else doesn't reload them.
+let questionsDrawn=null;
 function renderQuestions(){
  const items=new Map(view.items.map(i=>[i.id,i]));
+ const sig=JSON.stringify(view.questions.map(q=>[q,items.get(q.item_ids[0])]));
+ if(sig===questionsDrawn)return;questionsDrawn=sig;
  const list=view.questions.map(q=>{
   const first=items.get(q.item_ids[0]);
   const answers=[...q.answers.map(answer=>{const b=el('button',{type:'button',className:'chip',textContent:ANSWER_LABELS[answer]});b.onclick=()=>act({action:'answer',question_id:q.id,answer},{done:()=>toast('Thanks. Jules has that now.')});return b;}),
@@ -167,6 +198,22 @@ function renderCategories(){
  $('categories').replaceChildren(...(present.length>1?[chip('all','All'),...present.map(c=>chip(c,CATEGORY_LABELS[c]))]:[]));
 }
 
+// Cards are kept by item: one whose item is unchanged (or whose photo answer is still playing) stays the same
+// node and isn't moved, so nothing on the page reloads or flashes when one item changes.
+const cards=new Map();
+function placeCards(items){
+ const grid=$('grid'),keep=new Set();
+ items.forEach((item,index)=>{
+  const sig=JSON.stringify(item),prior=cards.get(item.id);
+  let node=prior&&(prior.sig===sig||answering.has(item.id))?prior.node:null;
+  // A changed card takes its old card's place, so the cards around it never move.
+  if(!node){node=card(item);if(prior?.node.parentNode===grid)prior.node.replaceWith(node);cards.set(item.id,{sig,node});}
+  keep.add(node);
+  if(grid.children[index]!==node)grid.insertBefore(node,grid.children[index]??null);
+ });
+ for(const child of [...grid.children])if(!keep.has(child))child.remove();
+ for(const [id,{node}] of cards)if(!keep.has(node))cards.delete(id);
+}
 function render(){
  if(!view)return;
  saveList(localStorage,'wardrobe',token,view);
@@ -178,7 +225,7 @@ function render(){
  const shown=view.items.filter(i=>category==='all'||i.category===category);
  const total=`${count} ${count===1?'item':'items'}`;
  $('count').textContent=count?(category==='all'?total:`${shown.length} of ${total}`):'';
- $('grid').replaceChildren(...shown.map(card));
+ placeCards(shown);
  $('toolbar').hidden=!count;
  $('empty').hidden=Boolean(count)||reading;
  const removed=view.removed.length;
@@ -239,7 +286,7 @@ $('fix-form').onsubmit=async event=>{
  const item=view.items.find(i=>i.id===current),category=$('fix-category').value;
  // Sent only when changed, so saving other details never pins the tagger's guess as the owner's choice.
  if(category&&category!==item?.category)values.wardrobe_category=category;
- try{view=await api('POST',{action:'fix',item_id:current,values});$('fix').close();render();if($('detail').open)openDetail(current);toast('Saved.');}
+ try{const started=Date.now();applyView(await api('POST',{action:'fix',item_id:current,values}),started);$('fix').close();if($('detail').open)openDetail(current);toast('Saved.');}
  catch(error){if(error.status===401)return login();$('fix-error').textContent=error.message;$('fix-error').hidden=false;}
 };
 $('add').onclick=()=>$('add-sheet').showModal();
@@ -258,14 +305,14 @@ for(const dialog of document.querySelectorAll('dialog'))for(const close of dialo
 function loading(){
  $('login').hidden=true;$('wardrobe').hidden=false;$('count').textContent='';
  for(const id of ['reading','questions','toolbar','empty','removed-open'])$(id).hidden=true;
- $('grid').setAttribute('aria-busy','true');
+ $('grid').setAttribute('aria-busy','true');cards.clear();questionsDrawn=null;
  $('grid').replaceChildren(...Array.from({length:4},()=>{const tile=el('div',{className:'tile'},el('div',{className:'skeleton photo'}),el('div',{className:'skeleton skeleton-card-title'}),el('div',{className:'skeleton skeleton-price'}));tile.setAttribute('aria-hidden','true');return tile;}));
 }
 // Photos for purchases that had none are looked for a few at a time while the page is open. Each one
 // arrives as a suggestion; nothing becomes an item's photo without the owner's yes.
 async function findPhotos(){
  for(let pass=0;pass<12&&view;pass++){
-  try{const next=await api('POST',{action:'suggest_photos'},{quiet:true});const remaining=next.photo_search?.remaining??0;delete next.photo_search;view=next;render();if(!remaining)return;}
+  try{const started=Date.now(),next=await api('POST',{action:'suggest_photos'},{quiet:true});const remaining=next.photo_search?.remaining??0;delete next.photo_search;applyView(next,started);if(!remaining)return;}
   catch{return;}
  }
 }
@@ -277,7 +324,7 @@ async function load(){
  if(saved)try{view=saved;render();$('wardrobe').dataset.listSource='saved';}catch{saved=null;view=null;forgetLists(localStorage);}
  if(!saved)loading();
  // A change made on the saved wardrobe while this refresh runs wins: wait for it, then read again.
- try{let fresh;for(;;){const seen=written;fresh=await api();if(!writes.size&&written===seen)break;await Promise.allSettled([...writes]);}if(!saved||JSON.stringify(fresh)!==JSON.stringify(view)){view=fresh;render();$('wardrobe').dataset.listSource='server';}void enableAdminLink(token);void findPhotos();}
+ try{let fresh,started;for(;;){const seen=written;started=Date.now();fresh=await api();if(!writes.size&&written===seen)break;await Promise.allSettled([...writes]);}if(!saved||JSON.stringify(fresh)!==JSON.stringify(view)){applyView(fresh,started);$('wardrobe').dataset.listSource='server';}void enableAdminLink(token);void findPhotos();}
  catch(error){if(!saved)$('grid').replaceChildren();if(error.status===401)return login();message(error.message);}
  finally{$('grid').setAttribute('aria-busy','false');}
 }
