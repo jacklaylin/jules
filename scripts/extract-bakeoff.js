@@ -5,8 +5,9 @@
 // model text. Results stay local; the receipts are personal data and never leave this machine except
 // to the model under test, which must be allowed to read personal data (OpenAI, or a US-pinned
 // OpenRouter provider; never DeepSeek).
-//   EVAL_CONVERSATION_ID=<id> node --env-file=.env.local scripts/extract-bakeoff.js \
+//   node --env-file=.env.local scripts/extract-bakeoff.js \
 //     --models gpt-4.1-mini,gpt-6-luna,gpt-5-nano:minimal --emails 40 --out <private folder>
+// It reads the import connected with ADMIN_EMAIL unless EVAL_CONVERSATION_ID names another.
 // The first model is the baseline. Its run 1 is the reference; its runs 2–3 show how often the baseline
 // disagrees with itself, which is the noise floor for the candidates.
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -20,11 +21,19 @@ import { withUsage, priceFor } from '../lib/usage.js';
 import { assertPrivateDataAllowed } from '../lib/models.js';
 
 const args = process.argv.slice(2), option = name => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : undefined; };
-const env = process.env, conversation = env.EVAL_CONVERSATION_ID;
+const env = process.env;
+// Defaults to the admin's own Gmail import (the one connected with ADMIN_EMAIL).
+async function adminImport() {
+  if (!env.ADMIN_EMAIL || !env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) return null;
+  const headers = { apikey: env.SUPABASE_SERVICE_ROLE_KEY, Authorization: 'Bearer ' + env.SUPABASE_SERVICE_ROLE_KEY };
+  const rows = await (await fetch(env.SUPABASE_URL + '/rest/v1/gmail_imports?select=conversation_id,account:data->account', { headers })).json();
+  return rows.find(r => JSON.stringify(r.account ?? '').toLowerCase().includes(env.ADMIN_EMAIL.toLowerCase()))?.conversation_id ?? null;
+}
+const conversation = env.EVAL_CONVERSATION_ID || await adminImport();
 const models = (option('--models') ?? '').split(',').map(s => s.trim()).filter(Boolean);
 const emailCount = Number(option('--emails') ?? 40), runs = Number(option('--runs') ?? 3);
 const out = resolve(option('--out') ?? `.eval-local/bakeoff-extract-${new Date().toISOString().replace(/[:.]/g, '-')}`);
-if (!conversation || models.length < 2) throw Error('Use EVAL_CONVERSATION_ID=<id> node --env-file=.env.local scripts/extract-bakeoff.js --models <baseline>,<candidate>[,...]');
+if (!conversation || models.length < 2) throw Error('Use node --env-file=.env.local scripts/extract-bakeoff.js --models <baseline>,<candidate>[,...] (reads the ADMIN_EMAIL import, or set EVAL_CONVERSATION_ID)');
 for (const m of models) assertPrivateDataAllowed(m.split(/:(?=[a-z]+$)/)[0]);
 await mkdir(out, { recursive: true, mode: 0o700 });
 
