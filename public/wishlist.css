@@ -84,6 +84,7 @@
 .info .alert-status{display:flex;gap:8px;align-items:flex-start;margin:12px 0 4px;font-size:15px;color:var(--ink)}.stock-summary .alert-status{margin:0}.alert-status svg{flex-shrink:0;margin-top:1px}
 @media(max-width:800px){.tile .stock-tag{margin-inline:4px}.card-note{margin-inline:4px;font-size:11px}}
 .link-action .stock-tag{margin-right:4px;vertical-align:1px}
+.stock-tag.best-price{background:var(--butter);color:var(--ink)}
 .filter-empty{display:grid;justify-items:start;gap:16px;margin-top:24px}
 .filter-empty p{margin:0;font:400 36px/1.1 var(--font-serif);letter-spacing:-.04em}
 .filter-empty[hidden]{display:none}
