@@ -9,9 +9,9 @@ Question: can cheaper models do Jules's jobs as well as today's? No production m
 | chat | The conversation (agent loop and reply writer) | gpt-4.1-mini | **Keep for now; needs more data.** Both luna models tie on pass rate at a quarter to a ninth of the cost, but each has a weak spot testers would notice. gpt-5.6-luna sometimes searches again when asked to save, and gpt-6-luna asks questions instead of searching. Fixing the save case and rerunning would settle it. |
 | search | Product sourcing with web search | gpt-4.1 | **Keep.** Both cheaper models found the right product less often. |
 | extract | Gmail receipts and other small structured reads | gpt-4.1-mini | **Needs more data.** Not run: reading your Gmail needs your go-ahead (see "What you need to do"). |
-| write | Style report lines | gpt-5.5 | **Needs more data.** gpt-6-luna passed every copy check at about 1/60th of the cost. Your blind judgement decides. |
+| write | Style report lines | gpt-5.5 | **Switch report lines to gpt-6-luna.** It passed every copy check, you preferred it 5 to 2 in the blind pairs (3 even), and it costs about 1/60th as much. See "Switching the write role" for how. |
 
-Quality comes before cost, so nothing is a "switch" yet. The write role is closest: its candidate only needs your judgement on the blind page (about 10 minutes).
+Quality comes before cost. The write role is the only switch: the cheaper model matched on the checks and won your blind judgement. For chat, your blind picks were mostly even (7 of 10), so voice doesn't decide it; the weak spots below do.
 
 ## Chat role
 
@@ -74,6 +74,16 @@ Passing the checks says the lines are allowed, not that they're funny. That's wh
 
 ## Blind pairs
 
+Your picks (October 20):
+
+| Pairs | Today's model | Candidate | Even |
+| --- | --- | --- | --- |
+| Chat replies | gpt-4.1-mini · 2 | gpt-5.6-luna · 1 | 7 |
+| Style report lines | gpt-5.5 · 2 | gpt-6-luna · 5 | 3 |
+
+Ten pairs per group is a small sample. It's enough to say the cheaper writer is not worse, and the chat voice is a wash.
+
+
 [A private page](https://claude.ai/artifact/F4MDFSXGjJ9pGesxYqT6fo) with 20 pairs: 10 chat replies (gpt-4.1-mini vs gpt-5.6-luna) and 10 style-report lines (gpt-5.5 vs gpt-6-luna). The models are revealed after you judge all 20. Chat replies come from eval conversations with stubbed tools, so judge voice and judgement, not product details.
 
 ## Extract role (Gmail import)
@@ -94,9 +104,20 @@ Caching finding for the import: with structured outputs, gpt-4.1-mini got **0%**
 - Costs: OpenRouter calls are metered. GPT-5 nano/mini, GPT-5.4 nano/mini, gpt-5.6-luna and gpt-6-luna are priced from OpenAI's pricing page (web search $10 per 1,000 calls). A model with no price is logged and costed at the dearest known rate instead of $0, so spending caps still hold.
 - Bake-off runners: `scripts/model-bakeoff.js` (chat, search), `scripts/write-bakeoff.js`, `scripts/extract-bakeoff.js`.
 
+## Switching the write role
+
+Changing the setting in Vercel is enough; no code change is needed. One catch: the write role also drives the stylist step and the fit reading, and the bake-off only tested report lines. Keep the stylist on gpt-5.5 by setting it explicitly:
+
+1. Vercel → the jules project → Settings → Environment Variables (Production).
+2. Add `MODEL_WRITE` = `gpt-6-luna`.
+3. Add `STYLIST_MODEL` = `gpt-5.5` (skip if it's already there).
+4. Redeploy, then open your own style report and check a few lines.
+
+The fit reading moves to gpt-6-luna too. It is the same kind of writing, but it wasn't in the test, so read one after the switch. To undo, delete `MODEL_WRITE` and redeploy.
+
 ## What you need to do
 
-1. **Judge the blind pairs** (about 10 minutes, works on your phone). When you finish, press Copy picks and paste the result into the Claude session.
+1. ~~Judge the blind pairs.~~ Done October 20 (results above).
 2. **Run the Gmail comparison.** This reads your own Gmail, which is why it needs you. In Terminal, from the `jules` folder:
    `node --env-file=.env.local .claude/worktrees/peaceful-noyce-17a7e2/scripts/extract-bakeoff.js --models gpt-4.1-mini,gpt-6-luna,gpt-5.6-luna,gpt-5-nano:minimal --emails 40`
    It costs about $1–2 and prints where the results went. Or tell the Claude session it may read your imported Gmail receipts for this test, and it will run it.
