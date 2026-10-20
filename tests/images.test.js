@@ -1,6 +1,8 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {incomingContent,readImage,MAX_IMAGE_BYTES} from '../lib/images.js';
+import sharp from 'sharp';
+import {randomBytes} from 'node:crypto';
+import {incomingContent,readImage,MAX_IMAGE_BYTES,MAX_DOWNLOAD_BYTES} from '../lib/images.js';
 import {generateReply} from '../lib/ai.js';
 import {agentTurn,tool} from './helpers/agent.js';
 import {receiveInInbox} from '../lib/inbox.js';
@@ -20,8 +22,8 @@ test('image bytes have bounded streaming and checked types, unsupported formats 
   assert.equal((await readImage(attachment())).data,png.toString('base64'));
   await assert.rejects(readImage(attachment(png,'image/jpeg')));
   await assert.rejects(readImage(attachment(png,'image/heic')));
-  await assert.rejects(readImage(attachment(png,'image/png',MAX_IMAGE_BYTES+1)));
-  await assert.rejects(readImage(attachment(Buffer.alloc(MAX_IMAGE_BYTES+1),'image/png',0)));
+  await assert.rejects(readImage(attachment(png,'image/png',MAX_DOWNLOAD_BYTES+1)));
+  await assert.rejects(readImage(attachment(Buffer.alloc(MAX_DOWNLOAD_BYTES+1),'image/png',0)),{code:'image_too_large'});
 });
 test('vision uses private inline bytes and treats inferred taste as unconfirmed',async()=>{
   let sent;
@@ -52,7 +54,7 @@ test('image failures remain visible and produce a practical fallback without inv
   const store={receive:async()=> 'conversation',claimAI:async()=>true,imageStatus:async(id,status)=>{failed=status==='failed';},prepareAI:async(op,text)=>body=text,finish:async()=>{}};
   await receiveInInbox({message:{id:'image',attachments:[{id:'fake'}]}},{AI_ENABLED:'true'},
     {store,loadImages:async()=>{throw new Error('private error');},generate:async()=>assert.fail(),send:async()=>{}});
-  assert.equal(failed,true);assert.match(body,/under 3 MB/);
+  assert.equal(failed,true);assert.match(body,/under 15 MB/);
 });
 test('private image endpoint authenticates before reading any bytes',async()=>{
   const response=()=>({headers:{},setHeader(k,v){this.headers[k]=v;},end(body){this.body=body;}});
@@ -78,7 +80,57 @@ test('HEIC conversion errors and oversized conversion output stay on the fallbac
 test('attachment failures expose bounded diagnostic codes without provider messages or private bytes',async()=>{
  await assert.rejects(readImage(null),{code:'attachment_missing'});
  await assert.rejects(readImage(attachment(png,'image/gif')),{code:'unsupported_type'});
- await assert.rejects(readImage(attachment(png,'image/png',MAX_IMAGE_BYTES+1)),{code:'image_too_large'});
+ await assert.rejects(readImage(attachment(png,'image/png',MAX_DOWNLOAD_BYTES+1)),{code:'image_too_large'});
  await assert.rejects(readImage(attachment(png,'image/jpeg')),{code:'invalid_image_bytes'});
  await assert.rejects(readImage(attachment(Buffer.alloc(0))),{code:'empty_image'});
+});
+// Random noise is the worst case for compression, standing in for an image-heavy grid screenshot.
+const noisePNG=(width,height)=>sharp(randomBytes(width*height*3),{raw:{width,height,channels:3}}).png().toBuffer();
+test('oversized iPhone screenshots are shrunk under the storage limit as metadata-free JPEG',async()=>{
+  const bytes=await sharp(await noisePNG(1179,2556)).withMetadata({exif:{IFD0:{Copyright:'private'}}}).png().toBuffer();
+  assert.ok(bytes.length>MAX_IMAGE_BYTES&&bytes.length<MAX_DOWNLOAD_BYTES);
+  const image=await readImage(attachment(bytes,'image/png'));
+  assert.equal(image.mime_type,'image/jpeg');
+  const jpeg=Buffer.from(image.data,'base64');
+  assert.ok(jpeg.length<=MAX_IMAGE_BYTES);
+  const meta=await sharp(jpeg).metadata();
+  assert.equal(meta.format,'jpeg');assert.equal(meta.exif,undefined);
+  assert.ok(meta.width>=900,'grid screenshot keeps enough width to read');
+});
+test('tall screenshots keep their aspect ratio and a legible long edge',async()=>{
+  const bytes=await noisePNG(800,5000);
+  assert.ok(bytes.length>MAX_IMAGE_BYTES&&bytes.length<MAX_DOWNLOAD_BYTES);
+  const jpeg=Buffer.from((await readImage(attachment(bytes,'image/png'))).data,'base64');
+  assert.ok(jpeg.length<=MAX_IMAGE_BYTES);
+  const {width,height}=await sharp(jpeg).metadata();
+  assert.ok(height>=3072&&height<=4096,`height ${height}`);
+  assert.ok(Math.abs(width/height-800/5000)<0.01);
+});
+test('small images pass through untouched and undecodable large bytes fail with a bounded code',async()=>{
+  const small=await sharp({create:{width:40,height:40,channels:3,background:'#123456'}}).png().toBuffer();
+  assert.equal((await readImage(attachment(small))).data,small.toString('base64'));
+  const fake=Buffer.concat([png,Buffer.alloc(MAX_IMAGE_BYTES+1)]);
+  await assert.rejects(readImage(attachment(fake,'image/png')),{code:'image_normalization_failed'});
+});
+test('a shrunk screenshot records its original and final sizes for diagnostics, never in the stored row',async()=>{
+  const bytes=await noisePNG(1179,2556);
+  const image=await readImage(attachment(bytes,'image/png'));
+  assert.equal(image.info.original_bytes,bytes.length);assert.equal(image.info.pre_normalize_bytes,bytes.length);
+  assert.equal(image.info.bytes,Buffer.from(image.data,'base64').length);assert.equal(image.info.converted,'normalized');
+  assert.deepEqual(Object.keys({...image}),['mime_type','data']);
+});
+test('the declared type is checked before a large image is decoded, and failures carry their sizes',async()=>{
+  const bytes=await noisePNG(1179,2556);
+  await assert.rejects(readImage(attachment(bytes,'image/webp'),undefined,async()=>assert.fail('checked first')),{code:'invalid_image_bytes'});
+  await assert.rejects(readImage(attachment(bytes,'image/png'),undefined,async()=>{throw new Error('decoder');}),
+    e=>e.code==='image_normalization_failed'&&e.image_info.original_bytes===bytes.length);
+});
+test('a failed image records its stage, reason and sizes in reply diagnostics',async()=>{
+  const written=[];
+  const store={receive:async()=>'conversation',claimAI:async()=>true,imageStatus:async()=>{},prepareAI:async()=>{},finish:async()=>{},replyDiagnostics:async(op,data)=>written.push(data)};
+  await receiveInInbox({message:{id:'image',attachments:[{id:'fake'}]}},{AI_ENABLED:'true'},
+    {store,loadImages:async()=>{throw Object.assign(new Error('Image download failed'),{image_reason:'image_too_large',image_info:{original_bytes:30000000}});},generate:async()=>assert.fail(),send:async()=>{},alert:async()=>false});
+  const final=written.at(-1);
+  assert.equal(final.error_class,'image');
+  assert.deepEqual(final.image_failure,{stage:'download',reason:'image_too_large',info:{original_bytes:30000000}});
 });

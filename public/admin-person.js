@@ -78,7 +78,8 @@ function messageView(message) {
       message.developer_feedback != null && el('dt', { textContent: 'Feedback' }), message.developer_feedback != null && el('dd', { textContent: message.developer_feedback || 'Developer feedback' })));
   return el('article', { id: `message-${message.id}`, className: `message ${inbound ? 'inbound' : 'outbound'}${issues.some(([k]) => k === 'fail') ? ' failed' : ''}` },
     bubble, ...products,
-    el('div', { className: 'message-meta' }, el('span', { className: 'muted', textContent: when(message.created_at) }), ...issues.map(([kind, text]) => badge(kind, text)), details));
+    el('div', { className: 'message-meta' }, el('span', { className: 'muted', textContent: when(message.created_at) }), ...issues.map(([kind, text]) => badge(kind, text)),
+      inbound && message.image_status === 'failed' && !message.message_images?.length && el('button', { type: 'button', className: 'small', textContent: 'Re-read photo…', onclick: () => openReread(message.id) }), details));
 }
 function renderMessages() {
   imageURLs.forEach(url => URL.revokeObjectURL(url)); imageURLs = [];
@@ -321,6 +322,22 @@ $('card-confirm').onclick = async () => {
     loadMessages().catch(error => notice(`Conversation: ${error.message}`));
   } catch (error) { $('card-error').textContent = error.message; $('card-error').hidden = false; }
   finally { buttons.forEach(b => { b.disabled = false; }); $('card-confirm').textContent = 'Send'; }
+};
+// ---------- Re-read a failed photo ----------
+// Reads the photo again from Photon (recompressing a large screenshot) and saves it to that message; no text is sent.
+let rereadMessage = null;
+function openReread(id) { rereadMessage = id; $('reread-error').hidden = true; $('reread-dialog').showModal(); }
+$('reread-cancel').onclick = () => $('reread-dialog').close();
+$('reread-confirm').onclick = async () => {
+  const buttons = [$('reread-confirm'), $('reread-cancel')]; buttons.forEach(b => { b.disabled = true; }); $('reread-confirm').textContent = 'Reading…';
+  try {
+    const { image } = await api('/api/admin', { method: 'POST', body: JSON.stringify({ action: 'reread-image', conversation: person, message: rereadMessage, confirm: true }) });
+    if (image.status === 'failed') throw new Error(`Still couldn’t read it (${image.reason}).`);
+    $('reread-dialog').close();
+    notice(image.status === 'saved' ? `Photo saved (${image.count}). Jules sees it from their next message.` : 'This photo was already saved.');
+    loadMessages().catch(error => notice(`Conversation: ${error.message}`));
+  } catch (error) { $('reread-error').textContent = error.message; $('reread-error').hidden = false; }
+  finally { buttons.forEach(b => { b.disabled = false; }); $('reread-confirm').textContent = 'Re-read'; }
 };
 // ---------- Reset onboarding ----------
 // Owner re-test of signup and onboarding with an existing number; the dialog lists what is removed.
