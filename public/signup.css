@@ -1,0 +1,78 @@
+/* Signup: a short chat with Jules over the animated brand haze.
+   The one page that leaves the white ground (DESIGN-SYSTEM.md, "Signup chat"). Composition only; colours are tokens. */
+.signup-page{margin:0;height:100dvh;display:flex;flex-direction:column;align-items:center;background:var(--haze-base);isolation:isolate;overflow:hidden;color:var(--ink)}
+.signup-page::before,.signup-page::after{content:"";position:fixed;inset:-25%;z-index:-1;pointer-events:none;filter:blur(60px)}
+.signup-page::before{background:radial-gradient(38% 34% at 22% 30%,var(--haze-bubblegum),transparent 70%),radial-gradient(34% 30% at 78% 22%,var(--haze-grape),transparent 70%),radial-gradient(40% 36% at 70% 80%,var(--haze-tangerine),transparent 70%);animation:haze-a 22s ease-in-out infinite alternate}
+.signup-page::after{background:radial-gradient(32% 30% at 30% 78%,var(--haze-butter),transparent 70%),radial-gradient(28% 26% at 60% 45%,var(--haze-bubblegum),transparent 70%);animation:haze-b 17s ease-in-out infinite alternate}
+@keyframes haze-a{0%{transform:translate(0,0) rotate(0) scale(1)}50%{transform:translate(6%,-4%) rotate(8deg) scale(1.08)}100%{transform:translate(-5%,5%) rotate(-6deg) scale(.96)}}
+@keyframes haze-b{0%{transform:translate(0,0) scale(1)}50%{transform:translate(-7%,3%) scale(1.12)}100%{transform:translate(5%,-6%) scale(.94)}}
+
+.signup-head,.signup-chat{width:min(640px,calc(100% - 32px))}
+.signup-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;padding-top:56px;flex:none}
+.signup-head h1{font-size:120px;line-height:.9;transition:font-size .3s var(--ease-out-expo)}
+.signup-logo{text-decoration:none;color:inherit}
+.signup-logo .logo{vertical-align:-.27em}
+.signup-login{font-size:14px;color:var(--text-2);padding-bottom:14px;min-height:44px;display:inline-flex;align-items:flex-end}
+
+.signup-chat{flex:1;min-height:0;display:flex;flex-direction:column;padding:20px 0 calc(16px + env(safe-area-inset-bottom))}
+.thread{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding:48px 4px 8px;-webkit-mask-image:linear-gradient(to bottom,transparent 0,var(--ink) 48px);mask-image:linear-gradient(to bottom,transparent 0,var(--ink) 48px);scrollbar-width:none}
+.thread>:first-child{margin-top:auto}
+.thread .gap{height:10px;flex:none}
+
+/* Jules's lines: outlined frosted bubbles led by the still-orb avatar */
+.thread .them{display:flex;align-items:flex-start;gap:12px;max-width:92%;align-self:flex-start}
+.thread .av{width:26px;flex:none;padding-top:9px}
+.av-img{display:block;width:26px;height:26px;border-radius:50%}
+.bubble--them{background:var(--frost);border:1.5px solid var(--ink);border-radius:22px 22px 22px 6px;padding:11px 18px;font:400 17px/1.4 var(--font-sans);letter-spacing:-.01em;backdrop-filter:blur(12px)}
+.thread .them+.them .bubble--them{border-top-left-radius:6px}
+.them--error .bubble--them{border-color:var(--danger);color:var(--danger)}
+.typing{display:inline-flex;gap:5px;padding:16px 18px}
+.typing i{width:7px;height:7px;border-radius:50%;background:var(--text-2);animation:typing 1.2s ease-in-out infinite}
+.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
+@keyframes typing{0%,60%,100%{opacity:.35;transform:none}30%{opacity:1;transform:translateY(-3px)}}
+
+/* Your answers: ink gel pills, tap to change */
+.thread .me{align-self:flex-end;position:relative;max-width:80%}
+.bubble--me{display:block;background:var(--ink);color:var(--white);border:1.5px solid var(--ink);border-radius:var(--r-pill);padding:11px 20px;font:600 16px/1.3 var(--font-sans);box-shadow:var(--shadow-gel);text-align:left;min-height:44px}
+button.bubble--me{cursor:pointer}
+button.bubble--me:hover{color:var(--white)}
+.tapback{position:absolute;top:-18px;left:-14px;width:32px;height:32px;border-radius:50%;background:var(--white);border:1.5px solid var(--ink);display:flex;align-items:center;justify-content:center;font:400 18px/1 "Apple Symbols","Segoe UI Symbol",var(--font-sans);color:var(--ink);animation:pop .5s .35s var(--ease-out-expo) both}
+.me:has(.tapback){margin-top:16px}
+
+.quick{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;border:0;padding:0;margin:0}
+.quick label:has(input[type=radio]){font-size:15px}
+.quick input[type=radio]{position:absolute;opacity:0;width:1px;height:1px}
+
+.consent{margin:8px 0 0 38px;padding:14px 16px;border-radius:18px;background:var(--frost);font-size:12px;line-height:1.55;color:var(--text-2);gap:12px;cursor:pointer}
+.consent input{width:22px;height:22px;margin:0;flex:none;accent-color:var(--ink)}
+
+.thread .new{animation:line-in .45s var(--ease-out-expo) both}
+@keyframes line-in{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
+@keyframes pop{0%{transform:scale(.4);opacity:0}60%{transform:scale(1.12);opacity:1}100%{transform:scale(1)}}
+
+/* The dock under the thread: compose box, quick-reply hint, or the one action */
+.dock{display:grid;gap:8px;margin-top:14px;flex:none}
+.compose{display:flex;align-items:center;gap:8px;min-height:52px;padding:5px 5px 5px 20px;border:1.5px solid var(--ink);border-radius:var(--r-pill);background:var(--white);box-shadow:var(--shadow-gel)}
+.compose input:not([type=checkbox]):not([type=radio]){flex:1;width:auto;min-width:0;margin:0;padding:0;height:40px;min-height:40px;border:0;border-radius:0;background:transparent;font:400 17px var(--font-sans);outline:none}
+.compose:focus-within{outline:3px solid var(--grape);outline-offset:3px}
+.compose .send{width:42px;height:42px;min-height:42px;padding:0;border-radius:50%;background:var(--butter);font:700 18px/1 var(--font-sans);flex:none}
+.compose--off{opacity:.45;color:var(--text-2);font-size:17px;box-shadow:none}
+#signup-button,#start-text{width:100%;min-height:56px;font-size:17px}
+.link-button{background:none;border:0;box-shadow:none;padding:0 8px;min-height:44px;font:400 13px var(--font-sans);color:var(--text-2);text-decoration:underline;text-underline-offset:4px;justify-self:center}
+.link-button::after{display:none}
+.link-button:hover{transform:none;color:var(--grape)}
+.signup-foot{margin:4px 0 0;text-align:center;flex:none}
+.noscript{width:min(640px,calc(100% - 32px));font-size:14px;line-height:1.6}
+#signup-privacy p{font-size:14px;line-height:1.6;color:var(--text-2)}
+
+@media(max-width:700px){
+ .signup-head{padding-top:28px}
+ .signup-head h1{font-size:min(84px,21vw);white-space:nowrap}
+ .signup-login{white-space:nowrap}
+ .chatting .signup-head{padding:16px 4px 12px;border-bottom:1px solid var(--line);align-items:center}
+ .chatting .signup-head h1{font-size:44px}
+ .signup-login{padding-bottom:0;align-items:center}
+ .signup-chat{padding-top:8px}
+ .bubble--them{font-size:16px;padding:10px 16px}
+ .consent{margin-left:0}
+}
