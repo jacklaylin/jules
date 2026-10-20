@@ -118,3 +118,13 @@ Fixes:
 - The closet summary reaches the stylist whole as its own `closet` field, grouped by item type (shirts, tops, knitwear, activewear…), without the silhouette line.
 
 Offline replays of the same request with the stylist working all returned designer shirts on-brand for the founder (Dries Van Noten, Saint Laurent, Lemaire, Auralee); see the PR for the after-fix replays.
+
+### Wrong-department listings — October 20, 2026
+
+After Shop's catalog began searching the stylist's directions (#253), an offline replay of the founder's men's "find me a few casual shirts" showed MAYE's Sadie Embroidered Shirt, from a women's label. Cause: a search with a plan sets `allow_unknown_range`, so a listing whose page states no department passes the department check, and most Shopify pages state none. MAYE's own product data (type `SHIRT`, merchandising tags) has no department either; its description does ("feminine detail", "best with nude bra").
+
+Fix:
+- A Shopify store's product type and tags are now structured department data (`shopifyRange` in `lib/structured-product.js`), used when the page's other data says nothing. Mixed labels say nothing.
+- For a men's or women's search with a plan, each verified listing that still has no department gets one batched model read of its own text (`lib/department-read.js`: name, brand, store, type, tags, description, size labels; never the user's message). An answer must quote that listing's text; a quote that isn't there counts as unknown. A listing whose text says the other department is set aside (`range_contradicted`) before slots are filled; unisex, unclear and unlabelled listings stay. Brand knowledge from elsewhere and a model's height or measurements are not evidence. A failed or unavailable read keeps today's behaviour.
+
+Offline replays (founder profile, real stylist, search, Shop catalog and page checks; nothing sent or saved): three runs on this branch showed no women's items; the read set aside a Studio Nicholson shirt at namu-shop tagged "woman" and, in another run, two listings read as women's. The actual MAYE page is set aside for a men's search and kept for a women's one.

@@ -1,6 +1,6 @@
 # Milestone 7 — Human fallback (deprioritized)
 
-**Status: Deprioritized October 7, 2026; will not be implemented.**
+**Status: Historical record. Deprioritized October 7, 2026; will not be implemented.** Kept only as the record of that decision; the current requirements are in PRD Section 13 and `AGENTS.md`.
 
 Founder decision: Jules must be a self-supported application without human intervention in the shopping loop. Do not build the human task table, operator queue, or manual sourcing/resolution workflow below. Difficult requests should receive supported partial findings, an honest explanation of uncertainty or failure, and useful clarification or recovery within the conversation. See PRD Section 13 and AGENTS.md for the current requirements. Milestone 8 remains Watches; this decision does not authorize additional implementation.
 
