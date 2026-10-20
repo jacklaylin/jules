@@ -21,6 +21,11 @@ test('scoring checks tool, nested arguments, set-valued indices, forbidden tools
   const c=AGENT_EVAL_CASES.find(x=>x.id==='someone-elses-size');
   assert.equal(scoreAgentEval(c,[{name:'find_products',args:{for_someone_else:true}}]).passed,true);
   assert.match(scoreAgentEval(c,[{name:'find_products',args:{for_someone_else:true}},{name:'update_profile',args:{changes:[{field:'size'}]}}]).failures[0],/unexpected update_profile/);
+  // A change the model marks as someone else's is dropped by the application, so it is not scored as saved.
+  assert.equal(scoreAgentEval(c,[{name:'find_products',args:{for_someone_else:true}},{name:'update_profile',args:{changes:[{about:'someone_else',field:'size'}]}}]).passed,true);
+  const mixed=AGENT_EVAL_CASES.find(x=>x.id==='own-size-sibling-style');
+  assert.equal(scoreAgentEval(mixed,[{name:'conversation_reply',args:{}},{name:'update_profile',args:{changes:[{about:'user',field:'size'},{about:'someone_else',field:'style'}]}}]).passed,true);
+  assert.match(scoreAgentEval(mixed,[{name:'conversation_reply',args:{}},{name:'update_profile',args:{changes:[{about:'user',field:'size'},{about:'user',field:'inspiration'}]}}]).failures[0],/unexpected update_profile/);
   const subset=AGENT_EVAL_CASES.find(x=>x.id==='subset-interest');
   assert.equal(scoreAgentEval(subset,[{name:'respond_to_options',args:{decision:'interest',option_indices:[1,0]}}]).passed,true);
   assert.match(scoreAgentEval(subset,[{name:'save_to_wishlist',args:{option_indices:[0,1]}}]).failures[0],/tool/);
