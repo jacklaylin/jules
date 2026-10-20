@@ -30,7 +30,7 @@ function render(data){
   !data.connected?'Connect Gmail so Jules can learn from your purchase history.':
   working?(data.failed?`${data.account} · The import paused. Jules keeps retrying automatically.`:`${data.account} · Reading your shopping emails now. Checked ${data.processed.toLocaleString()} so far${data.already_read?`, skipped ${data.already_read.toLocaleString()} already checked`:''}.`):
   `${data.account}${data.last_import_at?` · Last import ${day(data.last_import_at)}`:''}`;
- $('gmail-connect').hidden=data.connected;$('gmail-import').hidden=!data.connected||working;$('gmail-disconnect').hidden=!data.connected;
+ $('gmail-connect').hidden=data.connected;$('gmail-import').hidden=!data.connected||working;$('gmail-disconnect').hidden=$('gmail-disconnect-note').hidden=!data.connected;
  // When the consent changed since this account last agreed, Import again needs the new agreement first.
  consentVersion=data.connected&&!working&&data.consent_required?data.consent_version:null;
  $('gmail-consent').hidden=!consentVersion;if(!consentVersion)$('gmail-consent-check').checked=false;importReady();
