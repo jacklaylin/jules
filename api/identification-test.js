@@ -12,6 +12,7 @@ import { wishlistProducts } from '../lib/wishlist.js';
 import { imageType, MAX_IMAGE_BYTES } from '../lib/images.js';
 import { json, readJson, uuid } from '../lib/http.js';
 import { withUsage } from '../lib/usage.js';
+import { modelFor } from '../lib/models.js';
 
 export const config = { api: { bodyParser: false }, maxDuration: 120 };
 export function createIdentificationTestHandler({env=process.env,auth=authorize,storeFactory=createStore,search=visualSearchProducts,textSearch=searchProducts,prepare=wishlistProducts,replay=runReplay,evalAgent=runAgentEval}={}) {
@@ -73,16 +74,16 @@ export function createIdentificationTestHandler({env=process.env,auth=authorize,
           return json(res,200,{checks:latest?.search_result?.text_wishlist_diagnostics??null,range_facts:profile.facts.filter(f=>['gender','shopping_range'].includes(f.field)),last_request:messages.findLast(m=>m.direction==='inbound')?.body,options:reply?.search_result?.text_wishlist_state?.options});
         }
         stage='text_search_diagnostic';
-        const model=input.mode==='wishlist_current'?(env.OPENAI_SEARCH_MODEL||'gpt-4.1'):['mini_auto','wishlist_mini'].includes(input.mode)?'gpt-4.1-mini':'gpt-4.1';
+        const model=input.mode==='wishlist_current'?(modelFor('search',env)):['mini_auto','wishlist_mini'].includes(input.mode)?'gpt-4.1-mini':'gpt-4.1';
         if(input.mode.startsWith('wishlist_')){
           const store=storeFactory(env),member=await store.wishlistMember(env.ADMIN_EMAIL.toLowerCase());
           if(!member)return json(res,409,{error:'Owner membership required.'});
           const {facts}=await store.profile(member.conversation_id);
           let result;
-          const body=await textWishlistAction({action:'start',query:'Prada Speedrock sneakers'},{text:'I really want the Prada Speedrock sneakers',env:{...env,OPENAI_SEARCH_MODEL:model},facts,record:async value=>{result=value;},search:textSearch});
+          const body=await textWishlistAction({action:'start',query:'Prada Speedrock sneakers'},{text:'I really want the Prada Speedrock sneakers',env:{...env,MODEL_SEARCH:model},facts,record:async value=>{result=value;},search:textSearch});
           return json(res,200,{model,body,result});
         }
-        const result=await textSearch("Find men's Prada Speedrock leather and mesh sneakers, official product links",[],{...env,OPENAI_SEARCH_MODEL:model},fetch,{range:'men'});
+        const result=await textSearch("Find men's Prada Speedrock leather and mesh sneakers, official product links",[],{...env,MODEL_SEARCH:model},fetch,{range:'men'});
         return json(res,200,{model,result});
       }
       if(!uuid(input.operation)||typeof input.query!=='string'||!input.query.trim()||input.query.length>1000||input.provider_sharing!==true||typeof input.image!=='string'||!input.image||input.image.length>4194304||!/^[A-Za-z0-9+/]+={0,2}$/.test(input.image))return json(res,400,{error:'Provide an operation, request, image, and provider-sharing approval.'});

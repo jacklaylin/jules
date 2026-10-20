@@ -39,7 +39,7 @@ test('the spend tracker totals priced calls, flags unpriced models and reports t
   const t = spendTracker(1);
   t.add([{ provider: 'openai', model: 'gpt-4.1-mini', cost_usd: 0.6, input_tokens: 10, output_tokens: 1 }, { provider: 'serpapi', cost_usd: 0.015 }]);
   assert.equal(t.capped, false);
-  t.add([{ provider: 'openai', model: 'gpt-6-luna', cost_usd: 0, input_tokens: 10, output_tokens: 1 }, { provider: 'openai', model: 'gpt-4.1', cost_usd: 0.4, input_tokens: 10, output_tokens: 1 }]);
+  t.add([{ provider: 'openai', model: 'gpt-7-nova', cost_usd: 0, input_tokens: 10, output_tokens: 1 }, { provider: 'openai', model: 'gpt-4.1', cost_usd: 0.4, input_tokens: 10, output_tokens: 1 }]);
   assert.equal(t.capped, true);
-  assert.deepEqual([t.openai_calls, t.searches, [...t.unpriced]], [3, 1, ['gpt-6-luna']]);
+  assert.deepEqual([t.openai_calls, t.searches, [...t.unpriced]], [3, 1, ['gpt-7-nova']]);
 });

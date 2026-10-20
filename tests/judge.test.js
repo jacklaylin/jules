@@ -112,7 +112,7 @@ test('the daily limit, recent turns, a missing key and dry runs are respected', 
   const dry = fakeStore({ turns: [{ id: 'in1' }] }), result = await runJudge(dry, env, { now: NOW, fetcher, dryRun: true });
   assert.equal(result.results.length, 1); assert.equal(dry.saved.length, 0); assert.equal(dry.judgements.size, 0);
   assert.equal(dailyLimit({}), 50); assert.equal(dailyLimit({ JUDGE_DAILY_TURNS: '12' }), 12);
-  assert.equal(judgeEnv({ OPENAI_MODEL: 'a', OPENAI_JUDGE_MODEL: 'gpt-4.1' }).OPENAI_MODEL, 'gpt-4.1');
+  assert.equal(judgeEnv({ OPENAI_MODEL: 'a', OPENAI_JUDGE_MODEL: 'gpt-4.1' }).MODEL_EXTRACT, 'gpt-4.1');
 });
 
 test('the scheduler endpoint needs the secret and records the run', async () => {
