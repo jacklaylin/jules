@@ -29,7 +29,7 @@ test('errors are classified by code and status, and an unrun migration has its o
   assert.equal(errorClass(Object.assign(new Error('Database request failed'), { database_status: 404, database_code: 'PGRST202' })), 'schema_missing');
   assert.equal(errorClass(Object.assign(new Error('Database request failed'), { database_status: 503 })), 'database');
   const sdk = Object.assign(new Error('send to +15555550100 failed with token abc'), { name: 'SpectrumError' });
-  assert.deepEqual(safeError(sdk, 'send'), { error_class: 'exception', error_name: 'SpectrumError', database_status: null, database_code: null, step: 'send' });
+  assert.deepEqual(safeError(sdk, 'send'), { error_class: 'exception', error_name: 'SpectrumError', database_status: null, database_code: null, database_table: null, step: 'send' });
   assert.equal(safeError(Object.assign(missingColumn(), { inbox_step: 'opt_out_check' })).step, 'opt_out_check');
   assert.equal(safeError(undefined).error_class, 'exception', 'a thrown non-error still classifies');
 });
@@ -77,6 +77,6 @@ test('the webhook failure log carries the safe error class and never the error m
   const status = await process(body, { 'content-type': 'application/json', 'x-spectrum-signature': signature, 'x-spectrum-timestamp': timestamp, 'x-spectrum-webhook-id': 'test-hook' }, webhookEnv);
   assert.equal(status, 502);
   const line = JSON.parse(logs.at(-1));
-  assert.deepEqual(line, { event: 'imessage_reply_failed', message_id: 'test-message', error_class: 'schema_missing', error_name: 'Error', database_status: 400, database_code: '42703', step: 'opt_out_check' });
+  assert.deepEqual(line, { event: 'imessage_reply_failed', message_id: 'test-message', error_class: 'schema_missing', error_name: 'Error', database_status: 400, database_code: '42703', database_table: null, step: 'opt_out_check' });
   assert.ok(!logs.join('').includes('private words') && !logs.join('').includes('Database request failed'));
 });
