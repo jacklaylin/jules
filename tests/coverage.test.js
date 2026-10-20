@@ -67,6 +67,7 @@ test('sizes are per category: a stated size is known, a bought size stays weak',
  const c=coverage({facts:[fact('size','tops/us','M')],state,tags:tagged(state,i=>({group:i.id==='item-1'?'knitwear':'shoes'}))});
  const sizes=c.dimensions.find(d=>d.dimension==='sizes');
  assert.deepEqual(sizes.categories,{tops:'known',shoes:'weak'});
+ assert.deepEqual(sizes.bought,{shoes:'10'},'the bought size is offered only where none is stated');
  assert.equal(sizes.status,'weak');
  assert.deepEqual(sizes.evidence_ids,['chat:sizetops/us']);
 });

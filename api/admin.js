@@ -124,7 +124,9 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
       if (!id) {
         // Each tester's signup source (db/033). The list never depends on it: before the migration, sources are blank.
         // Waitlist status (db/035) is the same: unknown (null) when it cannot be read.
-        const [conversations, sources] = await Promise.all([store.list(), store.signupSources?.().catch(() => new Map()) ?? new Map()]);
+        // How they arrived (db/041: referring site and utm_ tags) is optional the same way.
+        const [conversations, sources, arrivals] = await Promise.all([store.list(), store.signupSources?.().catch(() => new Map()) ?? new Map(),
+          store.signupArrivals?.().catch(() => new Map()) ?? new Map()]);
         // Names come from the latest signup, else the first name told to Jules; a failed read only blanks them.
         const blank = () => new Map();
         const [statuses, signups, profiles] = await Promise.all([store.accessFor(conversations.map(c => c.id)).catch(blank),
@@ -137,7 +139,7 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
         const sharers = new Map(conversations.map(c => [referralRef(c.id, env), c.id]).filter(([ref]) => ref));
         return json(res, 200, { conversations: conversations.map(c => {
           const status = statuses.get(c.id), source = sources.get(c.sender_id) ?? null, sharer = source ? sharers.get(source) : null;
-          return { ...c, name: names.get(c.id), source, referred_by: sharer && sharer !== c.id ? { id: sharer, name: names.get(sharer) ?? null } : null, access: status?.access ?? null, waitlist_replies: status?.waitlist_replies ?? null };
+          return { ...c, name: names.get(c.id), source, arrival: arrivals.get(c.sender_id) ?? null, referred_by: sharer && sharer !== c.id ? { id: sharer, name: names.get(sharer) ?? null } : null, access: status?.access ?? null, waitlist_replies: status?.waitlist_replies ?? null };
         }), waitlist_enabled: env.WAITLIST_ENABLED === 'true', waitlist_replies: WAITLIST_REPLIES, approval_text: approvalPreview(env)?.text ?? null, approval_account: approvalPreview(env)?.account ?? false });
       }
       if (!uuid(id)) return json(res, 400, { error: 'Invalid conversation.' });

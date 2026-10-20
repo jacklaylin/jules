@@ -47,7 +47,11 @@ function render() {
 function sourceCell(person) {
   const by = person.referred_by;
   if (by) return el('a', { className: 'muted', href: `/admin/people/${by.id}`, textContent: `${by.name ?? 'A tester'}’s report`, title: `Signed up from ${by.name ?? 'a tester'}’s shared style report` });
-  return el('span', { className: 'muted', textContent: person.source ?? 'Direct', title: person.source ? `Signed up from a ?ref=${person.source} link` : 'No source on their signup link' });
+  // Otherwise the ?ref= code, else the site or utm_source they arrived from (db/041).
+  const arrival = person.arrival, from = arrival && (arrival.utm_source ?? arrival.referrer_host);
+  const details = arrival && [arrival.referrer_host && `from ${arrival.referrer_host}`, ...['utm_source', 'utm_medium', 'utm_campaign'].filter(k => arrival[k]).map(k => `${k}=${arrival[k]}`)].filter(Boolean).join(' · ');
+  const title = person.source ? `Signed up from a ?ref=${person.source} link` : from ? 'Arrived ' + details : 'No source on their signup link';
+  return el('span', { className: 'muted', textContent: person.source ?? from ?? 'Direct', title: person.source && details ? `${title} · arrived ${details}` : title });
 }
 
 function statusControl(person) {

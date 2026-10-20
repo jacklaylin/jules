@@ -1,7 +1,8 @@
 import {createLogo,initBrandActivity} from './brand-ui.js';
 import {demoState,bubbleProgress,pickDemo} from './landing-timeline.js';
-import {carryRef} from './signup-ref.js';
+import {carryRef,rememberArrival} from './signup-ref.js';
 carryRef(document.querySelectorAll('a[href="/signup"]'),location.search);
+rememberArrival(()=>sessionStorage,{referrer:document.referrer,search:location.search,host:location.hostname});
 const logo=document.getElementById('headline-logo');logo.replaceChildren(createLogo());initBrandActivity();
 const motion=matchMedia('(prefers-reduced-motion: reduce)'),chat=document.getElementById('demo-chat'),scenes=[...chat.querySelectorAll('.demo-scene')],typing=document.getElementById('demo-typing'),controls=document.getElementById('demo-controls'),replay=document.getElementById('demo-replay'),shuffle=document.getElementById('demo-shuffle');
 for(const bubble of chat.querySelectorAll('.received')){const avatar=document.createElement('span');avatar.className='message-avatar';avatar.innerHTML='<span class="orb"></span>';bubble.append(avatar);}
