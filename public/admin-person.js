@@ -338,6 +338,21 @@ $('card-confirm').onclick = async () => {
   } catch (error) { $('card-error').textContent = error.message; $('card-error').hidden = false; }
   finally { buttons.forEach(b => { b.disabled = false; }); $('card-confirm').textContent = 'Send'; }
 };
+// ---------- Style questions ----------
+// Starts the gap-filling interview (lib/interview.js) for this person; the server refuses with the reason when it shouldn't.
+$('ask-style').onclick = () => { $('ask-person').textContent = $('person-name').textContent; $('ask-error').hidden = true; $('ask-dialog').showModal(); };
+$('ask-cancel').onclick = () => $('ask-dialog').close();
+$('ask-confirm').onclick = async () => {
+  const buttons = [$('ask-confirm'), $('ask-cancel')]; buttons.forEach(b => { b.disabled = true; }); $('ask-confirm').textContent = 'Sending…';
+  try {
+    const { interview } = await api('/api/admin', { method: 'POST', body: JSON.stringify({ action: 'start-interview', conversation: person, confirm: true }) });
+    $('ask-dialog').close();
+    notice(interview.status === 'sent' ? 'First style question sent. Their replies will show in Conversation.' : `Style question not confirmed (${interview.status}); check Conversation before sending again.`);
+    loadMessages().catch(error => notice(`Conversation: ${error.message}`));
+    loadCoverage().catch(() => {});
+  } catch (error) { $('ask-error').textContent = error.message; $('ask-error').hidden = false; }
+  finally { buttons.forEach(b => { b.disabled = false; }); $('ask-confirm').textContent = 'Send'; }
+};
 // ---------- Re-read a failed photo ----------
 // Reads the photo again from Photon (recompressing a large screenshot) and saves it to that message; no text is sent.
 let rereadMessage = null;
