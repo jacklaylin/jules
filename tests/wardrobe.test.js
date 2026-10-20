@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createReceiptFeedback,applyReceiptFeedback,receiptLearningView} from '../lib/receipt-feedback.js';
+import {createReceiptFeedback,applyReceiptFeedback,receiptLearningView,QUESTION_SCHEMA} from '../lib/receipt-feedback.js';
+import {tagFingerprint} from '../lib/item-tags.js';
 import {projectReceiptState} from '../lib/receipt-extraction.js';
 import {wardrobeView,wardrobeEvent,removalReason,handleWardrobe} from '../lib/wardrobe.js';
 
@@ -105,4 +106,38 @@ test('the wardrobe API needs a signed-in person and works without any history', 
  assert.equal(empty.statusCode,200);
  assert.deepEqual(empty.body.items,[]);
  assert.match(empty.body.text_url,/^sms:\+?\d+/);
+});
+
+// Tags as the tagger stores them: keyed by item and by the details they were made from.
+const tagged=(s,groups)=>Object.fromEntries(projectReceiptState(s).items.filter(i=>groups[i.id]).map(i=>[i.id,{fp:tagFingerprint(i),group:groups[i.id]}]));
+
+test('swimwear and eyewear are wardrobe categories of their own', () => {
+ const s=state();
+ const view=wardrobeView(s,{tags:tagged(s,{i1:'swimwear',i2:'eyewear',i3:'jewelry_watches'})});
+ assert.deepEqual(Object.fromEntries(view.items.map(i=>[i.id,i.category])),{i1:'swimwear',i2:'eyewear',i3:'accessories'});
+});
+
+test('the owner corrects a category; it wins over the tag and survives other fixes', () => {
+ const s=state([bought('i1')]),tags=tagged(s,{i1:'accessories'});
+ assert.equal(wardrobeView(s,{tags}).items[0].category,'accessories');
+ const fixed=act(s,{action:'fix',item_id:'i1',values:{wardrobe_category:'eyewear'}});
+ assert.deepEqual(fixed.feedback.at(-1).values,{wardrobe_category:'eyewear'});
+ assert.equal(fixed.feedback.at(-1).source,'closet_edit');
+ // The old tag still says accessories; the owner's choice is what shows.
+ assert.equal(wardrobeView(fixed,{tags}).items[0].category,'eyewear');
+ const renamed=act(fixed,{action:'fix',item_id:'i1',values:{product:'Aviators'}});
+ assert.equal(wardrobeView(renamed,{tags:tagged(renamed,{i1:'eyewear'})}).items[0].category,'eyewear');
+ assert.equal(wardrobeView(renamed).items[0].product,'Aviators');
+});
+
+test('a category must come from the wardrobe list and can be changed but not cleared', () => {
+ const s=state([bought('i1')]);
+ for(const value of ['hats','',null])assert.throws(()=>wardrobeEvent(OWNER,s,{action:'fix',item_id:'i1',values:{wardrobe_category:value}}),/Choose a category/,String(value));
+ const once=act(s,{action:'fix',item_id:'i1',values:{wardrobe_category:'swimwear'}});
+ assert.throws(()=>wardrobeEvent(OWNER,once,{action:'fix',item_id:'i1',values:{wardrobe_category:'swimwear'}}),/Change at least one detail/);
+ assert.equal(wardrobeView(act(once,{action:'fix',item_id:'i1',values:{wardrobe_category:'tops'}})).items[0].category,'tops');
+});
+
+test('receipt questions never ask about the wardrobe category', () => {
+ assert.ok(!QUESTION_SCHEMA.properties.questions.items.properties.fields.items.enum.includes('wardrobe_category'));
 });

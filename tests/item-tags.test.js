@@ -48,6 +48,19 @@ test('a correction to an item re-tags it; removed and duplicate items are not ta
  assert.deepEqual(untaggedItems(s,{}).map(i=>i.id).sort(),['item-1','item-2']);
 });
 
+test('an owner-set category re-tags only that item, tells the tagger, and keeps its group inside it',async()=>{
+ let s=state([record(1,{product:'Aviators'}),record(2,{product:'Tee'})]);
+ const tags=Object.fromEntries(s.items.map(i=>[i.id,{fp:tagFingerprint(i)}]));
+ s=applyReceiptFeedback(s,{id:'closet:1',owner_id:owner,source:'closet_edit',at:'2026-10-19T00:00:00Z',item_ids:['item-1'],action:'correct_fields',values:{wardrobe_category:'eyewear'}});
+ assert.deepEqual(untaggedItems(s,tags).map(i=>i.id),['item-1']);
+ const fn=async({context})=>{fn.context=context;return {items:context.items.map(i=>({id:i.id,item_type:'sunglasses',group:'accessories',color_family:'unknown',color_quote:null,resale:'no'}))};};
+ const result=await tagBatch(s,tags,fn);
+ assert.equal(fn.context.items[0].owner_category,'eyewear');
+ // The tagger said accessories; the owner said eyewear, so the counted group is eyewear.
+ assert.equal(result.tags['item-1'].group,'eyewear');assert.deepEqual(result.rejected,['outside_owner_category']);
+ assert.deepEqual(untaggedItems(s,result.tags),[]);
+});
+
 test('tagging runs in batches under the purchase-history lease and stores tags on the row',async()=>{
  const rows=Array.from({length:BATCH+5},(_,n)=>record(n+1,{product:'Sweater '+(n+1),color:'Navy'}));
  const store=fixture(rows),interpret=model();
