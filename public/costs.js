@@ -128,7 +128,7 @@ function serviceOptions() {
   const jobs = $('kind').value === 'job_budget';
   if (optionsFor === jobs) return;
   optionsFor = jobs; $('service-label').textContent = jobs ? 'Recurring job' : 'Service';
-  $('service').replaceChildren(...(jobs ? data.jobs?.rows.filter(j => !j.unregistered).map(j => el('option', { value: 'job:' + j.id, textContent: j.name })) ?? [] : data.rows.map(row => el('option', { value: row.id, textContent: row.name }))));
+  $('service').replaceChildren(...(jobs ? data.jobs?.rows.filter(j => !j.unregistered).map(j => el('option', { value: 'job:' + j.id, textContent: j.name })) ?? [] : data.rows.filter(row => !row.metered_only).map(row => el('option', { value: row.id, textContent: row.name }))));
 }
 function entryKind() { serviceOptions(); $('service').disabled = $('kind').value === 'budget'; $('entry-day').hidden = $('kind').value !== 'usage'; $('entry-date').disabled = $('kind').value !== 'usage'; }
 $('kind').onchange = entryKind;
