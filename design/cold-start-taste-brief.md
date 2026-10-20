@@ -1,6 +1,6 @@
 # Cold-start taste: coverage check, gap-filling interview, early read
 
-Status: October 20, 2026. Step 1 (coverage check) built; the rest is not built yet. Founder answered the open questions on October 19 (see "Founder decisions"). Extends `design/closet-interview-brief.md` (October 15 draft).
+Status: October 20, 2026. Step 1 (coverage check) is live (#241). Step 2 (interview) is built behind `INTERVIEW_ENABLED`; steps 3–6 are not built yet. Founder answered the open questions on October 19 (see "Founder decisions"). Extends `design/closet-interview-brief.md` (October 15 draft).
 
 **October 20: checked against `main`.** This brief was first written on an older branch. `main` already has several pieces it planned, so they are reused, not rebuilt: the `store` taste field (and `fit`, `avoid`, `inspiration`, `owned`) in `lib/memory.js`; screenshots of Depop/Poshmark likes kept as liked items (`LIKED-ITEMS.md`, tool `add_liked_items`); outfit photos asked for during the import (`lib/outfit-photos.js`); item tags with a colour family and a resale flag for every purchase (`lib/item-tags.js`); and a resale marketplace list (`RESALE_MARKETPLACES`, `lib/source-registry.js`). The style report is now the purchase-based report in `lib/style-report.js`. Sections below are updated to match.
 
@@ -146,9 +146,17 @@ Inspiration can move silhouette and palette from `missing` to `weak`, never to `
 | Import found nothing | Completion text already says so and invites a photo or link. It now continues straight into the interview instead of stopping. |
 | Any time, on request | "get to know me" or anything like it, interpreted by the model, re-runs the planner. |
 
+### As built (step 2, October 20)
+
+- **Code:** `lib/interview.js`. Tool `style_interview` (actions `answer` and `start`), offered to the chat agent only when `INTERVIEW_ENABLED=true`.
+- **Who decides what.** Code picks the next gap from coverage. The agent reads each reply and returns the question it answers plus an outcome (`answered`, `partial`, `skipped`, `declined_interview`, `changed_topic`). Lasting facts in the reply (sizes, colours, fits, stores, a usual budget) are saved by the existing `update_profile` tool in the same turn, citing the message as usual. Photos and like-screenshots go to their existing tools. So profile facts cite the chat statement, and the `stated_answer` row records which question the reply answered.
+- **Wording.** Each question starts from a fixed line in Jules's voice. The reply composer adapts it to the conversation, as it does for every text Jules sends.
+- **When.** After the receipt questions, when the person has never had an interview and coverage leaves gaps. Also when Gmail/Shop is skipped (by text or on the web page), and whenever the person asks. The "who you are" summary waits while a round is open and follows its close; the 24-hour sweep still sends it if questions go unanswered. A rich profile gets only a size question, when a bought size is still unconfirmed.
+- **Not built yet:** the "gap" offer at the close ("anything you've been meaning to buy?"). The early read (step 3) replaces the summary for thin profiles.
+
 ### Interview state
 
-Stored as a new `interview` jsonb column on `onboarding_sessions` (one row per conversation already exists). It holds: the coverage snapshot it planned from, the questions asked (id, dimensions, outbound message id), each outcome, and whether the person declined. Outbound texts go through the existing message ledger with ids like `interview:<started_at>:<question_id>`, so a replayed delivery never sends a question twice (same pattern as receipt questions).
+*As built:* stored in a new `taste_interviews` table, one row per conversation, because not every tester has an onboarding row. (First plan: a jsonb column on `onboarding_sessions`.) It holds: the coverage snapshot it planned from, the questions asked (id, dimensions, outbound message id), each outcome, and whether the person declined. Outbound texts go through the existing message ledger with ids like `interview:<started_at>:<question_id>`, so a replayed delivery never sends a question twice (same pattern as receipt questions).
 
 Threaded replies follow the existing rule: a reply to an older interview text is resolved against that text's question, not the newest one.
 
@@ -289,8 +297,8 @@ Recommendation: a static set of about 40 images (20 pairs, show 8–10). Store t
 
 | What | Where | Basis / scope | New? |
 | --- | --- | --- | --- |
-| Coverage snapshot | `coverage_computed` log line; computed fresh for admin; later `onboarding_sessions.interview.coverage` | Observability only, never a belief | Log line (built); column in step 2 |
-| Interview progress | `onboarding_sessions.interview` (jsonb) | Workflow state | New column (one new migration) |
+| Coverage snapshot | `coverage_computed` log line; computed fresh for admin and for each interview step | Observability only, never a belief | Log line (built) |
+| Interview progress | `taste_interviews.state` (jsonb, db/040) | Workflow state | New table (step 2) |
 | Interview answer (the proof) | `evidence`, `kind: stated_answer`, `origin: interview` | Immutable | New kind + origin values |
 | Preferences from answers | `taste_profiles` facts (`style`, `brand`, `category`, `budget`, `size`), citing the `stated_answer` row | `stated`, durable | Existing fields |
 | Store preference / avoidance | `taste_profiles` fact, new `store` field in `memory.js` `FIELDS` (key = merchant key, value likes/avoids + reason) | `stated`, durable, outranks receipt history | New field value (founder decision 1) |
@@ -305,7 +313,7 @@ Recommendation: a static set of about 40 images (20 pairs, show 8–10). Store t
 | Early read report | `style_sessions.data.report` with `mode: 'early'` + coverage snapshot | Draft, user-reviewable | New property |
 | Quiz picks (phase 2) | `evidence` `stated_answer` `origin: quiz` → facts with `basis: inferred` | Weak, overridable | Phase 2 |
 
-One migration, in step 2 (next free number on `main`): add `stated_answer` to the `evidence.kind` check, add an `interview` row to `evidence_origins` (origins are a lookup table since `db/022`), and add `onboarding_sessions.interview jsonb`. Per the "unrun migrations break prod" lesson, the code must not deploy until the migration has been run in Supabase.
+One migration, in step 2 (next free number on `main`): add `stated_answer` to the `evidence.kind` check, add an `interview` row to `evidence_origins` (origins are a lookup table since `db/022`), and create the `taste_interviews` table. Built as `db/040_taste_interview.sql`. Per the "unrun migrations break prod" lesson, the code must not deploy until the migration has been run in Supabase.
 
 ---
 
@@ -392,7 +400,7 @@ Fixture: 60 purchases, 3 outfit photos, stated shoe size, quoted colours on most
 Revised October 20 (the `store` field already existed, and the coverage check needs no migration):
 
 1. **Coverage check**, with its log line and the admin chips. *Built in this PR.*
-2. **Interview planner and inspo ask**, with `stated_answer` evidence and the migration it needs (`evidence.kind` value, `interview` evidence origin row, `onboarding_sessions.interview`). Use the next free migration number on `main`.
+2. **Interview planner and inspo ask**, with `stated_answer` evidence and `db/040_taste_interview.sql` (`evidence.kind` value, `interview` evidence origin row, `taste_interviews` table). *Built; behind `INTERVIEW_ENABLED`.*
 3. **Text early read** in place of silence for thin profiles.
 4. **Resale extraction changes** (quoted condition), after the real emails have been checked.
 5. **Early read on `/style`**, re-designed against `lib/style-report.js` with Claude Design.
