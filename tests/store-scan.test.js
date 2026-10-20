@@ -30,12 +30,12 @@ test('the search leaves out the stores on the card and the brand’s own site, a
 
 test('store pages come in two tiers, one per store: trusted, then other stores that aren’t spam, copycat or resale', () => {
   const pages = candidatePages([
-    { link: lemaireURL }, { link: ssense }, { link: ssense + '?color=black' }, { link: 'https://www.cettire.com/products/lemaire-zip-up-leather-jacket-963318344' },
+    { link: lemaireURL }, { link: ssense }, { link: ssense + '?color=black' }, { link: 'https://www.northboutique.com/products/lemaire-zip-up-leather-jacket-963318344' },
     { link: 'https://www.ssense-sale.shop/lemaire' }, { link: 'https://www.lyst.com/clothing/lemaire-jacket' }, { link: 'https://www.grailed.com/listings/1' },
-    { link: farfetch }, { link: 'https://www.mrporter.com/en-us/mens/product/lemaire/1' }, { link: 'https://www.mytheresa.com/us/en/men/lemaire' }, { link: 'https://www.' + domainToASCII('ѕsense.com') + '/x' }, { link: 'https://lemaireoutlet.com/jacket' }, { link: 'https://www.antonioli.eu/en/US/men/products/lemaire' },
+    { link: farfetch }, { link: 'https://www.mrporter.com/en-us/mens/product/lemaire/1' }, { link: 'https://www.mytheresa.com/us/en/men/lemaire' }, { link: 'https://www.' + domainToASCII('ѕsense.com') + '/x' }, { link: 'https://lemaireoutlet.com/jacket' }, { link: 'https://www.atelierbleu.eu/en/US/men/products/lemaire' },
   ], ['lemaire.fr'], 'LEMAIRE');
   assert.deepEqual(pages.trusted.map(u => new URL(u).hostname), ['www.ssense.com', 'www.farfetch.com', 'www.mrporter.com']);
-  assert.deepEqual(pages.other.map(u => new URL(u).hostname), ['www.cettire.com', 'www.antonioli.eu'], 'never an aggregator, resale, look-alike-alphabet or store-name-plus-words site');
+  assert.deepEqual(pages.other.map(u => new URL(u).hostname), ['www.northboutique.com', 'www.atelierbleu.eu'], 'never an aggregator, resale, look-alike-alphabet or store-name-plus-words site');
   assert.equal(unreviewedAddressRisk('https://www.ssense-sale.shop/x', 'LEMAIRE'), 'risky_domain_ending');
   assert.equal(unreviewedAddressRisk('https://ssensesale.com/x', 'LEMAIRE'), 'store_name_in_domain');
   assert.equal(unreviewedAddressRisk('https://lemaire-official.co.uk/x', 'LEMAIRE'), 'store_name_in_domain');
@@ -44,11 +44,12 @@ test('store pages come in two tiers, one per store: trusted, then other stores t
 });
 
 test('other stores are read only when no trusted store has it for less, and are labelled unreviewed', async () => {
-  const cettire = 'https://www.cettire.com/products/lemaire-zip-up-leather-jacket-963318344';
+  // An unreviewed store (Cettire, Vitkac and Antonioli joined the trusted list in #277).
+  const cettire = 'https://www.northboutique.com/products/lemaire-zip-up-leather-jacket-963318344';
   const reads = [];
   const verify = async url => { reads.push(new URL(url).hostname); return url === farfetch ? page(url, { price_snapshot: { amount: 3400, currency: 'USD', source_url: url } }) : page(url, { price_snapshot: { amount: 2500, currency: 'USD', source_url: url } }); };
   const result = await scanItem(product, { env, search: results([farfetch, cettire]), verify, same: sameAs(cettire), store: emptyStore() });
-  assert.deepEqual(reads, ['www.farfetch.com', 'www.cettire.com']);
+  assert.deepEqual(reads, ['www.farfetch.com', 'www.northboutique.com']);
   assert.deepEqual(result.offers.map(o => [o.url, o.tier]), [[cettire, 'unreviewed']]);
   assert.equal(result.searches, 1, 'the same search; no extra cost');
   const trustedWins = [];
