@@ -297,3 +297,19 @@ test('an answer gets a short acknowledgment with the next question in the same t
  turn=await interviewTurn(store,'a silk shirt i never wear',reply(asked(store)[2],'a silk shirt','noted.'));
  assert.equal(turn.delivered.length,2);assert.equal(turn.delivered[0],'noted.');assert.match(turn.delivered[1],/want them now, or another time/);
 });
+
+test('the joined question is reworded to fit the conversation, after the lead-in; the written question is the fallback',async()=>{
+ const {agentTurn,tool}=await import('./helpers/agent.js');const {receiveInInbox}=await import('../lib/inbox.js');const {generateReply}=await import('../lib/ai.js');
+ for(const [compose,expected] of [[async({draft,conversation})=>{assert.match(draft,/3 things you wear/);assert.match(JSON.stringify(conversation.at(-1)),/sure\./,'the composer sees the lead-in');return {body:'what do you wear on repeat?',composed:true};},'sure.\n\nwhat do you wear on repeat?'],
+  [async()=>{throw new Error('model down');},null]]){
+  const store=fakeStore(),delivered=[];let round=0;
+  const rounds=[agentTurn(tool('style_interview',{action:'start',question_id:null,outcome:null,quote:null})),agentTurn(tool('conversation_reply',{response:'sure.'}))];
+  Object.assign(store,{receive:async()=>'conversation',claimAI:async()=>true,prepareAI:async()=>{},searchResult:async()=>{},replyDiagnostics:async()=>{},recordDelivery:async()=>{},
+   context:async()=>[{id:'c1',provider_id:'p-now',direction:'inbound',body:'ask me about my style',created_at:'2026-10-20T18:50:00Z'}],finish:async(k,st)=>{const o=store.operations.get(k);if(o)o.status=st;}});
+  await receiveInInbox({space:{phone:'line'},message:{id:'p-now',sender:{id:'tester'},content:{type:'text',text:'ask me about my style'},attachments:[]}},{AI_ENABLED:'true',OPENAI_API_KEY:'fake',...env},{store,compose,
+   generate:(m,e,_f,memory)=>generateReply(m,e,async()=>rounds[Math.min(round++,1)],memory),send:async(_d,text)=>{delivered.push(text);return {id:'s'};},progress:async()=>async()=>{}});
+  assert.equal(delivered.length,1);
+  if(expected)assert.equal(delivered[0],expected);else{assert.ok(delivered[0].startsWith('sure.\n\n'));assert.match(delivered[0],/3 things you wear all the time/);}
+  assert.equal(store.state.asked[0].text.includes('3 things you wear'),true,'the written question is what is recorded as asked');
+ }
+});
