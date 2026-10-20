@@ -1,14 +1,14 @@
 # Jules architecture: inputs, skills and data stores
 
-Status: October 12, 2026. Describes the code after the evidence store (`db/019_evidence.sql`) and the single-agent change. Use this to sanity-check new work: every new feature should fit one of the layers below, or explain why it needs a new one.
+Status: October 20, 2026. Describes the code after the evidence store (`db/019_evidence.sql`) and the single-agent change, plus what was added through October 20: spending caps, the waitlist, price stance, the daily purchase check with its purchase texts and fit checks, turn outcomes, the nightly judge and connected sources (Shop). Use this to sanity-check new work: every new feature should fit one of the layers below, or explain why it needs a new one.
 
 ## The model in one picture
 
 ```
  INPUTS                         EVIDENCE (proof)                 BELIEFS (profile)              VIEWS (computed)
  iMessage text/photos  ─┐                                                                       shopping history
- Gmail / Shop orders   ─┼─► extract ─► evidence table ──cite──► taste_profiles.facts ──┐        style report
- /style photos         ─┤      (model reads,  (immutable rows,     (stated / confirmed /  ├──►  Wrapped cards
+ Gmail / Shop / order  ─┼─► extract ─► evidence table ──cite──► taste_profiles.facts ──┐        style report
+ screenshots, /style   ─┤      (model reads,  (immutable rows,     (stated / confirmed /  ├──►  Wrapped cards
  wishlist actions      ─┤       code checks)   one per proof)       inferred)            │        search ranking
  operator edits        ─┘                                                                │
                                       │                                                  │
@@ -33,12 +33,13 @@ Five rules keep this from drifting:
 | Corrections to purchase history in chat | Agent calls `update_purchase_history` | Recipient, return, dispute, field fix, duplicate, defer | `correction` evidence |
 | Gmail receipts | Read-only OAuth import (`lib/gmail-import.js`, `lib/gmail-worker.js`) | Purchase, shipping, return, cancellation and refund events with quoted fields | `purchase_event` evidence |
 | Connected sources (Shop today) | Sign-in with a code on `/onboarding`, then up to 100 records (`lib/connected-sources.js` plus a small adapter such as `lib/shop-orders.js`); same extraction and validation as Gmail, sharing the `gmail_imports` row | Same events, quoting the record; an order another source already found links to the same item | `purchase_event` evidence, origin = the source's name |
+| Order screenshots in chat | The agent decides an image is the user's own past order (`lib/order-screenshots.js`); no import feature or keyword rule | Transcribed, then read with the same receipt reader and linking as Gmail and Shop; several screenshots of one order are read together | `purchase_event` evidence, origin `chat` |
 | `/style` photos (outfits, inspiration) | Upload on the private page (`api/style.js`) | Photo observations; user notes and occasions | `photo_observation` and `user_note` evidence |
 | `/style` card confirmation | User accepts a card's preference | The accepted preference | `confirmation` evidence + `confirmed` belief |
 | Wishlist actions | Confirmed save in chat; remove/restore on the wishlist page | Which item, which action, when | `wishlist_event` evidence |
 | Operator edits | Private admin inbox (`api/profile.js`) | The edited preference | `operator_entry` evidence + `stated` belief |
 
-Receipts come only from Gmail (receipts texted to Jules are a planned `chat`-origin `purchase_event`). Manual receipt upload has been removed. Items Jules merely sent are workflow history, not evidence of interest; only the user's own save/remove/restore is evidence.
+Purchase history comes from Gmail, connected sources (Shop) and order screenshots sent in chat. Manual receipt upload has been removed. Items Jules merely sent are workflow history, not evidence of interest; only the user's own save/remove/restore is evidence.
 
 ## The agent and its skills
 
@@ -106,9 +107,22 @@ Cheapest reliable source first; the model-driven web search (`gpt-4.1` + web sea
 
 - **Shop's catalog** (`SHOP_CATALOG_ENABLED`) runs beside the first web search as one more source (`shopCandidates` in `lib/text-sources.js`). It searches the same brief as the web: the request for a named or pictured item, each stylist direction for discovery (its results tagged with the direction and placed after every direction's web results), and nothing for a discovery without directions. It covers Shopify stores only. Its results are candidate URLs: each plain product page passes the same listing check, results interleave with web results, and market/taste ranking decides order. A required brand whose own store is listed in `lib/shopify-stores.json` (refresh with `node scripts/shopify-stores.js`) is searched inside that store. If web search fails, verified Shop results are shown instead of a failure. `text_wishlist_sources` logs and the replay report count shown merchants per source.
 - **Variants:** the expensive "find variants" web search runs only when the agent sets `show_variants` (the user named a model without its version, or asked which versions exist). Color options listed on the retailer's own page are always read; that costs no model call.
+- **Price stance** (`lib/price-stance.js`): what the shopper is willing to pay, as a price band for one request. Memory saves budgets (scoped to a category, special pieces, basics or general) and spending facts (`prefers_lower`, `quality`); the search plan names which saved budget or stated limit fits this item. Code only parses those stored values and compares verified prices against the band. The band is a soft ranking signal except its ceiling: a verified price above it never takes a slot an in-budget option could fill. A price far below a stated floor (or a tenth of the ceiling for someone who likes quality pieces) is flagged as a quality concern, never filtered. An unknown price stays unknown and is never judged. Used by `lib/text-wishlist.js` and `lib/discovery-ranking.js`.
 - **Search before asking:** when the agent decides a question is needed, the executor first runs the structured lookup. With verified candidates, a small model call writes the one question that best separates them, and the candidates are shown as selectable options ("Could it be one of these?"). With none, the agent's question is asked as is.
 
+## Around the turn: access, spending and proactive texts
+
+These run outside the agent loop, each behind its own flag, and none decides what a message means.
+
+- **Waitlist** (`lib/waitlist.js`, `db/035_waitlist.sql`, `WAITLIST_ENABLED`). Numbers that existed when `db/035` ran are approved; new numbers start on the waitlist. A waitlisted number gets 3 real replies (`WAITLIST_REPLIES`), then one fixed notice a day, and other messages are stored without a reply. The allowance is decided atomically in the database so rapid messages can't exceed it. The agent sees the waitlist in application context and mentions it in its own words. The owner approves people in Admin › People, which texts them once (`approveAccess`); with self-serve onboarding on (`SELF_SERVE_ONBOARDING_ENABLED`, which also needs onboarding and the Gmail import), approval sets up their account and texts the onboarding welcome instead.
+- **Spending caps** (`lib/cost-caps.js`, `db/036_cost_caps.sql`, `COST-CAPS.md`). Four ceilings in US dollars, per person and global, per UTC day and month, all off unless set (`COST_CAP_USER_DAILY_USD`, `COST_CAP_USER_MONTHLY_USD`, `COST_CAP_GLOBAL_DAILY_USD`, `COST_CAP_GLOBAL_MONTHLY_USD`). Spend is the metered estimate in `usage_events`, repriced from token and search counts at current list prices. Caps are checked before work starts (the inbox, price checks, Gmail and Shop imports, the daily purchase check, the judge, signup) and by the meter itself (`enforceCaps` in `lib/usage.js`), so one turn can run a few cents past a ceiling and the next one stops. A capped chat gets a fixed, no-cost notice at most every 3 hours; background work waits and resumes after the reset; a global cap also pauses signups. Owner tools are never stopped but count toward the global total. Everyone is on the free plan (`planFor`).
+- **Daily purchase check** (`lib/purchase-texts.js`, Vercel cron `/api/wishlist?gmail=refresh` at 17:00 UTC, `PURCHASE_TEXTS_ENABLED`). For everyone with Gmail connected it reads only mail since the last check, with the import's reading rules, so new purchases land in purchase history and the wardrobe. Its job state lives in `data.refresh`, separate from the last full import in `data.job`. Then Jules sends at most one proactive text a day about what was bought: the model picks the lead item and an angle (`styling`, `new_direction`, `pattern`, `just_added`), and code falls back to `just_added` when the purchase history doesn't support the angle.
+- **Fit checks** (`lib/fit-checks.js`, `FIT_CHECKS_ENABLED`). A few days after something the person bought for themselves arrives, Jules asks how it fits in the size they bought. Arrival comes only from their own email (a delivery notice, else about five days after shipping); past the window it stays quiet. Fit checks share the daily slot with purchase texts: at most one proactive text a day per person. The answer goes through `update_purchase_history`, which the model reads into a structured `report_fit` or `report_return` (`lib/receipt-feedback.js`).
+- **Price checks** (`api/price-checks.js`, Vercel cron at 13:00 UTC): checks active alerts; a capped person's alerts are skipped and checked on a later run.
+
 ## Adding a purchase-history source
+
+Connected sources are services the user signs in to (Shop today, `SHOP_ORDERS_ENABLED`; see `SHOP.md`). Shop is also a search source (`SHOP_CATALOG_ENABLED`, above) and supplies cart links for `prepare_checkout` (`CHECKOUT_LINKS_ENABLED`); the three are separate flags.
 
 Every source rides the same rails (`lib/purchase-sources.js`): it produces prepared records `{id, date, text}`. The shared code reads each record with the model, keeps only fields quoted from the record, links it to items any source already found (so an order in both Gmail and Shop is one item), writes `purchase_event` evidence with the source's origin, and reselects follow-up questions. Gmail keeps its own email search and triage but uses these rails for extraction, evidence and questions.
 
@@ -209,7 +223,7 @@ The Supabase scheduler calls `/api/imessage?job=judge` (same secret as the reply
 - **Alerts on an already-saved item that isn't in the current options** can be checked and cancelled in chat but not created there yet; creation goes through current options or the wishlist page.
 - **Wishlist evidence is written right after the save or change, not in the same transaction.** Row IDs are deterministic, so retries don't duplicate, but a crash between the two could miss a row. After an unclear save or alert failure, chat repeats only the failed keyed write once and then replies from what is stored (`settleTextWishlist`); a repeated remove/restore on the wishlist page writes nothing.
 - **The replay grader (`lib/replay.js`) still scores replies with phrase checks.** It grades test output; it does not route messages. `REPLAY-SUITE.md` already flags replacing it with structured grading.
-- **Output safety filters use word lists** (commerce claims in search reasons, body comments in style copy). They check what Jules writes, not what the user means.
+- **Output safety filters use word lists** (commerce claims in search reasons, body comments in style copy; the style report's shared lists are in `lib/copy-guards.js`). They check what Jules writes, not what the user means.
 - **`messages` mixes transcript and workflow** (`search_result`, `wishlist_payload`). Acceptable at this scale.
 - **Live model behavior needs regular checks.** Unit tests mock the model's tool choice. The routing eval (`lib/agent-eval-cases.js`, 50 labeled turns, "Run routing eval" on `/admin/replays`) scores the real model's tool and argument choices with tools stubbed; run it after any prompt or tool change. Replace synthetic cases with real turns over time (keep those private).
 - **Cost estimates use list prices** in `lib/usage.js`; update them when provider prices change.
@@ -223,4 +237,6 @@ The Supabase scheduler calls `/api/imessage?job=judge` (same secret as the reply
 - `db/038_nightly_judge.sql`: creates `sourcing_turns` and schedules `jules-nightly-judge`. Needs `db/023` (scheduler secret) and `db/034_recurring_jobs.sql` (job runs). Until it runs, nothing is judged and triage says judge failures are unavailable.
 - `db/034_turn_outcomes.sql`: allows `reaction` rows in `adoption_events` and adds their `detail` (the tapback kind). Run before relying on tapbacks in turn outcomes. Until then tapbacks are logged only.
 - `db/033_signup_ref.sql`: adds `public_signups.ref`, the source code from a `/signup?ref=…` link (or `utm_source`, or a landing-page link carrying `?ref=`; the shared style report's signup link is `shared-report`). Run before relying on the Source column in Admin › People. Until then signups save without it and log `signup_ref_unsaved`.
+- `db/035_waitlist.sql`: adds waitlist access. Everyone with a conversation when it runs is approved. Nothing reads it until `WAITLIST_ENABLED=true`.
+- `db/036_cost_caps.sql`: adds per-person daily spend with token and search counts, so caps price calls at current list prices, and reprices gpt-5.5 calls stored at $0. Until it runs, caps use the stored per-call estimates, which undercount those calls.
 - `db/032_adoption_events.sql`: run before relying on save rate, link clicks or purchase intent in Admin › Adoption. Until then event writes fail quietly (logged as `adoption_event_failed`), the page shows them as not tracked, and tracked links still forward. Product links are always sent as `/go/…` links (they carry the product preview, see `RICH-PREVIEWS.md`); turn on `LINK_CLICK_TRACKING=true` afterwards to record taps on them.
