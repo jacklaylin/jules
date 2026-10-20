@@ -18,7 +18,7 @@ test('the wardrobe shows owned purchases newest first and keeps unknown recipien
  const view=wardrobeView(state());
  assert.deepEqual(ids(view),['i3','i2','i1']);
  assert.equal(view.removed.length,0);
- assert.deepEqual(Object.keys(view.items[0]).sort(),['bought_at','brand','category','color','id','merchant','parts','photo','photo_small','photo_source','photo_version','product','size','suggestion'].sort());
+ assert.deepEqual(Object.keys(view.items[0]).sort(),['bought_at','brand','category','color','from_wishlist','id','merchant','parts','photo','photo_small','photo_source','photo_version','product','size','suggestion'].sort());
 });
 
 test('each remove reason maps to its own correction and lands in Removed with that reason', () => {

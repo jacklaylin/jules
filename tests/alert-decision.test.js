@@ -40,11 +40,12 @@ test('a pending watch establishes its reference silently unless the size was ver
  assert.equal(decidePriceCheck(pending,checks(offer(100,{available:false}))).status,'awaiting_availability');
 });
 
-test('another store’s lower item price counts only when its listed shipping keeps the total lower',()=>{
+test('another store’s lower price is announced; listed shipping counts, unknown shipping is said plainly',()=>{
  const alert=alertWith();
- // $40 off with unknown shipping is recorded, not announced.
+ // $40 off on the other store's page with unknown shipping: announced, naming the store, shipping not included.
  const unknown=decidePriceCheck(alert,checks(offer(100),offer(60,{url:other})));
- assert.equal(unknown.event,null);assert.equal(unknown.record.unconfirmed_savings[0].amount,60);
+ assert.equal(unknown.event.kind,'price_drop');assert.match(unknown.event.body,/now at nordstrom\.com for \$60 \(was \$100, 40% off\)\. shipping and other fees not included\./);
+ assert.equal(unknown.record.unconfirmed_savings,undefined);
  // $40 off with $60 shipping is not a saving.
  assert.equal(decidePriceCheck(alert,checks(offer(100),offer(60,{url:other,shipping:60}))).event,null);
  const free=decidePriceCheck(alert,checks(offer(100),offer(60,{url:other,shipping:0})));
@@ -192,9 +193,8 @@ test('chat status reports the persisted monitoring state without overstating it'
  const links=[{url:home},{url:other}];
  assert.match(alertState({links,baselines:[]}),/waiting for a verified price.*not checked yet/);
  assert.match(alertState({links,baselines:[offer(100)],last_result:{status:'check_failed',failures:3},last_checked_at:'2026-10-12T13:00:00Z'}),/couldn’t read any of the 2 stores on the last 3 checks/);
- const watching=alertState({links,baselines:[offer(100)],last_result:{status:'no_drop',stock:'sold_out',unconfirmed_savings:[{url:other,amount:60,currency:'USD'}]},last_checked_at:'2026-10-12T13:00:00Z'});
+ const watching=alertState({links,baselines:[offer(100)],last_result:{status:'no_drop',stock:'sold_out'},last_checked_at:'2026-10-12T13:00:00Z'});
  assert.match(watching,/watching 2 stores; reference price \$100\.00 at barbour\.com\. your size was sold out\./);
- assert.match(watching,/nordstrom\.com listed it for \$60\.00, but i couldn’t confirm its shipping/);
 });
 
 test('a store search that cannot run records why and waits a day before retrying',async()=>{

@@ -7,7 +7,7 @@ const reply=products=>({ok:true,json:async()=>({status:'completed',output:[{type
 const candidate=url=>({url,brand:'Prada',name:'Speedrock sneakers',match:'likely_match',reason:'',role:'primary'});
 const page=()=>new Response('<script type="application/ld+json">'+JSON.stringify({'@type':'Product',name:'Speedrock sneakers',brand:'Prada',offers:{'@type':'Offer',price:'100',priceCurrency:'USD',availability:'https://schema.org/InStock'}})+'</script>',{headers:{'content-type':'text/html'}});
 test('registry contains 124 brands and 31 retailers with safe explicit domains and no fast fashion or big box entries',()=>{
- assert.equal(BRANDS.length,124);assert.equal(TRUSTED_RETAILERS.length,31);assert.equal(new Set(BRANDS.map(b=>b.domain)).size,BRANDS.length);
+ assert.equal(BRANDS.length,124);assert.equal(TRUSTED_RETAILERS.length,50);assert.equal(new Set(BRANDS.map(b=>b.domain)).size,BRANDS.length);
  for(const scope of ['official','preferred']){assert.ok(filterDomains(scope).length<=100);for(const domain of sourceDomains(scope)){assert.match(domain,/^[a-z0-9.-]+\.[a-z]+$/);assert.equal(merchantURL('https://'+domain+'/product/test'),'https://'+domain+'/product/test');}}
  for(const domain of ['walmart.com','target.com','zara.com','hm.com','shein.com','temu.com']){assert.ok(!sourceDomains('official').includes(domain));assert.ok(!sourceDomains('preferred').includes(domain));assert.equal(retailerFor('https://'+domain+'/item').tier,'unreviewed');}
  assert.equal(retailerFor('https://kith.com/products/nike','Nike').tier,'preferred');assert.equal(retailerFor('https://kith.com/products/kith','Kith').tier,'official');

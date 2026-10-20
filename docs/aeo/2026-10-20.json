@@ -1,0 +1,1999 @@
+{
+  "date": "2026-10-20",
+  "generated_at": "2026-10-20T22:28:32.608Z",
+  "questions_version": 1,
+  "questions": [
+    {
+      "id": "forward-cheaper",
+      "job": "forward-a-listing",
+      "text": "Is there an app where I can send it a product link and it finds the same item cheaper somewhere else, including resale?"
+    },
+    {
+      "id": "forward-my-size",
+      "job": "forward-a-listing",
+      "text": "A jacket I want is sold out in my size. How can I find which other stores still have it in my size?"
+    },
+    {
+      "id": "forward-text-link",
+      "job": "forward-a-listing",
+      "text": "Is there a shopping assistant I can just text links to from Instagram or TikTok and it tells me if it's a good price?"
+    },
+    {
+      "id": "resale-search",
+      "job": "forward-a-listing",
+      "text": "Best way to check if something I'm about to buy is cheaper on resale sites like Poshmark, Grailed or The RealReal?"
+    },
+    {
+      "id": "screenshot-outfit",
+      "job": "wheres-it-from",
+      "text": "How do I find where the clothes in a screenshot of an outfit are from?"
+    },
+    {
+      "id": "screenshot-app",
+      "job": "wheres-it-from",
+      "text": "What app can identify clothes from a photo and find them in my size?"
+    },
+    {
+      "id": "dupe-finder",
+      "job": "dupes",
+      "text": "Is there an app that finds cheaper dupes of designer clothes?"
+    },
+    {
+      "id": "dupe-from-photo",
+      "job": "dupes",
+      "text": "How can I find a cheaper version of a dress I saw on Instagram?"
+    },
+    {
+      "id": "price-drop-size",
+      "job": "alerts",
+      "text": "How do I get a text when a specific piece of clothing goes on sale in my size?"
+    },
+    {
+      "id": "restock-size",
+      "job": "alerts",
+      "text": "App that texts me when a sold-out jacket restocks in my size"
+    },
+    {
+      "id": "price-tracker-clothes",
+      "job": "alerts",
+      "text": "Best price tracker for clothes and shoes across different stores?"
+    },
+    {
+      "id": "personal-shopper-text",
+      "job": "just-handle-it",
+      "text": "Is there a personal shopper I can text over iMessage?"
+    },
+    {
+      "id": "phia-alternatives",
+      "job": "comparison",
+      "text": "What are some alternatives to Phia?"
+    },
+    {
+      "id": "daydream-alternatives",
+      "job": "comparison",
+      "text": "Apps like Daydream for shopping clothes"
+    },
+    {
+      "id": "shopping-assistant-compare",
+      "job": "comparison",
+      "text": "Best shopping assistant apps for finding clothes in my size and tracking prices in 2026"
+    }
+  ],
+  "engines": [
+    {
+      "id": "openai",
+      "label": "OpenAI (web search)",
+      "model": "gpt-5.5",
+      "status": "ran",
+      "note": null
+    },
+    {
+      "id": "perplexity",
+      "label": "Perplexity (Sonar)",
+      "model": "sonar",
+      "status": "skipped",
+      "note": "PERPLEXITY_API_KEY is not set"
+    },
+    {
+      "id": "anthropic",
+      "label": "Anthropic (web search)",
+      "model": "claude-opus-5-5",
+      "status": "skipped",
+      "note": "ANTHROPIC_API_KEY is not set"
+    }
+  ],
+  "results": [
+    {
+      "question_id": "forward-cheaper",
+      "question": "Is there an app where I can send it a product link and it finds the same item cheaper somewhere else, including resale?",
+      "job": "forward-a-listing",
+      "engine": "openai",
+      "model": "gpt-5.5",
+      "date": "2026-10-20",
+      "ok": true,
+      "served_model": "gpt-5.5-2026-04-23",
+      "answer": "Yes. A few apps/extensions do this, but they vary in whether they search **new retail**, **resale/secondhand**, or **lookalike dupes**.\n\n**Best fits for what you described:**\n\n1. **Beni** — best if you want resale/secondhand matches  \n   - Works while you shop and checks **40+ resale sites** for secondhand versions of the item.  \n   - Especially useful for fashion, accessories, home, and lifestyle items. ([shopbeni.com](https://shopbeni.com/how-it-works?utm_source=openai))\n\n2. **Pounce** — best for exact-item retail price comparison  \n   - Browser extension that checks hundreds of shops for the **exact same item**, sorted cheapest first. ([get-pounce.com](https://www.get-pounce.com/extension?utm_source=openai))\n\n3. **ShopSavvy** — good general-purpose option  \n   - Compares prices across stores and can include **used items, third-party sellers, and Amazon marketplace offers** depending on settings. ([shopsavvy.com](https://shopsavvy.com/browser-extension?utm_source=openai))\n\n4. **xRay.AI** — closest to “paste a product link into an app”  \n   - Lets you copy/paste a product link, then it reads the product/images and searches for the same item or source. It also lists an iOS app. ([tryxray.ai](https://tryxray.ai/?utm_source=openai))\n\n5. **Banyr** — link-based and includes retail + resale  \n   - It says you can paste a product link and it checks “retail and resale” for a fair/cheaper price. ([banyr.com](https://banyr.com/?utm_source=openai))\n\n6. **DumpyDeals / Catchevo / FindPrices** — newer AI price-finder tools  \n   - These let you paste links or use browser extensions to find cheaper versions across retailers; some include eBay/Vinted or similar marketplaces. ([dumpydeals.com](https://dumpydeals.com/?utm_source=openai))\n\n**My practical recommendation:**  \n- For **clothes, bags, shoes, decor, furniture, etc.**: try **Beni** first.  \n- For **electronics, appliances, tools, beauty, home goods**: try **ShopSavvy**, **Pounce**, or **FindPrices**.  \n- If you specifically want to **paste a link into an app**, try **xRay.AI** or **Banyr**.\n\nOne caveat: no tool is perfect at confirming the “same item,” especially with different sizes, colors, model years, bundles, refurb/open-box condition, or counterfeit-prone resale listings. Always check SKU/model number, condition, return policy, shipping, and seller ratings before buying.",
+      "cited_urls": [
+        "https://shopbeni.com/how-it-works?utm_source=openai",
+        "https://www.get-pounce.com/extension?utm_source=openai",
+        "https://shopsavvy.com/browser-extension?utm_source=openai",
+        "https://tryxray.ai/?utm_source=openai",
+        "https://banyr.com/?utm_source=openai",
+        "https://dumpydeals.com/?utm_source=openai"
+      ],
+      "source_urls": [
+        "https://shopbeni.com/how-it-works",
+        "https://www.get-pounce.com/extension",
+        "https://www.catchevo.ai/extension?lang=en",
+        "https://findprices.com/price-comparison-chrome-extension",
+        "https://chromewebstore.google.com/detail/betterprice-stop-overpayi/eimfmeocbpkffhffjckpddhmpaomgpod",
+        "https://shopsavvy.com/browser-extension",
+        "https://tryxray.ai/",
+        "https://dumpydeals.com/",
+        "https://www.reddit.com/r/chrome_extensions/comments/1vpvwf1/i_built_a_free_extension_that_checks_whether_the/",
+        "https://www.findproductalternatives.com/find-similar-products-by-url",
+        "https://dupedar.abacusai.app/",
+        "https://dupely.io/",
+        "https://banyr.com/",
+        "https://www.reddit.com/r/chrome_extensions/comments/1vdadak/new_dev_first_extension_it_catches_dropshipped/",
+        "https://www.reddit.com/r/browsers/comments/1n54kre",
+        "https://www.reddit.com/r/chrome_extensions/comments/1twk9jt/need_some_real_feedback_from_people_who_actually/",
+        "https://www.reddit.com/r/alphaandbetausers/comments/1vdacce/new_dev_first_extension_it_catches_dropshipped/",
+        "https://www.reddit.com/r/chrome_extensions/comments/1l2nr4p",
+        "https://www.reddit.com/r/chrome_extensions/comments/1qzjvsk/i_built_a_free_chrome_extension_that_helps_detect/",
+        "https://www.reddit.com/r/FirefoxAddons/comments/1melbwm/made_a_firefox_addon_that_finds_better_deals/",
+        "https://www.reddit.com/r/microsaas/comments/1mvrmmu",
+        "https://www.reddit.com/r/SideProject/comments/1xa46ny/building_a_oneclick_is_this_cheaper_somewhere/",
+        "https://www.reddit.com/r/software/comments/1l54ly2",
+        "https://www.reddit.com/r/buildinpublic/comments/1l4aapa",
+        "https://en.wikipedia.org/wiki/Pronto.com",
+        "https://arxiv.org/abs/1307.4531",
+        "https://assets.website-files.com/685accc02f6f239e78601015/68a3f50a0d1aff0ee47eef91_94942031353.pdf",
+        "https://en.wikipedia.org/wiki/PayPal_Honey",
+        "https://developer.ebay.com/cms/files/connect-2021/buyer_experience_julie.pdf",
+        "https://en.wikipedia.org/wiki/Capital_One_Shopping",
+        "https://en.wikipedia.org/wiki/Netbot",
+        "https://en.wikipedia.org/wiki/Shopping.com",
+        "https://en.wikipedia.org/wiki/OfferUp",
+        "https://www.cj.com/hubfs/_pdfs/CJ%2BNamogoo_Value%20of%20Shopping%20Browser%20Extensions_Whitepaper_.pdf",
+        "https://www.cs.uic.edu/~yzhao/research/papers/pe012-zhao.pdf",
+        "https://arxiv.org/abs/2406.00374",
+        "https://consumerwatchdog.org/resources/replicating_browser_process_2.0-1.pdf",
+        "https://cf-assets-tup.thredup.com/resale_report/2017/thredUP_resaleReport2017.pdf",
+        "https://arxiv.org/abs/2407.01732",
+        "https://shopbeni.com/how-it-works?utm_source=openai",
+        "https://www.get-pounce.com/extension?utm_source=openai",
+        "https://shopsavvy.com/browser-extension?utm_source=openai",
+        "https://tryxray.ai/?utm_source=openai",
+        "https://banyr.com/?utm_source=openai",
+        "https://dumpydeals.com/?utm_source=openai"
+      ],
+      "usage": {
+        "input_tokens": 10882,
+        "cached_tokens": 2688,
+        "output_tokens": 642,
+        "web_searches": 1
+      },
+      "stop_reason": "completed",
+      "cost_usd": 0.071574,
+      "cited_domains": [
+        "shopbeni.com",
+        "get-pounce.com",
+        "shopsavvy.com",
+        "tryxray.ai",
+        "banyr.com",
+        "dumpydeals.com"
+      ],
+      "source_domains": [
+        "shopbeni.com",
+        "get-pounce.com",
+        "catchevo.ai",
+        "findprices.com",
+        "chromewebstore.google.com",
+        "shopsavvy.com",
+        "tryxray.ai",
+        "dumpydeals.com",
+        "reddit.com",
+        "findproductalternatives.com",
+        "dupedar.abacusai.app",
+        "dupely.io",
+        "banyr.com",
+        "en.wikipedia.org",
+        "arxiv.org",
+        "assets.website-files.com",
+        "developer.ebay.com",
+        "cj.com",
+        "cs.uic.edu",
+        "consumerwatchdog.org",
+        "cf-assets-tup.thredup.com"
+      ],
+      "mention": {
+        "mentioned": false,
+        "confidence": null,
+        "cited": false,
+        "excerpts": [],
+        "ignored": []
+      },
+      "competitors": [
+        "Beni"
+      ]
+    },
+    {
+      "question_id": "forward-my-size",
+      "question": "A jacket I want is sold out in my size. How can I find which other stores still have it in my size?",
+      "job": "forward-a-listing",
+      "engine": "openai",
+      "model": "gpt-5.5",
+      "date": "2026-10-20",
+      "ok": true,
+      "served_model": "gpt-5.5-2026-04-23",
+      "answer": "Here are the best ways to track down a sold-out jacket in your size:\n\n1. **Search by exact product name + size**\n   - Copy the jacket’s **exact name**, color, style number, or SKU.\n   - Search Google like:\n     - `\"Brand Jacket Name\" \"Medium\"`\n     - `\"Brand Jacket Name\" \"M\"`\n     - `\"style number\" jacket`\n     - `\"SKU\" \"size M\"`\n\n2. **Use Google Shopping**\n   - Search the jacket name in **Google Shopping**.\n   - Filter by size, color, and availability if possible.\n   - Check smaller boutiques as well as big retailers.\n\n3. **Check the brand’s “find in store” tool**\n   - Many brands let you check local store inventory online.\n   - If it says sold out online, it may still be available in a physical store.\n\n4. **Search resale and marketplace sites**\n   Try:\n   - eBay\n   - Poshmark\n   - Grailed\n   - Depop\n   - Mercari\n   - The RealReal\n   - StockX, if it’s streetwear/outdoor fashion\n\n   Search with the exact product name and size, and save the search if the platform allows alerts.\n\n5. **Use image search**\n   - Right-click the product image or screenshot it.\n   - Use **Google Lens** or Pinterest Lens to find visually similar listings.\n   - This can uncover retailers using slightly different product titles.\n\n6. **Check stock-monitoring or fashion search sites**\n   Depending on the brand, try:\n   - ShopStyle\n   - Lyst\n   - Modesens\n   - Farfetch\n   - SSENSE\n   - END.\n   - Backcountry, REI, Moosejaw, or evo for outdoor brands\n\n7. **Call stores directly**\n   - Ask customer service if they can check nationwide store inventory.\n   - Give them the **SKU/style number, color, and size**.\n   - Ask whether a store can do a phone order or ship-to-home.\n\n8. **Set restock alerts**\n   - Sign up for email/SMS restock notifications on the brand site and retailers.\n   - Also consider tools like Visualping or Distill.io to monitor the product page.\n\n9. **Check international retailers**\n   - Search the item on UK, EU, Canadian, or Japanese retailers.\n   - Watch out for duties, shipping costs, and return policies.\n\n10. **Ask the brand**\n   - Message the brand on email, chat, or Instagram.\n   - Ask:\n     > “Do you know if this jacket in size [X], color [Y], style #[Z] is available at any retail partners or stores?”\n\nIf you want, send me the **brand, jacket name/link, color, and size**, and I can help you come up with the best search terms and places to check.",
+      "cited_urls": [],
+      "source_urls": [],
+      "usage": {
+        "input_tokens": 4467,
+        "cached_tokens": 3712,
+        "output_tokens": 594,
+        "web_searches": 0
+      },
+      "stop_reason": "completed",
+      "cost_usd": 0.023451,
+      "cited_domains": [],
+      "source_domains": [],
+      "mention": {
+        "mentioned": false,
+        "confidence": null,
+        "cited": false,
+        "excerpts": [],
+        "ignored": []
+      },
+      "competitors": [
+        "Google Lens",
+        "Google Shopping",
+        "Pinterest Lens",
+        "ShopStyle",
+        "Lyst"
+      ]
+    },
+    {
+      "question_id": "forward-text-link",
+      "question": "Is there a shopping assistant I can just text links to from Instagram or TikTok and it tells me if it's a good price?",
+      "job": "forward-a-listing",
+      "engine": "openai",
+      "model": "gpt-5.5",
+      "date": "2026-10-20",
+      "ok": true,
+      "served_model": "gpt-5.5-2026-04-23",
+      "answer": "Yes. A few options are built for exactly this “send/share me a social link and tell me whether it’s a good deal” workflow:\n\n- **Cartsy** — closest to “just DM it.” You can share Instagram posts/reels to **@cartsyapp** in Instagram DMs; it identifies products and compares offers from stores. It’s free and also works on the web. ([cartsy.com](https://cartsy.com/?utm_source=openai))  \n- **Stashit** — works via share sheet from **Instagram, TikTok, Pinterest, and YouTube**; it recognizes products in videos and checks 50+ retailers, pinning the lowest price. It has iOS and Android apps. ([stashitai.com](https://stashitai.com/?utm_source=openai))  \n- **ShopSavvy** — more traditional price-checking: share a product link from another app and it opens price comparisons, price history, and “buy now or wait” style advice. Good if you already have a product page link. ([shopsavvy.com](https://shopsavvy.com/help/how-to-share-to-shopsavvy?utm_source=openai))  \n- **Glossy** — if this is mostly **beauty products**, it’s specifically for sharing TikTok/Instagram beauty videos and finding the products, best prices, and dupes at places like Sephora, Ulta, Amazon, and Target. ([tryglossyapp.com](https://tryglossyapp.com/?utm_source=openai))  \n- **Slay** — for fashion/outfits from Instagram/TikTok/YouTube links; it identifies items and prices, plus virtual try-on. More style-focused and has a Pro plan. ([slaydm.co](https://slaydm.co/?utm_source=openai))  \n\n**My pick:**  \nIf you want the lowest-friction experience, try **Cartsy** first for Instagram DM-style use, and **Stashit** if you want something that works across both Instagram and TikTok through your phone’s share sheet.\n\nOne caveat: for influencer/social-commerce items, the assistant may identify a similar item rather than the exact one, so still check retailer, shipping, returns, and whether the TikTok/Instagram shop price includes coupons or flash discounts.",
+      "cited_urls": [
+        "https://cartsy.com/?utm_source=openai",
+        "https://stashitai.com/?utm_source=openai",
+        "https://shopsavvy.com/help/how-to-share-to-shopsavvy?utm_source=openai",
+        "https://tryglossyapp.com/?utm_source=openai",
+        "https://slaydm.co/?utm_source=openai"
+      ],
+      "source_urls": [
+        "https://cartsy.com/",
+        "https://stashitai.com/",
+        "https://slaydm.co/",
+        "https://share-a-cart.com/ai",
+        "https://ecommerceguide.com/agents/",
+        "https://buyscout.ai/",
+        "https://shopsavvy.com/help/how-to-share-to-shopsavvy",
+        "https://www.worthitforyou.com/",
+        "https://tryglossyapp.com/",
+        "https://apps.apple.com/us/app/shopsavvy-shopping-assistant/id338828953?platform=watch",
+        "https://www.cartlyt.com/",
+        "https://www.shopwithforma.com/",
+        "https://ads.tiktok.com/business/library/Shop_Ads_Playbook.pdf",
+        "https://foursixty.com/blog/wp-content/uploads/2025/09/Table-comparison-of-shoppable-content-platforms.pdf",
+        "https://en.wikipedia.org/wiki/Comparison_shopping_website",
+        "https://en.wikipedia.org/wiki/Shop_It_To_Me",
+        "https://en.wikipedia.org/wiki/TikTok_Shop",
+        "https://open.metu.edu.tr/bitstream/handle/11511/108750/10620001.pdf",
+        "https://arxiv.org/abs/2412.14985",
+        "https://en.wikipedia.org/wiki/Like.com",
+        "https://en.wikipedia.org/wiki/Priceza",
+        "https://en.wikipedia.org/wiki/Snapette",
+        "https://arxiv.org/abs/2610.00684",
+        "https://www.onlineretailer.com/content/dam/sitebuilder/rxau/online-retailer/or365_2025/speaker-approved-presentations/MichaelTutek_AI%20Sales%20and%20Service_Grow%20Revenue%2C%20Automate%20Support_Preezie.pdf.coredownload.623001892.pdf",
+        "https://www.tomsguide.com/ai/i-tried-findgpt-the-ai-that-shops-any-instagram-outfit-instantly-heres-how-it-compares-to-google-shopping",
+        "https://thecubicals.online/thecubicals/blogs/download-blog/69c7536a481bace73949b79c",
+        "https://images.g2crowd.com/uploads/attachment/file/1645331/Inside-Live-Shopping.pdf",
+        "https://www.kiplinger.com/personal-finance/shopping/online-shopping/601523/deal-sites-and-tools-for-finding-online-bargains",
+        "https://arxiv.org/abs/2603.24947",
+        "https://apnews.com/article/3784529e01603dcf116b55886dc88c17",
+        "https://www.tomsguide.com/ai/ai-chatbots-can-do-your-black-friday-shopping-in-minutes-and-chatgpt-perplexity-copilot-and-gemini-all-have-them",
+        "https://arxiv.org/abs/2608.09917",
+        "https://cartsy.com/?utm_source=openai",
+        "https://stashitai.com/?utm_source=openai",
+        "https://shopsavvy.com/help/how-to-share-to-shopsavvy?utm_source=openai",
+        "https://tryglossyapp.com/?utm_source=openai",
+        "https://slaydm.co/?utm_source=openai"
+      ],
+      "usage": {
+        "input_tokens": 10720,
+        "cached_tokens": 3712,
+        "output_tokens": 524,
+        "web_searches": 1
+      },
+      "stop_reason": "completed",
+      "cost_usd": 0.062616,
+      "cited_domains": [
+        "cartsy.com",
+        "stashitai.com",
+        "shopsavvy.com",
+        "tryglossyapp.com",
+        "slaydm.co"
+      ],
+      "source_domains": [
+        "cartsy.com",
+        "stashitai.com",
+        "slaydm.co",
+        "share-a-cart.com",
+        "ecommerceguide.com",
+        "buyscout.ai",
+        "shopsavvy.com",
+        "worthitforyou.com",
+        "tryglossyapp.com",
+        "apps.apple.com",
+        "cartlyt.com",
+        "shopwithforma.com",
+        "ads.tiktok.com",
+        "foursixty.com",
+        "en.wikipedia.org",
+        "open.metu.edu.tr",
+        "arxiv.org",
+        "onlineretailer.com",
+        "tomsguide.com",
+        "thecubicals.online",
+        "images.g2crowd.com",
+        "kiplinger.com",
+        "apnews.com"
+      ],
+      "mention": {
+        "mentioned": false,
+        "confidence": null,
+        "cited": false,
+        "excerpts": [],
+        "ignored": []
+      },
+      "competitors": []
+    },
+    {
+      "question_id": "resale-search",
+      "question": "Best way to check if something I'm about to buy is cheaper on resale sites like Poshmark, Grailed or The RealReal?",
+      "job": "forward-a-listing",
+      "engine": "openai",
+      "model": "gpt-5.5",
+      "date": "2026-10-20",
+      "ok": true,
+      "served_model": "gpt-5.5-2026-04-23",
+      "answer": "The fastest “is this cheaper resale?” workflow is:\n\n1. **Identify the exact item**\n   - Brand + model/style name\n   - Colorway\n   - Size\n   - Material\n   - SKU/style code if available — usually best for shoes, bags, outerwear, denim, sunglasses, etc.\n\n2. **Search Google first with resale-site operators**\n   Use queries like:\n\n   ```text\n   \"brand item name color\" size site:poshmark.com\n   \"brand item name color\" size site:grailed.com\n   \"brand item name color\" size site:therealreal.com\n   ```\n\n   Example:\n\n   ```text\n   \"Toteme scarf jacket camel\" \"M\" site:poshmark.com OR site:grailed.com OR site:therealreal.com\n   ```\n\n   Google is often faster than searching each app because it can surface listings across multiple resale sites at once.\n\n3. **Then search each resale app directly**\n   Use filters aggressively:\n   - **Size**\n   - **Condition**\n   - **Color**\n   - **Max price**\n   - **Sold/available**, if supported\n   - Sort by **lowest price**, **recently listed**, or **recently price dropped**\n\n   Poshmark specifically supports filters and sorting, including price and “recently price dropped.” Grailed has size/category/price/designer filters and saved searches. The RealReal also has searchable/filterable listings with price filters and saved search. ([blog.poshmark.com](https://blog.poshmark.com/posh-tip-how-to-shop-on-poshmark/?utm_source=openai))\n\n4. **Check sold comps, not just active listings**\n   Active listings tell you what sellers *want*. Sold listings tell you the market price.  \n   Search:\n\n   ```text\n   \"item name\" sold Poshmark\n   \"item name\" sold Grailed\n   \"item name\" The RealReal sold\n   ```\n\n   Also check eBay sold listings if the item is common; eBay’s sold data is often useful even if you don’t plan to buy there.\n\n5. **Compare the true all-in price**\n   Resale can look cheaper until fees hit. Compare:\n\n   ```text\n   resale price + shipping + tax + authentication/processing fees\n   ```\n\n   vs.\n\n   ```text\n   retail price - discount code/cashback + shipping + tax + return value\n   ```\n\n   Also factor in whether the resale item is returnable. The RealReal is more structured, while peer-to-peer platforms like Grailed and Poshmark may vary by seller/platform policy.\n\n6. **Use saved searches if you’re not in a rush**\n   If the resale price isn’t good enough today, save the search and wait for price drops. Grailed supports saved searches and notifications for saved searches/price drops; The RealReal and Poshmark also offer search/filter tools and saved/liked item workflows. ([grailed.com](https://www.grailed.com/drycleanonly/how-to-buy-on-grailed?utm_source=openai))\n\n7. **Try a resale aggregator**\n   A dedicated resale search tool can save time. One current option is **ResaleHunt**, which says it searches across resale sites including The RealReal, Vestiaire Collective, ThredUp, Grailed, Depop, and Poshmark from one query. ([resalehunt.com](https://www.resalehunt.com/?utm_source=openai))\n\n**My practical shortcut:**  \nBefore buying anything over ~$100, I’d do this:\n\n```text\n\"exact item name\" \"size\" site:poshmark.com\n\"exact item name\" \"size\" site:grailed.com\n\"exact item name\" \"size\" site:therealreal.com\n\"exact item name\" sold\n```\n\nThen compare the **lowest good-condition all-in resale price** against the **retail all-in price after promo codes/cashback**. If resale is only 10–15% cheaper and returns are limited, retail may still be the better buy.",
+      "cited_urls": [
+        "https://blog.poshmark.com/posh-tip-how-to-shop-on-poshmark/?utm_source=openai",
+        "https://www.grailed.com/drycleanonly/how-to-buy-on-grailed?utm_source=openai",
+        "https://www.resalehunt.com/?utm_source=openai"
+      ],
+      "source_urls": [
+        "https://www.grailed.com/drycleanonly/how-to-buy-on-grailed",
+        "https://apps.apple.com/us/app/grailed-buy-sell-fashion/id1061302787",
+        "https://blog.poshmark.com/posh-tip-how-to-shop-on-poshmark/",
+        "https://support.poshmark.com/s/topic/0TO1I000000kJqoWAE/selling?language=en_US",
+        "https://www.grailed.com/?im_rewards=1&irgwc=1",
+        "https://www.grailed.com/browse/home",
+        "https://investor.therealreal.com/news/news-details/2026/THE-REALREALS-2026-RESALE-REPORT-REVEALS-RESALE-IS-BECOMING-FIRST-CHOICE-FOR-SHOPPERS/default.aspx",
+        "https://www.grailed.com/?afsrc=1&irgwc=1",
+        "https://www.therealreal.com/shop?msockid=107be141df38625411a2f738de2263ab",
+        "https://poshmark.com/posh_guide/shop_best_items_first",
+        "https://www.resalehunt.com/",
+        "https://play.google.com/store/apps/details?hl=en_US&id=com.therealreal.app",
+        "https://www.reddit.com/r/Grailed/comments/d83glj",
+        "https://en.wikipedia.org/wiki/Google_Shopping",
+        "https://investor.therealreal.com/static-files/741438ae-6a63-4ddb-a4ed-7ddcd09a316d",
+        "https://en.wikipedia.org/wiki/The_RealReal",
+        "https://blog.poshmark.com/posh-tip-how-to-shop-on-poshmark/?utm_source=openai",
+        "https://www.grailed.com/drycleanonly/how-to-buy-on-grailed?utm_source=openai",
+        "https://www.resalehunt.com/?utm_source=openai"
+      ],
+      "usage": {
+        "input_tokens": 8756,
+        "cached_tokens": 3712,
+        "output_tokens": 946,
+        "web_searches": 1
+      },
+      "stop_reason": "completed",
+      "cost_usd": 0.065456,
+      "cited_domains": [
+        "blog.poshmark.com",
+        "grailed.com",
+        "resalehunt.com"
+      ],
+      "source_domains": [
+        "grailed.com",
+        "apps.apple.com",
+        "blog.poshmark.com",
+        "support.poshmark.com",
+        "investor.therealreal.com",
+        "therealreal.com",
+        "poshmark.com",
+        "resalehunt.com",
+        "play.google.com",
+        "reddit.com",
+        "en.wikipedia.org"
+      ],
+      "mention": {
+        "mentioned": false,
+        "confidence": null,
+        "cited": false,
+        "excerpts": [],
+        "ignored": []
+      },
+      "competitors": []
+    },
+    {
+      "question_id": "screenshot-outfit",
+      "question": "How do I find where the clothes in a screenshot of an outfit are from?",
+      "job": "wheres-it-from",
+      "engine": "openai",
+      "model": "gpt-5.5",
+      "date": "2026-10-20",
+      "ok": true,
+      "served_model": "gpt-5.5-2026-04-23",
+      "answer": "You can usually find clothing from a screenshot by combining **reverse image search**, **visual shopping tools**, and a few manual tricks.\n\n### 1. Crop the screenshot first\nCrop the image so it focuses on **one item at a time** — for example, just the jacket, shoes, bag, or pants. Search tools work much better when there’s less background and fewer items.\n\n### 2. Use visual search tools\nTry uploading the cropped item to:\n\n- **Google Lens** — best general option\n- **Pinterest Lens** — good for fashion and similar outfits\n- **Amazon StyleSnap** — useful for affordable lookalikes\n- **ASOS Style Match** — good for trend/fashion items\n- **Lykdat** or **ShopStyle** — fashion-focused search tools\n\nIf exact matches do not show up, look for similar cuts, colors, and details.\n\n### 3. Search with descriptive keywords\nIf image search gives close but not exact results, describe the item manually. For example:\n\n> “black cropped faux leather bomber jacket silver zipper”  \n> “white lace trim cami satin bow front”  \n> “brown suede platform clogs buckle”\n\nInclude:\n- color\n- fabric\n- fit\n- brand logo if visible\n- pattern\n- distinctive details\n- season/style terms, like “Y2K,” “cargo,” “balletcore,” “oversized,” “ribbed,” etc.\n\n### 4. Check the original source\nIf the screenshot came from TikTok, Instagram, Pinterest, YouTube, or a show/movie:\n\n- Look at the caption\n- Check comments for “where is this from?”\n- See if the creator tagged brands\n- Look at their LTK, ShopMy, Amazon Storefront, or “outfit details” links\n- Search the creator’s username plus keywords like **outfit**, **jacket**, **dress**, or **where from**\n\nExample:\n\n> `@username black floral maxi dress outfit`\n\n### 5. Use fashion ID communities\nIf you cannot find it, post the image to communities that specialize in this:\n\n- Reddit: r/findfashion\n- Reddit: r/HelpMeFind\n- Reddit: r/femalefashionadvice or r/malefashionadvice, depending on context\n- Facebook fashion ID groups\n- Discord fashion communities\n\nInclude any context you have: where you saw it, country, date, influencer/show/person, and your budget.\n\n### 6. Look for logos, seams, tags, or hardware\nZoom in on:\n- buttons\n- zippers\n- labels\n- shoe soles\n- bag clasps\n- embroidered logos\n- pocket shapes\n\nTiny design details can help identify the brand.\n\n### 7. Search for dupes if the exact item is old or sold out\nSometimes the original piece is vintage, sold out, or designer. In that case, search:\n\n> `[description] dupe`  \n> `[brand/style] similar`  \n> `[item description] affordable alternative`\n\n### 8. If you want, upload the screenshot here\nI can help identify the pieces or create search terms for each item. Ideally send the clearest version possible and tell me whether you want the **exact item** or **similar alternatives**.",
+      "cited_urls": [],
+      "source_urls": [],
+      "usage": {
+        "input_tokens": 4458,
+        "cached_tokens": 3712,
+        "output_tokens": 676,
+        "web_searches": 0
+      },
+      "stop_reason": "completed",
+      "cost_usd": 0.025866,
+      "cited_domains": [],
+      "source_domains": [],
+      "mention": {
+        "mentioned": false,
+        "confidence": null,
+        "cited": false,
+        "excerpts": [],
+        "ignored": []
+      },
+      "competitors": [
+        "Google Lens",
+        "Pinterest Lens",
+        "Amazon StyleSnap",
+        "ShopStyle",
+        "LTK"
+      ]
+    },
+    {
+      "question_id": "screenshot-app",
+      "question": "What app can identify clothes from a photo and find them in my size?",
+      "job": "wheres-it-from",
+      "engine": "openai",
+      "model": "gpt-5.5",
+      "date": "2026-10-20",
+      "ok": true,
+      "served_model": "gpt-5.5-2026-04-23",
+      "answer": "The best **first app to try is Google Lens**. It can identify clothing from a photo or screenshot, show similar items, prices, retailers, and shopping results; then you can filter/check availability by size on the retailer’s site. ([blog.google](https://blog.google/products-and-platforms/products/shopping/visual-search-lens-shopping/?utm_source=openai))\n\nGood options:\n\n1. **Google Lens / Google app**\n   - Best for: finding the same or similar clothing from almost any photo.\n   - Works with screenshots, camera photos, Instagram/Pinterest images, etc.\n   - After results appear, open a retailer and choose your size.\n\n2. **Amazon app camera search**\n   - Best for: finding affordable lookalikes on Amazon.\n   - Use the camera icon in the Amazon search bar, upload/take a photo, then filter by size.\n\n3. **Pinterest Lens**\n   - Best for: style inspiration and similar outfits.\n   - Less direct for “buy this exact item,” but useful if you want dupes or styling ideas.\n\n4. **ASOS Style Match**\n   - Best for: fashion items available through ASOS.\n   - Upload a photo and it searches ASOS’s catalog; size availability is easier because you’re already inside one retailer.\n\n5. **IDtheLook / Wheredrobe / Kiim**\n   - These are newer outfit-finder apps that identify garments from photos and show shopping links. IDtheLook says it tags each piece in an outfit photo and shows where to buy similar items; Wheredrobe lets you upload a photo and circle the clothing item to search; Kiim says it identifies garments and finds places to buy them. ([play.google.com](https://play.google.com/store/apps/details?id=com.idthelook&utm_source=openai))\n\n**My recommendation:** Start with **Google Lens** for the broadest search, then use **ASOS Style Match** or **Amazon camera search** if you want results that are easier to filter by your size. No app is perfect at guaranteeing “in my size” across all stores, so the final size check usually happens on the retailer’s page.",
+      "cited_urls": [
+        "https://blog.google/products-and-platforms/products/shopping/visual-search-lens-shopping/?utm_source=openai",
+        "https://play.google.com/store/apps/details?id=com.idthelook&utm_source=openai"
+      ],
+      "source_urls": [
+        "https://blog.google/products-and-platforms/products/shopping/visual-search-lens-shopping/",
+        "https://mobilestalk.net/5-best-apps-to-find-clothes-by-picture/",
+        "https://support.google.com/websearch/answer/1325808?hl=en",
+        "https://www.itechguides.com/best/visual-clothing-search-apps/",
+        "https://play.google.com/store/apps/details?id=com.idthelook",
+        "https://apps.apple.com/us/app/wheredrobe-find-that-outfit/id6787358231",
+        "https://kiim.app/",
+        "https://lensapp.io/identify-clothes-from-image/",
+        "https://www.coppedit.app/blog/2026-guide-the-best-app-to-find-clothes-by-picture",
+        "https://tryanyoutfit.com/blog/how-to-find-clothes-from-a-picture",
+        "https://blog.google/products-and-platforms/devices/google-lens/get-outfit-inspiration-style-ideas-google-lens/",
+        "https://getutopia.app/blog/best-virtual-try-on-apps",
+        "https://www.reddit.com/r/u_google/comments/144k3id",
+        "https://www.reddit.com/r/chrome_extensions/comments/1b4wb3a",
+        "https://www.reddit.com/r/LifeProTips/comments/12lsapy",
+        "https://www.reddit.com/r/malelivingspace/comments/i3ga15",
+        "https://www.roboai.fi/wp-content/uploads/2023/10/A5-Google-Lens-EN.pdf",
+        "https://files.customersaas.com/files/XAUoiNE1EeSwKpqZ9vR-HkHe.pdf",
+        "https://www.reddit.com/r/vibecoding/comments/1s4p4lu/i_built_an_app_that_detects_clothes_from_any/",
+        "https://www.reddit.com/r/SideProject/comments/1s5c1lr/i_built_an_app_that_detects_clothes_from_any/",
+        "https://www.reddit.com/r/AskForAnswers/comments/1n8n1i1",
+        "https://goodthingsaustralia.org/wp-content/uploads/2024/05/Google-lens-instructions-handout-1.pdf",
+        "https://en.wikipedia.org/wiki/Google_Shopping",
+        "https://www.reddit.com/r/LifeProTips/comments/nzb9wy",
+        "https://blog.google/products-and-platforms/products/shopping/visual-search-lens-shopping/?utm_source=openai",
+        "https://play.google.com/store/apps/details?id=com.idthelook&utm_source=openai"
+      ],
+      "usage": {
+        "input_tokens": 8647,
+        "cached_tokens": 3712,
+        "output_tokens": 514,
+        "web_searches": 1
+      },
+      "stop_reason": "completed",
+      "cost_usd": 0.051951000000000004,
+      "cited_domains": [
+        "blog.google",
+        "play.google.com"
+      ],
+      "source_domains": [
+        "blog.google",
+        "mobilestalk.net",
+        "support.google.com",
+        "itechguides.com",
+        "play.google.com",
+        "apps.apple.com",
+        "kiim.app",
+        "lensapp.io",
+        "coppedit.app",
+        "tryanyoutfit.com",
+        "getutopia.app",
+        "reddit.com",
+        "roboai.fi",
+        "files.customersaas.com",
+        "goodthingsaustralia.org",
+        "en.wikipedia.org"
+      ],
+      "mention": {
+        "mentioned": false,
+        "confidence": null,
+        "cited": false,
+        "excerpts": [],
+        "ignored": []
+      },
+      "competitors": [
+        "Google Lens",
+        "Pinterest Lens"
+      ]
+    },
+    {
+      "question_id": "dupe-finder",
+      "question": "Is there an app that finds cheaper dupes of designer clothes?",
+      "job": "dupes",
+      "engine": "openai",
+      "model": "gpt-5.5",
+      "date": "2026-10-20",
+      "ok": true,
+      "served_model": "gpt-5.5-2026-04-23",
+      "answer": "Yes — there are several apps/extensions that can find cheaper **dupes or lookalikes** for designer clothes:\n\n- **Dupe.com** — probably the most direct option. You can search by **image, link, or keyword**, and it finds cheaper alternatives for fashion and home items. It also has a Chrome extension. ([apps.apple.com](https://apps.apple.com/us/app/dupe-com-ai-deal-finder/id6752661840?utm_source=openai))  \n- **Lyket** — built for “shop the look for less”; you can upload a screenshot/photo and it finds similar clothing at lower prices. ([getlyket.com](https://getlyket.com/?utm_source=openai))  \n- **SnapFyt** — lets you upload/snap an outfit, circle the item you like, and it searches for exact items plus cheaper lookalikes. ([snapfyt.com](https://snapfyt.com/?utm_source=openai))  \n- **Google Lens** — not specifically a dupe app, but very useful: screenshot a designer item, search with Lens, then filter visually similar results by price/retailer.  \n- **Pinterest Lens** — good for finding similar styles, though it’s less price-focused.  \n- **The RealReal / Vestiaire / Depop / Poshmark** — better if you want the **actual designer piece secondhand** rather than a dupe.\n\nMy recommendation: start with **Dupe.com** for “find me a cheaper version of this,” and use **Google Lens** as a backup to catch more retailers. Just be careful to distinguish **dupes/lookalikes** from **counterfeits**—avoid anything using fake logos or pretending to be the designer brand.",
+      "cited_urls": [
+        "https://apps.apple.com/us/app/dupe-com-ai-deal-finder/id6752661840?utm_source=openai",
+        "https://getlyket.com/?utm_source=openai",
+        "https://snapfyt.com/?utm_source=openai"
+      ],
+      "source_urls": [
+        "https://apps.apple.com/us/app/dupe-com-ai-deal-finder/id6752661840",
+        "https://www.tryspree.app/blog/clothing-dupe-finder-apps",
+        "https://dupe.support/app",
+        "https://joinyaw.com/",
+        "https://getlyket.com/",
+        "https://www.outfit-ai.com/scan-clothes/",
+        "https://remode.app/find-cheaper-clothes/",
+        "https://chromewebstore.google.com/detail/disto/lmgkjhgaljpeojmhnelhpnllmplgkipk?hl=en",
+        "https://snapfyt.com/",
+        "https://www.fashionaidaily.com/blog/best-ai-dupe-finder-apps-copped-vs-dupe-vs-fetchfashion-2026/",
+        "https://www.savethelook.com/",
+        "https://alikely.net/",
+        "https://www.reddit.com/r/roastmystartup/comments/1rgbbhq/roast_my_fashion_discovery_app/",
+        "https://www.reddit.com/r/SideProject/comments/1tuc1hj/i_made_an_ai_shopping_assistant_to_help_me_find/",
+        "https://www.reddit.com/r/AndroidClosedTesting/comments/1pfztqg/android_test_for_test_dupesnap_ai_fashion_finder/",
+        "https://www.reddit.com/r/AimeLeonDore/comments/1aolc3s",
+        "https://www.reddit.com/r/SideProject/comments/1utlewm/i_built_a_chrome_extension_that_lets_you_try_on/",
+        "https://www.reddit.com/r/VintageFashion/comments/1456hk7",
+        "https://www.reddit.com/r/chrome_extensions/comments/1rzexs3/building_extension_to_help_you_shop_smarter/",
+        "https://www.reddit.com/r/Dressly/comments/1vm87zg/i_tested_every_ai_styling_app_i_could_find_so_you/",
+        "https://www.reddit.com/r/chrome_extensions/comments/1okrfyh",
+        "https://www.reddit.com/r/Luxury/comments/1bjy4c2",
+        "https://www.reddit.com/r/SaaS/comments/1t3yokm/i_built_an_ai_extension_that_lets_you_virtually/",
+        "https://www.reddit.com/r/SideProject/comments/1nio1wa",
+        "https://en.wikipedia.org/wiki/Styloko",
+        "https://en.wikipedia.org/wiki/Shop_It_To_Me",
+        "https://www.mckinsey.com/~/media/mckinsey/industries/retail/our%20insights/state%20of%20fashion/2026/the-state-of-fashion-2026-vf.pdf",
+        "https://www.mckinsey.com/~/media/mckinsey/industries/retail/our%20insights/state%20of%20fashion/2025/the-state-of-fashion-2025-v2.pdf?shouldindex=false",
+        "https://www.marshallip.com/content/uploads/2026/02/Tiffany-Gehrke-and-Alexa-Spitz-in-Law360-02-19-26.pdf",
+        "https://en.wikipedia.org/wiki/Depop",
+        "https://en.wikipedia.org/wiki/Snapette",
+        "https://en.wikipedia.org/wiki/DRESSX",
+        "https://en.wikipedia.org/wiki/Like.com",
+        "https://paulabuit.nl/wp-content/uploads/50-Business-Models-you-should-copy-today.pdf",
+        "https://www.foley.com/wp-content/uploads/2026/03/The-Laws-of-Fashion-2026.pdf",
+        "https://jipel.law.nyu.edu/wp-content/uploads/2025/05/JIPEL-Volume-14-Number-2-Roberts.pdf",
+        "https://apps.apple.com/us/app/dupe-com-ai-deal-finder/id6752661840?utm_source=openai",
+        "https://getlyket.com/?utm_source=openai",
+        "https://snapfyt.com/?utm_source=openai"
+      ],
+      "usage": {
+        "input_tokens": 10897,
+        "cached_tokens": 3712,
+        "output_tokens": 419,
+        "web_searches": 1
+      },
+      "stop_reason": "completed",
+      "cost_usd": 0.060351,
+      "cited_domains": [
+        "apps.apple.com",
+        "getlyket.com",
+        "snapfyt.com"
+      ],
+      "source_domains": [
+        "apps.apple.com",
+        "tryspree.app",
+        "dupe.support",
+        "joinyaw.com",
+        "getlyket.com",
+        "outfit-ai.com",
+        "remode.app",
+        "chromewebstore.google.com",
+        "snapfyt.com",
+        "fashionaidaily.com",
+        "savethelook.com",
+        "alikely.net",
+        "reddit.com",
+        "en.wikipedia.org",
+        "mckinsey.com",
+        "marshallip.com",
+        "paulabuit.nl",
+        "foley.com",
+        "jipel.law.nyu.edu"
+      ],
+      "mention": {
+        "mentioned": false,
+        "confidence": null,
+        "cited": false,
+        "excerpts": [],
+        "ignored": []
+      },
+      "competitors": [
+        "Google Lens",
+        "Pinterest Lens"
+      ]
+    },
+    {
+      "question_id": "dupe-from-photo",
+      "question": "How can I find a cheaper version of a dress I saw on Instagram?",
+      "job": "dupes",
+      "engine": "openai",
+      "model": "gpt-5.5",
+      "date": "2026-10-20",
+      "ok": true,
+      "served_model": "gpt-5.5-2026-04-23",
+      "answer": "Here are the quickest ways to find a cheaper version of a dress you saw on Instagram:\n\n1. **Screenshot it**\n   - Take a clear screenshot of the dress.\n   - Crop out as much background as possible so the dress is the focus.\n\n2. **Use visual search**\n   Try uploading the screenshot to:\n   - **Google Lens**\n   - **Pinterest Lens**\n   - **Amazon image search**\n   - **AliExpress image search**\n   - **Shein / Zara / H&M / ASOS search**, if they support image-based search in your app or region\n\n3. **Search with keywords**\n   Describe the dress using specific terms, for example:\n   - “black satin cowl neck midi dress”\n   - “floral puff sleeve mini dress”\n   - “green ruched bodycon dress”\n   - “white corset lace-up maxi dress”\n\n   Add words like:\n   - “dupe”\n   - “similar”\n   - “look for less”\n   - “affordable”\n   - “under $50”\n\n4. **Check the Instagram post details**\n   Look for:\n   - Tagged brands\n   - Comments asking where it’s from\n   - Creator’s LikeToKnowIt / LTK / ShopMy links\n   - Hashtags with the brand or style name\n\n5. **Search resale sites**\n   Even if the original is expensive, you may find it secondhand on:\n   - Poshmark\n   - Depop\n   - eBay\n   - Mercari\n   - The RealReal\n   - Vestiaire Collective\n\n6. **Look at fast-fashion and mid-range alternatives**\n   Search similar styles on:\n   - ASOS\n   - Zara\n   - Mango\n   - H&M\n   - Abercrombie\n   - Princess Polly\n   - Lulus\n   - Nordstrom Rack\n   - Revolve sale section\n\n7. **Use “dupe” accounts and TikTok/Instagram search**\n   Search phrases like:\n   - “[brand name] dress dupe”\n   - “[influencer name] dress dupe”\n   - “Instagram dress dupe”\n   - “wedding guest dress dupe”\n\n8. **Check fabric and silhouette**\n   If you can’t find the exact dress, search by its main features:\n   - Length: mini, midi, maxi\n   - Fabric: satin, mesh, knit, linen, chiffon\n   - Neckline: halter, square neck, cowl neck, one-shoulder\n   - Details: ruched, cutout, corset, backless, floral, pleated\n\nA good search formula is:\n\n**“[color] [fabric] [neckline] [length] dress dupe under $[budget]”**\n\nExample:  \n**“blue satin cowl neck midi dress dupe under $80”**",
+      "cited_urls": [],
+      "source_urls": [],
+      "usage": {
+        "input_tokens": 4457,
+        "cached_tokens": 3712,
+        "output_tokens": 594,
+        "web_searches": 0
+      },
+      "stop_reason": "completed",
+      "cost_usd": 0.023401,
+      "cited_domains": [],
+      "source_domains": [],
+      "mention": {
+        "mentioned": false,
+        "confidence": null,
+        "cited": false,
+        "excerpts": [],
+        "ignored": []
+      },
+      "competitors": [
+        "Google Lens",
+        "Pinterest Lens",
+        "LTK"
+      ]
+    },
+    {
+      "question_id": "price-drop-size",
+      "question": "How do I get a text when a specific piece of clothing goes on sale in my size?",
+      "job": "alerts",
+      "engine": "openai",
+      "model": "gpt-5.5",
+      "date": "2026-10-20",
+      "ok": true,
+      "served_model": "gpt-5.5-2026-04-23",
+      "answer": "Here are the easiest ways to get a **text/SMS when a specific clothing item goes on sale in your size**:\n\n## Best options\n\n### 1. Use the store’s own “notify me” / wishlist alerts\nOn the product page, select your **exact size/color**, then look for:\n\n- **Notify me**\n- **Back in stock**\n- **Price drop alert**\n- **Text me when available**\n- **Add to wishlist**\n\nSome stores support SMS; others only email or app push. This is usually the most accurate because it tracks the exact product variant — e.g., black / size M.\n\n### 2. Use a shopping tracker app\nApps/extensions like **Karma** can save clothing items and send price-drop notifications; Karma’s Chrome Web Store listing describes price alerts, coupons, and item saving. ([chromewebstore.google.com](https://chromewebstore.google.com/detail/karma-online-shopping-but/emalgedpdlghbkikiaeocoblajamonoh?utm_source=openai)) Some fashion-specific trackers also monitor price drops and restocks from screenshots or product pages, but you’ll want to confirm they support the retailer and your exact size. ([remode.app](https://remode.app/clothing-price-drop-alerts/?utm_source=openai))\n\nTypical setup:\n\n1. Install the app or browser extension.\n2. Go to the product page.\n3. Select your **size and color**.\n4. Save the item.\n5. Turn on price-drop, restock, or sale alerts.\n6. Choose SMS if offered; otherwise use email/push notifications.\n\n### 3. Use page-monitoring tools if the store has no alerts\nIf the retailer doesn’t offer price alerts, use a page monitor such as Visualping, Distill, Wachete, Hootloot, etc. These watch a webpage for changes and notify you. Some tools are designed to catch price drops, restocks, and “size flips.” ([artchemylabs.com](https://artchemylabs.com/hootloot/?utm_source=openai))\n\nThe catch: these can be less reliable for clothing because price and availability may vary by **size/color variant**, and some retailer pages load stock data dynamically.\n\n### 4. Use a text-forwarding workaround\nIf the service only supports email alerts, you can still get “texts” by:\n\n- Using the retailer/app’s email alert\n- Creating an email filter for that item\n- Forwarding matching emails to your phone or to a notification service like IFTTT, Zapier, Pushover, or Pushbullet\n\nThis is often easier than finding true SMS support.\n\n## What I’d do\n\nFor one specific item:\n\n1. **Create an account with the retailer.**\n2. **Select your exact size/color.**\n3. Add it to wishlist or sign up for “notify me.”\n4. If no SMS option exists, install **Karma** or a similar price-tracking extension.\n5. If that still doesn’t work, use a page monitor and set it to watch the price or size availability area.\n\n## Important tip\n\nMake sure the alert tracks the **specific variant**, not just the general product page. A jacket might go on sale in XS while your size M stays full price, or your size may sell out before the sale starts. For clothing, you want alerts tied to the exact **size + color + product** whenever possible.",
+      "cited_urls": [
+        "https://chromewebstore.google.com/detail/karma-online-shopping-but/emalgedpdlghbkikiaeocoblajamonoh?utm_source=openai",
+        "https://remode.app/clothing-price-drop-alerts/?utm_source=openai",
+        "https://artchemylabs.com/hootloot/?utm_source=openai"
+      ],
+      "source_urls": [
+        "https://apps.shopify.com/notifyme?st_campaign=bfcm&st_source=bfcm-lander&surface_detail=checkout&surface_inter_position=1&surface_intra_position=12&surface_type=app_group&surface_version=simplified",
+        "https://chromewebstore.google.com/detail/karma-online-shopping-but/emalgedpdlghbkikiaeocoblajamonoh",
+        "https://remode.app/clothing-price-drop-alerts/",
+        "https://zodaapp.com/notify/",
+        "https://apps.shopify.com/back-in-stock-alert-1?search_id=1967ef70-ffed-426e-94ed-43293c23fa59&surface_detail=marketing-and-conversion-upsell-and-bundles-stock-alerts&surface_inter_position=1&surface_intra_position=24&surface_type=category&surface_version=redesign",
+        "https://artchemylabs.com/hootloot/",
+        "https://monitoryo.com/price-drop-alerts",
+        "https://justuseapp.com/en/app/1086670571/shoptagr/reviews",
+        "https://play.google.com/store/apps/details?hl=en_SG&id=com.shoptagr",
+        "https://help.stoqapp.com/back-in-stock/back-in-stock-sms-alerts/",
+        "https://www.reddit.com/r/uniqlo/comments/1rep6m9/if_i_want_to_track_price_drops_how_do_you_do_it/",
+        "https://panthercodx.com/products/stok-back-in-stock-alert",
+        "https://retentionly.io/post/shopify-back-in-stock-whatsapp",
+        "https://www.reddit.com/r/uniqlo/comments/1sumi0q/uniqlo_sales_tracker_stock_counts_lowstock_alerts/",
+        "https://www.reddit.com/r/shopify/comments/1sobc5v/shopifys_back_in_stock_notification_where_does/",
+        "https://www.reddit.com/r/shopify/comments/1pq3rto/unexpected_behavior_text_me_if_back_in_stock/",
+        "https://www.reddit.com/r/shopify/comments/1uw5q53/found_out_today_ive_been_paying_for_clicks_to_a/",
+        "https://www.reddit.com/r/shopify_geeks/comments/1rf9h7t/back_in_stock_app_thats_simple/",
+        "https://www.reddit.com/r/shopify_growth/comments/1ra17mv/need_to_show_stock_levels_per_size_like_size_202/",
+        "https://www.digitaldarts.com.au/wp-content/uploads/pdf/Shopify-Conversion-Rate-Optimization.pdf",
+        "https://commercemarketplace.adobe.com/media/catalog/product/swym-engage-2-0-0-ce/installation_guides.pdf",
+        "https://cdn5.f-cdn.com/files/download/279454621/stock-spotter.pdf",
+        "https://www.reddit.com/r/Doesthisexist/comments/r6ppzf/an_app_or_website_that_sends_a_notification_when/",
+        "https://www.reddit.com/r/shopify/comments/1qbsene/how_do_you_guys_keep_track_of_out_of_stock_items/",
+        "https://www.reddit.com/r/shopify/comments/1gbfb79",
+        "https://www.reddit.com/r/shopify/comments/y4z5vx",
+        "https://www.reddit.com/r/shopify/comments/1rx3jqg/almost_out_of_stock_message/",
+        "https://budgetnest.reviewtechcentral.com/wp-content/uploads/2025/07/Best_Chrome_Extensions_To_Save_Money_2025.pdf",
+        "https://chromewebstore.google.com/detail/karma-online-shopping-but/emalgedpdlghbkikiaeocoblajamonoh?utm_source=openai",
+        "https://remode.app/clothing-price-drop-alerts/?utm_source=openai",
+        "https://artchemylabs.com/hootloot/?utm_source=openai"
+      ],
+      "usage": {
+        "input_tokens": 8794,
+        "cached_tokens": 3712,
+        "output_tokens": 763,
+        "web_searches": 1
+      },
+      "stop_reason": "completed",
+      "cost_usd": 0.060156,
+      "cited_domains": [
+        "chromewebstore.google.com",
+        "remode.app",
+        "artchemylabs.com"
+      ],
+      "source_domains": [
+        "apps.shopify.com",
+        "chromewebstore.google.com",
+        "remode.app",
+        "zodaapp.com",
+        "artchemylabs.com",
+        "monitoryo.com",
+        "justuseapp.com",
+        "play.google.com",
+        "help.stoqapp.com",
+        "reddit.com",
+        "panthercodx.com",
+        "retentionly.io",
+        "digitaldarts.com.au",
+        "commercemarketplace.adobe.com",
+        "cdn5.f-cdn.com",
+        "budgetnest.reviewtechcentral.com"
+      ],
+      "mention": {
+        "mentioned": false,
+        "confidence": null,
+        "cited": false,
+        "excerpts": [],
+        "ignored": []
+      },
+      "competitors": [
+        "Karma"
+      ]
+    },
+    {
+      "question_id": "restock-size",
+      "question": "App that texts me when a sold-out jacket restocks in my size",
+      "job": "alerts",
+      "engine": "openai",
+      "model": "gpt-5.5",
+      "date": "2026-10-20",
+      "ok": true,
+      "served_model": "gpt-5.5-2026-04-23",
+      "answer": "Yes — try one of these, depending on how specific the jacket/site is:\n\n## Best option for clothing-size restocks\n**RestockAlert** — made specifically for sold-out clothing sizes. You paste the product link, choose your exact size/variant, and it alerts you when it comes back. It’s on iPhone and Android; alerts include push/email, and some plans support faster checks/Telegram. ([apps.apple.com](https://apps.apple.com/us/app/restockalert/id6793626376?platform=watch&utm_source=openai))\n\n## If you specifically want **SMS/text messages**\n**Distill.io** — monitors a product page for changes and can send **SMS text alerts**, email, push notifications, Discord/Slack, etc. It’s more configurable, but you may need to set it up to watch the size selector or “sold out” text. ([distill.io](https://distill.io/docs/web-monitor/what-is-distill/?utm_source=openai))\n\n**Visualping** — another page-monitoring tool that can send restock alerts via **SMS**, email, Slack, or Teams when the product page changes. Good if the store doesn’t have built-in restock alerts. ([visualping.io](https://visualping.io/blog/in-stock-alert-track-product-availability?utm_source=openai))\n\n## Quick setup tip\nFor a jacket, monitor the **exact color + size** state if possible, not just the product page. Otherwise you might get alerts when *any* size restocks.\n\nIf you tell me the store/product link and your size, I can suggest the best setup for that specific page.",
+      "cited_urls": [
+        "https://apps.apple.com/us/app/restockalert/id6793626376?platform=watch&utm_source=openai",
+        "https://distill.io/docs/web-monitor/what-is-distill/?utm_source=openai",
+        "https://visualping.io/blog/in-stock-alert-track-product-availability?utm_source=openai"
+      ],
+      "source_urls": [
+        "https://apps.apple.com/us/app/restockalert/id6793626376?platform=watch",
+        "https://play.google.com/store/apps/details?id=restockalert.me.app",
+        "https://distill.io/docs/web-monitor/what-is-distill/",
+        "https://visualping.io/blog/in-stock-alert-track-product-availability",
+        "https://distill.io/blog/back-in-stock-alerts/",
+        "https://monitoryo.com/restock-alerts",
+        "https://forums.distill.io/t/distill-io-doesnt-recognize-changes-how-to-monitor-product-sizes/3439",
+        "https://forums.distill.io/t/info-im-doing-right-in-the-conditions/4726",
+        "https://help.visualping.io/en/articles/10305217",
+        "https://apps.shopify.com/restock-8?surface_detail=marketing-and-conversion-upsell-and-bundles-stock-alerts&surface_inter_position=1&surface_intra_position=22&surface_type=category&surface_version=redesign",
+        "https://freedomravewear.com/app?src=footer",
+        "https://www.trackalacker.com/get-app",
+        "https://www.reddit.com/r/Doesthisexist/comments/r6ppzf/an_app_or_website_that_sends_a_notification_when/",
+        "https://www.reddit.com/r/MyChemicalRomance/comments/1wcsm4a/let_me_introduce_you_to_alerts_for_merch/",
+        "https://www.reddit.com/r/Sezane/comments/1vw76hc/psa_lots_of_restocks_in_app/",
+        "https://www.reddit.com/r/SideProject/comments/1wyn4ja/my_wife_kept_missing_her_size_so_i_did_what_any/",
+        "https://www.reddit.com/r/arcteryx/comments/kdrwhg",
+        "https://www.reddit.com/r/RestockAlertMe/comments/1vwnuts/the_new_restockalert_is_here_new_look_100_new/",
+        "https://www.reddit.com/r/YoungLA/comments/1t0bc11/is_there_any_way_to_get_a_notification_on_a/",
+        "https://www.reddit.com/r/Blogilates/comments/1sg3bac/has_anyone_ever_purchased_what_they_wanted_from/",
+        "https://www.reddit.com/r/uniqlo/comments/1smmsj2/anyone_ever_get_a_back_in_stock_alert/",
+        "https://www.reddit.com/r/AloAtelier/comments/1t5gf6y/restock_text_notification/",
+        "https://www.reddit.com/r/ifttt/comments/ijh3ow",
+        "https://www.reddit.com/r/HollisterCO/comments/1p0yt5z/how_do_i_get_notifications_for_an_item_restock/",
+        "https://www.wunderskind.com/rs/445-FJV-353/images/Wunderkind%20Text%20Message%20Marketing%20Playbook.pdf",
+        "https://cdn5.f-cdn.com/files/download/279454621/stock-spotter.pdf",
+        "https://www.tatacommunications.com/hubfs/TaCO-2024/CPaaS/doc/%5BORIGINAL%5D%20US%20Guide%20to%20MMS%20Kaleyra_2022.pdf",
+        "https://assets.nextleap.app/submissions/PRD_shopping-fc5a8b6b-5ccd-4e82-b3cd-68ef2497a3ad.pdf",
+        "https://earningfrommybed.wordpress.com/wp-content/uploads/2017/06/using-distill-web-monitor-to-get-survey-alerts-pages.pdf",
+        "https://media.redeye.com/wp-content/uploads/2025/02/0521_Now_thats_What_I_Call_Marketing_Automation.pdf",
+        "https://www.techradar.com/reviews/distillio-web-content-monitoring",
+        "https://en.wikipedia.org/wiki/Shop_It_To_Me",
+        "https://apps.apple.com/us/app/restockalert/id6793626376?platform=watch&utm_source=openai",
+        "https://distill.io/docs/web-monitor/what-is-distill/?utm_source=openai",
+        "https://visualping.io/blog/in-stock-alert-track-product-availability?utm_source=openai"
+      ],
+      "usage": {
+        "input_tokens": 10881,
+        "cached_tokens": 3712,
+        "output_tokens": 403,
+        "web_searches": 1
+      },
+      "stop_reason": "completed",
+      "cost_usd": 0.059791000000000004,
+      "cited_domains": [
+        "apps.apple.com",
+        "distill.io",
+        "visualping.io"
+      ],
+      "source_domains": [
+        "apps.apple.com",
+        "play.google.com",
+        "distill.io",
+        "visualping.io",
+        "monitoryo.com",
+        "forums.distill.io",
+        "help.visualping.io",
+        "apps.shopify.com",
+        "freedomravewear.com",
+        "trackalacker.com",
+        "reddit.com",
+        "wunderskind.com",
+        "cdn5.f-cdn.com",
+        "tatacommunications.com",
+        "assets.nextleap.app",
+        "earningfrommybed.wordpress.com",
+        "media.redeye.com",
+        "techradar.com",
+        "en.wikipedia.org"
+      ],
+      "mention": {
+        "mentioned": false,
+        "confidence": null,
+        "cited": false,
+        "excerpts": [],
+        "ignored": []
+      },
+      "competitors": []
+    },
+    {
+      "question_id": "price-tracker-clothes",
+      "question": "Best price tracker for clothes and shoes across different stores?",
+      "job": "alerts",
+      "engine": "openai",
+      "model": "gpt-5.5",
+      "date": "2026-10-20",
+      "ok": true,
+      "served_model": "gpt-5.5-2026-04-23",
+      "answer": "**Best overall for clothes + shoes across different stores: _Lyst_**  \nIt’s built specifically for fashion, compares prices across thousands of retailers, and can send **price-drop / sale / back-in-stock alerts** for saved items. It’s especially good for shoes, designer items, and mainstream fashion retailers. ([lyst.com](https://www.lyst.com/build/app/?utm_source=openai))\n\n**Best more general “track anything” option: _ShopSavvy_**  \nIf you want one tracker for fashion **plus** other categories, ShopSavvy is stronger. It tracks price changes across many retailers, has multi-retailer price history, mobile apps, browser extension, barcode scanning, and alerts. ([shopsavvy.com](https://shopsavvy.com/app?utm_source=openai))\n\n**My recommendation:**\n- Use **Lyst** if your main focus is **clothes, sneakers, boots, bags, designer/fashion brands**.\n- Use **ShopSavvy** if you want broader comparison across stores and categories.\n- For specific retailers like Zara, H&M, Nike, Nordstrom, etc., also save items in the retailer’s own app—some sale/restock alerts are more reliable there.\n\nIf you want the simplest setup: **install Lyst + ShopSavvy**, save the same item in both, and buy when either alerts you to a drop.",
+      "cited_urls": [
+        "https://www.lyst.com/build/app/?utm_source=openai",
+        "https://shopsavvy.com/app?utm_source=openai"
+      ],
+      "source_urls": [
+        "https://www.tomsguide.com/sales-events/35-best-amazon-deals-worth-shopping-this-weekend-my-favorite-fall-finds-starting-at-usd17-from-apple-skechers-carhartt-and-more",
+        "https://shopsavvy.com/app",
+        "https://shopsavvy.com/compare/shopsavvy-vs-honey",
+        "https://shopsavvy.com/how-shopsavvy-works",
+        "https://help.lyst.com/hc/en-gb/articles/36133925464338-Does-the-Lyst-app-notify-me-about-price-drops-and-sales",
+        "https://www.lyst.com/build/app/",
+        "https://www.dipperapp.com/resources/best-price-tracker",
+        "https://apps.apple.com/us/app/lyst-dont-shop-around/id597940518",
+        "https://getpayback.com/blog/best-price-trackers",
+        "https://www.dropguard.org/",
+        "https://shopsavvy.com/help.md",
+        "https://monitoryo.com/price-drop-alerts",
+        "https://chromewebstore.google.com/detail/shopsavvy/megchchilhekbbnfcklodmndefbhkbco",
+        "https://www.reddit.com/r/RestockAlertMe/comments/1vwnuts/the_new_restockalert_is_here_new_look_100_new/",
+        "https://www.reddit.com/r/SideProject/comments/1uywpry/price_tracker_track_prices_on_almost_any_store/",
+        "https://www.reddit.com/r/IMadeThis/comments/1uyyqs1/i_made_a_price_tracker_that_works_on_almost_any/",
+        "https://en.wikipedia.org/wiki/ShopSavvy",
+        "https://www.reddit.com/r/alphaandbetausers/comments/1ue7ul6/beta_my_free_price_tracker_just_hit_its/",
+        "https://www.reddit.com/r/chrome_extensions/comments/1ue9wg8/beta_my_free_price_tracker_just_hit_its/",
+        "https://www.reddit.com/r/Watches_India/comments/1t68pkz/online_sale_season_is_coming_so_i_built_a/",
+        "https://commercial.yougov.com/rs/464-VHH-988/images/WP-2026-03-US-fashion-retailer-rankings.pdf?content_name=Top+threads%3A+U.S.+fashion+retailer+rankings+2026",
+        "https://static1.squarespace.com/static/58caf41159cc68a21985db59/t/6989a9df863d7f6f743c4362/1770629605081/2%3A8%2BWeekly%2BNewsletter.pdf",
+        "https://puck.news/wp-content/uploads/2025/04/LYSTINDEX_Q125.pdf",
+        "https://www.reddit.com/r/dataisbeautiful/comments/1upbi2r/oc_price_changes_across_157170_random_amazon/",
+        "https://www.reddit.com/r/TechnologyProTips/comments/1r66ljb/tpt_request_website_or_app_to_track_item_price/",
+        "https://www.reddit.com/r/CyberMonday_Deal/comments/1obdwbh/the_best_price_tracking_tools_for_cyber_monday/",
+        "https://www.reddit.com/r/Oldnavy/comments/1x7sjll/i_built_a_price_tracker_and_tracked_thousands_of/",
+        "https://www.reddit.com/r/SideProject/comments/1sgvjr4/i_built_a_price_tracker_for_luxury_fashion_like/",
+        "https://www.reddit.com/r/sideprojects/comments/1sj6zc9/i_built_a_price_tracker_for_luxury_fashion_like/",
+        "https://corp.zozo.com/en/ir/files/pdf/LYST_eng_fix.pdf",
+        "https://global-uploads.webflow.com/5d41ae7af65670bc9680e419/5d58446a83100b8bf60145ed_alert-suite.pdf",
+        "https://www.luxurydaily.com/wp-content/uploads/pdf_cache/4/2/7/2/6/0/427260.pdf",
+        "https://www.tomsguide.com/news/best-prime-day-deals-and-sales",
+        "https://www.tomsguide.com/live/news/best-labor-day-sales-2026-vetted-by-shopping-experts",
+        "https://www.kiplinger.com/personal-finance/shopping/online-shopping/601523/deal-sites-and-tools-for-finding-online-bargains",
+        "https://www.techradar.com/health-fitness/the-salomon-xt-6-are-the-trendiest-techwear-of-2025-and-theyre-finally-on-sale-for-black-friday",
+        "https://www.marieclaire.com/fashion/the-row-dune-sandal/",
+        "https://www.lyst.com/build/app/?utm_source=openai",
+        "https://shopsavvy.com/app?utm_source=openai"
+      ],
+      "usage": {
+        "input_tokens": 10911,
+        "cached_tokens": 3712,
+        "output_tokens": 373,
+        "web_searches": 1
+      },
+      "stop_reason": "completed",
+      "cost_usd": 0.059041,
+      "cited_domains": [
+        "lyst.com",
+        "shopsavvy.com"
+      ],
+      "source_domains": [
+        "tomsguide.com",
+        "shopsavvy.com",
+        "help.lyst.com",
+        "lyst.com",
+        "dipperapp.com",
+        "apps.apple.com",
+        "getpayback.com",
+        "dropguard.org",
+        "monitoryo.com",
+        "chromewebstore.google.com",
+        "reddit.com",
+        "en.wikipedia.org",
+        "commercial.yougov.com",
+        "static1.squarespace.com",
+        "puck.news",
+        "corp.zozo.com",
+        "global-uploads.webflow.com",
+        "luxurydaily.com",
+        "kiplinger.com",
+        "techradar.com",
+        "marieclaire.com"
+      ],
+      "mention": {
+        "mentioned": false,
+        "confidence": null,
+        "cited": false,
+        "excerpts": [],
+        "ignored": []
+      },
+      "competitors": [
+        "Lyst"
+      ]
+    },
+    {
+      "question_id": "personal-shopper-text",
+      "question": "Is there a personal shopper I can text over iMessage?",
+      "job": "just-handle-it",
+      "engine": "openai",
+      "model": "gpt-5.5",
+      "date": "2026-10-20",
+      "ok": true,
+      "served_model": "gpt-5.5-2026-04-23",
+      "answer": "Yes — there are a few options, depending on what you mean by “over iMessage”:\n\n**Best matches:**\n\n1. **Ori** — explicitly bills itself as “your personal shopper in iMessage.” You text it what you’re looking for, and it helps find/buy items without juggling carts and tabs. ([ori.bot](https://ori.bot/?utm_source=openai))\n\n2. **folk for shopping** — another “AI personal shopper in iMessage” option; its pitch is “no app · no browser tabs · just texts.” ([folk.com](https://www.folk.com/shopping?utm_source=openai))\n\n3. **Glance** — an iPhone/iMessage-compatible personal shopper app for fashion, beauty, home, and more. It also supports chat and Siri-style interaction. ([apps.apple.com](https://apps.apple.com/us/app/glance-my-personal-shopper/id6742974181?platform=ipad&utm_source=openai))\n\n**Also worth considering if SMS/WhatsApp is okay:**\n\n- **Enola** — a text-based personal assistant that can handle shopping/comparisons/bookings; it works over SMS and WhatsApp, not necessarily iMessage specifically. It’s invite-only/early access. ([eno.la](https://eno.la/?utm_source=openai))\n- **ShopMy Noir** — a 1:1 text concierge connecting you with human curators for personalized shopping recommendations. ([shopmy.us](https://shopmy.us/shoppers/noir?utm_source=openai))\n- **ODEA** — a text-message-based on-demand assistant service; broader than shopping, but includes personal-shopping-style tasks. ([useodea.com](https://useodea.com/?utm_source=openai))\n\nIf you want the closest thing to “I can just text a personal shopper in Apple Messages,” I’d start with **Ori** or **folk**.",
+      "cited_urls": [
+        "https://ori.bot/?utm_source=openai",
+        "https://www.folk.com/shopping?utm_source=openai",
+        "https://apps.apple.com/us/app/glance-my-personal-shopper/id6742974181?platform=ipad&utm_source=openai",
+        "https://eno.la/?utm_source=openai",
+        "https://shopmy.us/shoppers/noir?utm_source=openai",
+        "https://useodea.com/?utm_source=openai"
+      ],
+      "source_urls": [
+        "https://apps.apple.com/us/app/hanger/id6744304822",
+        "https://apps.apple.com/us/app/glance-my-personal-shopper/id6742974181?platform=ipad",
+        "https://eno.la/",
+        "https://www.folk.com/shopping",
+        "https://shopmy.us/shoppers/noir",
+        "https://www.buyscout.ai/channels/sms",
+        "https://useodea.com/",
+        "https://meetcartright.com/",
+        "https://ai.meta.com/muse/shopping/?trk=article-ssr-frontend-pulse_little-text-block",
+        "https://ori.bot/",
+        "https://getcabina.com/",
+        "https://postscript.io/meet-shopper",
+        "https://www.reddit.com/r/apple/comments/1vx22j1/apple_store_app_rolling_out_early_preview_of_new/",
+        "https://sfcommunityliving.org/wp-content/uploads/2022/05/Apple-Training-Session-15_051622.pdf",
+        "https://en.wikipedia.org/wiki/Spring_%28application%29",
+        "https://8727700.fs1.hubspotusercontent-na1.net/hubfs/8727700/Assets/Comparison%20eBook.pdf",
+        "https://manuals.plus/m/cea9b4ef678f7a8dd92366d3072cb98382bd9a065b99aef091eef72e5c3d8f5e.pdf",
+        "https://www.techradar.com/streaming/entertainment/exclusive-disney-store-is-testing-an-ai-shopping-assistant-that-could-change-how-you-shop",
+        "https://www.tomsguide.com/ai/i-tried-turning-metas-muse-ai-into-my-personal-shopper-only-3-of-7-prompts-actually-worked",
+        "https://www.tomsguide.com/ai/meet-tab-the-personal-ai-assistant-race-is-heating-up-with-a-brand-new-personal-sidekick",
+        "https://www.reddit.com/r/apple/comments/1v3sbed/apple_store_app_getting_ai_shopping_assistant/",
+        "https://en.wikipedia.org/wiki/IMessage",
+        "https://macswest.org/wp-content/uploads/Learnit/imessage.pdf",
+        "https://pure.manchester.ac.uk/ws/portalfiles/portal/356240352/FULL_TEXT.PDF",
+        "https://en.wikipedia.org/wiki/Personal_shopper",
+        "https://www.reddit.com/r/InstacartShoppers/comments/1u6khfw/personal_message/",
+        "https://www.reddit.com/r/ShiptShoppers/comments/1u73h3g/customer_not_communicating_with_you_check_this_out/",
+        "https://www.reddit.com/r/iosapps/comments/1ugfmfa/looking_for_a_specific_app/",
+        "https://www.reddit.com/r/founder/comments/1vllddy/building_an_ai_assistant_that_lives_in_imessage/",
+        "https://fcc.report/FCC-ID/BCGA2589/5691906.pdf",
+        "https://www.reddit.com/r/alphaandbetausers/comments/r4cqdc",
+        "https://en.wikipedia.org/wiki/Messages_%28Apple%29",
+        "https://arxiv.org/abs/2007.03805",
+        "https://en.wikipedia.org/wiki/Shop_It_To_Me",
+        "https://www.reddit.com/r/instacart/comments/1svqpxn/cell_phone_texts_from_shoppers/",
+        "https://www.reddit.com/r/ShiptShoppers/comments/n80s5i",
+        "https://www.reddit.com/r/EntrepreneurRideAlong/comments/179jsgb",
+        "https://www.reddit.com/r/ShiptShoppers/comments/1tbgj6d/got_a_scammy_feeling_request_to_text_someone/",
+        "https://www.reddit.com/r/InstacartShoppers/comments/12coju0",
+        "https://en.wikipedia.org/wiki/Beeper_%28software%29",
+        "https://ori.bot/?utm_source=openai",
+        "https://www.folk.com/shopping?utm_source=openai",
+        "https://apps.apple.com/us/app/glance-my-personal-shopper/id6742974181?platform=ipad&utm_source=openai",
+        "https://eno.la/?utm_source=openai",
+        "https://shopmy.us/shoppers/noir?utm_source=openai",
+        "https://useodea.com/?utm_source=openai"
+      ],
+      "usage": {
+        "input_tokens": 10692,
+        "cached_tokens": 3712,
+        "output_tokens": 431,
+        "web_searches": 1
+      },
+      "stop_reason": "completed",
+      "cost_usd": 0.059686,
+      "cited_domains": [
+        "ori.bot",
+        "folk.com",
+        "apps.apple.com",
+        "eno.la",
+        "shopmy.us",
+        "useodea.com"
+      ],
+      "source_domains": [
+        "apps.apple.com",
+        "eno.la",
+        "folk.com",
+        "shopmy.us",
+        "buyscout.ai",
+        "useodea.com",
+        "meetcartright.com",
+        "ai.meta.com",
+        "ori.bot",
+        "getcabina.com",
+        "postscript.io",
+        "reddit.com",
+        "sfcommunityliving.org",
+        "en.wikipedia.org",
+        "8727700.fs1.hubspotusercontent-na1.net",
+        "manuals.plus",
+        "techradar.com",
+        "tomsguide.com",
+        "macswest.org",
+        "pure.manchester.ac.uk",
+        "fcc.report",
+        "arxiv.org"
+      ],
+      "mention": {
+        "mentioned": false,
+        "confidence": null,
+        "cited": false,
+        "excerpts": [],
+        "ignored": []
+      },
+      "competitors": []
+    },
+    {
+      "question_id": "phia-alternatives",
+      "question": "What are some alternatives to Phia?",
+      "job": "comparison",
+      "engine": "openai",
+      "model": "gpt-5.5",
+      "date": "2026-10-20",
+      "ok": true,
+      "served_model": "gpt-5.5-2026-04-23",
+      "answer": "Assuming you mean **Phia, the AI fashion shopping / closet app**, here are solid alternatives depending on what you use Phia for:\n\n### Best alternatives to Phia\n\n| Alternative | Best for | Why consider it |\n|---|---|---|\n| **ShopSavvy** | Price comparison + deal tracking | Strong for comparing prices, scanning products, and tracking deals across stores. Several 2026 comparison lists rank it highly among Phia alternatives. ([mobilestalk.net](https://mobilestalk.net/software/phia/alternatives/?utm_source=openai)) |\n| **Vetted** | AI product research | Good if you want AI summaries, recommendations, and product comparisons rather than fashion-specific styling. ([mobilestalk.net](https://mobilestalk.net/software/phia/alternatives/?utm_source=openai)) |\n| **Whering** | Digital closet + outfit planning | Better if your main Phia use case is organizing clothes and planning outfits. Phia’s own comparison article lists Whering among closet-app peers. ([phia.com](https://phia.com/editorials/finding-the-best-digital-closet-app-in-2026-collection-202610-e3e3e60b93a64e03?utm_source=openai)) |\n| **Acloset** | AI styling + closet management | Good for outfit suggestions and building a digital wardrobe; Phia describes Acloset as a close cousin focused more on AI outfits. ([phia.com](https://phia.com/editorials/phia-vs-acloset-ai-outfits-or-smarter-shopping-collection-202610-9f8f798cb545eddd?utm_source=openai)) |\n| **Stylebook** | Manual closet organization | Best if you want a more hands-on, private-feeling wardrobe catalog without relying heavily on automation. ([phia.com](https://phia.com/editorials/finding-the-best-digital-closet-app-in-2026-collection-202610-e3e3e60b93a64e03?utm_source=openai)) |\n| **Indyx** | Fashion closet + styling services | Useful if you want closet organization with a more style/wardrobe-service angle. ([phia.com](https://phia.com/editorials/finding-the-best-digital-closet-app-in-2026-collection-202610-e3e3e60b93a64e03?utm_source=openai)) |\n| **Alta Daily** | AI outfit recommendations | Another closet/outfit-planning option listed alongside Phia, Whering, Acloset, Fits, and Stylebook. ([phia.com](https://phia.com/editorials/finding-the-best-digital-closet-app-in-2026-collection-202610-e3e3e60b93a64e03?utm_source=openai)) |\n| **Fits** | Outfit planning around weather/calendar | Worth trying if you care about practical daily outfit suggestions tied to context like weather. ([phia.com](https://phia.com/editorials/finding-the-best-digital-closet-app-in-2026-collection-202610-e3e3e60b93a64e03?utm_source=openai)) |\n| **Amazon Shopping / Alexa Shopping** | Amazon-focused shopping assistant | Better if most of your shopping happens through Amazon rather than fashion marketplaces or resale sites. ([samsungmobileuspress.com](https://samsungmobileuspress.com/apps/phia/alternatives/?utm_source=openai)) |\n| **KompareAI / ShopCompare AI** | General AI shopping comparison | Useful if you want broader AI shopping help rather than fashion-specific closet features. ([itechfaqs.com](https://www.itechfaqs.com/tools/phia/alternatives/?utm_source=openai)) |\n\n### Quick picks\n\n- **Closest to Phia for shopping deals:** **ShopSavvy**\n- **Closest for AI product research:** **Vetted**\n- **Closest for digital closet + outfits:** **Acloset** or **Whering**\n- **Best manual wardrobe tracker:** **Stylebook**\n- **Best if you shop mostly on Amazon:** **Amazon Shopping / Alexa Shopping**\n\nPhia appears to combine **fashion deal-finding, visual search, price checks, resale alternatives, and closet/outfit features**; its App Store listing says it can check whether a price is fair, find cheaper alternatives, and search visually similar styles across many sites. ([apps.apple.com](https://apps.apple.com/us/app/phia-shop-smarter-save-money/id6739351340?utm_source=openai)) So the “best” alternative depends on whether you care more about **saving money while shopping** or **managing/styling your closet**.",
+      "cited_urls": [
+        "https://mobilestalk.net/software/phia/alternatives/?utm_source=openai",
+        "https://phia.com/editorials/finding-the-best-digital-closet-app-in-2026-collection-202610-e3e3e60b93a64e03?utm_source=openai",
+        "https://phia.com/editorials/phia-vs-acloset-ai-outfits-or-smarter-shopping-collection-202610-9f8f798cb545eddd?utm_source=openai",
+        "https://samsungmobileuspress.com/apps/phia/alternatives/?utm_source=openai",
+        "https://www.itechfaqs.com/tools/phia/alternatives/?utm_source=openai",
+        "https://apps.apple.com/us/app/phia-shop-smarter-save-money/id6739351340?utm_source=openai"
+      ],
+      "source_urls": [
+        "https://www.g2.com/products/phia/competitors/alternatives",
+        "https://mobilestalk.net/software/phia/alternatives/",
+        "https://phia.com/editorials/finding-the-best-digital-closet-app-in-2026-collection-202610-e3e3e60b93a64e03",
+        "https://samsungmobileuspress.com/apps/phia/alternatives/",
+        "https://www.itechfaqs.com/tools/phia/alternatives/",
+        "https://techyorker.com/products/phia/alternatives/",
+        "https://phia.com/editorials/phia-vs-acloset-ai-outfits-or-smarter-shopping-collection-202610-9f8f798cb545eddd",
+        "https://apps.apple.com/us/app/phia-shop-smarter-save-money/id6739351340",
+        "https://laptop251.com/tools/phia/alternatives/",
+        "https://phia.com/editorials/choosing-an-outfit-planner-app-you-will-actually-open-collection-202610-8e70295c6008fcce",
+        "https://phia.com/editorials/phia-vs-stylebook-the-handmade-closet-and-the-automatic-one-collection-202610-eec90f33b66f4e57",
+        "https://eztoolset.com/tools/phia/alternatives/",
+        "https://www.phiagroup.com/Portals/phiagroup/Health%20Info%20Page/2023%20Phia%20Health%20Plan%20Cost%20Containment%20Incentives.pdf?ver=iHGihrb7zwtf9zcku_MjJQ%3D%3D",
+        "https://www.phiagroup.com/Portals/phiagroup/Health%20Info%20Page/2023-Phia-Health-Plan_Enrollment-Meeting-Slides.pdf?ver=OqmrXEq0KtRQ6u26mAdopg%3D%3D",
+        "https://www.ciheb.org/media/som/microsites/ciheb/impact/docs/umb-phia-companion-tool-technical-brief.pdf",
+        "https://phiagroup.com/Portals/phiagroup/2020%20Flyers/2020_Unwrapped_FAQ.pdf",
+        "https://academy.stattis.com/storage/2021-08-06/2020%20ZAMPHIA%20Data%20Management%20Plan_V1_10092019.pdf",
+        "https://www.phiagroup.com/Portals/phiagroup/Flyers/ThePhiaGroup_PDM_FAQ.pdf",
+        "https://mobilestalk.net/software/phia/alternatives/?utm_source=openai",
+        "https://phia.com/editorials/finding-the-best-digital-closet-app-in-2026-collection-202610-e3e3e60b93a64e03?utm_source=openai",
+        "https://phia.com/editorials/phia-vs-acloset-ai-outfits-or-smarter-shopping-collection-202610-9f8f798cb545eddd?utm_source=openai",
+        "https://samsungmobileuspress.com/apps/phia/alternatives/?utm_source=openai",
+        "https://www.itechfaqs.com/tools/phia/alternatives/?utm_source=openai",
+        "https://apps.apple.com/us/app/phia-shop-smarter-save-money/id6739351340?utm_source=openai"
+      ],
+      "usage": {
+        "input_tokens": 10741,
+        "cached_tokens": 3712,
+        "output_tokens": 809,
+        "web_searches": 1
+      },
+      "stop_reason": "completed",
+      "cost_usd": 0.071271,
+      "cited_domains": [
+        "mobilestalk.net",
+        "phia.com",
+        "samsungmobileuspress.com",
+        "itechfaqs.com",
+        "apps.apple.com"
+      ],
+      "source_domains": [
+        "g2.com",
+        "mobilestalk.net",
+        "phia.com",
+        "samsungmobileuspress.com",
+        "itechfaqs.com",
+        "techyorker.com",
+        "apps.apple.com",
+        "laptop251.com",
+        "eztoolset.com",
+        "phiagroup.com",
+        "ciheb.org",
+        "academy.stattis.com"
+      ],
+      "mention": {
+        "mentioned": false,
+        "confidence": null,
+        "cited": false,
+        "excerpts": [],
+        "ignored": []
+      },
+      "competitors": [
+        "Phia",
+        "Whering",
+        "Indyx",
+        "Alta"
+      ]
+    },
+    {
+      "question_id": "daydream-alternatives",
+      "question": "Apps like Daydream for shopping clothes",
+      "job": "comparison",
+      "engine": "openai",
+      "model": "gpt-5.5",
+      "date": "2026-10-20",
+      "ok": true,
+      "served_model": "gpt-5.5-2026-04-23",
+      "answer": "If you like **Daydream** for AI fashion discovery / shopping clothes, try these:\n\n### Closest alternatives\n1. **Phia** — AI shopping assistant focused on comparing fashion items across retail + resale; good for finding better prices.\n2. **Gensmo** — AI visual shopping/search app; good if you want to shop from outfit inspiration or photos.\n3. **Elara** — AI stylist + virtual try-on angle; more about seeing looks on you than just search.\n4. **DRESSX** — AI try-on / digital fashion + shopping; especially useful for visualizing outfits.\n5. **Style DNA** — personal styling, wardrobe management, outfit recommendations, and shopping suggestions.\n6. **Acloset** — digital closet + outfit planning; better if you want to style clothes you already own, not just buy new ones.\n7. **Whering** — wardrobe app for planning outfits and tracking what you wear; less shopping-first, more closet-first.\n8. **Google Lens / Pinterest Lens** — not fashion-only, but great for finding similar clothes from a screenshot or outfit photo.\n9. **ShopStyle** — strong fashion search engine across many retailers; less AI-chatty, but useful for filtering brands, price, sales.\n10. **Lyst** — fashion marketplace/search across luxury and mainstream brands; good for price tracking and discovery.\n\n### Best pick by use case\n\n| If you want… | Try |\n|---|---|\n| AI chat shopping like Daydream | **Phia, Gensmo, Elara** |\n| Find clothes from a photo | **Google Lens, Pinterest Lens, Gensmo** |\n| Virtual try-on | **Elara, DRESSX** |\n| Plan outfits from your own closet | **Acloset, Whering, Style DNA** |\n| Search lots of stores at once | **ShopStyle, Lyst** |\n| Designer/luxury discovery | **Lyst, DRESSX, Daydream** |\n\nDaydream itself is currently positioned as an **AI fashion shopping app** with chat/image-based discovery across many brands, so the most similar apps are probably **Phia**, **Gensmo**, and **Elara**. ([apps.apple.com](https://apps.apple.com/us/app/daydream-ai-for-fashion/id6692634357?utm_source=openai))",
+      "cited_urls": [
+        "https://apps.apple.com/us/app/daydream-ai-for-fashion/id6692634357?utm_source=openai"
+      ],
+      "source_urls": [
+        "https://apps.apple.com/us/app/daydream-ai-for-fashion/id6692634357",
+        "https://daydream.ing/",
+        "https://techcrunch.com/2026/09/14/fashion-discovery-app-daydream-uses-apple-intelligence-to-help-you-shop-the-outfits-saved-in-your-camera-roll/",
+        "https://www.altdora.com/alternatives/daydream/",
+        "https://apps.apple.com/us/app/daydream-ai-for-fashion/id6692634357?platform=mac",
+        "https://ecommerceguide.com/apps/daydream/",
+        "https://glance.com/us/blogs/glanceai/shopping/virtual-try-on-clothes-for-ecommerce",
+        "https://techcrunch.com/2025/06/25/julie-bornsteins-daydream-is-releasing-an-ai-powered-chatbot-for-fashion-related-shopping/",
+        "https://daydream.ing/signup",
+        "https://joinelara.com/compare/elara-vs-daydream-which-ai-fashion-app-is-right-for-you",
+        "https://daydream.ing/about",
+        "https://www.prnewswire.com/news-releases/daydream-app-brings-conversational-support-and-visual-shopping-experiences-to-iphone-users-with-new-ios-27-capabilities-302893809.html",
+        "https://en.wikipedia.org/wiki/The_Yes",
+        "https://www.reddit.com/r/Dressly/comments/1vm87zg/i_tested_every_ai_styling_app_i_could_find_so_you/",
+        "https://tbc.angelinvest.ventures/reports/TBC_WhitePaper_Online_Shopping_with_AI_Digital.pdf",
+        "https://www.mckinsey.com/~/media/mckinsey/industries/retail/our%20insights/state%20of%20fashion/2025/the-state-of-fashion-2025-v2.pdf",
+        "https://textileinsights.in/wp-content/uploads/2025/07/Textile-Insights-July-2025-Issue.pdf",
+        "https://www.reddit.com/r/SideProject/comments/1s5c1lr/i_built_an_app_that_detects_clothes_from_any/",
+        "https://www.reddit.com/r/fashionwomens35/comments/1vcwqiw/digital_closetwardrobe_apps/",
+        "https://www.reddit.com/r/AppTalks/comments/1p0r83l/i_just_launched_clothfits_ai_an_app_for_super/",
+        "https://www.prisma-tech.it/public/documents/bof_-_fashion_startups_to_watch_%28raspberry_ai%29.pdf",
+        "https://www.reddit.com/r/SideProject/comments/1tv01ir/i_built_a_closet_app_because_most_ai_styling_apps/",
+        "https://www.reddit.com/r/jenova_ai/comments/1wqpn9j/what_is_the_best_ai_fashion_consultant_for/",
+        "https://www.reddit.com/r/GeminiAI/comments/1tv70jr/i_launched_an_aipowered_virtual_tryon_fashion_app/",
+        "https://www.reddit.com/r/Dressly/comments/1vbqsiy/would_you_actually_use_an_ai_wardrobe_app_what/",
+        "https://www.reddit.com/r/AppBusiness/comments/1sf0udf/built_an_ai_chrome_extension_that_lets_you_try_on/",
+        "https://en.wikipedia.org/wiki/DRESSX",
+        "https://www.reddit.com/r/jenova_ai/comments/1upm0mm/best_ai_for_fashion_consultant_outfit_evaluation/",
+        "https://www.reddit.com/r/IndianFashionAddicts/comments/1utfr01/im_building_an_ai_fashion_shopping_app_what_do/",
+        "https://www.reddit.com/r/u_Enough_Stock3330/comments/1v77vdn/app_idea/",
+        "https://en.wikipedia.org/wiki/Style_DNA",
+        "https://www.digitalmarketplaces.com/Downloads/MalcolmMyers_MarketplacesandAI_OpportunitiesandThreats_69298b66b6c31.pdf",
+        "https://en.wikipedia.org/wiki/Shopcade",
+        "https://pagepro.co/blog/wp-content/uploads/2024/04/EBOOK-Over-100-React-Native-Apps.pdf",
+        "https://en.wikipedia.org/wiki/Digital_fashion",
+        "https://arxiv.org/abs/2008.11638",
+        "https://en.wikipedia.org/wiki/Commercial_augmented_reality",
+        "https://www.whowhatwear.com/fashion/shopping/daydream-ai-shopping-app-best-boots-with-jeans-2025",
+        "https://apps.apple.com/us/app/daydream-ai-for-fashion/id6692634357?utm_source=openai"
+      ],
+      "usage": {
+        "input_tokens": 10846,
+        "cached_tokens": 3712,
+        "output_tokens": 565,
+        "web_searches": 1
+      },
+      "stop_reason": "completed",
+      "cost_usd": 0.06447599999999999,
+      "cited_domains": [
+        "apps.apple.com"
+      ],
+      "source_domains": [
+        "apps.apple.com",
+        "daydream.ing",
+        "techcrunch.com",
+        "altdora.com",
+        "ecommerceguide.com",
+        "glance.com",
+        "joinelara.com",
+        "prnewswire.com",
+        "en.wikipedia.org",
+        "reddit.com",
+        "tbc.angelinvest.ventures",
+        "mckinsey.com",
+        "textileinsights.in",
+        "prisma-tech.it",
+        "digitalmarketplaces.com",
+        "pagepro.co",
+        "arxiv.org",
+        "whowhatwear.com"
+      ],
+      "mention": {
+        "mentioned": false,
+        "confidence": null,
+        "cited": false,
+        "excerpts": [],
+        "ignored": []
+      },
+      "competitors": [
+        "Phia",
+        "Daydream",
+        "Google Lens",
+        "Pinterest Lens",
+        "ShopStyle",
+        "Lyst",
+        "Whering"
+      ]
+    },
+    {
+      "question_id": "shopping-assistant-compare",
+      "question": "Best shopping assistant apps for finding clothes in my size and tracking prices in 2026",
+      "job": "comparison",
+      "engine": "openai",
+      "model": "gpt-5.5",
+      "date": "2026-10-20",
+      "ok": true,
+      "served_model": "gpt-5.5-2026-04-23",
+      "answer": "Here are the **best shopping-assistant apps/tools in 2026** if your priorities are **“show me clothes that actually come in my size”** and **“tell me when the price drops.”**\n\n## Best overall: **Google Shopping / Google app**\n**Best for:** broad search across stores, size/color-specific price alerts, price history.\n\nGoogle’s price tracking is especially useful for clothing because it can track a **specific size and color**, not just the general product page. It also shows price insights/history for many products in the U.S. ([support.google.com](https://support.google.com/googleshopping/answer/13971184?hl=en-GB&utm_source=openai)) Google has also been expanding AI shopping features like virtual try-on and apparel alerts tied to size/color/target price. ([blog.google](https://blog.google/products-and-platforms/products/shopping/back-to-school-ai-updates-try-on-price-alerts/?utm_source=openai))\n\n**Why use it**\n- Tracks items across the web, not just one retailer.\n- Lets you choose size/color on supported listings.\n- Works in Google Search, Shopping, and the Google app.\n- Good first stop before installing anything else.\n\n**Weakness**\n- Not every store/product has perfect variant tracking, and fashion sizing accuracy still depends on the retailer’s data.\n\n---\n\n## Best fashion-specific search: **Lyst**\n**Best for:** designer/contemporary fashion, finding items in your size across many retailers.\n\nLyst is one of the better fashion-native options because it’s built around clothing discovery. It says it helps find items **in stock in your size** and supports alerts for price drops and restocks. ([lyst.com](https://www.lyst.com/about/?utm_source=openai)) Its app also advertises comparison across thousands of retailers plus price-drop and back-in-stock alerts. ([lyst.com](https://www.lyst.com/build/app/?utm_source=openai))\n\n**Why use it**\n- Strong for fashion brands, shoes, bags, and designer items.\n- Good size filtering.\n- Sale and restock alerts.\n- Better fashion UX than generic coupon apps.\n\n**Weakness**\n- Final price/availability can change once you click through to the retailer, especially when size variants differ.\n\n---\n\n## Best for coupons + price drops: **PayPal Honey**\n**Best for:** tracking wishlisted items and automatically trying coupons at checkout.\n\nHoney’s **Droplist** is its price-tracking feature: you save an item, set a desired drop/threshold, and Honey notifies you when it detects a price drop on supported stores. ([help.joinhoney.com](https://help.joinhoney.com/article/79-what-is-droplist?utm_source=openai)) The mobile app’s Droplist can send push notifications for U.S. members and can track items for 30, 60, 90, or 120 days. ([help.joinhoney.com](https://help.joinhoney.com/article/220-how-do-i-use-droplist-on-the-honey-smart-shopping-assistant?utm_source=openai)) Honey also automatically tests coupon codes at checkout on many sites. ([paypal.com](https://www.paypal.com/us/digital-wallet/ways-to-pay/paypal-honey?utm_source=openai))\n\n**Why use it**\n- Very easy for coupons.\n- Good if you already browse retail sites directly.\n- Works across many stores.\n- Syncs extension/app Droplist items.\n\n**Weakness**\n- Droplist does not work on every site, and variant-specific clothing tracking can be imperfect. Always double-check that the saved item is the exact size/color.\n\n---\n\n## Best newer AI fashion assistant: **Phia**\n**Best for:** “find me the lowest price or similar alternative” while browsing fashion sites.\n\nPhia positions itself as an AI shopping agent for fashion and says it searches across **220,000+ sites**, finds lower prices, coupons, and cheaper alternatives when you’re on an item page. ([phia.co](https://phia.co/?utm_source=openai))\n\n**Why use it**\n- Fashion-first AI assistant.\n- Good for comparing a product against secondhand/new alternatives.\n- Useful for “I like this, find it cheaper” shopping.\n- Chrome extension workflow is convenient.\n\n**Weakness**\n- More of a comparison/assistant tool than a mature size-fit engine. Use alongside Google/Lyst/Honey for alerts.\n\n---\n\n## Best for personalized sale emails by size: **Shop It To Me**\n**Best for:** daily sale alerts from preferred brands in your sizes.\n\nShop It To Me is older but still relevant for a simple use case: choose your sizes and favorite brands, then get alerts when matching clothing/shoes/accessories go on sale. A company release described it as checking hundreds of retailers and sending alerts when favorite items go on sale in the desired size. ([prnewswire.com](https://www.prnewswire.com/news-releases/award-winning-app-shop-it-to-me-now-available-on-both-android-and-ios-devices-300531312.html?utm_source=openai))\n\n**Why use it**\n- Low-effort sale discovery.\n- Size + brand preferences are central to the product.\n- Good for people who like email-style shopping alerts.\n\n**Weakness**\n- Less modern than AI assistants; not the best for real-time price history or deep fit prediction.\n\n---\n\n## Best for visual try-on: **Spree**\n**Best for:** seeing whether a style might look good before buying.\n\nSpree is an iPhone app that lets you save fashion products from multiple stores and use AI virtual try-on. Its App Store listing says you can paste product links, save items, organize collections, and try on top picks with AI; it offers a paid Pro tier for more products/try-ons. ([apps.apple.com](https://apps.apple.com/us/app/spree-fashion-try-on-shop/id6778271363?platform=vision&utm_source=openai))\n\n**Why use it**\n- Helpful for style confidence, not just price.\n- Good for comparing multiple potential buys.\n- Useful if you often return items because they don’t look how you expected.\n\n**Weakness**\n- Virtual try-on is not the same as fit accuracy. It may show vibe/silhouette, but it won’t guarantee that the waist, bust, inseam, or shoulders fit.\n\n---\n\n## Best setup for most people\n\nIf you want the most practical stack in 2026, I’d use:\n\n1. **Google Shopping** — broad search, price history, size/color price alerts.  \n2. **Lyst** — fashion-specific discovery and size-based availability.  \n3. **Honey** — coupon testing and Droplist alerts.  \n4. **Phia** — “find this cheaper or secondhand” assistant.  \n5. **Spree** — optional, if visual try-on helps you avoid returns.\n\n## Quick buying workflow\n\n1. Search the item in **Google Shopping** and turn on a size/color price alert.  \n2. Check **Lyst** to see if another retailer has your size cheaper.  \n3. Use **Phia** to look for cheaper alternatives or resale options.  \n4. Add the exact item to **Honey Droplist** if supported.  \n5. Before checkout, confirm:\n   - exact size/color,\n   - return policy,\n   - shipping cost,\n   - whether discount applies to your size,\n   - final price after coupons.\n\n**My top pick:** **Google Shopping** for alerts + **Lyst** for fashion discovery. Add **Honey** if you want coupons, and **Phia** if you shop secondhand/designer or want cheaper alternatives.",
+      "cited_urls": [
+        "https://support.google.com/googleshopping/answer/13971184?hl=en-GB&utm_source=openai",
+        "https://blog.google/products-and-platforms/products/shopping/back-to-school-ai-updates-try-on-price-alerts/?utm_source=openai",
+        "https://www.lyst.com/about/?utm_source=openai",
+        "https://www.lyst.com/build/app/?utm_source=openai",
+        "https://help.joinhoney.com/article/79-what-is-droplist?utm_source=openai",
+        "https://help.joinhoney.com/article/220-how-do-i-use-droplist-on-the-honey-smart-shopping-assistant?utm_source=openai",
+        "https://www.paypal.com/us/digital-wallet/ways-to-pay/paypal-honey?utm_source=openai",
+        "https://phia.co/?utm_source=openai",
+        "https://www.prnewswire.com/news-releases/award-winning-app-shop-it-to-me-now-available-on-both-android-and-ios-devices-300531312.html?utm_source=openai",
+        "https://apps.apple.com/us/app/spree-fashion-try-on-shop/id6778271363?platform=vision&utm_source=openai"
+      ],
+      "source_urls": [
+        "https://www.gorgeautiful.com/best-fashion-deal-apps-2026/",
+        "https://kritdeals.com/best-price-tracker-apps-2026",
+        "https://www.tryspree.app/blog/price-drop-alert-apps-clothes",
+        "https://samsungmobileuspress.com/best/ai-shopping-assistants/",
+        "https://www.cloudspress.com/these-are-the-best-price-tracking-tools-in-2026/",
+        "https://www.tryspree.app/blog/ai-shopping-assistant-apps",
+        "https://mobilestalk.net/best/ai-shopping-assistants/",
+        "https://www.dealzenohub.com/7-best-apps-for-buying-clothes-online-in-the-us/",
+        "https://plottdata.com/blogs/best-price-monitoring-tools",
+        "https://geekchamp.com/price-tracking-apps-and-browser-extensions-compared-2026-guide/",
+        "https://giftx.tech/blog/best-ai-shopping-assistant-apps",
+        "https://phia.com/editorials/finding-the-best-digital-closet-app-in-2026-collection-202610-e3e3e60b93a64e03",
+        "https://adindex.ru/publication/analitics/search/342586/img/mobile-app-trends-2026.pdf",
+        "https://www.sec.gov/Archives/edgar/data/1211805/000149315226026753/formars.pdf",
+        "https://www.reddit.com/r/Entrepreneur/comments/1qsklr4/how_do_i_get_my_first_users_for_a_fashion_price/",
+        "https://commercial.yougov.com/rs/464-VHH-988/images/WP-2026-03-US-fashion-retailer-rankings.pdf?content_name=Top+threads%3A+U.S.+fashion+retailer+rankings+2026",
+        "https://www.mckinsey.com/~/media/mckinsey/industries/retail/our%20insights/state%20of%20fashion/2026/the-state-of-fashion-2026-vf.pdf",
+        "https://www.reddit.com/r/AmazonFBA/comments/1u6bifm/which_tool_do_yall_use_for_tracking_price_of/",
+        "https://www.mckinsey.com/~/media/mckinsey/industries/retail/our%20insights/state%20of%20fashion/2026/the-state-of-fashion-2026.pdf?shouldIndex=fals",
+        "https://pppmedia.s3.us-east-2.amazonaws.com/ppp/2026/ppp-lm-ultimate-price-comparison-v260123.pdf",
+        "https://www.reddit.com/r/macapps/comments/1t3k3sh/shopie_wishlists_price_tracker/",
+        "https://www.reddit.com/r/FulfillmentByAmazon/comments/1u6bkue/which_tool_do_yall_use_for_tracking_price_of/",
+        "https://arxiv.org/abs/2401.01978",
+        "https://www.androidcentral.com/apps-software/ai/googles-new-universal-cart-will-track-prices-and-find-deals-for-you",
+        "https://www.reddit.com/r/PhysicalMediaMatters/comments/1uaxfjo/price_tracker_recommendations/",
+        "https://www.androidcentral.com/apps-software/ai/5-important-gemini-updates-from-google-i-o-2026-that-could-genuinely-save-you-time",
+        "https://www.reddit.com/r/Bluray/comments/1uaxbgy/recommended_apps_for_price_tracking/",
+        "https://www.tomsguide.com/live/news/best-early-prime-day-deals-id-shop-2026-this-weekend",
+        "https://www.tomsguide.com/ai/i-use-googles-ai-to-thrift-for-my-big-family-these-are-the-5-features-that-actually-save-me-money",
+        "https://apnews.com/article/0722dce44b4a479ec4ce476bbd15dfa9",
+        "https://apnews.com/article/3784529e01603dcf116b55886dc88c17",
+        "https://www.reddit.com/r/femalefashionadvice/comments/1vmxnys/keeping_track_of_clothes_brands_and_wishlists/",
+        "https://arxiv.org/abs/1907.09844",
+        "https://www.reddit.com/r/UKFrugal/comments/1v7nhio/does_anyone_know_a_good_app_that_tracks_price/",
+        "https://www.reddit.com/r/sideprojects/comments/1sj6zc9/i_built_a_price_tracker_for_luxury_fashion_like/",
+        "https://en.wikipedia.org/wiki/Shop_It_To_Me",
+        "https://arxiv.org/abs/1908.00825",
+        "https://www.reddit.com/r/Shopify_AI/comments/1rjj6no/best_shopify_discount_apps_to_boost_sales_in_2026/",
+        "https://www.reddit.com/r/SideProject/comments/1sgvjr4/i_built_a_price_tracker_for_luxury_fashion_like/",
+        "https://www.reddit.com/r/povertyfinance/comments/1rrmahu/price_comparison_apps_that_actually_help_on_a/",
+        "https://www.paypal.com/us/digital-wallet/ways-to-pay/paypal-honey",
+        "https://help.joinhoney.com/article/79-what-is-droplist",
+        "https://play.google.com/store/apps/details?hl=en-US&id=com.shoptagr",
+        "https://www.joinhoney.com/features/droplist",
+        "https://help.joinhoney.com/article/216-what-is-the-honey-smart-shopping-assistant",
+        "https://help.joinhoney.com/article/220-how-do-i-use-droplist-on-the-honey-smart-shopping-assistant",
+        "https://support.google.com/faqs/answer/10675605?hl=en",
+        "https://support.google.com/googleshopping/answer/13971184?hl=en-GB",
+        "https://get.joinhoney.com/business/products/droplist/",
+        "https://blog.google/products-and-platforms/products/shopping/back-to-school-ai-updates-try-on-price-alerts/",
+        "https://www.paypal.com/us/cshelp/article/what-is-paypal-honey-HELP592",
+        "https://www.joinhoney.com/drop-list",
+        "https://cdn.honey.io/press-data/Honey%20FAQ.pdf",
+        "https://s205.q4cdn.com/875401827/files/doc_events/PayPal-Announces-Acquisition-of-Honey.pdf",
+        "https://cdn.honey.io/pdfs/merchant/Honey%20X%20SmartBrief%20Update.pdf",
+        "https://cdn.joinhoney.com/pdfs/merchant/Honey%20X%20Retail%20Dive%20Playbook%202021.pdf",
+        "https://truthinadvertising.org/wp-content/uploads/2026/03/Zeledon-v-Sheex-complaint.pdf",
+        "https://toddwallace.us/documents/karma.pdf",
+        "https://en.wikipedia.org/wiki/PayPal_Honey",
+        "https://www.reddit.com/r/CouponFinder/comments/1xa8h4a/honey_extension_alternative_megathread/",
+        "https://en.wikipedia.org/wiki/Google_Shopping",
+        "https://www.reddit.com/r/BestOfPrimeDay/comments/1li8rzj",
+        "https://www.reddit.com/r/googleads/comments/1tg7z8j/google_shopping_help/",
+        "https://www.reddit.com/r/GenAiApps/comments/1rou1zp/ios_2999free_lifetime_dashboard_for_apple_health/",
+        "https://phia.co/",
+        "https://apps.apple.com/us/app/spree-fashion-try-on-shop/id6778271363?platform=vision",
+        "https://www.lyst.com/build/app/",
+        "https://www.lyst.com/about/",
+        "https://apps.shopify.com/spreeai-photo-realistic?surface_detail=store-design-images-and-media-3d-ar-vr&surface_inter_position=1&surface_intra_position=20&surface_type=category&surface_version=redesign",
+        "https://www.prnewswire.com/news-releases/meet-phia-the-free-ai-shopping-tool-that-instantly-finds-you-the-best-price-on-fashion-founded-by-phoebe-gates-and-sophia-kianni-302436742.html",
+        "https://play.google.com/store/apps/details?hl=en_GB&id=com.lyst.lystapp",
+        "https://spreeai.com/shop/",
+        "https://static.lystit.com/static/n/moderation/help/shopify-installation-guide-and-faqs-101017.59e382bcc9d8.pdf",
+        "https://www.lyst.com/partners/",
+        "https://spreeai.com/product/",
+        "https://chromewebstore.google.com/detail/phia-best-price-in-one-cl/ehoknmhmadiboejdbinglmbnlghnbldc?e=CwsConsumerfeUiEnableTopCharts%3A%3ALaunch",
+        "https://www.prnewswire.com/news-releases/award-winning-app-shop-it-to-me-now-available-on-both-android-and-ios-devices-300531312.html",
+        "https://corp.zozo.com/en/ir/files/pdf/LYST_eng_fix.pdf",
+        "https://www.casares.blog/wp-content/uploads/Retail-UX-Playbook.pdf",
+        "https://puck.news/wp-content/uploads/2025/04/LYSTINDEX_Q125.pdf",
+        "https://www.reddit.com/r/rails/comments/1skb1xz/spree_54_is_out/",
+        "https://www.reddit.com/r/RestockAlertMe/comments/1vwnuts/the_new_restockalert_is_here_new_look_100_new/",
+        "https://5752f017-a4b4-4022-8bb0-d95988a52c55.filesusr.com/ugd/6281f2_148f9f4ec2d84d6d805288afe15a1efa.pdf",
+        "https://www.reddit.com/r/rails/comments/1qonkoz/spree_53_released/",
+        "https://videos.prada.com/csr-video/NL88_Prada.pdf",
+        "https://www.reddit.com/r/AussieFrugal/comments/1ojrb40/is_there_a_website_that_exists_to_automatically/",
+        "https://www.reddit.com/r/apparelstartup/comments/1uleyxa/best_and_low_cost_virtual_try_on_for_my_shopify/",
+        "https://www.reddit.com/r/ShopifyApps/comments/1ulbzz2/tryon_virtual_a_shopify_app_that_lets_customers/",
+        "https://www.reddit.com/r/u_DealstotheT/comments/1t1w06d/i_use_this_to_stop_impulse_buying_set_a_price/",
+        "https://support.google.com/googleshopping/answer/13971184?hl=en-GB&utm_source=openai",
+        "https://blog.google/products-and-platforms/products/shopping/back-to-school-ai-updates-try-on-price-alerts/?utm_source=openai",
+        "https://www.lyst.com/about/?utm_source=openai",
+        "https://www.lyst.com/build/app/?utm_source=openai",
+        "https://help.joinhoney.com/article/79-what-is-droplist?utm_source=openai",
+        "https://help.joinhoney.com/article/220-how-do-i-use-droplist-on-the-honey-smart-shopping-assistant?utm_source=openai",
+        "https://www.paypal.com/us/digital-wallet/ways-to-pay/paypal-honey?utm_source=openai",
+        "https://phia.co/?utm_source=openai",
+        "https://www.prnewswire.com/news-releases/award-winning-app-shop-it-to-me-now-available-on-both-android-and-ios-devices-300531312.html?utm_source=openai",
+        "https://apps.apple.com/us/app/spree-fashion-try-on-shop/id6778271363?platform=vision&utm_source=openai"
+      ],
+      "usage": {
+        "input_tokens": 21283,
+        "cached_tokens": 3712,
+        "output_tokens": 1699,
+        "web_searches": 3
+      },
+      "stop_reason": "completed",
+      "cost_usd": 0.170681,
+      "cited_domains": [
+        "support.google.com",
+        "blog.google",
+        "lyst.com",
+        "help.joinhoney.com",
+        "paypal.com",
+        "phia.co",
+        "prnewswire.com",
+        "apps.apple.com"
+      ],
+      "source_domains": [
+        "gorgeautiful.com",
+        "kritdeals.com",
+        "tryspree.app",
+        "samsungmobileuspress.com",
+        "cloudspress.com",
+        "mobilestalk.net",
+        "dealzenohub.com",
+        "plottdata.com",
+        "geekchamp.com",
+        "giftx.tech",
+        "phia.com",
+        "adindex.ru",
+        "sec.gov",
+        "reddit.com",
+        "commercial.yougov.com",
+        "mckinsey.com",
+        "pppmedia.s3.us-east-2.amazonaws.com",
+        "arxiv.org",
+        "androidcentral.com",
+        "tomsguide.com",
+        "apnews.com",
+        "en.wikipedia.org",
+        "paypal.com",
+        "help.joinhoney.com",
+        "play.google.com",
+        "joinhoney.com",
+        "support.google.com",
+        "get.joinhoney.com",
+        "blog.google",
+        "cdn.honey.io",
+        "s205.q4cdn.com",
+        "cdn.joinhoney.com",
+        "truthinadvertising.org",
+        "toddwallace.us",
+        "phia.co",
+        "apps.apple.com",
+        "lyst.com",
+        "apps.shopify.com",
+        "prnewswire.com",
+        "spreeai.com",
+        "static.lystit.com",
+        "chromewebstore.google.com",
+        "corp.zozo.com",
+        "casares.blog",
+        "puck.news",
+        "5752f017-a4b4-4022-8bb0-d95988a52c55.filesusr.com",
+        "videos.prada.com"
+      ],
+      "mention": {
+        "mentioned": false,
+        "confidence": null,
+        "cited": false,
+        "excerpts": [],
+        "ignored": []
+      },
+      "competitors": [
+        "Phia",
+        "Google Shopping",
+        "Honey",
+        "Lyst"
+      ]
+    }
+  ],
+  "summary": {
+    "engines": [
+      {
+        "id": "openai",
+        "label": "OpenAI (web search)",
+        "model": "gpt-5.5",
+        "status": "ran",
+        "note": null,
+        "answers": 15,
+        "mentioned": 0,
+        "confirmed": 0,
+        "cited": 0,
+        "errors": 0,
+        "cost_usd": 0.9297679999999999
+      },
+      {
+        "id": "perplexity",
+        "label": "Perplexity (Sonar)",
+        "model": "sonar",
+        "status": "skipped",
+        "note": "PERPLEXITY_API_KEY is not set",
+        "answers": 0,
+        "mentioned": 0,
+        "confirmed": 0,
+        "cited": 0,
+        "errors": 0,
+        "cost_usd": 0
+      },
+      {
+        "id": "anthropic",
+        "label": "Anthropic (web search)",
+        "model": "claude-opus-5-5",
+        "status": "skipped",
+        "note": "ANTHROPIC_API_KEY is not set",
+        "answers": 0,
+        "mentioned": 0,
+        "confirmed": 0,
+        "cited": 0,
+        "errors": 0,
+        "cost_usd": 0
+      }
+    ],
+    "questions": [
+      {
+        "id": "forward-cheaper",
+        "text": "Is there an app where I can send it a product link and it finds the same item cheaper somewhere else, including resale?",
+        "job": "forward-a-listing",
+        "answers": 1,
+        "mentioned_by": [],
+        "top_domains": [
+          [
+            "banyr.com",
+            1
+          ],
+          [
+            "dumpydeals.com",
+            1
+          ],
+          [
+            "get-pounce.com",
+            1
+          ],
+          [
+            "shopbeni.com",
+            1
+          ],
+          [
+            "shopsavvy.com",
+            1
+          ]
+        ],
+        "competitors": [
+          "Beni"
+        ]
+      },
+      {
+        "id": "forward-my-size",
+        "text": "A jacket I want is sold out in my size. How can I find which other stores still have it in my size?",
+        "job": "forward-a-listing",
+        "answers": 1,
+        "mentioned_by": [],
+        "top_domains": [],
+        "competitors": [
+          "Google Lens",
+          "Google Shopping",
+          "Pinterest Lens",
+          "ShopStyle",
+          "Lyst"
+        ]
+      },
+      {
+        "id": "forward-text-link",
+        "text": "Is there a shopping assistant I can just text links to from Instagram or TikTok and it tells me if it's a good price?",
+        "job": "forward-a-listing",
+        "answers": 1,
+        "mentioned_by": [],
+        "top_domains": [
+          [
+            "cartsy.com",
+            1
+          ],
+          [
+            "shopsavvy.com",
+            1
+          ],
+          [
+            "slaydm.co",
+            1
+          ],
+          [
+            "stashitai.com",
+            1
+          ],
+          [
+            "tryglossyapp.com",
+            1
+          ]
+        ],
+        "competitors": []
+      },
+      {
+        "id": "resale-search",
+        "text": "Best way to check if something I'm about to buy is cheaper on resale sites like Poshmark, Grailed or The RealReal?",
+        "job": "forward-a-listing",
+        "answers": 1,
+        "mentioned_by": [],
+        "top_domains": [
+          [
+            "blog.poshmark.com",
+            1
+          ],
+          [
+            "grailed.com",
+            1
+          ],
+          [
+            "resalehunt.com",
+            1
+          ]
+        ],
+        "competitors": []
+      },
+      {
+        "id": "screenshot-outfit",
+        "text": "How do I find where the clothes in a screenshot of an outfit are from?",
+        "job": "wheres-it-from",
+        "answers": 1,
+        "mentioned_by": [],
+        "top_domains": [],
+        "competitors": [
+          "Google Lens",
+          "Pinterest Lens",
+          "Amazon StyleSnap",
+          "ShopStyle",
+          "LTK"
+        ]
+      },
+      {
+        "id": "screenshot-app",
+        "text": "What app can identify clothes from a photo and find them in my size?",
+        "job": "wheres-it-from",
+        "answers": 1,
+        "mentioned_by": [],
+        "top_domains": [
+          [
+            "blog.google",
+            1
+          ],
+          [
+            "play.google.com",
+            1
+          ]
+        ],
+        "competitors": [
+          "Google Lens",
+          "Pinterest Lens"
+        ]
+      },
+      {
+        "id": "dupe-finder",
+        "text": "Is there an app that finds cheaper dupes of designer clothes?",
+        "job": "dupes",
+        "answers": 1,
+        "mentioned_by": [],
+        "top_domains": [
+          [
+            "apps.apple.com",
+            1
+          ],
+          [
+            "getlyket.com",
+            1
+          ],
+          [
+            "snapfyt.com",
+            1
+          ]
+        ],
+        "competitors": [
+          "Google Lens",
+          "Pinterest Lens"
+        ]
+      },
+      {
+        "id": "dupe-from-photo",
+        "text": "How can I find a cheaper version of a dress I saw on Instagram?",
+        "job": "dupes",
+        "answers": 1,
+        "mentioned_by": [],
+        "top_domains": [],
+        "competitors": [
+          "Google Lens",
+          "Pinterest Lens",
+          "LTK"
+        ]
+      },
+      {
+        "id": "price-drop-size",
+        "text": "How do I get a text when a specific piece of clothing goes on sale in my size?",
+        "job": "alerts",
+        "answers": 1,
+        "mentioned_by": [],
+        "top_domains": [
+          [
+            "artchemylabs.com",
+            1
+          ],
+          [
+            "chromewebstore.google.com",
+            1
+          ],
+          [
+            "remode.app",
+            1
+          ]
+        ],
+        "competitors": [
+          "Karma"
+        ]
+      },
+      {
+        "id": "restock-size",
+        "text": "App that texts me when a sold-out jacket restocks in my size",
+        "job": "alerts",
+        "answers": 1,
+        "mentioned_by": [],
+        "top_domains": [
+          [
+            "apps.apple.com",
+            1
+          ],
+          [
+            "distill.io",
+            1
+          ],
+          [
+            "visualping.io",
+            1
+          ]
+        ],
+        "competitors": []
+      },
+      {
+        "id": "price-tracker-clothes",
+        "text": "Best price tracker for clothes and shoes across different stores?",
+        "job": "alerts",
+        "answers": 1,
+        "mentioned_by": [],
+        "top_domains": [
+          [
+            "lyst.com",
+            1
+          ],
+          [
+            "shopsavvy.com",
+            1
+          ]
+        ],
+        "competitors": [
+          "Lyst"
+        ]
+      },
+      {
+        "id": "personal-shopper-text",
+        "text": "Is there a personal shopper I can text over iMessage?",
+        "job": "just-handle-it",
+        "answers": 1,
+        "mentioned_by": [],
+        "top_domains": [
+          [
+            "apps.apple.com",
+            1
+          ],
+          [
+            "eno.la",
+            1
+          ],
+          [
+            "folk.com",
+            1
+          ],
+          [
+            "ori.bot",
+            1
+          ],
+          [
+            "shopmy.us",
+            1
+          ]
+        ],
+        "competitors": []
+      },
+      {
+        "id": "phia-alternatives",
+        "text": "What are some alternatives to Phia?",
+        "job": "comparison",
+        "answers": 1,
+        "mentioned_by": [],
+        "top_domains": [
+          [
+            "apps.apple.com",
+            1
+          ],
+          [
+            "itechfaqs.com",
+            1
+          ],
+          [
+            "mobilestalk.net",
+            1
+          ],
+          [
+            "phia.com",
+            1
+          ],
+          [
+            "samsungmobileuspress.com",
+            1
+          ]
+        ],
+        "competitors": [
+          "Phia",
+          "Whering",
+          "Indyx",
+          "Alta"
+        ]
+      },
+      {
+        "id": "daydream-alternatives",
+        "text": "Apps like Daydream for shopping clothes",
+        "job": "comparison",
+        "answers": 1,
+        "mentioned_by": [],
+        "top_domains": [
+          [
+            "apps.apple.com",
+            1
+          ]
+        ],
+        "competitors": [
+          "Phia",
+          "Daydream",
+          "Google Lens",
+          "Pinterest Lens",
+          "ShopStyle",
+          "Lyst",
+          "Whering"
+        ]
+      },
+      {
+        "id": "shopping-assistant-compare",
+        "text": "Best shopping assistant apps for finding clothes in my size and tracking prices in 2026",
+        "job": "comparison",
+        "answers": 1,
+        "mentioned_by": [],
+        "top_domains": [
+          [
+            "apps.apple.com",
+            1
+          ],
+          [
+            "blog.google",
+            1
+          ],
+          [
+            "help.joinhoney.com",
+            1
+          ],
+          [
+            "lyst.com",
+            1
+          ],
+          [
+            "paypal.com",
+            1
+          ]
+        ],
+        "competitors": [
+          "Phia",
+          "Google Shopping",
+          "Honey",
+          "Lyst"
+        ]
+      }
+    ],
+    "competitors": [
+      [
+        "Google Lens",
+        6
+      ],
+      [
+        "Pinterest Lens",
+        6
+      ],
+      [
+        "Lyst",
+        4
+      ],
+      [
+        "Phia",
+        3
+      ],
+      [
+        "ShopStyle",
+        3
+      ],
+      [
+        "Google Shopping",
+        2
+      ],
+      [
+        "LTK",
+        2
+      ],
+      [
+        "Whering",
+        2
+      ],
+      [
+        "Alta",
+        1
+      ],
+      [
+        "Amazon StyleSnap",
+        1
+      ],
+      [
+        "Beni",
+        1
+      ],
+      [
+        "Daydream",
+        1
+      ],
+      [
+        "Honey",
+        1
+      ],
+      [
+        "Indyx",
+        1
+      ],
+      [
+        "Karma",
+        1
+      ]
+    ],
+    "gaps": [
+      {
+        "domain": "apps.apple.com",
+        "kind": "app store",
+        "questions": [
+          "daydream-alternatives",
+          "dupe-finder",
+          "personal-shopper-text",
+          "phia-alternatives",
+          "restock-size",
+          "shopping-assistant-compare"
+        ],
+        "answers": 6
+      },
+      {
+        "domain": "shopsavvy.com",
+        "kind": "editorial/other",
+        "questions": [
+          "forward-cheaper",
+          "forward-text-link",
+          "price-tracker-clothes"
+        ],
+        "answers": 3
+      },
+      {
+        "domain": "blog.google",
+        "kind": "editorial/other",
+        "questions": [
+          "screenshot-app",
+          "shopping-assistant-compare"
+        ],
+        "answers": 2
+      },
+      {
+        "domain": "lyst.com",
+        "kind": "editorial/other",
+        "questions": [
+          "price-tracker-clothes",
+          "shopping-assistant-compare"
+        ],
+        "answers": 2
+      }
+    ],
+    "cost_usd": 0.9297679999999999
+  }
+}
