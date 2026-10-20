@@ -51,7 +51,7 @@ On dark grounds (the desktop story stage) the same hierarchy holds: Share is the
 
 ## Activity and motion
 
-`public/activity.js` tracks concurrent requests and local workflows. It shows the actual current action and that action's elapsed time. The orb and Aqua loader replace the old spinner. Private image fetches retain neutral per-image placeholders without flashing the page activity panel.
+`public/activity.js` tracks concurrent requests and local workflows. It shows the actual current action and that action's elapsed time. Quick actions (a thumb, a remove, a save) answer with their own motion and toast, so the panel appears only for a request still running after one second; Jules' own work (style analysis, shopping chat) shows it at once. The orb and Aqua loader replace the old spinner. Private image fetches retain neutral per-image placeholders without flashing the page activity panel.
 
 Only explicit style analysis and shopping-chat POST operations trigger the header dot hop and favicon frames. Loading pages or saving notes does not imply a store search. Other agent workflows can explicitly pass `{agent:true}` to `withActivity`. HTTP errors and thrown failures suppress successful completion for that activity batch. The next batch can recover normally.
 
