@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {startInterview,continueInterview,recordAnswer,planNext,candidates,interviewContext,interviewOpen,questionsLeft,BATCH} from '../lib/interview.js';
+import {startInterview,continueInterview,recordAnswer,planNext,candidates,interviewContext,interviewOpen,questionsLeft,adminStartInterview,BATCH} from '../lib/interview.js';
 import {coverage} from '../lib/coverage.js';
 import {announceImport,nextReceiptQuestion,sendProfile} from '../lib/receipt-notifications.js';
 import {purchaseEvidence,projectReceiptEvidence} from '../lib/receipt-extraction.js';
@@ -197,4 +197,29 @@ test('asking to continue after an unrecorded topic change sends the next questio
  assert.equal(store.sent.length,2);
  assert.equal(store.state.asked[0].outcome,'unanswered');
  assert.notEqual(store.state.asked[1].qid,'wear_most');
+});
+
+test('the owner’s button sends a question, and says why not when it shouldn’t',async()=>{
+ const store=fakeStore(),opts={send:store.send,log:quiet};
+ assert.deepEqual(await adminStartInterview(store,owner,{},opts),{status:'off'});
+ assert.deepEqual(await adminStartInterview(store,owner,env,opts),{status:'sent',question:'wear_most'});
+ assert.equal((await adminStartInterview(store,owner,env,opts)).status,'waiting','one question at a time');
+ await answer(store,'wear_most','declined_interview','m1','no thanks');
+ const declined=await adminStartInterview(store,owner,env,opts);
+ assert.equal(declined.status,'declined','never overrides their no');
+ assert.equal(store.sent.length,1);
+ // After a topic change the owner can resume: the dropped question no longer holds the round.
+ const other=fakeStore();
+ await startInterview(other,owner,env,'declined',{send:other.send,log:quiet});
+ await answer(other,'wear_most','changed_topic','m1','find me a coat');
+ assert.equal((await adminStartInterview(other,owner,env,{send:other.send,log:quiet})).status,'sent');
+ assert.equal(other.sent.length,2);
+});
+
+test('the owner’s button reports nothing left to ask for a complete profile',async()=>{
+ const rows=[1,2,3,4,5,6].map(n=>buy(n,{merchant:'COS',color:'black',brand:'COS'}));
+ const facts=[{field:'style',key:'palette',value:'black',basis:'stated',evidence_ids:['c1']},{field:'store',key:'cos',value:'basics',basis:'stated',evidence_ids:['c2']},{field:'budget',key:'tops/usd',value:'100',basis:'stated',evidence_ids:['c3']}];
+ const store=fakeStore({facts,rows,job:{status:'ready',started_at:'s1'},tags:tagsFor(rows,()=>({color_family:'black',resale:false})),outfits:3});
+ assert.deepEqual(await adminStartInterview(store,owner,env,{send:store.send,log:quiet}),{status:'nothing_left'});
+ assert.equal(store.sent.length,0);
 });
