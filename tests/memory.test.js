@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { validateChanges, mergeFacts, saveChanges, extractChanges, MEMORY_PROMPT, updateProfile, prevails, profileFirstName, firstName, displayName } from '../lib/memory.js';
+import { validateChanges, mergeFacts, saveChanges, extractChanges, MEMORY_PROMPT, updateProfile, PROFILE_TOOL, prevails, profileFirstName, firstName, displayName } from '../lib/memory.js';
 import { agentTurn, tool, agentContext, toolNames, toolOutputs } from './helpers/agent.js';
 import { generateReply } from '../lib/ai.js';
 import { receiveInInbox } from '../lib/inbox.js';
@@ -72,6 +72,22 @@ test('the profile skill records each valid change with its quote and skips malfo
  assert.equal(recorded[0].kind,'chat_statement');assert.deepEqual(result.facts[0].evidence_ids,[recorded[0].id]);
  const forgot=await updateProfile(store,id,{...message,id:'00000000-0000-4000-8000-000000000002',created_at:'2026-10-06T10:00:00Z'},{changes:[{action:'forget',field:'size',key:'shoes/us_men',value:'',quote:'My usual shoe size'}],acknowledgment:''});
  assert.equal(forgot.facts[0].deleted,true);
+});
+test('details the model marks as someone else\'s are never saved to the user\'s profile',async()=>{
+ const said={...message,body:'I’m a 32 waist in jeans. my sister is all about the boho thing'};
+ const result=await updateProfile(db(),id,said,{changes:[
+  {about:'user',action:'remember',field:'size',key:'jeans/waist',value:'32',quote:'I’m a 32 waist in jeans'},
+  {about:'someone_else',action:'remember',field:'style',key:'aesthetic',value:'boho',quote:'all about the boho thing'}],acknowledgment:''});
+ assert.equal(result.saved,1);assert.deepEqual(result.facts.map(f=>f.field),['size']);
+ assert.deepEqual(result.rejected,[{field:'style',key:'aesthetic',reason:'about_someone_else'}]);
+ const alone=await updateProfile(db(),id,said,{changes:[{about:'someone_else',action:'remember',field:'style',key:'aesthetic',value:'boho',quote:'all about the boho thing'}],acknowledgment:''});
+ assert.equal(alone.saved,0);assert.equal(alone.facts,null);
+ // Batch extraction drops them too, and both schemas ask whose fact it is before anything else.
+ const extracted=await extractChanges([said],{facts:[]},env,async(_url,options)=>{
+  const schema=JSON.parse(options.body).text.format.schema.properties.changes.items;assert.equal(Object.keys(schema.properties)[0],'about');assert.ok(schema.required.includes('about'));
+  return {ok:true,json:async()=>({status:'completed',output:[{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify({changes:[{...change,about:'someone_else',field:'style',key:'aesthetic',value:'boho',evidence:'all about the boho thing'}]})}]}]})};});
+ assert.deepEqual(extracted,[]);
+ const tool=PROFILE_TOOL.parameters.properties.changes.items;assert.equal(Object.keys(tool.properties)[0],'about');assert.ok(tool.required.includes('about'));
 });
 test('beliefs resolve by basis, then recency',()=>{
  const stated={field:'style',key:'navy',value:'likes navy',basis:'stated',updated_at:'2026-10-01T00:00:00Z'};
