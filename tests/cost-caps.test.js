@@ -16,6 +16,8 @@ const { capsText, personRows } = await import('../public/costs-view.js');
 
 const NOW = new Date('2026-10-19T18:00:00Z'), TODAY = '2026-10-19';
 // A summed usage row as the views return it: a gpt-4.1 call worth $2.00 per 1M input tokens.
+// Handlers that read the real clock need spend dated on the real UTC day, or they stop seeing it at midnight.
+const realToday = () => new Date().toISOString().slice(0, 10);
 const dollars = (amount, day = TODAY) => ({ day, provider: 'openai', model: 'gpt-4.1-2025-04-14', units: 1, input_tokens: amount * 500000, cached_tokens: 0, output_tokens: 0, web_search_calls: 0, cost_usd: 0 });
 const spendStore = (user = {}, global = []) => ({ reads: 0,
   async userSpend(id) { this.reads++; return user[id] ?? []; },
@@ -136,7 +138,7 @@ test('price checks skip a capped person and keep their alert for a later run', q
   clearCapCache();
   const alerts = [{ id: 'a1', conversation_id: 'capped', revision: 1, links: [], baselines: [] }];
   let inspected = 0, recorded = 0;
-  const store = { ...spendStore({ capped: [dollars(3)] }), claimPriceAlerts: async () => alerts, recordPriceCheck: async () => { recorded++; }, recordJobRun: async () => {} };
+  const store = { ...spendStore({ capped: [dollars(3, realToday())] }), claimPriceAlerts: async () => alerts, recordPriceCheck: async () => { recorded++; }, recordJobRun: async () => {} };
   const res = { setHeader() {}, end(body) { this.body = JSON.parse(body); } };
   await createPriceChecksHandler({ env: { CRON_SECRET: 'secret', PRICE_ALERTS_ENABLED: 'true', COST_CAP_USER_DAILY_USD: '2' }, storeFactory: () => store,
     inspect: async () => { inspected++; return { checks: [] }; } })({ method: 'GET', headers: { authorization: 'Bearer secret' } }, res);
@@ -147,7 +149,7 @@ test('price checks skip a capped person and keep their alert for a later run', q
 test('a Gmail import step for a capped person waits with nothing changed instead of counting as a failure', quiet(async () => {
   clearCapCache();
   let row = { conversation_id: 'capped', revision: 1, token_ciphertext: 'sealed', data: { job: { status: 'extracting', started_at: 'synthetic', failures: 1 } } };
-  const store = { ...spendStore({ capped: [dollars(3)] }), claimGmailImport: async () => structuredClone(row), gmailImport: async () => structuredClone(row),
+  const store = { ...spendStore({ capped: [dollars(3, realToday())] }), claimGmailImport: async () => structuredClone(row), gmailImport: async () => structuredClone(row),
     finishGmailImport: async (_o, _r, data, token) => { row = { ...row, data, token_ciphertext: token }; return true; }, evidence: async () => [], profile: async () => ({ facts: [] }) };
   await runGmailStep('capped', store, { COST_CAP_USER_DAILY_USD: '2' }, {}, { step: async () => assert.fail('no paid step'), schedule: () => assert.fail('no new chain') });
   assert.deepEqual(row.data.job, { status: 'extracting', started_at: 'synthetic', failures: 1 });
@@ -157,7 +159,7 @@ test('over the global cap, new signups pause with a plain message', quiet(async 
   clearCapCache();
   const env = { PUBLIC_SIGNUP_ENABLED: 'true', SITE_ORIGIN: 'https://jules.example', COST_CAP_GLOBAL_DAILY_USD: '10' };
   let signups = 0;
-  const handler = createSignupHandler({ env, storeFactory: () => ({ ...spendStore({}, [dollars(12)]), signup: async () => { signups++; return 'saved'; } }), log: () => {} });
+  const handler = createSignupHandler({ env, storeFactory: () => ({ ...spendStore({}, [dollars(12, realToday())]), signup: async () => { signups++; return 'saved'; } }), log: () => {} });
   const get = { setHeader() {}, end(body) { this.body = JSON.parse(body); } };
   await handler({ method: 'GET', headers: {} }, get);
   assert.deepEqual(get.body, { enabled: false, message: FULL_MESSAGE });
