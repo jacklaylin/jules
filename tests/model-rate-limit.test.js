@@ -89,3 +89,57 @@ test('the "still looking" follow-up waits past most finished searches and before
   assert.ok(SEARCH_FOLLOWUP_MS >= 90000, 'testers would rather wait than get an early follow-up');
   assert.ok(SEARCH_FOLLOWUP_MS < 105000, 'it still lands before the turn deadline');
 });
+
+// October 20: the model account ran out of credit (`credit_balance_exhausted`). Each turn still waited
+// out the rate limit, retried the round with reduced context and ran the inbox's compact retry, so the
+// tester waited ~40 s for the same fallback. No retry can succeed until the founder tops the account up.
+test('an account out of credit or quota is asked once, with no wait, round retry or compact retry', async () => {
+  for (const code of ['credit_balance_exhausted', 'insufficient_quota', 'billing_hard_limit_reached']) {
+    assert.equal(await rateLimitWait(refused(code, { 'retry-after-ms': '5' })), null, code);
+    for (const message of [{ direction: 'inbound', body: 'hello', status: 'received' }, { direction: 'inbound', body: 'what is each item in this outfit', status: 'received' }]) {
+      let calls = 0;
+      const error = await generateReply([message], env, async (_url, options) => { if (isAgentRequest(options)) calls++; return refused(code, { 'retry-after-ms': '5' }); }).catch(e => e);
+      assert.equal(error.message, 'AI request failed'); assert.equal(error.billing, true, code);
+      assert.equal(calls, 1, `${code}: one model request, no retries`);
+    }
+  }
+  // A plain rate limit still gets its wait and the reduced-context retry.
+  let calls = 0;
+  const error = await generateReply([{ direction: 'inbound', body: 'hello', status: 'received' }], env, async (_url, options) => { if (isAgentRequest(options)) calls++; return refused('rate_limit_exceeded', { 'retry-after-ms': '5' }); }).catch(e => e);
+  assert.equal(error.billing, undefined); assert.ok(calls >= 3, 'wait, then the reduced-context retry');
+});
+
+test('the inbox sends the fallback at once for exhausted credit, without the compact retry', async () => {
+  const rows = [], diagnostics = new Map();
+  const store = { receive: async () => 'conversation', claimAI: async (_c, op) => { rows.push({ operation_id: op }); return true; },
+    context: async () => [{ direction: 'inbound', provider_id: 'fake-message', body: 'hello', status: 'received' }],
+    prepareAI: async (op, body, source) => Object.assign(rows.find(r => r.operation_id === op), { body, source }),
+    finish: async () => {}, searchResult: async () => {}, replyDiagnostics: async (op, data) => { diagnostics.set(op, data); } };
+  let generated = 0;
+  const generate = async (_m, _e, fetcher) => { generated++; const r = await fetcher('https://api.openai.com/v1/responses', {}); if (!r.ok) throw Object.assign(new Error('AI request failed'), { billing: true }); };
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async () => refused('credit_balance_exhausted');
+  try {
+    await receiveInInbox({ space: { phone: 'fake-line' }, message: { id: 'fake-message', sender: { id: 'fake-tester' }, content: { type: 'text', text: 'hello' }, attachments: [] } },
+      env, { store, generate, progress: async () => async () => {}, writeFollowup: async () => null, send: async () => ({ id: 'sent' }) });
+  } finally { globalThis.fetch = realFetch; }
+  const d = diagnostics.get('ai:fake-message');
+  assert.equal(generated, 1); assert.equal(rows[0].body, GENERIC_FALLBACK);
+  assert.equal(d.compact_retry, false); assert.equal(d.model_error_code, 'credit_balance_exhausted');
+  assert.ok(!d.steps.some(s => s.step === 'retry'));
+});
+
+// October 20: a photo search ended as "search_or_storage" with nothing saying what failed. An
+// unexpected error now keeps its fixed class, name and database code (never its message).
+test('an unexpected search failure records its error class and database code', async () => {
+  const recorded = [];
+  let round = 0;
+  const reply = await generateReply([{ direction: 'inbound', body: 'can you identify the bag and shoes', status: 'received' }], { ...env, SEARCH_ENABLED: 'true' }, async (_url, options) => {
+    if (!isAgentRequest(options)) return { ok: false };
+    return ++round === 1 ? agentTurn(tool('find_products', { query: 'black padded crossbody bag', use_image: true, image_message_id: 'earlier-photo' })) : agentTurn(tool('conversation_reply', { response: 'i couldn’t finish that search just now.' }));
+  }, { loadImages: async () => { throw Object.assign(new Error('Database request failed'), { database_status: 500, database_code: '57014' }); }, recordSearch: async r => { recorded.push(r); } });
+  assert.match(reply, /couldn’t finish/);
+  assert.equal(recorded[0].failure_stage, 'search_or_storage');
+  assert.deepEqual([recorded[0].error_class, recorded[0].error_name, recorded[0].database_code], ['database', 'Error', '57014']);
+  assert.ok(!JSON.stringify(recorded[0]).includes('Database request failed'), 'the message itself is not stored');
+});
