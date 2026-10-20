@@ -178,7 +178,15 @@ function openDetail(id){
  $('detail-facts').replaceChildren(...facts.flatMap(([k,v])=>[el('dt',{},k),el('dd',{},v)]));
  const ask=$('detail-ask');
  if(view.text_url){ask.hidden=false;ask.href=`${view.text_url}&body=${encodeURIComponent(`what goes with my ${[item.brand,item.product].filter(Boolean).join(' ').toLowerCase()||'this'}?`)}`;}
+ showReasons(false);
  $('detail').showModal();
+}
+
+// Remove opens its reasons in place: the Remove row gives way to a short row of reason chips.
+function showReasons(open){
+ $('detail-remove').hidden=open;$('detail-remove').setAttribute('aria-expanded',String(open));
+ $('remove-reasons').hidden=!open;
+ for(const chip of $('remove-reasons').querySelectorAll('[data-reason]'))chip.disabled=false;
 }
 
 function openFix(item){
@@ -189,11 +197,14 @@ function openFix(item){
 
 $('detail-close').onclick=()=>$('detail').close();
 $('detail-fix').onclick=()=>{const item=view.items.find(i=>i.id===current);if(item)openFix(item);};
-$('detail-remove').onclick=()=>$('remove').showModal();
-for(const button of $('remove').querySelectorAll('[data-reason]'))button.onclick=async()=>{
+$('detail-remove').onclick=()=>{showReasons(true);$('remove-reasons').querySelector('[data-reason]').focus();};
+$('remove-cancel').onclick=()=>{showReasons(false);$('detail-remove').focus();};
+for(const button of $('remove-reasons').querySelectorAll('[data-reason]'))button.onclick=async()=>{
  const item=view.items.find(i=>i.id===current);if(!item)return;
- $('remove').close();
- await act({action:'remove',item_id:item.id,reason:button.dataset.reason},{done:()=>{$('detail').close();toast(`Removed ${name(item)}.`,{action:'restore',item_id:item.id});}});
+ const chips=$('remove-reasons').querySelectorAll('[data-reason]');
+ for(const chip of chips)chip.disabled=true;
+ const ok=await act({action:'remove',item_id:item.id,reason:button.dataset.reason},{done:()=>{$('detail').close();toast(`Removed ${name(item)}.`,{action:'restore',item_id:item.id});}});
+ if(!ok)for(const chip of chips)chip.disabled=false;
 };
 $('fix-form').onsubmit=async event=>{
  event.preventDefault();
