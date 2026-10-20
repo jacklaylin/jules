@@ -14,7 +14,7 @@ const order={id:'gid://shop/Order/1',created_at:'2026-05-01T00:00:00Z',shop:{nam
 const ctx=(data,extra={})=>({data,state:emptyReceiptState('owner'),pending:[],owner:'owner',env,...extra});
 
 test('history origins come from the registered sources, and Gmail evidence keeps its existing IDs',()=>{
-  assert.deepEqual(HISTORY_ORIGINS,['gmail','shop','chat_screenshot']);assert.equal(CONNECTED_SOURCES.shop,SHOP_SOURCE);
+  assert.deepEqual(HISTORY_ORIGINS,['gmail','shop','chat_screenshot','wishlist_purchase']);assert.equal(CONNECTED_SOURCES.shop,SHOP_SOURCE);
   const record={event_id:'m1:0',source_id:'m1',evidence:'quote'};
   assert.deepEqual(purchaseEvidence(record,'model:x'),{id:'gmail:m1:0',kind:'purchase_event',origin:'gmail',source:{type:'gmail_message',id:'m1',quote:'quote'},data:record,recorded_by:'model:x'});
   assert.equal(sourceEvidence('shop','shop_order',record).id,'shop:m1:0');

@@ -244,7 +244,10 @@ function openDetail(id){
  $('detail-brand').textContent=item.brand??'';$('detail-title').textContent=name(item);
  const facts=[['Category',CATEGORY_LABELS[item.category]??'Not sorted yet'],['Size',item.size??'Unknown'],['Color',item.color??'Unknown'],['Bought',[item.merchant,item.bought_at&&day(item.bought_at)].filter(Boolean).join(' · ')||'Unknown'],
   // A configured product lists the parts chosen for it (the strap and carabiners of a built bag).
-  ...(item.parts?.length?[['Built with',item.parts.map(p=>[p.product,p.color].filter(Boolean).join(', ')).join(' · ')]]:[])];
+  ...(item.parts?.length?[['Built with',item.parts.map(p=>[p.product,p.color].filter(Boolean).join(', ')).join(' · ')]]:[]),
+  // Marked as bought on the wishlist: the price stays unknown until a receipt shows it.
+  ...(item.from_wishlist?[['Came from','Your wishlist']]:[])];
+ $('detail-unbuy').hidden=!item.from_wishlist;
  $('detail-facts').replaceChildren(...facts.flatMap(([k,v])=>[el('dt',{},k),el('dd',{},v)]));
  const ask=$('detail-ask');
  if(view.text_url){ask.hidden=false;ask.href=`${view.text_url}&body=${encodeURIComponent(`what goes with my ${[item.brand,item.product].filter(Boolean).join(' ').toLowerCase()||'this'}?`)}`;}
@@ -270,6 +273,19 @@ function openFix(item){
 
 $('detail-close').onclick=()=>$('detail').close();
 $('detail-fix').onclick=()=>{const item=view.items.find(i=>i.id===current);if(item)openFix(item);};
+// A purchase marked on the wishlist goes back there: the wishlist undoes the mark and this purchase.
+$('detail-unbuy').onclick=async()=>{
+ const item=view.items.find(i=>i.id===current);if(!item?.from_wishlist)return;
+ const button=$('detail-unbuy');button.disabled=true;
+ try{
+  token=await session.token()||token;
+  const response=await fetch('/api/wishlist',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify({action:'unbought',group:item.from_wishlist}),cache:'no-store'});
+  if(response.status===401)return login();
+  if(!response.ok)throw Error((await response.json().catch(()=>({}))).error||'Couldn’t move it back. Try again.');
+  $('detail').close();toast(`${name(item)} is back on your wishlist.`);await load();
+ }catch(error){toast(error.message);}
+ finally{button.disabled=false;}
+};
 // Focus moves to the first reason only for keyboard users; after a tap it would look pre-selected.
 $('detail-remove').onclick=event=>{showReasons(true);if(event.detail===0)$('remove-reasons').querySelector('[data-reason]').focus();};
 $('remove-cancel').onclick=()=>{showReasons(false);$('detail-remove').focus();};
