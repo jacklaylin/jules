@@ -4,7 +4,7 @@ Tester readiness: [TESTER-READINESS.md](TESTER-READINESS.md) captures the founde
 
 Roadmap update, October 7, 2026: **Milestone 7 (human fallback) is deprioritized and will not be implemented.** Jules must handle the shopping loop without human intervention, using supported results, honest uncertainty, and useful clarification or recovery. The admin remains a testing/debugging tool; no human sourcing queue is planned. See `PRD.md` Section 13 and `MILESTONE-7.md`. Existing manual-review labels and operational recovery notes below describe current implementation behavior, not the target product requirement.
 
-Personal style / starter pack: `/style` adds private uploads, adaptive style cards, confirmation into taste memory, three tones, and story-image export. See [STYLE-MVP.md](STYLE-MVP.md) for the implementation, exact setup, verification, and pending live acceptance. Live at https://jules-gamma.vercel.app/style for invited testers. Production migration, sign-in redirect, and `STYLE_ENABLED` are configured.
+Personal style / starter pack: `/style` adds private uploads, adaptive style cards, confirmation into taste memory, three tones, and story-image export. See [STYLE-MVP.md](STYLE-MVP.md) for the implementation, exact setup, verification, and pending live acceptance. Live at https://textjules.com/style for invited testers. Production migration, sign-in redirect, and `STYLE_ENABLED` are configured.
 
 Owner identification testing without texting: open **Photo identification** (`/admin/identify`) in the admin console. Upload one JPEG/PNG/WebP under 3 MB and enter the original request. Explicit provider-sharing approval is required; OpenAI and SerpApi credits are used. The endpoint runs the existing visual identification code and imports returned findings only into the owner email's existing wishlist membership. It does not send messages or mark replies as sent. Imported source records say “Identification test import”; they are excluded from AI conversation and taste-memory context. Refresh `/wishlist` to inspect results. Missing pieces are reported in the test result rather than populated with invented matches. Repeating the same completed operation repairs imports without rerunning search. An interrupted search stays visibly incomplete and requires a deliberate new test operation to search again. No new keys or migration are needed.
 
@@ -102,7 +102,7 @@ Keep framework preset **Other**, repository root, and default build/output
 settings. Vercel will install the Node dependencies and create `/api/imessage`.
 The production endpoint for this project is:
 
-`https://jules-gamma.vercel.app/api/imessage`
+`https://textjules.com/api/imessage`
 
 Opening it in a browser should return HTTP 405 because it accepts POST.
 The old `/api/sms` endpoint has been removed from this revision.

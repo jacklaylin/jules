@@ -65,6 +65,22 @@ test('a person can fold parts into the product and separate them again',()=>{
  assert.equal(again.items.find(i=>i.id===parts[0]).part_of,null);
 });
 
+test('two lines of one built bag merge even when the read already gave one of them parts',()=>{
+ // The read grouped the strap and carabiners under the bag body, so the order shows two bags.
+ for(const [from,into] of [['Bag Builder - Medium Sling Bag','Build Your Sling Bag'],['Build Your Sling Bag','Bag Builder - Medium Sling Bag']])for(const reason of ['part_of_item','duplicate']){
+  let state=read([null,null,1,1]).state;const id=p=>state.items.find(i=>i.product===p).id;
+  assert.equal(wardrobeView(state).items.length,2);
+  state=applyReceiptFeedback(state,{...reviewEvent('o',{item_ids:[id(from)],reason,target_item_id:id(into),note:null}),at:'2026-10-15T00:00:00Z'});
+  const w=wardrobeView(state);
+  assert.equal(w.items.length,1,`${reason} ${from}`);assert.equal(w.items[0].product,into);
+  // The strap and carabiners move with it; as a part, the merged line is listed too.
+  assert.deepEqual(w.items[0].parts.map(p=>p.product).sort(),['Bag Builder - Carabiners','Bag Builder - Climbing Rope Strap',...(reason==='part_of_item'?[from]:[])].sort());
+  // The person's merge replays from stored evidence the same way.
+  const again=reconcileReceipt(state,email,proposal([null,null,1,1])).state;
+  assert.equal(wardrobeView(again).items.length,1);
+ }
+});
+
 test('questions about parts resolve once they are folded into the product',()=>{
  let state=read([null,null,null,null]).state;const id=bag(state).id,strap=state.items.find(i=>i.color==='Orange Coal').id;
  state=addReceiptQuestions(state,[{item_ids:[strap],topic:'recipient',fields:[],question:'Was the strap for you?',reason:'Recipient unknown.',evidence_ids:['m1']}]);

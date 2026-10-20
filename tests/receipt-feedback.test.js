@@ -23,9 +23,12 @@ test('disputed purchase removes dependent history/learning; explicit restore rem
 test('return correction preserves purchase and never invents refund or disliked size',()=>{
  let s=applyReceiptFeedback(state(),event('1','set_recipient',['a'],{value:'self'}));s=applyReceiptFeedback(s,event('2','report_return'));assert.equal(s.items[0].outcome.refund,'unknown');assert.equal(s.items[0].size_label,'50R');assert.equal(receiptLearningView(s).purchase_history.length,3);assert.equal(receiptLearningView(s).learning_observations[0].explicit_preference,false);
 });
-test('duplicates count once and preserve source evidence; cycle and root redirection rejected',()=>{
+test('duplicates count once and preserve source evidence; a cycle is rejected and a folded root brings its duplicates',()=>{
  let s=applyReceiptFeedback(state(),event('1','mark_duplicate',['b'],{target_item_id:'a'}));assert.equal(receiptLearningView(s).purchase_history.length,2);assert.deepEqual(receiptLearningView(s).purchase_history[0].source_ids,['s1','s2']);
- assert.throws(()=>applyReceiptFeedback(s,event('2','mark_duplicate',['a'],{target_item_id:'b'})));assert.throws(()=>applyReceiptFeedback(s,event('3','mark_duplicate',['a'],{target_item_id:'c'})));
+ assert.throws(()=>applyReceiptFeedback(s,event('2','mark_duplicate',['a'],{target_item_id:'b'})));
+ s=applyReceiptFeedback(s,event('3','mark_duplicate',['a'],{target_item_id:'c'}));
+ assert.deepEqual(s.items.map(i=>i.duplicate_of??null),['c','c',null]);
+ const history=receiptLearningView(s).purchase_history;assert.equal(history.length,1);assert.deepEqual([...history[0].source_ids].sort(),['s1','s2','s3']);
 });
 test('field corrections persist provenance and leave independent fields intact',()=>{
  const s=applyReceiptFeedback(state(),event('1','correct_fields',['a'],{values:{brand:'New brand',quantity:2}}));assert.equal(s.items[0].brand,'New brand');assert.equal(s.items[0].size_label,'50R');assert.equal(s.items[0].original.brand,'Example');assert.equal(s.feedback.length,1);

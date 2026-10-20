@@ -105,8 +105,8 @@ function toast(text,action=null){
 }
 
 // One wardrobe action, then the fresh view from the server.
-async function act(input,{done}={}){
- try{view=await api('POST',input);render();done?.();return true;}
+async function act(input,{done,quiet=false}={}){
+ try{view=await api('POST',input,{quiet});render();done?.();return true;}
  catch(error){if(error.status===401)login();toast(error.message);return false;}
 }
 
@@ -178,7 +178,15 @@ function openDetail(id){
  $('detail-facts').replaceChildren(...facts.flatMap(([k,v])=>[el('dt',{},k),el('dd',{},v)]));
  const ask=$('detail-ask');
  if(view.text_url){ask.hidden=false;ask.href=`${view.text_url}&body=${encodeURIComponent(`what goes with my ${[item.brand,item.product].filter(Boolean).join(' ').toLowerCase()||'this'}?`)}`;}
+ showReasons(false);
  $('detail').showModal();
+}
+
+// Remove opens its reasons in place: the Remove row gives way to a short row of reason chips.
+function showReasons(open){
+ $('detail-remove').hidden=open;$('detail-remove').setAttribute('aria-expanded',String(open));
+ $('remove-reasons').hidden=!open;
+ for(const chip of $('remove-reasons').querySelectorAll('[data-reason]'))chip.disabled=false,chip.classList.remove('chip--on');
 }
 
 function openFix(item){
@@ -189,11 +197,17 @@ function openFix(item){
 
 $('detail-close').onclick=()=>$('detail').close();
 $('detail-fix').onclick=()=>{const item=view.items.find(i=>i.id===current);if(item)openFix(item);};
-$('detail-remove').onclick=()=>$('remove').showModal();
-for(const button of $('remove').querySelectorAll('[data-reason]'))button.onclick=async()=>{
+// Focus moves to the first reason only for keyboard users; after a tap it would look pre-selected.
+$('detail-remove').onclick=event=>{showReasons(true);if(event.detail===0)$('remove-reasons').querySelector('[data-reason]').focus();};
+$('remove-cancel').onclick=()=>{showReasons(false);$('detail-remove').focus();};
+for(const button of $('remove-reasons').querySelectorAll('[data-reason]'))button.onclick=async()=>{
  const item=view.items.find(i=>i.id===current);if(!item)return;
- $('remove').close();
- await act({action:'remove',item_id:item.id,reason:button.dataset.reason},{done:()=>{$('detail').close();toast(`Removed ${name(item)}.`,{action:'restore',item_id:item.id});}});
+ const chips=$('remove-reasons').querySelectorAll('[data-reason]');
+ for(const chip of chips)chip.disabled=true;
+ button.classList.add('chip--on');
+ // Quiet: the filled chip shows the save; the page's activity panel would sit behind the open dialog.
+ const ok=await act({action:'remove',item_id:item.id,reason:button.dataset.reason},{quiet:true,done:()=>{$('detail').close();toast(`Removed ${name(item)}.`,{action:'restore',item_id:item.id});}});
+ if(!ok){for(const chip of chips)chip.disabled=false;button.classList.remove('chip--on');}
 };
 $('fix-form').onsubmit=async event=>{
  event.preventDefault();
