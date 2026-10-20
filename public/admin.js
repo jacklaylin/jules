@@ -31,7 +31,7 @@ function render() {
         el('span', { className: 'muted person-phone-sub', textContent: person.sender_id })),
       el('span', { className: 'person-phone', textContent: person.sender_id }),
       person.access ? statusControl(person) : el('span', { className: 'muted', textContent: '—' }),
-      el('span', { className: 'muted', textContent: person.source ?? 'Direct', title: person.source ? `Signed up from a ?ref=${person.source} link` : 'No source on their signup link' }),
+      sourceCell(person),
       el('span', { className: 'muted', textContent: ago(person.updated_at), title: exact(person.updated_at) }),
       el('a', { className: 'end', href, tabIndex: -1, ariaHidden: 'true', textContent: 'Open →' }));
   }));
@@ -43,6 +43,13 @@ function render() {
 
 // ---------- Waitlist status ----------
 // A compact select per row; a change asks for confirmation (approving texts them) before anything is saved.
+// Where a signup came from: the ?ref= code, or the person whose shared style report they signed up from.
+function sourceCell(person) {
+  const by = person.referred_by;
+  if (by) return el('a', { className: 'muted', href: `/admin/people/${by.id}`, textContent: `${by.name ?? 'A tester'}’s report`, title: `Signed up from ${by.name ?? 'a tester'}’s shared style report` });
+  return el('span', { className: 'muted', textContent: person.source ?? 'Direct', title: person.source ? `Signed up from a ?ref=${person.source} link` : 'No source on their signup link' });
+}
+
 function statusControl(person) {
   const select = el('select', { className: 'dv-select', ariaLabel: `Waitlist status for ${person.name ?? person.sender_id}` },
     el('option', { value: 'waitlisted', textContent: 'Waitlisted' }), el('option', { value: 'approved', textContent: 'Approved' }));
@@ -75,7 +82,7 @@ $('access-confirm').onclick = async () => {
 
 async function load() {
   loading = true; failed = ''; render();
-  try { const data = await adminJson('/api/admin'); people = data.conversations; waitlist = { allowance: data.waitlist_replies ?? 3, approvalText: data.approval_text ?? null }; refreshedAt = Date.now(); }
+  try { const data = await adminJson('/api/admin'); people = data.conversations; waitlist = { allowance: data.waitlist_replies ?? 3, approvalText: data.approval_text ?? null, approvalAccount: data.approval_account === true }; refreshedAt = Date.now(); }
   catch (error) { failed = `Could not load people: ${error.message} Try Refresh in More.`; }
   finally { loading = false; render(); }
 }

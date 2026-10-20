@@ -9,20 +9,27 @@ export function filterPeople(people, query = '', access = '') {
 }
 
 // What a status change will do, in plain words for the confirmation dialog. allowance is the
-// waitlist reply limit; approvalText is the text Jules sends on approval (null when nothing is sent).
-export function accessChange(person, to, { allowance, approvalText }) {
-  if (to === 'approved') return { title: 'Approve from the waitlist?', confirm: 'Approve',
-    lines: ['They get full Jules from their next message, with no reply limit.', approvalText ? `Jules texts them once: “${approvalText}”` : 'No text is sent, because the waitlist is turned off.'] };
+// waitlist reply limit; approvalText is the text Jules sends on approval (null when nothing is sent);
+// approvalAccount means approving also sets up their account (self-serve onboarding).
+export function accessChange(person, to, { allowance, approvalText, approvalAccount = false }) {
+  if (to === 'approved') return { title: 'Approve from the waitlist?', confirm: 'Approve', lines: approvalLines(approvalText, approvalAccount) };
   const used = Math.min(person.waitlist_replies ?? 0, allowance), left = allowance - used;
   return { title: 'Move back to the waitlist?', confirm: 'Move to waitlist',
     lines: [`They have used ${used} of ${allowance} waitlist replies, so their next message gets ${left ? `${left} more ${left === 1 ? 'reply' : 'replies'} from Jules` : 'the waitlist text instead of a reply'}.`, 'Nothing is sent now. Approving them again later does not resend the spot-opened text.'] };
 }
 
+export function approvalLines(approvalText, approvalAccount = false) {
+  return ['They get full Jules from their next message, with no reply limit.',
+    ...(approvalAccount ? ['Jules sets up their account, so they can sign in with their phone number and connect Gmail. Anyone you already set up keeps their account.'] : []),
+    approvalText ? `Jules texts them once: “${approvalText}”${approvalAccount ? ' Someone who already finished onboarding gets the plain spot-opened text instead.' : ''}` : 'No text is sent, because the waitlist is turned off.'];
+}
+
 // The result of a status change for the status line.
-export function accessResult(to, { changed, text }) {
+export function accessResult(to, { changed, text, account = null }) {
   if (!changed) return 'Nothing changed: their status was already updated.';
   if (to === 'waitlisted') return 'Moved back to the waitlist. Nothing was sent.';
-  return `Approved. ${{ sent: 'Jules texted them that their spot opened.', already_sent: 'They already got the spot-opened text earlier, so nothing new was sent.', blocked: 'No text sent: they replied STOP.', uncertain: 'The text may not have been delivered; check their Conversation tab before resending anything.' }[text] ?? 'No text was sent.'}`;
+  const setup = { created: 'Account set up. ', failed: 'Their account could not be set up, so they got the plain text and can still chat; check the logs for account_setup_failed. ' }[account] ?? '';
+  return `Approved. ${setup}${{ sent: 'Jules texted them that their spot opened.', already_sent: 'They already got this text earlier, so nothing new was sent.', blocked: 'No text sent: they replied STOP.', uncertain: 'The text may not have been delivered; check their Conversation tab before resending anything.' }[text] ?? 'No text was sent.'}`;
 }
 
 // The waitlist filter's segments with counts; none when no status could be read (db/035 not run).

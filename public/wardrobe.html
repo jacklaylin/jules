@@ -3,10 +3,10 @@
 <body class="wardrobe-page"><header class="app-header"></header><main>
 <section id="login" hidden><p class="eyebrow">YOUR PERSONAL SHOPPER</p><h1>Everything<br>you own.</h1><a class="btn btn--butter" href="/login?next=wardrobe">Log in with your phone ↗</a></section>
 <section id="wardrobe" hidden>
-<div class="app-heading collection-heading"><h1>Wardrobe</h1><span id="count" class="label"></span></div>
+<div class="app-heading collection-heading"><h1>Wardrobe</h1></div>
 <div id="reading" class="wardrobe-reading" role="status" hidden><span class="orb" aria-hidden="true"></span><p id="reading-text">Reading your receipts</p><div class="aqua" aria-hidden="true"></div></div>
 <section id="questions" class="wardrobe-questions" aria-labelledby="questions-title" hidden><h2 id="questions-title" class="wardrobe-h3"></h2><div id="question-list" class="question-list"></div></section>
-<div id="toolbar" class="wardrobe-toolbar" hidden><div id="categories" class="wardrobe-chips" role="group" aria-label="Category"></div><button id="add" type="button" class="btn btn--butter">Add item</button></div>
+<div id="toolbar" class="filter-bar" hidden><div id="categories" class="filter-chips" role="group" aria-label="Category"></div><span id="count" class="filter-count" role="status"></span><button id="add" type="button" class="btn btn--butter">Add item</button></div>
 <div id="grid" class="product-grid" aria-live="polite"></div>
 <div id="empty" class="wardrobe-empty" hidden><p>Connect your receipts or text Jules an order screenshot.</p><div class="wardrobe-empty-actions"><a class="btn btn--butter" href="/account#gmail-card">Connect Gmail</a><a class="btn" href="/account#shop-card">Connect Shop</a><a class="btn text-jules" hidden>Text Jules a screenshot</a></div></div>
 <p class="wardrobe-removed-link"><button id="removed-open" type="button" hidden></button></p>
@@ -18,7 +18,7 @@
 <div class="detail-body"><div id="detail-photo" class="photo outline-photo"></div>
 <div class="detail-info"><span id="detail-brand" class="label"></span><h2 id="detail-title"></h2>
 <dl id="detail-facts" class="detail-facts"></dl>
-<div class="detail-actions"><a id="detail-ask" class="btn btn--butter text-jules" hidden>What goes with this?</a><div class="detail-fixes"><button id="detail-fix" type="button" class="btn">Fix details</button><button id="detail-remove" type="button" class="btn">Remove</button></div></div>
+<div class="detail-actions"><a id="detail-ask" class="btn btn--butter text-jules" hidden>What goes with this?</a><div class="action-rows"><button id="detail-fix" type="button" class="action-row"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg><span>Fix details</span></button><button id="detail-remove" type="button" class="action-row"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg><span>Remove</span></button></div></div>
 </div></div>
 </dialog>
 

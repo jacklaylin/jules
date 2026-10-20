@@ -48,7 +48,7 @@ test('eval scoring follows the loop: refused calls and the closing message do no
   const unverified=AGENT_EVAL_CASES.find(x=>x.id==='save-unverified-result');let requests=0;
   const report=await runAgentEval(unverified,{OPENAI_API_KEY:'test'},{fetcher:async(_url,options)=>{
     const body=JSON.parse(options.body);
-    if(body.text?.format?.name==='consent')return {ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:'{"authorizes":true}'}]}]})};
+    if(body.text?.format?.name==='consent')return {ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:'{"newest_message_asks_for":["save_or_add_to_list","watch_price"],"newest_message_answers":"nothing_in_particular","asks_itself":true,"authorizes":true}'}]}]})};
     if(body.text?.format?.name==='profile_check')return {ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:'{"changes":[]}'}]}]})};
     if(body.text?.format?.name==='quality')return {ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:'{"verdict":"fine","kind":null,"about":null,"summary":null}'}]}]})};
     requests++;assert.equal(agentContext(options).pending_shopping.options[0].reference_provenance,'search_unverified');

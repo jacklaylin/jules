@@ -137,11 +137,12 @@ test('a follow-up still being written when the result is ready is dropped, never
 });
 
 test('a follow-up already being sent finishes before the result goes out', async () => {
-  const order = [], delivering = gate();
+  const order = [], delivering = gate(), sending = gate();
   const updates = searchUpdates({ followupAfterMs: 5, writeFollowup: async () => 'Still looking.',
-    deliver: async (kind, body) => { if (kind === 'followup') await delivering.opened; order.push(body); return { status: 'sent' }; } });
+    deliver: async (kind, body) => { if (kind === 'followup') { sending.open(); await delivering.opened; } order.push(body); return { status: 'sent' }; } });
   await updates.begin({ acknowledgment: 'On it.' });
-  await tick(20);
+  // Wait for the follow-up to be mid-send, not a fixed delay: a slow CI runner may not have fired its timer yet.
+  await sending.opened;
   const finishing = updates.finish().then(() => order.push('Result'));
   await tick(5); delivering.open(); await finishing;
   assert.deepEqual(order, ['On it.', 'Still looking.', 'Result']);

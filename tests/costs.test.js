@@ -58,13 +58,13 @@ test('OpenAI billed zero on an old day is trusted, not replaced by an estimate',
 });
 
 test('OpenAI without billing falls back to labeled estimates; unknown models are unpriced, not $0',()=>{
- const metered=[{day:'2026-10-02',feature:'style_report',provider:'openai',model:'gpt-5.5',calls:3,input_tokens:1000,cached_tokens:0,output_tokens:500,web_search_calls:0},
+ const metered=[{day:'2026-10-02',feature:'style_report',provider:'openai',model:'gpt-9',calls:3,input_tokens:1000,cached_tokens:0,output_tokens:500,web_search_calls:0},
   {day:'2026-10-02',feature:'chat',provider:'openai',model:'gpt-4.1-mini',calls:1,input_tokens:1e6,cached_tokens:0,output_tokens:0,web_search_calls:0}];
  const report=buildReport({date:'2026-10-02',entries:[],providers:noBilling,metered});
  const openai=row(report,'openai');
- close(openai.today,.4);assert.equal(openai.basis,'estimate');assert.ok(openai.notes.some(n=>n.includes('gpt-5.5')));
+ close(openai.today,.4);assert.equal(openai.basis,'estimate');assert.ok(openai.notes.some(n=>n.includes('gpt-9')));
  const style=report.features.features.find(f=>f.feature==='style_report');assert.equal(style.unpriced,true);assert.equal(style.aiCalls,3);assert.equal(style.month,0);
- assert.deepEqual(report.features.unpriced,['gpt-5.5']);
+ assert.deepEqual(report.features.unpriced,['gpt-9']);
 });
 
 test('SerpApi: plan price is the billed cost and prices each search as a plan share',()=>{

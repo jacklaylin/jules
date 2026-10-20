@@ -2,7 +2,7 @@
 // month by default (to date, or the whole month once it is over) with a projection; Day is an option. Pure functions so the wording (billed, estimated, manual or
 // unknown) is testable without a browser.
 
-export const VIEWS = [['', 'By service'], ['features', 'By feature'], ['jobs', 'Recurring jobs'], ['evals', 'Evals']];
+export const VIEWS = [['', 'By service'], ['features', 'By feature'], ['people', 'By person'], ['jobs', 'Recurring jobs'], ['evals', 'Evals']];
 export const viewOf = search => { const view = new URLSearchParams(search).get('view') ?? ''; return VIEWS.some(([v]) => v === view) ? view : ''; };
 
 export const PERIODS = [['month', 'Month'], ['day', 'Day']];
@@ -123,4 +123,27 @@ export function jobsText(data, period = 'month') {
 export function entryBody({ kind, service, date, amount, note }) {
   // A job budget's service is the job ('job:<id>'), chosen from the same list.
   return { service: kind === 'budget' ? 'openai' : service, kind, date: kind === 'usage' ? date : `${date.slice(0, 7)}-01`, amount: Number(amount), note };
+}
+
+// Spending caps (lib/cost-caps.js, COST-CAPS.md): the status line and the By person rows. Spend is the metered
+// estimate for today and this month (UTC), whatever date is picked; caps are off until set in Vercel.
+const capOf = (spent, limit) => limit === null || limit === undefined ? `${money(spent)}` : `${money(spent)} of ${money(limit)}`;
+export function capsText(data) {
+  const s = data?.spending;
+  if (!s) return { text: data ? 'Spending caps: spend per person is unavailable. If db/036_cost_caps.sql has not been run in Supabase, run it.' : '', over: false };
+  if (!s.on) return { text: 'Spending caps are off.', over: false };
+  const g = s.global, parts = [];
+  if (g.limits.day !== null) parts.push(`today ${capOf(g.day, g.limits.day)}`);
+  if (g.limits.month !== null) parts.push(`this month ${capOf(g.month, g.limits.month)}`);
+  const capped = s.people.filter(p => p.capped).length;
+  return { text: [g.capped ? `Global cap reached: Jules is paused for everyone until ${resetLabel(g.capped.resets_at)}` : parts.length ? `Global cap: ${parts.join(', ')}` : '',
+    capped ? `${capped} ${capped === 1 ? 'person is' : 'people are'} at their cap` : ''].filter(Boolean).join(' · ') + '.', over: Boolean(g.capped || capped) };
+}
+const resetLabel = at => new Date(at).toLocaleString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) + ' UTC';
+export function personRows(spending) {
+  return (spending?.people ?? []).map(p => ({ id: p.conversation_id, name: p.name ?? p.sender_id ?? 'Unknown person', sub: p.name ? p.sender_id ?? '' : '',
+    today: capOf(p.today, p.limits.day), month: capOf(p.month, p.limits.month),
+    ...(p.capped ? { status: `Capped until ${resetLabel(p.capped.resets_at)}`, badge: 'fail' }
+      : p.limits.day === null && p.limits.month === null ? { status: 'No cap', badge: 'plain' }
+      : Math.max(p.limits.day ? p.today / p.limits.day : 0, p.limits.month ? p.month / p.limits.month : 0) >= 0.8 ? { status: 'Near cap', badge: 'warn' } : { status: 'Under cap', badge: 'ok' }) }));
 }

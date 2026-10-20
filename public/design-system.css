@@ -124,6 +124,8 @@ a.btn:hover { color: var(--ink); } a.btn--ink:hover, a.btn--grape:hover { color:
 .action-row[hidden] { display: none; }
 .action-row::after { display: none; }
 .action-row > span:first-child { flex: 1; }
+.action-row > svg { flex: none; }
+.action-row > svg + span { flex: 1; }
 .action-row__go { color: var(--text-2); }
 @media (hover: hover) and (pointer: fine) { .action-row:not(:disabled):hover { transform: none; color: var(--grape); } }
 .action-row:focus-visible { outline: 3px solid var(--grape); outline-offset: -3px; }
@@ -439,3 +441,21 @@ button.quiet{border-color:transparent;box-shadow:none;background:transparent;col
 .toast:not([hidden]){display:flex;align-items:center;gap:16px}
 .toast .undo-remove{flex:none;min-height:36px;padding:6px 16px;font-size:13px;text-decoration:none}
 @media(forced-colors:active){.alert-toggle[aria-pressed=true]{outline:2px solid Highlight}.toast{border:1px solid CanvasText}}
+
+/* Collection filter row (wishlist, wardrobe): one-select chips with counts, the item count, then an optional page action. */
+.collection-heading:has(+ .filter-bar){margin-bottom:24px}
+.filter-bar{display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;margin-bottom:36px}
+.filter-chips{display:flex;flex-wrap:wrap;gap:8px}
+.filter-chips:empty{display:none}
+.filter-bar .filter-count{margin-left:auto}
+.chip-count{margin-left:8px;font:500 11px/1 var(--font-mono);letter-spacing:.04em;color:var(--text-2)}
+.chip--on .chip-count{color:inherit;opacity:.8}
+/* Phones: one row. Chips scroll sideways, fading out beside the count. */
+@media(max-width:800px){
+.collection-heading:has(+ .filter-bar){margin-bottom:16px}
+.filter-bar{flex-wrap:nowrap;align-items:center;gap:8px;margin-bottom:20px}
+.filter-chips{flex:1;min-width:0;flex-wrap:nowrap;gap:6px;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;margin-left:calc(var(--page-gutter) * -1);padding:6px 16px 6px var(--page-gutter);scrollbar-width:none;mask-image:linear-gradient(to right,#000 calc(100% - 20px),transparent)}
+.filter-chips::-webkit-scrollbar{display:none}
+.filter-chips .chip{flex:none;min-height:38px;padding:0 14px;font-size:13px}
+.filter-bar .filter-count{flex:none}
+}
