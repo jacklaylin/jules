@@ -16,7 +16,7 @@ if(fragment.has('access_token')){token=fragment.get('access_token');session.save
 if(location.hash)history.replaceState(null,'','/wishlist'+location.search);
 rememberWishlistTarget(location.search,localStorage);
 const message=text=>{$('notice').textContent=text;};
-function clear(){generation++;detailVersion++;urls.forEach(URL.revokeObjectURL);urls.clear();imageCache.clear();itemCache.clear();$('grid').replaceChildren();$('detail-content').replaceChildren();$('detail').close();$('alert-picker').close();$('bought-picker').close();alertSelection=null;boughtItem=null;}
+function clear(){generation++;detailVersion++;urls.forEach(URL.revokeObjectURL);urls.clear();imageCache.clear();itemCache.clear();$('grid').replaceChildren();$('detail-content').replaceChildren();$('detail').close();$('alert-picker').close();alertSelection=null;}
 function login(){clear();token=null;enableAdminLink(null);session.clear();sessionStorage.removeItem('jules_wishlist_token');$('login').hidden=false;$('collection').hidden=true;}
 async function authorizedFetch(query='',options={}){
  const {quiet=false,...requestOptions}=options;
@@ -209,11 +209,16 @@ function toast(text,undo,extra){
 }
 function removeButton(item,card){
  const button=node('button','×','icon-button remove-item');button.type='button';button.setAttribute('aria-label',`Remove ${item.name} from wishlist`);button.title='Remove from wishlist';
- button.onclick=async()=>{button.disabled=true;try{await alertPost({action:'remove',group:item.id});if(card)await removeWithMotion(card);itemCache.delete(item.id);applyFilter();
-   // Someone who bought it often just removes it: one tap records the purchase instead (store and size unknown).
-   toast(item.price_alert?.active?'Removed. Alert turned off.':'Removed from your wishlist.',async()=>{await alertPost({action:'restore',group:item.id});await load();},
-    item.bought?null:{label:'I bought it',run:()=>markBought(item,{via:'remove_toast'})});const next=$('grid').querySelector('.product-card:not([hidden]) .tile');if(next)next.focus();}catch(e){message(e.message);button.disabled=false;}};
+ button.onclick=async()=>{button.disabled=true;try{await removeItem(item,card);}catch(e){message(e.message);button.disabled=false;}};
  return button;
+}
+// One removal for the card's × and the detail's Remove row.
+async function removeItem(item,card=[...$('grid').children].find(c=>c.dataset.group===item.id)){
+ await alertPost({action:'remove',group:item.id});if(card)await removeWithMotion(card);itemCache.delete(item.id);applyFilter();
+ // Someone who bought it often just removes it: one tap records the purchase instead (store and size unknown).
+ toast(item.price_alert?.active?'Removed. Alert turned off.':'Removed from your wishlist.',async()=>{await alertPost({action:'restore',group:item.id});await load();},
+  item.bought?null:{label:'I bought it',run:()=>markBought(item,{via:'remove_toast'})});
+ const next=$('grid').querySelector('.product-card:not([hidden]) .tile');if(next)next.focus();
 }
 // "I bought this" (lib/wishlist-purchases.js): the item moves to Bought, its alert stops and it joins the wardrobe.
 const boughtLine=bought=>['Bought '+date(bought.at),bought.store].filter(Boolean).join(' · ');
@@ -221,35 +226,44 @@ const SVG='<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="c
 function actionRow(label,icon,onclick){
  const row=node('button',null,'action-row');row.type='button';row.insertAdjacentHTML('afterbegin',SVG+icon+'</svg>');row.append(node('span',label));row.onclick=onclick;return row;
 }
+// Choices open in place (DESIGN-SYSTEM.md): "I bought this" turns into "Where did you get it?" with a round ×
+// and one line of store chips. One tap records the purchase; Undo comes from the toast.
+const BAG='<path d="M5 8h14l-1.2 12H6.2z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/><path d="M9.5 14l2 2 3.5-3.5"/>';
+const BIN='<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>';
+function removeRow(item){
+ return actionRow('Remove from wishlist',BIN,async event=>{const button=event.currentTarget;button.disabled=true;try{closeDialog($('detail'));await removeItem(item);}catch(e){message(e.message);button.disabled=false;}});
+}
 function purchaseActions(item){
  const rows=node('div',null,'action-rows');
  if(item.bought){
   rows.append(actionRow('Not bought? Move it back','<path d="M4 12a8 8 0 1 0 2.3-5.6"/><path d="M4 4v4h4"/>',async event=>{const button=event.currentTarget;button.disabled=true;try{await unmarkBought(item);closeDialog($('detail'));}catch(e){message(e.message);button.disabled=false;}}));
+  rows.append(removeRow(item));
   return [node('p',boughtLine(item.bought)+'. It’s in your wardrobe too.','bought-line'),rows];
  }
- rows.append(actionRow('I bought this','<path d="M5 8h14l-1.2 12H6.2z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/><path d="M9.5 14l2 2 3.5-3.5"/>',()=>openBought(item)));
+ const ask=node('div',null,'row-ask');ask.hidden=true;ask.setAttribute('role','group');
+ const head=node('div',null,'row-ask__head');head.insertAdjacentHTML('afterbegin',SVG+BAG+'</svg>');
+ const title=node('span','Where did you get it?');title.id='bought-title';ask.setAttribute('aria-labelledby','bought-title');
+ const cancel=node('button',null,'row-ask__cancel');cancel.type='button';cancel.setAttribute('aria-label','Cancel marking as bought');cancel.insertAdjacentHTML('afterbegin','<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>');
+ head.append(title,cancel);
+ // The stores Jules found it at, then anywhere else (the store stays unknown; Fix details in the wardrobe can add it).
+ const stores=[...new Set((item.links??[]).map(l=>l.retailer).filter(Boolean))];
+ const chips=node('div',null,'row-ask__chips');
+ const open=show=>{row.hidden=show;ask.hidden=!show;for(const chip of chips.children){chip.disabled=false;chip.classList.remove('chip--on');}};
+ for(const [label,store] of [...stores.map(s=>[s,s]),['Somewhere else',null]]){
+  const chip=node('button',label,'chip');chip.type='button';
+  chip.onclick=async()=>{
+   for(const c of chips.children)c.disabled=true;chip.classList.add('chip--on');
+   try{await markBought(item,{store});closeDialog($('detail'));}
+   catch(e){message(e.message);open(true);}
+  };
+  chips.append(chip);
+ }
+ ask.append(head,chips);
+ const row=actionRow('I bought this',BAG,event=>{open(true);if(event.detail===0)chips.firstChild?.focus();});
+ cancel.onclick=()=>{open(false);row.focus();};
+ rows.append(row,ask,removeRow(item));
  return [rows];
 }
-let boughtItem=null;
-function openBought(item){
- boughtItem=item;$('bought-note').textContent='';$('bought-save').disabled=false;
- $('bought-intro').textContent=`${item.name} moves to Bought and your wardrobe${item.price_alert?.active?', and its price alert stops':''}.`;
- const stores=[...new Set((item.links??[]).map(l=>l.retailer).filter(Boolean))];
- const choice=(value,label)=>{const box=node('label');const input=node('input');input.type='radio';input.name='bought-store';input.value=value;input.onchange=()=>{$('bought-other-label').hidden=value!=='other';if(value==='other')$('bought-other').focus();};box.append(input,document.createTextNode(label));return box;};
- $('bought-stores').replaceChildren(node('legend','Store'),...stores.map(s=>choice(s,s)),choice('other','Somewhere else'));
- $('bought-other').value='';$('bought-other-label').hidden=true;
- $('bought-size').value=item.price_alert?.size??'';
- $('bought-picker').showModal();
-}
-$('bought-close').onclick=()=>closeDialog($('bought-picker'));
-$('bought-form').onsubmit=async event=>{
- event.preventDefault();if(!boughtItem)return;
- const picked=$('bought-form').elements['bought-store']?.value??'';
- const store=picked==='other'?$('bought-other').value:picked;
- $('bought-save').disabled=true;
- try{await markBought(boughtItem,{store,size:$('bought-size').value});closeDialog($('bought-picker'));closeDialog($('detail'));}
- catch(e){$('bought-note').textContent=e.message;$('bought-save').disabled=false;}
-};
 async function markBought(item,{store=null,size=null,via='wishlist_page'}={}){
  const hadAlert=Boolean(item.price_alert?.active);
  const data=await alertPost({action:'bought',group:item.id,store:store||null,size:size||null,via});
