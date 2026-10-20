@@ -115,7 +115,7 @@ async function openMessage(id) {
 }
 
 // ---------- Personal memory ----------
-const TYPES = { gender: 'gender', shopping_range: 'clothing range', size: 'size', brand: 'brand', category: 'category', style: 'style', budget: 'budget' };
+const TYPES = { gender: 'gender', shopping_range: 'clothing range', size: 'size', brand: 'brand', category: 'category', style: 'style', budget: 'budget', spending: 'spending' };
 let profileVersion = 0, facts = [], profileBusy = false, typeFilter = '';
 const dirty = new Map(), factKey = fact => `${fact.field}|${fact.key}`;
 // Same shape check as lib/relevance.js sizeKeyShape: a size key is category/system[/brand].

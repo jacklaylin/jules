@@ -88,6 +88,16 @@ test('supported official stores verify individual products while collection page
   assert.equal((await verifyListing('https://'+domain+'/collections/footwear',name,async()=>html({'@type':'CollectionPage',name,mainEntity:product}))).status,'not_product');
  }
 });
+test('a collection URL is a category page even when the store blocks our read or its page carries one Product',async()=>{
+ // October 19: a blocked Fashion Nova /collections/ page came back as a verified option.
+ for(const url of ['https://www.fashionnova.com/collections/going-out-tops','https://store.example/en-us/collections/tops?page=2']){
+  const value=await verifyListing(url,null,()=>assert.fail('a collection page is not fetched'));
+  assert.equal(value.status,'not_product');assert.equal(value.reason,'category_page');
+ }
+ // A product inside a collection keeps its /products/ path and is still checked.
+ const scoped='https://store.example/collections/tops/products/example-model';
+ assert.equal((await verifyListing(scoped,name,async()=>html({...product,url:scoped}))).status,'verified');
+});
 test('no-store replies show the source link with one plain reason and a supported next step, without check vocabulary',async()=>{
  const {formatSearch}=await import('../lib/search.js');
  // A merchant page that failed checks does not discredit a different identity source.

@@ -60,6 +60,38 @@ test('a judged brand absent from the listing’s own text is not attached',async
  assert.equal(result.products[0].listing_check.product_brand,null);
 });
 
+test('category, collection and article pages are never options, even when the store blocks our read (October 19 replay)',async()=>{
+ // The replayed discovery brief returned these three as verified likely matches with no prices.
+ const uo='https://www.urbanoutfitters.com/womens-going-out-tops',nova='https://www.fashionnova.com/collections/going-out-tops',instyle='https://www.instyle.com/going-out-tops-8675309',top='https://www.anine-bing.example/products/blanca-top-black';
+ const organic=[{link:uo,title:"Women's Going Out Tops | Urban Outfitters"},{link:nova,title:'Going Out Tops for Women | Fashion Nova'},{link:instyle,title:'The 20 Best Going-Out Tops of 2026'}];
+ const shopping=[{link:top,title:'Anine Bing Blanca Top Black',extracted_price:180,price:'$180.00'}];
+ const seen=[];
+ const judge=async(b,c)=>{seen.push(...c.map(x=>x.check.product_name));return c.map(x=>x.check.product_name.includes('Blanca')?{match:'meets_brief',brand:'Anine Bing'}:{match:'not_a_product',brand:''});};
+ const result=await exactSearch("women's going-out tops, minimal luxe",env,serp({organic,shopping}),{},async url=>url===instyle?page(url,'The 20 Best Going-Out Tops of 2026','',{price_snapshot:null}):url===top?page(url,'Blanca Top','Anine Bing'):{status:'check_failed'},{judge,expand:async()=>[]});
+ assert.deepEqual(result.products.map(p=>p.url),[top]);
+ // The blocked collection page is not recovered from its search title, so it is never even judged.
+ assert.ok(!seen.some(n=>/Fashion Nova/.test(n)));
+ const why=Object.fromEntries(result.rejections.filter(r=>r.stage!=='result').map(r=>[r.url,r.reason]));
+ assert.equal(why[uo],'not_a_product');assert.equal(why[instyle],'not_a_product');assert.equal(why[nova],'check_failed');
+ // With nothing else found, none of them is kept as an unread candidate either.
+ const alone=await exactSearch("women's going-out tops",env,serp({organic:[{link:nova,title:"Women's Going Out Tops | Fashion Nova"}]}),{},async()=>({status:'check_failed'}),{judge,expand:async()=>[]});
+ assert.equal(alone.products.length,0);
+});
+
+test('a blocked collection-format URL with an indexed price is one offer, and is still recovered',async()=>{
+ const url='https://www.store.example/shop/blanca-top-black';
+ const result=await exactSearch('Anine Bing Blanca top',env,serp({shopping:[{link:url,title:'Anine Bing Blanca Top',extracted_price:180,price:'$180.00'}]}),{},async()=>({status:'check_failed'}),{judge:async(b,c)=>c.map(()=>({match:'exact',brand:'Anine Bing'})),expand:async()=>[]});
+ assert.equal(result.products[0].url,url);assert.equal(result.products[0].listing_check.verification_basis,'search_index');assert.equal(result.products[0].price_snapshot.amount,180);
+});
+
+test('the model judge is asked to recognise pages that are not one product',async()=>{
+ let body;
+ const fetcher=async(url,options)=>{body=JSON.parse(options.body);return new Response(JSON.stringify({status:'completed',output:[{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify({candidates:[{index:0,brand:'',match:'not_a_product'}]})}]}]}));};
+ const out=await judgeCandidates('going-out tops',[{check:{product_name:"Women's Going Out Tops"},row:{title:"Women's Going Out Tops | Urban Outfitters"}}],{OPENAI_API_KEY:'k'},fetcher);
+ assert.equal(out[0].match,'not_a_product');
+ assert.ok(JSON.stringify(body).includes('not_a_product'));
+});
+
 test('a missing page (404) is not resurrected from the index; a strong unread result stays a candidate with price and stock unknown',async()=>{
  const gone='https://www.example-store.com/products/romi-gone',walled='https://www.walled.example/romi';
  const organic=[{link:gone,title:'Jacques Marie Mage Romi sunglasses'},{link:walled,title:'Jacques Marie Mage Romi'}];

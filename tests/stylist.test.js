@@ -150,3 +150,17 @@ test('after stylist directions, no extra retry searches run when nothing qualifi
   search:async()=>{calls++;return {status:'needs_review',products:[p('a1')]};},rank:async()=>[]});
  assert.equal(calls,concepts.length);assert.equal(result.text_wishlist_state.stage,'search_clarification');
 });
+
+test('stylist directions never run the shopper’s whole brief as an exact Google query; the single search still may',async()=>{
+ // October 19: the brief typed into Google returned the same category pages for every direction and
+ // answered (cancelled) each one. Each direction searches its own concept.
+ const options=[];
+ await textWishlistAction({action:'start',query:'going-out tops, mix in some minimal luxe',search_plan:plan},{env:{},facts:[],record:async()=>{},stylist:async()=>concepts,
+  search:async(q,images,env,fetcher,opts)=>{options.push(opts);return {status:'found',products:[p('d'+options.length)]};},rank:async x=>x});
+ assert.equal(options.length,concepts.length);
+ for(const o of options){assert.equal(o.exact,false);assert.equal(o.search_mode,'discover');}
+ const single=[];
+ await textWishlistAction({action:'start',query:'going-out tops',search_plan:plan},{env:{},facts:[],record:async()=>{},stylist:async()=>[],
+  search:async(q,images,env,fetcher,opts)=>{single.push(opts);return {products:[p('x')]};},rank:async x=>x});
+ assert.equal(single.length,1);assert.notEqual(single[0].exact,false,'a named model read as discovery is still found by the exact search');
+});
