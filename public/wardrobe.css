@@ -50,9 +50,12 @@
 .remove-cancel{flex:none;width:44px;height:44px;min-height:44px;padding:0;display:grid;place-items:center;border:1px solid var(--line);border-radius:50%;background:var(--white);color:var(--text-2);box-shadow:none}
 .remove-cancel::after{display:none}
 .reason-chips{display:flex;flex-wrap:wrap;gap:8px;padding-left:34px}
-.reason-chips .chip{flex:none;min-height:38px;padding:0 14px;font-size:13px;animation:reason-in .28s var(--ease-out-expo) both}
+.reason-chips .chip{flex:none;min-height:38px;padding:0 14px;font-size:13px;animation:reason-in .28s var(--ease-out-expo) backwards}
 .reason-chips .chip:nth-child(2){animation-delay:.04s}.reason-chips .chip:nth-child(3){animation-delay:.08s}.reason-chips .chip:nth-child(4){animation-delay:.12s}
+/* The entrance holds only its first frame (backwards), so the shared hover lift and press nudge still apply.
+   While a removal saves, the tapped reason fills like a selected chip and the others dim. */
 .reason-chips .chip:disabled{opacity:.45;cursor:default}
+.reason-chips .chip.chip--on:disabled{opacity:1;cursor:wait}
 @keyframes reason-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 @media(pointer:coarse){.reason-chips .chip{min-height:44px}}
 @media(prefers-reduced-motion:reduce){.reason-chips .chip{animation:none}}
