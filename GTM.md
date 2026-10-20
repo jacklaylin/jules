@@ -95,6 +95,7 @@ Target those questions ("app that texts me when a jacket restocks in my size"), 
 | 4 | One page per job: find clothes from a screenshot, price alerts in your size, find a dupe, restock alerts. Real dated examples, short FAQ, honest comparison | After launch readiness |
 | 5 | Off-site mentions: founder posts on Reddit with disclosure (r/findfashion, r/frugalmalefashion, r/sneakers), "apps like Phia" roundups, Product Hunt, creator posts with on-screen text people search for | After launch readiness |
 | 6 | Review results: sign-up source in admin, Search Console Performance, Bing AI Performance (Copilot citations) | ~Nov 3, then monthly |
+| 7 | Answer-engine visibility check ([docs/aeo](docs/aeo/README.md)): 15 shopper questions to ChatGPT, Perplexity and Claude with web search; mentions, citations, competitors, off-site gaps. Baseline Oct 20 (OpenAI only): mentioned in 0/15 | Built; scheduled run pending founder decision |
 
 Steps 4–5 wait for the viral launch readiness list below. Search traffic that lands on a waitlist or a wrong price is wasted.
 
