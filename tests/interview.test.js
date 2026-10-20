@@ -188,3 +188,13 @@ test('the agent is offered style_interview only with the interview on, sees the 
  await generateReply(messages,ai,async(_url,options)=>{names=toolNames(options);return agentTurn(tool('conversation_reply',{response:'ok'}));},{});
  assert.ok(!names.includes('style_interview'));
 });
+
+test('asking to continue after an unrecorded topic change sends the next question',async()=>{
+ const store=fakeStore();
+ await startInterview(store,owner,env,'declined',{send:store.send,log:quiet});
+ assert.equal(await next(store),null,'the open question holds the round');
+ await startInterview(store,owner,env,'request',{send:store.send,log:quiet});
+ assert.equal(store.sent.length,2);
+ assert.equal(store.state.asked[0].outcome,'unanswered');
+ assert.notEqual(store.state.asked[1].qid,'wear_most');
+});
