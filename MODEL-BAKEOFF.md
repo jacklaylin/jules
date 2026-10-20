@@ -74,7 +74,7 @@ Passing the checks says the lines are allowed, not that they're funny. That's wh
 
 ## Blind pairs
 
-A private page with 20 pairs: 10 chat replies (gpt-4.1-mini vs gpt-5.6-luna) and 10 style-report lines (gpt-5.5 vs gpt-6-luna). The models are revealed after you judge all 20. Chat replies come from eval conversations with stubbed tools, so judge voice and judgement, not product details.
+[A private page](https://claude.ai/artifact/F4MDFSXGjJ9pGesxYqT6fo) with 20 pairs: 10 chat replies (gpt-4.1-mini vs gpt-5.6-luna) and 10 style-report lines (gpt-5.5 vs gpt-6-luna). The models are revealed after you judge all 20. Chat replies come from eval conversations with stubbed tools, so judge voice and judgement, not product details.
 
 ## Extract role (Gmail import)
 
