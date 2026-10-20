@@ -51,3 +51,20 @@ test('click-tracking parameters are removed from links; product-defining paramet
   assert.equal(publicURL('https://www.dtlr.com/products/asics-gel-kayano-14?srsltid=AU7gw4&utm_source=google&gclid=x'),'https://www.dtlr.com/products/asics-gel-kayano-14');
   assert.equal(publicURL('https://shop.example/products/x?variant=123&srsltid=abc'),'https://shop.example/products/x?variant=123');
 });
+
+test('any country a store declares counts, and its US version keeps the chosen variant',async()=>{
+  // Dries Van Noten served its Kiribati storefront (October 20); KI wasn't a known market.
+  assert.equal(urlMarket('https://www.driesvannoten.com/en-ki/products/262'),'KI');
+  assert.equal(pageMarket('<script>Shopify.country = "KI";</script>','https://shop.example/products/x',[]).country,'KI');
+  assert.equal(urlMarket('https://shop.example/en-zz/products/x'),null);
+  // A bare first segment still needs a common market code, so /me/ or /my/ paths aren't read as countries.
+  assert.equal(urlMarket('https://shop.example/my/products/x'),null);
+  const ki='https://www.driesvannoten.com/en-ki/products/cropped-shirt?variant=569',usPage='https://www.driesvannoten.com/en-us/products/cropped-shirt';
+  const links='<link rel="alternate" hreflang="en-KI" href="https://www.driesvannoten.com/en-ki/products/cropped-shirt"><link rel="alternate" hreflang="en-US" href="'+usPage+'">';
+  const shirt=(currency,price,url)=>'<script type="application/ld+json">'+JSON.stringify({'@type':'Product',name:'Cropped shirt',brand:{name:'Dries Van Noten'},offers:{url,price,priceCurrency:currency,availability:'https://schema.org/InStock'}})+'</script>';
+  // The store redirects Shopify's ?country= switch back to the shopper's geography, as the real one did.
+  const requested=[];
+  const fetcher=async url=>{requested.push(url);const path=new URL(url).pathname;return new Response(path.startsWith('/en-us/')?'<script>Shopify.country = "US";</script>'+links+shirt('USD','695',usPage+'?variant=569'):path.startsWith('/en-ki/')?'<script>Shopify.country = "KI";</script>'+links+shirt('USD','670',ki):'',{status:path.endsWith('.js')?404:path.startsWith('/en-')?200:302,headers:{'content-type':'text/html'}});};
+  const resolved=await verifyListing(ki,'Cropped shirt',fetcher,async()=>{throw Error('no browser');},{SHOPPING_COUNTRY:'US'});
+  assert.equal(resolved.url,usPage+'?variant=569');assert.equal(resolved.market_match,true);assert.equal(resolved.price_snapshot.amount,695);
+});

@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {textWishlistAction} from '../lib/text-wishlist.js';
+import {textWishlistAction,spreadPick} from '../lib/text-wishlist.js';
 import {generateReply} from '../lib/ai.js';
 import {agentTurn,tool,agentContext} from './helpers/agent.js';
 import {rankDiscoveryProducts} from '../lib/discovery-ranking.js';
@@ -120,4 +120,18 @@ test('when every verified match is sold out, one more search looks for in-stock 
  // If the retry finds nothing in stock, the sold-out matches are still reported honestly.
  calls=0;const body=await textWishlistAction({action:'start',query:'ASICS Gel-Kayano 14',search_plan:{...plan,mode:'identify'}},{env:{},record:async r=>{result=r;},search:async()=>{calls++;return {products:[sold],refinement_attempted:true};}});
  assert.equal(calls,2);assert.match(body,/sold out/i);
+});
+
+test('a candidate the ranker sets aside is replaced by the next eligible one, keeping directions spread',async()=>{
+ let result,considered;
+ const products=['a','b','c','d','e'].map(id=>p(id));
+ await textWishlistAction({action:'start',query:'Casual cropped shirts',search_plan:plan},{env:{},text:'casual shirts',record:async r=>{result=r;},search:async()=>({products,refinement_attempted:true}),
+  rank:async pool=>{considered=pool.map(x=>x.url);return pool.filter(x=>x.url!==p('b').url);}});
+ assert.equal(considered.length,5);
+ assert.deepEqual(result.text_wishlist_state.options.map(o=>o.url),[p('a').url,p('c').url,p('d').url]);
+ assert.deepEqual(result.text_wishlist_diagnostics.rank,{considered:5,kept:4});
+ // With directions, the best of each comes before a second from the same one; a link the user sent stays first.
+ const tag=(id,concept)=>({...p(id),concept});
+ assert.deepEqual(spreadPick([tag('a','x'),tag('b','x'),tag('c','y'),tag('d','z')]).map(o=>o.name),['Sneaker a','Sneaker c','Sneaker d']);
+ assert.deepEqual(spreadPick([tag('a','x'),tag('b','x'),tag('c','y')],[tag('b','x')]).map(o=>o.name),['Sneaker b','Sneaker a','Sneaker c']);
 });
