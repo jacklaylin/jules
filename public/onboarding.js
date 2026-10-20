@@ -99,7 +99,7 @@ function render(){
   $('consent-full').hidden=agreed&&!consentOpen;$('consent-done').hidden=!agreed||consentOpen;
   // Gmail row
   $('gmail-ok').hidden=!gIn;$('gmail-details').hidden=gIn;$('gmail-what').textContent=gIn&&d.account?d.account:'Receipts, orders and returns from your email';
-  progress('gmail',gIn?(d.failed&&gReading?'Reading paused. Jules will keep trying, or resume now.':d.status==='paused'?'Reading paused. Connect Gmail again to continue.':gReading?gmailShort(d):gDone?'Done reading.':''):'',gReading&&!d.failed);
+  progress('gmail',d.reconnect_needed?'Your Gmail sign-in expired. Connect Gmail again to keep reading; what Jules found is kept.':gIn?(d.failed&&gReading?'Reading paused. Jules will keep trying, or resume now.':d.status==='paused'?'Reading paused. Connect Gmail again to continue.':gReading?gmailShort(d):gDone?'Done reading.':''):'',gReading&&!d.failed);
   const gAction=!gIn||d.status==='paused'?'Connect Gmail ↗':d.consent_required?'Approve the updated consent':d.status==='not_started'?'Start reading':d.failed&&gReading?'Resume reading':null;
   // Shop row
   $('shop-card').hidden=!shopOn;

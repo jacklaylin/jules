@@ -24,8 +24,10 @@ async function api(action,extra={}){
 function render(data){
  $('login').hidden=true;$('account').hidden=false;
  const working=running(data.status);
- $('gmail-state').textContent=data.connected?'Connected':'Not connected';$('gmail-state').classList.toggle('off',!data.connected);
- $('gmail-summary').textContent=!data.connected?'Connect Gmail so Jules can learn from your purchase history.':
+ $('gmail-state').textContent=data.connected?'Connected':data.reconnect_needed?'Reconnect needed':'Not connected';$('gmail-state').classList.toggle('off',!data.connected);
+ // Google ended the stored sign-in (it expired or was removed): found purchases stay, new ones wait for a reconnect.
+ $('gmail-summary').textContent=data.reconnect_needed?`${data.account??'Gmail'} · Google ended Jules’s access${data.reconnect_since?` on ${day(data.reconnect_since)}`:''}. Connect Gmail again so Jules keeps finding new purchases. Everything already found is kept.`:
+  !data.connected?'Connect Gmail so Jules can learn from your purchase history.':
   working?(data.failed?`${data.account} · The import paused. Jules keeps retrying automatically.`:`${data.account} · Reading your shopping emails now. Checked ${data.processed.toLocaleString()} so far${data.already_read?`, skipped ${data.already_read.toLocaleString()} already checked`:''}.`):
   `${data.account}${data.last_import_at?` · Last import ${day(data.last_import_at)}`:''}`;
  $('gmail-connect').hidden=data.connected;$('gmail-import').hidden=!data.connected||working;$('gmail-disconnect').hidden=!data.connected;

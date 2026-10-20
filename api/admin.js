@@ -19,6 +19,7 @@ import { copyWeek } from '../lib/report-copy.js';
 import { adoptionReport } from '../lib/adoption.js';
 import { resendContactCard } from '../lib/onboarding.js';
 import { compareEmail, sampleSources, COMPARE_MODELS } from '../lib/extract-compare.js';
+import { gmailReconnectNeeded } from '../lib/gmail-client.js';
 import { rereadImage } from '../lib/image-reread.js';
 import { approveAccess, approvalPreview, waitlistAgain, WAITLIST_REPLIES } from '../lib/waitlist.js';
 import { profileFirstName, displayName } from '../lib/memory.js';
@@ -52,6 +53,7 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
           const row = await store.gmailImport(input.conversation);
           const own = env.ADMIN_EMAIL && JSON.stringify(row?.data?.account ?? '').toLowerCase().includes(env.ADMIN_EMAIL.toLowerCase());
           if (!row?.token_ciphertext || !own) return json(res, 403, { error: 'The comparison reads only the owner’s own connected Gmail.' });
+          if (gmailReconnectNeeded(row.data)) return json(res, 409, { error: `Google refused the stored Gmail sign-in on ${row.data.gmail_auth.at.slice(0, 10)}. Connect Gmail again from your account page, then rerun.` });
           const sample = sampleSources(row, 40);
           if (!Number.isInteger(input.email) || input.email < 0 || input.email >= sample.length) return json(res, 400, { error: `Choose an email from 0 to ${sample.length - 1}.` });
           return json(res, 200, { total: sample.length, models: COMPARE_MODELS, result: await compareEmail({ store, row, owner: input.conversation, env, id: sample[input.email].id, fetcher }) });

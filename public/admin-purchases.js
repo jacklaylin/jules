@@ -127,7 +127,9 @@ function render() {
   $('purchases-loader').hidden = !['listing', 'extracting', 'questions'].includes(data.status);
   $('purchases-summary').textContent = data.status === 'not_started' && !items.length ? 'No Gmail import for this person yet.' :
     `${IMPORT_STATUS[data.status] ?? `Import ${data.status.replace('_', ' ')}`} · Imported history is partial` +
-    (data.connections?.length ? ` · ${items.filter(i => i.sources.length > 1).length} found by more than one source` : '');
+    (data.connections?.length ? ` · ${items.filter(i => i.sources.length > 1).length} found by more than one source` : '') +
+    // Google refused the stored sign-in: imports and the daily purchase check stop until they reconnect.
+    (data.reconnect_needed ? ` · Gmail needs reconnecting (Google refused the sign-in ${data.reconnect_since.slice(0, 10)}; daily purchase check paused)` : data.connected || data.status === 'not_started' ? '' : ' · Gmail not connected');
   // The status filter is the only place counts appear.
   $('purchases-chips').replaceChildren(...STATUSES.map(([value, label]) => {
     const chip = el('button', { type: 'button' }, label, el('span', { className: 'count', textContent: value ? count(value) : items.length }));
