@@ -68,3 +68,41 @@ This ran local code with real model and search calls. No message was sent and no
 3. **Exact pre-search off, run B.** Before (17 s): Nili Lotan silk cami $320, Tibi top $149 (on sale, was $495). After (23 s): Mist Paris sheer top $166, Heike-NY silk top $395, and an ARRANGE top at ASOS whose price the page didn't show, labelled "price not confirmed".
 
 Run-to-run variance from the stylist is large, so these replays show that the price rules apply, not that taste improved. In run A, the ranker put the $59 option last rather than first. Within the band, order is the ranker's call: `prefers_lower` decides which options are picked and is an input to the ranker, but it doesn't override the ranker's order. Far-below and over-budget options are always placed last.
+
+## Category pages as options — October 19, 2026
+
+Found while replaying "women's going-out tops, mix in some minimal luxe" for the price-stance work (PR #219, "Price stance" section). Every stylist direction returned the same three "options", all without prices: Urban Outfitters' and Fashion Nova's going-out-tops category pages and an InStyle article.
+
+Two causes:
+
+1. **The exact pre-search ran inside every stylist direction.** `searchProducts` types the shopper's whole brief into Google first (`lib/search.js`). The directions all share that brief (`search_brief`), so all three got the same Google results. A verified likely match answers the search and cancels the model search, so the direction's own concept was never searched.
+2. **A blocked page's search title stood in for a product.** The page checks (`verifyListing`) were not what let them through. Readable category pages (Abercrombie, Express, Nordstrom) were already rejected as `not_product`. But Urban Outfitters, Fashion Nova and InStyle block our reader (`check_failed`), and `exactSearch` then used the Google result's title as the listing (`verification_basis: search_index`). A category page's title, such as "Women's Going Out Tops | Urban Outfitters", reads like a perfect match for a descriptive brief.
+
+What changed:
+
+- **Directions skip the exact pre-search** (`lib/text-wishlist.js` passes `exact:false`; `lib/search.js` honours it). The single discovery search (stylist off, failed or out of time) keeps it, so a named model read as discovery is still found first, as PR #45 intended.
+- **The identity judge sorts out pages that are not one product** (`lib/text-sources.js`). It has a new `not_a_product` verdict for category, collection, search, brand-landing and editorial pages, judged before relevance. These are set aside with reason `not_a_product`.
+- **Collection URLs are category pages** (`lib/listings.js`). `/collections/<name>` is rejected as `category_page` without being fetched; `/collections/<name>/products/<item>` is still checked. In `exactSearch`, a blocked collection-format URL is never stood in by its title, unless the row has an indexed price, which means it is a single offer. It is not kept as an unread candidate either.
+- **A title-only stand-in can't answer.** A search-index listing with no price can't end the exact pass and cancel the model search. It can still be combined with the model search's results if the judge accepts it.
+
+### Replay
+
+The OpenAI key in `.env.local` has run out of credits (`credit_balance_exhausted`), so the full discovery replay (stylist, judge, model search) could not run: before and after both ended in the search-failed reply after about 11 seconds. Instead, the exact pre-search ran with the real brief, real Google and Google Shopping results (cached, so both versions saw the same 7 rows; 2 SerpAPI searches) and real store page checks. The judge was replaced by a stub that accepts every listing, which shows exactly which pages reach the judge as "verified". No message was sent and nothing was saved.
+
+| Page | Before (main) | After |
+|---|---|---|
+| abercrombie.com/shop/us/womens-going-out-tops-tops | not_product | not_product |
+| express.com/…/going-out-tops/cat2140011 | not_product | not_product |
+| nordstrom.com/browse/women/…/night-out | not_product | not_product |
+| fashionnova.com/collections/going-out-tops | blocked → title stand-in, verified | not_product (category_page) |
+| urbanoutfitters.com/womens-going-out-tops | blocked → title stand-in, verified, likely match, no price | still reaches the judge; can no longer answer the search |
+| instyle.com/best-going-out-tops-11872192 | blocked → title stand-in, verified, likely match, no price | still reaches the judge; can no longer answer the search |
+
+With the real judge (run once the OpenAI key was funded, same cached Google results): on main it accepted Urban Outfitters and InStyle as likely matches; on this branch it marked both `not_a_product`, so the exact pass returned no options at all.
+
+### Live replay — October 19, 2026
+
+Full discovery flow: real stylist, model search, Google and store checks; synthetic profile (budget up to $500 for special pieces, minimal/The Row taste, size 8 tops, Zara receipts); no message sent and nothing saved. Before is main at 417e969; after is this branch. The stylist's directions differ run to run, so the two runs show what reaches the shopper, not taste quality.
+
+- **Before (10 s).** Directions: silk camisole, asymmetric jersey, minimal satin halter. All three options came from the first direction's exact pre-search: the Urban Outfitters and Fashion Nova going-out-tops category pages and the InStyle "28 Cool-Girl Going-Out Tops" article, none with a price. The other two directions never searched their own concepts.
+- **After (13 s).** Directions: minimal satin halter, draped one-shoulder, Kate Moss sheer camisoles. One product per direction, each from that direction's own search: Rebecca Vallance Elise halterneck silk satin top at Mytheresa (price not confirmed: the store blocks our reader and Google showed no price), Nili Lotan Isabella silk cami $320, A.L.C. Celeste top at Elyse Walker $395. No category pages or articles.
