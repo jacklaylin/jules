@@ -160,4 +160,23 @@ test('the exact Google query runs first: a verified exact match answers without 
   // A named model is found the same way when the request was read as discovery.
   const discovery=await run({organic:[{link:page,title:'Prada Speed Rock sneakers'}],mode:'discover'});
   assert.equal(discovery.result.sourcing.answered_by,'exact_search');assert.equal(discovery.result.products[0].url,page);
+  // A stylist direction turns the exact pass off: the brief is not typed into Google, and the model
+  // search is never cancelled (later structured recovery may still run).
+  const run2=async exact=>{const calls={exact:0,aborted:0};const fetcher=async(url,options={})=>{
+    if(String(url).startsWith('https://serpapi.com/')){if(new URL(url).searchParams.get('q')==='Prada Speed Rock sneakers')calls.exact++;return new Response(JSON.stringify({organic_results:[{link:page,title:'Prada Speed Rock sneakers'}]}));}
+    if(String(url).startsWith('https://api.openai.com/')){options.signal?.addEventListener('abort',()=>calls.aborted++);return new Response(JSON.stringify({status:'completed',output:[{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify({intro:'none',products:[],needs_review:true})}]}]}));}
+    return new Response(html,{headers:{'content-type':'text/html'}});};
+    const result=await searchProducts('Prada Speed Rock sneakers',[],{OPENAI_API_KEY:'test',SERPAPI_API_KEY:'structured-fixture',SEARCH_DEADLINE_MS:'5000'},fetcher,{search_brief:'Prada Speed Rock sneakers',search_mode:'discover',exact}).catch(error=>({error}));
+    return {calls,result};};
+  const direction=await run2(false);
+  assert.equal(direction.calls.exact,0);assert.equal(direction.calls.aborted,0);assert.notEqual(direction.result.sourcing?.answered_by,'exact_search');
+  assert.ok((await run2(undefined)).calls.exact>=1,'the same request without the flag does type the brief into Google');
+  // A blocked page known only by its search title and no price never answers: it may be a category page.
+  const blocked=async(url,options={})=>{
+    if(String(url).startsWith('https://serpapi.com/'))return new Response(JSON.stringify({organic_results:[{link:'https://www.urbanoutfitters.com/womens-going-out-tops',title:"Women's Going Out Tops | Urban Outfitters"}]}));
+    if(String(url).startsWith('https://api.openai.com/')){const body=JSON.parse(options.body??'{}');if(body.text?.format?.name==='judge'||JSON.stringify(body).includes('retrieved store listing'))return new Response(JSON.stringify({status:'completed',output:[{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify({candidates:[{index:0,brand:'',match:'meets_brief'}]})}]}]}));
+      return new Response(JSON.stringify({status:'completed',output:[{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify({intro:'none',products:[],needs_review:true})}]}]}));}
+    return new Response('blocked',{status:403});};
+  const titleOnly=await searchProducts("women's going-out tops",[],{OPENAI_API_KEY:'test',SERPAPI_API_KEY:'structured-fixture',SEARCH_DEADLINE_MS:'5000'},blocked,{search_brief:"women's going-out tops"}).catch(error=>({error}));
+  assert.notEqual(titleOnly.sourcing?.answered_by,'exact_search');
 });

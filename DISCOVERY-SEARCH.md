@@ -45,3 +45,34 @@ Fixes: sourcing now counts the time left in the whole turn (`turnLeft` from the 
 ### Speed — October 19, 2026
 
 Local runs skip the hosted browser (it only runs on Linux), which is why the same search took about 14 seconds locally and 64–90 in production: each store page that blocks a plain request launched and closed its own Chromium, and three parallel direction searches could launch up to nine. Now one browser is shared per function instance, each page check gets its own browser context (separate cookies), at most four pages render at once, and a stale browser from a frozen instance is replaced after 3 seconds. Discovery starts Chromium while the stylist thinks. Once the directions have three verified, unshown products, the rest get a 4-second grace instead of the full cap. Each result now records `timing` (stylist, directions, each direction, shop, rank, total) in `text_wishlist_diagnostics`. The shared-browser path could not be run locally (no Linux runtime); the first production searches confirm it.
+
+## Category pages as options — October 19, 2026
+
+Found while replaying "women's going-out tops, mix in some minimal luxe" for the price-stance work (PR #219, "Price stance" section). Every stylist direction returned the same three "options", all without prices: Urban Outfitters' and Fashion Nova's going-out-tops category pages and an InStyle article.
+
+Two causes:
+
+1. **The exact pre-search ran inside every stylist direction.** `searchProducts` types the shopper's whole brief into Google first (`lib/search.js`). The directions all share that brief (`search_brief`), so all three got the same Google results. A verified likely match answers the search and cancels the model search, so the direction's own concept was never searched.
+2. **A blocked page's search title stood in for a product.** The page checks (`verifyListing`) were not what let them through. Readable category pages (Abercrombie, Express, Nordstrom) were already rejected as `not_product`. But Urban Outfitters, Fashion Nova and InStyle block our reader (`check_failed`), and `exactSearch` then used the Google result's title as the listing (`verification_basis: search_index`). A category page's title, such as "Women's Going Out Tops | Urban Outfitters", reads like a perfect match for a descriptive brief.
+
+What changed:
+
+- **Directions skip the exact pre-search** (`lib/text-wishlist.js` passes `exact:false`; `lib/search.js` honours it). The single discovery search (stylist off, failed or out of time) keeps it, so a named model read as discovery is still found first, as PR #45 intended.
+- **The identity judge sorts out pages that are not one product** (`lib/text-sources.js`). It has a new `not_a_product` verdict for category, collection, search, brand-landing and editorial pages, judged before relevance. These are set aside with reason `not_a_product`.
+- **Collection URLs are category pages** (`lib/listings.js`). `/collections/<name>` is rejected as `category_page` without being fetched; `/collections/<name>/products/<item>` is still checked. In `exactSearch`, a blocked collection-format URL is never stood in by its title, unless the row has an indexed price, which means it is a single offer. It is not kept as an unread candidate either.
+- **A title-only stand-in can't answer.** A search-index listing with no price can't end the exact pass and cancel the model search. It can still be combined with the model search's results if the judge accepts it.
+
+### Replay
+
+The OpenAI key in `.env.local` has run out of credits (`credit_balance_exhausted`), so the full discovery replay (stylist, judge, model search) could not run: before and after both ended in the search-failed reply after about 11 seconds. Instead, the exact pre-search ran with the real brief, real Google and Google Shopping results (cached, so both versions saw the same 7 rows; 2 SerpAPI searches) and real store page checks. The judge was replaced by a stub that accepts every listing, which shows exactly which pages reach the judge as "verified". No message was sent and nothing was saved.
+
+| Page | Before (main) | After |
+|---|---|---|
+| abercrombie.com/shop/us/womens-going-out-tops-tops | not_product | not_product |
+| express.com/…/going-out-tops/cat2140011 | not_product | not_product |
+| nordstrom.com/browse/women/…/night-out | not_product | not_product |
+| fashionnova.com/collections/going-out-tops | blocked → title stand-in, verified | not_product (category_page) |
+| urbanoutfitters.com/womens-going-out-tops | blocked → title stand-in, verified, likely match, no price | still reaches the judge; can no longer answer the search |
+| instyle.com/best-going-out-tops-11872192 | blocked → title stand-in, verified, likely match, no price | still reaches the judge; can no longer answer the search |
+
+Not yet verified live: whether the real judge marks the Urban Outfitters and InStyle titles `not_a_product`. That needs a replay with a funded OpenAI key. Either way, stylist directions no longer run this query, so in the tester's request none of these pages could appear through the exact pass.
