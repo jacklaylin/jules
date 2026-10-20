@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Readable } from 'node:stream';
-import { wishlistProducts, wishlistUser, sessionHash } from '../lib/wishlist.js';
+import { wishlistProducts, wishlistUser, sessionHash, SESSION_CACHE_MS } from '../lib/wishlist.js';
 import { createWishlistHandler } from '../api/wishlist.js';
 import { receiveInInbox } from '../lib/inbox.js';
 import { createStore } from '../lib/store.js';
@@ -27,6 +27,32 @@ test('wishlist auth checks confirmed server identity, invitation, and local logo
  assert.equal((await wishlistUser({authorization:'Bearer test'},env,{...store,wishlistMember:async()=>null},fetcher)).status,403);
  assert.equal((await wishlistUser({authorization:'Bearer test'},env,{...store,wishlistRevoked:async()=>true},fetcher)).status,401);assert.equal(calls,2);
  assert.equal((await wishlistUser({authorization:'Bearer test'},env,store,async()=>({ok:true,json:async()=>({email:'test@example.com'})}))).status,403);
+});
+const jwt=exp=>'Bearer h.'+Buffer.from(JSON.stringify({exp})).toString('base64url')+'.s';
+test('a verified sign-in is reused for a minute, never past token expiry, and revocation wins at once',async()=>{
+ let t=1_000_000_000_000,calls=0,lookups=0,revoked=false;const now=()=>t,cache=new Map();
+ const fetcher=async()=>{calls++;return{ok:true,json:async()=>({email:'test@example.com',email_confirmed_at:'now'})};};
+ const store={wishlistRevoked:async()=>revoked,wishlistMember:async()=>{lookups++;return{conversation_id:id};}};
+ const token=jwt(t/1000+3600),headers={authorization:token};
+ assert.deepEqual(await wishlistUser(headers,env,store,fetcher,{cache,now}),{status:200,conversation:id});
+ assert.deepEqual(await wishlistUser(headers,env,store,fetcher,{cache,now}),{status:200,conversation:id,cached:true});
+ assert.equal(calls,1);assert.equal(lookups,1);assert.ok([...cache.keys()].every(k=>k===sessionHash(token)&&!k.includes('Bearer')));
+ t+=SESSION_CACHE_MS+1;assert.equal((await wishlistUser(headers,env,store,fetcher,{cache,now})).cached,undefined);assert.equal(calls,2);
+ revoked=true;assert.equal((await wishlistUser(headers,env,store,fetcher,{cache,now})).status,401);assert.equal(cache.size,0);assert.equal(calls,2);
+ revoked=false;const short={authorization:jwt(t/1000+5)};await wishlistUser(short,env,store,fetcher,{cache,now});t+=6000;
+ assert.equal((await wishlistUser(short,env,store,fetcher,{cache,now})).cached,undefined);
+ const before=calls;for(const authorization of ['Bearer opaque',jwt(t/1000-1)])for(let i=0;i<2;i++)await wishlistUser({authorization},env,store,fetcher,{cache,now});assert.equal(calls,before+4);
+ const denied={...store,wishlistMember:async()=>null},stranger={authorization:jwt(t/1000+3600)+'x'};
+ for(let i=0;i<2;i++)assert.equal((await wishlistUser(stranger,env,denied,fetcher,{cache,now})).status,403);assert.equal(calls,before+6);
+});
+test('logout clears this instance\'s remembered sign-in and list responses report auth timing',async()=>{
+ const token=jwt(Math.floor(Date.now()/1000)+3600);let revoked=false,calls=0;
+ const store={wishlistRevoked:async()=>revoked,wishlistRevoke:async()=>{revoked=true;},wishlistMember:async()=>({conversation_id:id}),wishlistEntries:async()=>[]};
+ const handler=createWishlistHandler({env,storeFactory:()=>store,fetcher:async url=>{calls++;return url.endsWith('/user')?{ok:true,json:async()=>({email:'test@example.com',email_confirmed_at:'now'})}:{ok:true};}});
+ let res=response();await handler(request('GET','/api/wishlist',null,token),res);assert.equal(res.statusCode,200);assert.match(res.headers['Server-Timing'],/^auth;dur=[\d.]+;desc="checked", wishlist;dur=/);
+ res=response();await handler(request('GET','/api/wishlist',null,token),res);assert.match(res.headers['Server-Timing'],/desc="cached"/);assert.equal(calls,1);
+ res=response();await handler(request('POST','/api/wishlist',{action:'logout'},token),res);assert.equal(res.statusCode,200);
+ res=response();await handler(request('GET','/api/wishlist',null,token),res);assert.equal(res.statusCode,401);assert.equal(calls,2);
 });
 test('API scopes items and source bytes to the invited conversation and strips stored image data',async()=>{
  let bytes=0;

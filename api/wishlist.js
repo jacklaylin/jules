@@ -17,7 +17,7 @@ import { inspectAlertLinks, baselineOffers, readSizeOffers, lowestAvailable, ini
 import { createStore } from '../lib/store.js';
 import {withUsage} from '../lib/usage.js';
 import {lookupIndexedProduct} from '../lib/indexed-product.js';
-import { wishlistUser, sessionHash, groupWishlist, photoCaching } from '../lib/wishlist.js';
+import { wishlistUser, sessionHash, forgetSession, groupWishlist, photoCaching } from '../lib/wishlist.js';
 import { authorize } from '../lib/auth.js';
 import { json, readJson, uuid } from '../lib/http.js';
 import {createSignupHandler} from '../lib/public-signup.js';
@@ -155,6 +155,7 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
           // Explicitly revoke this token locally: Supabase JWTs can outlive logout.
           if (!/^Bearer [^\s]{1,8192}$/.test(req.headers.authorization ?? '')) return json(res, 401, { error: 'Please sign in.' });
           await store.wishlistRevoke(sessionHash(req.headers.authorization));
+          forgetSession(sessionHash(req.headers.authorization));
           const response = await fetcher(`${env.SUPABASE_URL.replace(/\/$/, '')}/auth/v1/logout`, { method:'POST', headers:{apikey:env.SUPABASE_ANON_KEY,Authorization:req.headers.authorization},signal:AbortSignal.timeout(10000) });
           if (!response.ok && response.status !== 401) return json(res, 503, { error:'Could not end the session. Try again.' });
           return json(res, 200, { ok: true });
@@ -164,7 +165,8 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
       if (req.method !== 'GET') { res.setHeader('Allow','GET, POST'); return json(res,405,{error:'Method not allowed.'}); }
       const authStarted=performance.now();
       const access = await auth(req.headers, env, store, fetcher);
-      const authDuration=performance.now()-authStarted;
+      const authDuration=performance.now()-authStarted,authTiming=`auth;dur=${authDuration.toFixed(1)};desc="${access.cached?'cached':'checked'}"`;
+      res.setHeader('Server-Timing',authTiming);
       if (access.status !== 200) return json(res, access.status, {error:'Please sign in with your invited email.'});
       const query = new URL(req.url, 'https://local.invalid').searchParams;
       const id = query.get('item');
@@ -175,7 +177,7 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
         const [rows,alerts]=await Promise.all([store.wishlistEntries(access.conversation),env.PRICE_ALERTS_ENABLED==='true'?store.priceAlerts(access.conversation):Promise.resolve([])]);
         const marketEnv=marketEnvironment((await store.profile?.(access.conversation))?.facts??[],env);
         const groups = groupWishlist(rows,{currency:marketEnv.SHOPPING_CURRENCY,country:marketEnv.SHOPPING_COUNTRY});
-        res.setHeader('Server-Timing',`auth;dur=${authDuration.toFixed(1)}, wishlist;dur=${(performance.now()-started).toFixed(1)}`);
+        res.setHeader('Server-Timing',`${authTiming}, wishlist;dur=${(performance.now()-started).toFixed(1)}`);
         if(env.PRICE_ALERTS_ENABLED==='true'){
           for(const group of groups){const alert=alerts.find(a=>a.group_id===group.id);group.price_alert=alert?{active:alert.active,size:alert.size,last_checked_at:alert.last_checked_at,notified:alert.notified,baseline_pending:Array.isArray(alert.baselines)&&alert.baselines.length===0}:null;group.alerts_enabled=true;}
         }
