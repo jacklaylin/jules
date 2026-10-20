@@ -112,3 +112,25 @@ test('small images pass through untouched and undecodable large bytes fail with 
   const fake=Buffer.concat([png,Buffer.alloc(MAX_IMAGE_BYTES+1)]);
   await assert.rejects(readImage(attachment(fake,'image/png')),{code:'image_normalization_failed'});
 });
+test('a shrunk screenshot records its original and final sizes for diagnostics, never in the stored row',async()=>{
+  const bytes=await noisePNG(1179,2556);
+  const image=await readImage(attachment(bytes,'image/png'));
+  assert.equal(image.info.original_bytes,bytes.length);assert.equal(image.info.pre_normalize_bytes,bytes.length);
+  assert.equal(image.info.bytes,Buffer.from(image.data,'base64').length);assert.equal(image.info.converted,'normalized');
+  assert.deepEqual(Object.keys({...image}),['mime_type','data']);
+});
+test('the declared type is checked before a large image is decoded, and failures carry their sizes',async()=>{
+  const bytes=await noisePNG(1179,2556);
+  await assert.rejects(readImage(attachment(bytes,'image/webp'),undefined,async()=>assert.fail('checked first')),{code:'invalid_image_bytes'});
+  await assert.rejects(readImage(attachment(bytes,'image/png'),undefined,async()=>{throw new Error('decoder');}),
+    e=>e.code==='image_normalization_failed'&&e.image_info.original_bytes===bytes.length);
+});
+test('a failed image records its stage, reason and sizes in reply diagnostics',async()=>{
+  const written=[];
+  const store={receive:async()=>'conversation',claimAI:async()=>true,imageStatus:async()=>{},prepareAI:async()=>{},finish:async()=>{},replyDiagnostics:async(op,data)=>written.push(data)};
+  await receiveInInbox({message:{id:'image',attachments:[{id:'fake'}]}},{AI_ENABLED:'true'},
+    {store,loadImages:async()=>{throw Object.assign(new Error('Image download failed'),{image_reason:'image_too_large',image_info:{original_bytes:30000000}});},generate:async()=>assert.fail(),send:async()=>{},alert:async()=>false});
+  const final=written.at(-1);
+  assert.equal(final.error_class,'image');
+  assert.deepEqual(final.image_failure,{stage:'download',reason:'image_too_large',info:{original_bytes:30000000}});
+});
