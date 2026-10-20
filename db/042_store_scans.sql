@@ -8,4 +8,5 @@ create table if not exists public.store_scans (
   scanned_at timestamptz not null default now()
 );
 alter table public.store_scans enable row level security;
-revoke all on public.store_scans from anon, authenticated;
+revoke all on public.store_scans from public, anon, authenticated;
+grant all on public.store_scans to service_role;
