@@ -1,4 +1,7 @@
 // Shared request feedback. Labels describe actual application actions, never guessed progress.
+// Quick actions (a thumb, a remove, a save) already answer with their own motion and toast, so the panel
+// only appears for a request still running after SHOW_AFTER_MS; Jules' own work (agent) shows at once.
+const SHOW_AFTER_MS=1000;
 let active=[],timer,panel,failed=false;
 function show(success=false){
  if(!panel){
@@ -7,15 +10,17 @@ function show(success=false){
   const orb=document.createElement('span');orb.className='orb';orb.setAttribute('aria-hidden','true');
   const label=document.createElement('span');label.className='activity-label';const loader=document.createElement('span');loader.className='aqua';loader.setAttribute('aria-hidden','true');panel.append(orb,label,loader);document.body.append(panel);
  }
- panel.hidden=!active.length;
+ const shown=active.filter(item=>item.agent||Date.now()-item.started>=SHOW_AFTER_MS);
+ panel.hidden=!shown.length;
  // Open modal dialogs sit in the top layer. Showing the panel as a manual popover each time it appears puts it
  // above any dialog opened earlier, so a save from inside a dialog is never dimmed by that dialog's backdrop.
- if(panel.showPopover&&!!active.length!==panel.matches(':popover-open'))active.length?panel.showPopover():panel.hidePopover();
- if(active.length){const item=active.at(-1),elapsed=Date.now()-item.started;panel.querySelector('.activity-label').textContent=item.label+(elapsed>3000?` · ${Math.floor(elapsed/1000)}s`:'');}
+ if(panel.showPopover&&!!shown.length!==panel.matches(':popover-open'))shown.length?panel.showPopover():panel.hidePopover();
+ if(shown.length){const item=shown.at(-1),elapsed=Date.now()-item.started;panel.querySelector('.activity-label').textContent=item.label+(elapsed>3000?` · ${Math.floor(elapsed/1000)}s`:'');}
  document.dispatchEvent(new CustomEvent('jules:activity',{detail:{busy:!!active.length,agentWorking:active.some(item=>item.agent),success}}));
 }
 export async function withActivity(label,fn,{agent=false}={}){
  const item={label,agent,started:Date.now()};if(!active.length){failed=false;timer=setInterval(()=>show(),1000);}active.push(item);show();
+ if(!agent)setTimeout(()=>{if(active.includes(item))show();},SHOW_AFTER_MS);
  try{return await fn();}catch(error){failed=true;throw error;}finally{active=active.filter(x=>x!==item);if(!active.length)clearInterval(timer);show(!active.length&&!failed);}
 }
 export async function trackedFetch(url,options={}){
