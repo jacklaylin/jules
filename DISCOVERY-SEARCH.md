@@ -137,3 +137,11 @@ The founder's "casual shirts… ideally a cropped fit" returned Lee's men's-work
 - **Department read too cautious.** Karen Millen styles its shirt "with a sleek pencil skirt", which the read called unknown, and dāl's women's sizes (2–10) never reached it because Shopify's size list is dropped when no colour is picked. The read now counts garments only women's ranges make, receives the store's own size labels, quotes before it answers, runs one listing per call (a batch of ten was judged unevenly) at temperature 0, and doesn't count a model's height or measurements. Over three runs on eleven real pages it set aside Karen Millen, MAYE and dāl every time, and no men's or unlabelled page.
 
 Replays of the cropped-shirts request with the stylist working (nothing sent or saved): Todd Snyder, Lucky Brand men's, Studio Nicholson; then Kith, Drake's, mnml. No women's items or category pages.
+
+### Two options and a Kiribati link — October 20, 2026
+
+With the stylist working again, the founder's retry returned Dries Van Noten and MAN-TLE, only two options, and the Dries link was its Kiribati storefront (`/en-ki/`).
+- **Missing third option.** Only the three options to be shown reached the taste ranker, so one it set aside (it may reject a contradiction to the request, such as a tee for a shirt) left an empty slot while verified candidates went unused. The ranker now sees up to six eligible candidates; the shown three are the best-ranked from each stylist direction, then the next best (`spreadPick`), with a link the user sent first. `text_wishlist_diagnostics.rank` records how many were considered and kept.
+- **Kiribati link.** Store markets were read only for 34 listed countries, so `KI` counted as no market and the page's own US version (hreflang `en-US`) was never checked. Any ISO country a page declares now counts (a bare `/xx/` URL segment still needs the common list). The US page was $695; the founder was shown the Kiribati $670. The page's chosen variant now carries over to the US version.
+
+Replays of the cropped-shirts request (nothing sent or saved): three men's options each time (mnml, SONDÉR, mnml; Everlane, 3sixteen, mnml), with the ranker considering six.
