@@ -114,6 +114,21 @@ async function openMessage(id) {
   if (target) { target.classList.add('highlight'); target.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
 }
 
+// ---------- Taste coverage ----------
+// One chip per dimension from lib/coverage.js: known, weak (some evidence) or missing. Read-only.
+const COVERAGE = { categories: 'Categories', silhouettes: 'Silhouettes', palette: 'Palette', brands: 'Brands', sizes: 'Sizes', stores: 'Stores', price_band: 'Price band', channel: 'New vs resale' };
+const COVERAGE_KIND = { known: 'ok', weak: 'warn', missing: 'fail' };
+async function loadCoverage() {
+  const data = await api(`/api/admin?view=coverage&conversation=${encodeURIComponent(person)}`);
+  const chips = data.dimensions.map(d => {
+    const chip = badge(COVERAGE_KIND[d.status] ?? 'plain', `${COVERAGE[d.dimension] ?? d.dimension}: ${d.status}`);
+    chip.title = d.note ?? '';
+    return chip;
+  });
+  $('coverage').replaceChildren(el('span', { className: 'mono-label', textContent: `Coverage · ${data.level}` }), el('span', { className: 'badges' }, ...chips));
+  $('coverage').hidden = false;
+}
+
 // ---------- Personal memory ----------
 const TYPES = { gender: 'gender', shopping_range: 'clothing range', size: 'size', brand: 'brand', category: 'category', style: 'style', budget: 'budget', spending: 'spending' };
 let profileVersion = 0, facts = [], profileBusy = false, typeFilter = '';
@@ -365,6 +380,7 @@ else {
   const linked = new URLSearchParams(location.search).get('message');
   loadMessages().then(() => { if (/^[0-9a-f-]{36}$/i.test(linked ?? '')) return openMessage(linked); }).catch(fail('Conversation'));
   loadProfile().catch(fail('Memory'));
+  loadCoverage().catch(() => {});
   loadPurchases(person);
   loadWishlist().catch(error => { $('wishlist-note').textContent = error.message; });
 }
