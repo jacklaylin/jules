@@ -77,5 +77,16 @@ export async function removeWithMotion(element){
 }
 // A small springy confirmation when a control turns on.
 export function popIn(element){if(element&&!reducedMotion())animate(element,{transform:['scale(.8)','none']},{type:spring,visualDuration:.3,bounce:.5});}
+// Answering a question with a thumb (a suggested photo, a report card): the chosen button fills (its
+// `is-pressed` class), springs up with a nod toward its meaning (tilt: negative = up, positive = down)
+// while the other choices fade back, then the whole group drops away. Resolves once it is gone, so the
+// caller can swap in the answered state without a jump. Instant under reduced motion.
+export async function answerWithMotion(button,group,{tilt=-14}={}){
+ button?.classList.add('is-pressed');
+ if(!button||!group||reducedMotion())return;
+ for(const other of group.querySelectorAll('button'))if(other!==button)animate(other,{opacity:.3,transform:'scale(.88)'},exit);
+ await Promise.race([animate(button,{transform:['scale(1)',`scale(1.24) rotate(${tilt}deg)`,'scale(1) rotate(0deg)']},{duration:.46,ease:[.34,1.56,.64,1]}),new Promise(resolve=>setTimeout(resolve,610))]).catch(()=>{});
+ await finished(animate(group,{opacity:[1,0],transform:['none','translateY(10px) scale(.96)']},{duration:.18,ease:[.4,0,1,1]}));
+}
 // Rises a freshly shown toast or panel into place (its own CSS still owns the fade and position).
 export function riseIn(element){if(element&&!reducedMotion())animate(element,{translate:['0 16px','0 0']},settle);}

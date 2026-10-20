@@ -1,5 +1,5 @@
 import {trackedFetch as fetch} from './activity.js';
-import {mountHeader,enableAdminLink} from './design-system.js';
+import {mountHeader,enableAdminLink,answerWithMotion} from './design-system.js';
 import {createSession} from './wishlist-session.js';
 import {matchPhotoBackground} from './photo-background.js';
 import {readList,saveList,forgetLists} from './list-cache.js';
@@ -115,9 +115,26 @@ async function act(input,{done,quiet=false}={}){
 // A searched photo waiting for the owner: labelled on the photo, answered with thumbs inside the photo.
 const THUMB='<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 21 L7 10 L11 10 L14 3 C16 3 17 4 17 6 L16 9 L21 9 C22 9 23 10 22.6 11.4 L20.5 19.4 C20.2 20.4 19.4 21 18.4 21 Z M3 10 L7 10 L7 21 L3 21 Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>';
 // One control inside the photo: the question and its two answers together (design: "Wardrobe photo feedback", option A).
+// The answer plays its motion while the request runs; the new view replaces the card once both are done.
+// A "yes" keeps showing the photo already on screen (it is now the item's photo), so nothing reloads.
+async function answerPhoto(item,value,button,pill){
+ for(const b of pill.querySelectorAll('button'))b.disabled=true;
+ const motion=answerWithMotion(button,pill,{tilt:value==='yes'?-14:14});
+ try{
+  const [next]=await Promise.all([api('POST',{action:'photo',item_id:item.id,answer:value}),motion]);
+  const saved=next.items.find(i=>i.id===item.id),shown=photoURLs.get(`suggestion::${item.id}:${item.suggestion?.version}`);
+  if(value==='yes'&&saved?.photo_source==='search_confirmed'&&shown)photoURLs.set(`photo:search:${item.id}:${saved.photo_version}`,shown);
+  view=next;render();toast(value==='yes'?'Photo saved.':'Got it. Jules won’t use that photo.');
+ }catch(error){
+  if(error.status===401)return login();
+  pill.getAnimations?.().forEach(a=>a.cancel());pill.style.opacity=pill.style.transform='';
+  for(const b of pill.querySelectorAll('button')){b.disabled=false;b.classList.remove('is-pressed');b.getAnimations?.().forEach(a=>a.cancel());b.style.opacity=b.style.transform='';}
+  toast(error.message);
+ }
+}
 function suggestionAsk(item){
  const answer=(value,label)=>{const b=el('button',{type:'button',className:'suggest-thumb'+(value==='no'?' suggest-thumb--down':''),title:label});b.innerHTML=THUMB;b.setAttribute('aria-label',`${label}: ${name(item)}`);
-  b.onclick=event=>{event.stopPropagation();act({action:'photo',item_id:item.id,answer:value},{done:()=>toast(value==='yes'?'Photo saved.':'Got it. Jules won’t use that photo.')});};return b;};
+  b.onclick=event=>{event.stopPropagation();answerPhoto(item,value,b,pill);};return b;};
  const pill=el('div',{className:'suggest-pill'},el('span',{className:'suggest-question'},'Is this photo right?'),el('span',{className:'suggest-answers'},answer('no','No, wrong photo'),answer('yes','Yes, this is mine')));
  pill.setAttribute('role','group');pill.setAttribute('aria-label','Is this photo right?');
  return el('div',{className:'suggest-ask'},pill);
