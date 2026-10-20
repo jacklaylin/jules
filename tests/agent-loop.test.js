@@ -68,7 +68,7 @@ test('one turn can search, then set an alert on what the search found, then repo
 test('the loop stops at the round cap and then makes the model write the message', async () => {
   const shop = shopping({ results:[[peyter]] });
   const search = q => [tool('find_products', { query:q })];
-  const { fetcher, requests } = model([search('a'), search('b'), search('c'), search('d'), [reply('here is what i found.\n' + url)]]);
+  const { fetcher, requests } = model([search('a'), search('b'), search('c'), search('d'), [reply('here is what i found, $795.\n' + url)]]);
   const body = await generateReply(say('keep looking'), env, fetcher, shop.memory);
   assert.equal(shop.searches, 4); assert.equal(requests.length, 5);
   assert.equal(requests[3].tool_choice, 'required'); assert.deepEqual(requests[4].tool_choice, { type:'function', name:'conversation_reply' });

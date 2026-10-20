@@ -141,6 +141,10 @@
       "destination": "/adoption.html"
     },
     {
+      "source": "/admin/quality",
+      "destination": "/scorecard.html"
+    },
+    {
       "source": "/admin/jokes",
       "destination": "/report-jokes.html"
     },

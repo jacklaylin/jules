@@ -141,9 +141,9 @@ test('Shop records offer line-item images and product links as candidates',()=>{
 test('the wardrobe flags items with a stored order photo and serves it only to its owner',async()=>{
  const applied=applyProposal(emptyReceiptState('owner'),source,{events:[purchase('Williams III Hoodie','Black','L',{photo_ref:0}),purchase('LAX Tee','White','M')]});
  const [hoodie,tee]=applied.state.items;
- const view=wardrobeView(applied.state,{photos:new Map([[hoodie.id,'order_email']])});
- const flag=id=>{const i=view.items.find(i=>i.id===id);return [i.photo,i.photo_source];};
- assert.deepEqual(flag(hoodie.id),[true,'order_email']);assert.deepEqual(flag(tee.id),[false,null]);
+ const view=wardrobeView(applied.state,{photos:new Map([[hoodie.id,{source:'order_email',version:'2026-10-19T10:00:00Z'}]])});
+ const flag=id=>{const i=view.items.find(i=>i.id===id);return [i.photo,i.photo_source,i.photo_version];};
+ assert.deepEqual(flag(hoodie.id),[true,'order_email','2026-10-19T10:00:00Z']);assert.deepEqual(flag(tee.id),[false,null,null]);
  // A chosen but not-yet-stored photo is not claimed.
  assert.deepEqual(wardrobeView(applied.state).items.map(i=>i.photo),[false,false]);
  const jpeg=(await sharp(await png(50,50)).jpeg().toBuffer()).toString('base64');
@@ -152,6 +152,9 @@ test('the wardrobe flags items with a stored order photo and serves it only to i
   await handleWardrobe({method:'GET',url,headers:{}},res,{store,env:{},auth:async()=>({status:200,conversation})});return res;};
  const ok=await call('/api/wishlist?wardrobe=1&photo='+encodeURIComponent(hoodie.id));
  assert.equal(ok.statusCode,200);assert.equal(ok.headers['Content-Type'],'image/jpeg');assert.equal(ok.headers['Cache-Control'],'no-store');
+ // A versioned photo URL may stay in this browser's private cache; the version changes when the photo does.
+ const versioned=await call('/api/wishlist?wardrobe=1&v=1&photo='+encodeURIComponent(hoodie.id));
+ assert.equal(versioned.statusCode,200);assert.match(versioned.headers['Cache-Control'],/^private, max-age=\d+/);
  assert.equal((await call('/api/wishlist?wardrobe=1&photo='+encodeURIComponent(hoodie.id),'someone-else')).statusCode,404);
  assert.equal((await call('/api/wishlist?wardrobe=1&photo=..%2Fx%3Fy')).statusCode,400);
 });

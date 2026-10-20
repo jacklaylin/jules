@@ -4,9 +4,12 @@ mountHeader('wishlist');
 import {createSession} from './wishlist-session.js';
 import {rememberWishlistTarget,consumeWishlistTarget} from './wishlist-deep-link.js';
 import {matchPhotoBackground} from './photo-background.js';
+import {readList,saveList,forgetLists} from './list-cache.js';
+import {whenNear} from './lazy-photo.js';
+import {filterChips,matchesFilter,nextFilter,filterLabel,filterFromURL,filterURL,countLabel} from './wishlist-filters.js';
 const $ = id => document.getElementById(id);
 const session=createSession({fetcher:fetch,storage:localStorage,lock:work=>navigator.locks?navigator.locks.request('jules-wishlist-refresh',work):work()});
-let token=session.read()?.access_token||sessionStorage.getItem('jules_wishlist_token'), generation=0, detailVersion=0;
+let token=session.read()?.access_token||sessionStorage.getItem('jules_wishlist_token'), generation=0, detailVersion=0, filter=filterFromURL(location.search);
 const urls=new Set(), imageCache=new Map(), itemCache=new Map();
 const fragment=new URLSearchParams(location.hash.slice(1));
 if(fragment.has('access_token')){token=fragment.get('access_token');session.save({access_token:token,refresh_token:fragment.get('refresh_token'),expires_at:Number(fragment.get('expires_at'))||Date.now()/1000+(Number(fragment.get('expires_in'))||3600)});sessionStorage.removeItem('jules_wishlist_token');}
@@ -18,7 +21,7 @@ function login(){clear();token=null;enableAdminLink(null);session.clear();sessio
 async function authorizedFetch(query='',options={}){
  const {quiet=false,...requestOptions}=options;
  try{token=await session.token()||token;}catch(e){if(!session.read())login();throw e;}
- const send=()=>(quiet?globalThis.fetch:fetch)('/api/wishlist'+query,{...requestOptions,headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{})},cache:'no-store'});
+ const send=()=>(quiet?globalThis.fetch:fetch)('/api/wishlist'+query,{...requestOptions,headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{})},cache:requestOptions.cache??'no-store'});
  let response=await send();
  if(!query&&(!options.method||options.method==='GET'))$('collection').dataset.serverTiming=response.headers.get('Server-Timing')||'';
  if(response.status===401&&session.read()?.refresh_token){try{token=await session.token(true);response=await send();}catch(e){if(!session.read())login();throw e;}}
@@ -43,9 +46,12 @@ function cardStock(stock){
  return [stockTag('Sold out'),node('span',(stock.stores>1?'At every store · ':'')+'checked '+shortDate(stock.checked_at),'card-note')];
 }
 const priceRange=ranges=>ranges?.length?ranges.map(r=>(r.min===r.max?money(r.min,r.currency):`${money(r.min,r.currency)}–${money(r.max,r.currency)}`)+(r.indexed?' · indexed price':'')).join(' · '):'Price unavailable';
+// Photo URLs carry the photo's version, so the browser can keep each photo until it changes.
+const photoQuery=(item,rest,version)=>`?item=${item}&${rest}&v=${encodeURIComponent(version??'0')}`;
+const productPhoto=item=>photoQuery(item.image_item,'image=product',item.photo_version);
 function skeleton(cls=''){const el=node('div',null,'skeleton '+cls);el.setAttribute('aria-hidden','true');return el;}
 function loadImage(query,version=generation){
- if(!imageCache.has(query)) imageCache.set(query,authorizedFetch(query,{quiet:true}).then(async r=>{if(!r.ok)throw new Error();return r.blob();}).then(blob=>{if(version!==generation)throw new Error();const url=URL.createObjectURL(blob);urls.add(url);return url;}));
+ if(!imageCache.has(query)) imageCache.set(query,authorizedFetch(query,{quiet:true,cache:'default'}).then(async r=>{if(!r.ok)throw new Error();return r.blob();}).then(blob=>{if(version!==generation)throw new Error();const url=URL.createObjectURL(blob);urls.add(url);return url;}));
  return imageCache.get(query);
 }
 // A small greyscale thumbnail; retailers often list the same shot twice at different sizes.
@@ -55,14 +61,14 @@ const samePhoto=(a,b)=>a.length===b.length&&a.reduce((sum,v,i)=>sum+Math.abs(v-b
 function photo(query,alt){
  const frame=node('div',null,'photo skeleton');frame.setAttribute('aria-busy','true');frame.setAttribute('aria-label','Loading image');const version=generation;
  const finish=()=>{frame.classList.remove('skeleton');frame.removeAttribute('aria-label');frame.setAttribute('aria-busy','false');};
- loadImage(query,version).then(async url=>{const img=node('img');img.alt=alt;img.src=url;await img.decode();if(version!==generation)return;matchPhotoBackground(frame,img);finish();frame.replaceChildren(img);frame.dataset.readyMs=performance.now().toFixed(1);}).catch(()=>{if(version!==generation)return;finish();frame.textContent='Image unavailable';imageCache.delete(query);});return frame;
+ whenNear(frame,()=>loadImage(query,version).then(async url=>{const img=node('img');img.alt=alt;img.src=url;await img.decode();if(version!==generation)return;matchPhotoBackground(frame,img);finish();frame.replaceChildren(img);frame.dataset.readyMs=performance.now().toFixed(1);}).catch(()=>{if(version!==generation)return;finish();frame.textContent='Image unavailable';imageCache.delete(query);}));return frame;
 }
 function detailSkeleton(){const info=node('div',null,'info detail-skeleton');info.append(skeleton('skeleton-title'),skeleton('skeleton-price'),skeleton('skeleton-date'));for(let i=0;i<3;i++){const link=node('div',null,'skeleton-link');link.append(skeleton('skeleton-date'),skeleton('skeleton-line'),skeleton('skeleton-price'));info.append(link);}return [skeleton('photo'),info];}
 function photoCarousel(item){
  const slides=[];
- if(item.has_image)slides.push({query:`?item=${item.image_item}&image=product`,label:item.image_kind==='outfit_crop'?'Detail from your photo':'Product photo'});
- for(let i=0;i<Math.min(Number(item.photo_count)||0,2);i++)slides.push({query:`?item=${item.image_item}&image=reference&index=${i}`,label:'Product photo',extra:true});
- if(item.source_image_id)slides.push({query:`?item=${item.image_item}&source=${item.source_image_id}`,label:'Your original photo'});
+ if(item.has_image)slides.push({query:productPhoto(item),product:true,label:item.image_kind==='outfit_crop'?'Detail from your photo':'Product photo'});
+ for(let i=0;i<Math.min(Number(item.photo_count)||0,2);i++)slides.push({query:photoQuery(item.image_item,`image=reference&index=${i}`,item.photo_version),label:'Product photo',extra:true});
+ if(item.source_image_id)slides.push({query:photoQuery(item.image_item,`source=${item.source_image_id}`,item.photo_version),label:'Your original photo'});
  if(!slides.length)return pendingPhoto(item.photo_status==='retry_pending');
  const gallery=node('section',null,'photo-carousel');gallery.setAttribute('aria-label','Item photos');
  const view=node('div',null,'carousel-view'),controls=node('div',null,'carousel-controls'),caption=node('span',null,'carousel-caption');caption.setAttribute('aria-live','polite');
@@ -74,14 +80,14 @@ function photoCarousel(item){
  gallery.onkeydown=e=>{if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();move(e.key==='ArrowLeft'?-1:1);}};
  let start=null;view.addEventListener('pointerdown',e=>{start=e.clientX;});view.addEventListener('pointerup',e=>{if(start!==null&&Math.abs(e.clientX-start)>45)move(e.clientX<start?1:-1);start=null;});view.addEventListener('pointercancel',()=>{start=null;});
  show();
- const product=slides.find(slide=>slide.query.endsWith('&image=product'));
+ const product=slides.find(slide=>slide.product);
  if(product)for(const slide of slides.filter(slide=>slide.extra))Promise.all([thumbprint(product.query),thumbprint(slide.query)]).then(([a,b])=>{
   if(!samePhoto(a,b))return;const at=slides.indexOf(slide);if(at<0)return;const current=slides[index];slides.splice(at,1);index=Math.max(0,slides.indexOf(current));prev.disabled=next.disabled=slides.length<2;if(current===slide)show();else caption.textContent=`${slides[index].label} · ${index+1} / ${slides.length}`;
  }).catch(()=>{});
  return gallery;
 }
 function previewPhoto(entry){
- if(entry.image_item)return photo(`?item=${entry.image_item}&image=product`,entry.name);
+ if(entry.image_item)return photo(productPhoto(entry),entry.name);
  const frame=node('div',null,'photo skeleton');const img=node('img');img.alt=entry.name;img.referrerPolicy='no-referrer';
  img.onload=()=>{matchPhotoBackground(frame,img);frame.classList.remove('skeleton');frame.replaceChildren(img);};img.onerror=()=>{frame.classList.remove('skeleton');frame.textContent='No preview';};img.src=entry.preview_image_url;return frame;
 }
@@ -95,14 +101,48 @@ async function detail(id){
  }catch(e){if(version===detailVersion){$('detail-content').setAttribute('aria-busy','false');if(saved)$('detail-content .info')?.append(node('p',e.message));else $('detail-content').replaceChildren(node('p',e.message));}}
 }
 async function load(){
- clear();const version=generation;$('login').hidden=true;$('collection').hidden=false;$('empty').hidden=true;$('count').textContent='';$('grid').setAttribute('aria-busy','true');for(let i=0;i<4;i++){const tile=node('div',null,'tile');tile.setAttribute('aria-hidden','true');tile.append(skeleton('photo'),skeleton('skeleton-card-title'),skeleton('skeleton-price'));$('grid').append(tile);}
- let items;try{({items}=await api());if(version!==generation)return;void enableAdminLink(token);}catch(e){$('grid').replaceChildren();throw e;}finally{$('grid').setAttribute('aria-busy','false');}
- $('grid').replaceChildren();$('login').hidden=true;$('collection').hidden=false;$('empty').hidden=items.length>0;$('count').textContent=items.length+' '+(items.length===1?'ITEM':'ITEMS');
- for(const item of items){itemCache.set(item.id,item);const card=node('div',null,'product-card');card.dataset.group=item.id;const tile=node('button',null,'tile');tile.type='button';tile.append(item.has_image?photo(`?item=${item.image_item}&image=product`,item.name):pendingPhoto(item.photo_status==='retry_pending'),node('strong',item.name),node('span',priceRange(item.price_ranges),'card-price'+(item.stock?' sold-out':'')),...cardStock(item.stock));if(item.sourcing_status==='store_not_found')tile.append(node('span','Product identified · Store not found','card-state'));tile.onclick=()=>detail(item.id);card.append(tile,removeButton(item,card));if(item.alerts_enabled)card.append(alertToggle(item));$('grid').append(card);}message('');requestAnimationFrame(()=>{if(version===generation)$('collection').dataset.readyMs=performance.now().toFixed(1);});void recoverPhotos(items,generation);void recoverAlertBaselines(items,generation);
+ clear();const version=generation;$('login').hidden=true;$('collection').hidden=false;$('empty').hidden=true;$('toolbar').hidden=true;$('filter-empty').hidden=true;delete $('collection').dataset.readyMs;
+ // A return visit draws the list it showed last time straight away, then swaps in the server's copy only if it changed.
+ let saved=readList(localStorage,'wishlist',token);
+ // A saved copy that no longer draws (say, from before a deploy) is dropped, never a broken page.
+ if(saved)try{render(saved,version,'saved');}catch{saved=null;itemCache.clear();$('grid').replaceChildren();forgetLists(localStorage);}
+ if(!saved){$('grid').setAttribute('aria-busy','true');for(let i=0;i<4;i++){const tile=node('div',null,'tile');tile.setAttribute('aria-hidden','true');tile.append(skeleton('photo'),skeleton('skeleton-card-title'),skeleton('skeleton-price'));$('grid').append(tile);}}
+ // A change made on the saved list while this refresh runs wins: wait for it, then read the list again.
+ let items;try{for(;;){const seen=written;({items}=await api());if(version!==generation)return;if(!writes.size&&written===seen)break;await Promise.allSettled([...writes]);}void enableAdminLink(token);}catch(e){if(!saved)$('grid').replaceChildren();throw e;}finally{$('grid').setAttribute('aria-busy','false');}
+ if(!saved||JSON.stringify(items)!==JSON.stringify(saved))render(items,version,'server');
+ void recoverPhotos(items,generation);void recoverAlertBaselines(items,generation);
  const target=consumeWishlistTarget(items,localStorage);
  if(target?.id)void detail(target.id);else if(target?.missing)message('This item is not available in your signed-in wishlist.');
 }
+// Redrawing keeps the page's photo cache, so photos already shown reappear without a reload.
+function render(items,version,source){
+ itemCache.clear();$('grid').replaceChildren();$('login').hidden=true;$('collection').hidden=false;$('empty').hidden=items.length>0;
+ for(const item of items){itemCache.set(item.id,item);const card=node('div',null,'product-card');card.dataset.group=item.id;const tile=node('button',null,'tile');tile.type='button';tile.append(item.has_image?photo(productPhoto(item),item.name):pendingPhoto(item.photo_status==='retry_pending'),node('strong',item.name),node('span',priceRange(item.price_ranges),'card-price'+(item.stock?' sold-out':'')),...cardStock(item.stock));if(item.sourcing_status==='store_not_found')tile.append(node('span','Product identified · Store not found','card-state'));tile.onclick=()=>detail(item.id);card.append(tile,removeButton(item,card));if(item.alerts_enabled)card.append(alertToggle(item));$('grid').append(card);}
+ // A link to a filter with nothing in it opens the whole wishlist.
+ if(filter!=='all'&&!items.some(item=>matchesFilter(item,filter)))setFilter('all',false);
+ applyFilter();message('');$('collection').dataset.listSource=source;
+ requestAnimationFrame(()=>{if(version===generation&&!$('collection').dataset.readyMs)$('collection').dataset.readyMs=performance.now().toFixed(1);});
+}
 
+function setFilter(id,apply=true){
+ filter=id;history.replaceState(history.state,'',filterURL(location.href,id));
+ if(apply)applyFilter();
+}
+// Chips count every state; refilter=false keeps cards in place after an alert change until the person picks a filter.
+function applyFilter(refilter=true){
+ const items=[...itemCache.values()];saveList(localStorage,'wishlist',token,items);
+ $('filters').replaceChildren(...filterChips(items,filter).map(chip=>{
+  const button=node('button',chip.label,'chip'+(chip.id===filter?' chip--on':''));button.type='button';button.setAttribute('aria-pressed',String(chip.id===filter));
+  button.append(node('span',String(chip.count),'chip-count'));button.onclick=()=>setFilter(nextFilter(filter,chip.id));return button;
+ }));
+ let shown=0;
+ for(const card of $('grid').children){const item=itemCache.get(card.dataset.group);if(!item)continue;if(refilter)card.hidden=!matchesFilter(item,filter);if(!card.hidden)shown++;}
+ $('count').textContent=countLabel(shown,items.length,filter!=='all');
+ $('toolbar').hidden=!items.length;
+ const empty=Boolean(items.length)&&filter!=='all'&&!shown;$('filter-empty').hidden=!empty;
+ if(empty){$('filter-empty-text').textContent=`Nothing left in ${filterLabel(filter)}.`;$('filter-show-all').textContent=`Show all ${items.length} ${items.length===1?'item':'items'}`;}
+}
+$('filter-show-all').onclick=()=>setFilter('all');
 async function recoverAlertBaselines(items,version){
  if(!items.some(item=>item.price_alert?.active&&item.price_alert.baseline_pending))return;
  try{
@@ -122,11 +162,11 @@ async function recoverPhotos(items,version,pass=0){
   if(version!==generation)return;
   for(const update of recovered.items??[]){
    const item=itemCache.get(update.id);if(!item)continue;
-   const changed=item.has_image!==update.has_image||item.name!==update.name||JSON.stringify(item.price_ranges)!==JSON.stringify(update.price_ranges);
+   const changed=item.has_image!==update.has_image||item.photo_version!==update.photo_version||item.name!==update.name||JSON.stringify(item.price_ranges)!==JSON.stringify(update.price_ranges);
    Object.assign(item,update);
    if(!changed)continue;
    const card=[...$('grid').children].find(card=>card.dataset.group===item.id);
-   card?.querySelector('.tile .photo')?.replaceWith(item.has_image?photo(`?item=${item.image_item}&image=product`,item.name):pendingPhoto(item.photo_status==='retry_pending'));
+   card?.querySelector('.tile .photo')?.replaceWith(item.has_image?photo(productPhoto(item),item.name):pendingPhoto(item.photo_status==='retry_pending'));
    const title=card?.querySelector('.tile strong');if(title)title.textContent=item.name;
    const price=card?.querySelector('.card-price');if(price)price.textContent=priceRange(item.price_ranges);
    if($('detail').open&&$('detail-content').dataset.group===item.id)void detail(item.id);
@@ -136,7 +176,9 @@ async function recoverPhotos(items,version,pass=0){
 }
 
 let alertSelection=null,toastTimer;
-const alertPost=input=>api('',{method:'POST',body:JSON.stringify(input)});
+// Changes in flight, so a list refresh never draws over one (see load).
+const writes=new Set();let written=0;
+function alertPost(input){const request=api('',{method:'POST',body:JSON.stringify(input)});writes.add(request);request.finally(()=>{writes.delete(request);written++;}).catch(()=>{});return request;}
 function toast(text,undo){
  clearTimeout(toastTimer);const notification=$('toast');notification.replaceChildren(node('span',text));
  if(undo){
@@ -155,7 +197,7 @@ function toast(text,undo){
 }
 function removeButton(item,card){
  const button=node('button','×','icon-button remove-item');button.type='button';button.setAttribute('aria-label',`Remove ${item.name} from wishlist`);button.title='Remove from wishlist';
- button.onclick=async()=>{button.disabled=true;try{await alertPost({action:'remove',group:item.id});if(card)await removeWithMotion(card);itemCache.delete(item.id);const count=$('grid').children.length;$('count').textContent=count+' '+(count===1?'ITEM':'ITEMS');$('empty').hidden=count>0;toast(item.price_alert?.active?'Removed. Price alert turned off.':'Removed from your wishlist.',async()=>{await alertPost({action:'restore',group:item.id});await load();});const next=$('grid').querySelector('.tile');if(next)next.focus();}catch(e){message(e.message);button.disabled=false;}};
+ button.onclick=async()=>{button.disabled=true;try{await alertPost({action:'remove',group:item.id});if(card)await removeWithMotion(card);itemCache.delete(item.id);applyFilter();$('empty').hidden=itemCache.size>0;toast(item.price_alert?.active?'Removed. Price alert turned off.':'Removed from your wishlist.',async()=>{await alertPost({action:'restore',group:item.id});await load();});const next=$('grid').querySelector('.product-card:not([hidden]) .tile');if(next)next.focus();}catch(e){message(e.message);button.disabled=false;}};
  return button;
 }
 function stockSummary(item){
@@ -191,7 +233,7 @@ function alertToggle(item){
  button.onclick=async()=>{
    button.disabled=true;
    try{
-     if(item.price_alert?.active){await alertPost({action:'alert-disable',group:item.id});item.price_alert.active=false;update();toast('Price alert turned off.');return;}
+     if(item.price_alert?.active){await alertPost({action:'alert-disable',group:item.id});item.price_alert.active=false;update();applyFilter(false);toast('Price alert turned off.');return;}
      await openAlertPicker(item,{update,button});
    }catch(e){$('alert-note').textContent=e.message;message(e.message);}finally{button.disabled=false;}
  };return button;
@@ -202,7 +244,7 @@ $('alert-picker').addEventListener('close',()=>{alertSelection=null;});
 $('alert-form').onsubmit=async event=>{
  event.preventDefault();if(!alertSelection||!$('alert-size').value)return;
  const selected=alertSelection;$('alert-save').disabled=true;$('alert-size').disabled=true;$('alert-close').disabled=true;
- try{const data=await alertPost({action:'alert-enable',group:selected.item.id,size:$('alert-size').value});selected.item.price_alert=data;selected.update();popIn(selected.button);closeDialog($('alert-picker'));toast(data.restock?`We’ll text you when size ${data.size} is back in stock.`:"We'll text you if the price drops more than 10% or your size comes back in stock");}
+ try{const data=await alertPost({action:'alert-enable',group:selected.item.id,size:$('alert-size').value});selected.item.price_alert=data;selected.update();applyFilter(false);popIn(selected.button);closeDialog($('alert-picker'));toast(data.restock?`We’ll text you when size ${data.size} is back in stock.`:"We'll text you if the price drops more than 10% or your size comes back in stock");}
  catch(e){$('alert-note').textContent=e.message;}finally{$('alert-save').disabled=!$('alert-size').value;$('alert-size').disabled=false;$('alert-close').disabled=false;}
 };
 const closeDetail=()=>{detailVersion++;closeDialog($('detail'));};

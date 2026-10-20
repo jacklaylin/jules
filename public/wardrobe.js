@@ -2,6 +2,8 @@ import {trackedFetch as fetch} from './activity.js';
 import {mountHeader,enableAdminLink} from './design-system.js';
 import {createSession} from './wishlist-session.js';
 import {matchPhotoBackground} from './photo-background.js';
+import {readList,saveList,forgetLists} from './list-cache.js';
+import {whenNear} from './lazy-photo.js';
 mountHeader('wardrobe');
 
 // The wardrobe (PRD section 29): what Jules counts as yours, from your receipts. Every change goes
@@ -18,7 +20,8 @@ const el=(tag,props={},...children)=>{const node=Object.assign(document.createEl
 const CATEGORY_LABELS={tops:'Tops',bottoms:'Bottoms',dresses:'Dresses',outerwear:'Outerwear',suits:'Suits',shoes:'Shoes',bags:'Bags',accessories:'Accessories',other:'Other'};
 const REASON_LABELS={returned:'Returned',cancelled:'Order cancelled',gift:'Gift for someone',gone:'Don’t have it anymore',never_bought:'Never bought'};
 const ANSWER_LABELS={mine:'Mine',gift:'A gift',bought:'I bought it',not_bought:'I didn’t',kept:'Kept it',returned:'Returned',same:'Same item',not_sure:'Not sure'};
-// Outline drawings stand in when the purchase itself had no product photo (no lookalikes are shown).
+// Outline drawings stand in when there is no photo: none in the purchase itself and no searched photo the
+// owner has confirmed. A searched photo is shown only as a suggestion until they say it's theirs.
 const OUTLINES={
  tops:'M92 74 L130 58 Q150 80 170 58 L208 74 L258 124 L228 154 L210 138 L210 336 L90 336 L90 138 L72 154 L42 124 Z',
  bottoms:'M98 50 L202 50 L216 356 L166 356 L150 146 L134 356 L84 356 Z',
@@ -37,22 +40,31 @@ function outline(category){
 }
 // The photo from the order email or Shop order, in the shared .photo frame; the outline if it can't load.
 const photoURLs=new Map();
-function photoURL(id){
- if(!photoURLs.has(id))photoURLs.set(id,(async()=>{
+// kind: 'photo' (the item's photo; source=search for a confirmed searched photo) or 'suggestion' (pending).
+// The URL carries the photo's version, so the browser keeps the photo until it changes.
+function photoURL(id,kind='photo',source=null,version){
+ const key=`${kind}:${source??''}:${id}:${version}`;
+ if(!photoURLs.has(key))photoURLs.set(key,(async()=>{
   // Plain fetch: photo loads don't show the page activity indicator.
-  const send=()=>globalThis.fetch(`/api/wishlist?wardrobe=1&photo=${encodeURIComponent(id)}`,{headers:{Authorization:`Bearer ${token}`},cache:'no-store'});
+  const send=()=>globalThis.fetch(`/api/wishlist?wardrobe=1&${kind}=${encodeURIComponent(id)}${source?`&source=${source}`:''}&v=${encodeURIComponent(version??'0')}`,{headers:{Authorization:`Bearer ${token}`}});
   let response=await send();
   if(response.status===401&&session.read()?.refresh_token){token=await session.token(true);response=await send();}
   if(!response.ok)throw Error('Photo unavailable');
   return URL.createObjectURL(await response.blob());
- })().catch(error=>{photoURLs.delete(id);throw error;}));
- return photoURLs.get(id);
+ })().catch(error=>{photoURLs.delete(key);throw error;}));
+ return photoURLs.get(key);
 }
+// A photo much smaller than its frame is shown at up to twice its own size, not stretched into a blur.
+const SMALL_PHOTO=300;
 function photo(item){
- if(!item?.photo)return outline(item?.category);
- const frame=el('div',{className:'photo skeleton'});
- photoURL(item.id).then(async url=>{const img=el('img',{alt:name(item)});img.src=url;await img.decode();matchPhotoBackground(frame,img);frame.classList.remove('skeleton');frame.replaceChildren(img);})
-  .catch(()=>{if(frame.parentNode)frame.replaceWith(Object.assign(outline(item.category),{id:frame.id}));});
+ const kind=item?.suggestion?'suggestion':item?.photo?'photo':null;
+ if(!kind)return outline(item?.category);
+ const frame=el('div',{className:'photo skeleton'+(kind==='suggestion'?' suggested-photo':'')});
+ whenNear(frame,()=>photoURL(item.id,kind,kind==='photo'&&item.photo_source==='search_confirmed'?'search':null,kind==='photo'?item.photo_version:item.suggestion.version).then(async url=>{
+  const img=el('img',{alt:name(item)});img.src=url;await img.decode();
+  if(Math.max(img.naturalWidth,img.naturalHeight)<SMALL_PHOTO){frame.classList.add('photo--small');img.style.maxWidth=img.naturalWidth*2+'px';img.style.maxHeight=img.naturalHeight*2+'px';}
+  matchPhotoBackground(frame,img);frame.classList.remove('skeleton');frame.replaceChildren(img);})
+  .catch(()=>{if(frame.parentNode)frame.replaceWith(Object.assign(outline(item.category),{id:frame.id}));}));
  return frame;
 }
 const name=item=>item.product||item.brand||'Item';
@@ -62,11 +74,17 @@ const day=at=>new Date(at).toLocaleDateString(undefined,{month:'short',day:'nume
 let view=null,category='all',current=null,undo=null,toastTimer;
 const message=text=>{$('notice').textContent=text;};
 
+// Changes in flight, so a list refresh never draws over one (see load).
+const writes=new Set();let written=0;
+function api(method='GET',body,options){
+ if(method==='GET')return request(method,body,options);
+ const pending=request(method,body,options);writes.add(pending);pending.finally(()=>{writes.delete(pending);written++;}).catch(()=>{});return pending;
+}
 // A rejected token is renewed once before the page asks you to sign in again, as on the wishlist.
-async function api(method='GET',body){
+async function request(method='GET',body,{quiet=false}={}){
  try{token=await session.token()||token;}catch(error){if(!session.read())token=null;else throw error;}
  if(!token)throw Object.assign(Error('Please sign in.'),{status:401});
- const send=()=>fetch('/api/wishlist?wardrobe=1',{method,headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},...(body?{body:JSON.stringify(body)}:{}),cache:'no-store'});
+ const send=()=>(quiet?globalThis.fetch:fetch)('/api/wishlist?wardrobe=1',{method,headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},...(body?{body:JSON.stringify(body)}:{}),cache:'no-store'});
  let response=await send();
  if(response.status===401&&session.read()?.refresh_token){
   try{token=await session.token(true);}catch(error){if(!session.read())token=null;else throw error;}
@@ -92,10 +110,19 @@ async function act(input,{done}={}){
  catch(error){if(error.status===401)login();toast(error.message);return false;}
 }
 
+// A searched photo waiting for the owner: labelled on the photo, answered with thumbs inside the photo.
+const THUMB='<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 21 L7 10 L11 10 L14 3 C16 3 17 4 17 6 L16 9 L21 9 C22 9 23 10 22.6 11.4 L20.5 19.4 C20.2 20.4 19.4 21 18.4 21 Z M3 10 L7 10 L7 21 L3 21 Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>';
+function suggestionLabel(){return el('span',{className:'suggested-label',textContent:'Is this yours?'});}
+function suggestionAsk(item){
+ const answer=(value,label)=>{const b=el('button',{type:'button',className:'suggest-thumb'+(value==='no'?' suggest-thumb--down':''),title:label});b.innerHTML=THUMB;b.setAttribute('aria-label',`${label}: ${name(item)}`);
+  b.onclick=event=>{event.stopPropagation();act({action:'photo',item_id:item.id,answer:value},{done:()=>toast(value==='yes'?'Photo saved.':'Got it. Jules won’t use that photo.')});};return b;};
+ return el('div',{className:'suggest-ask'},answer('no','Not mine'),answer('yes','This is mine'));
+}
 function card(item){
- const tile=el('button',{type:'button',className:'tile'},photo(item),el('strong',{},name(item)),line(item)?el('span',{className:'card-price'},line(item)):null);
+ const media=photo(item);
+ const tile=el('button',{type:'button',className:'tile'},item.suggestion?el('div',{className:'suggested-frame'},media,suggestionLabel()):media,el('strong',{},name(item)),line(item)?el('span',{className:'card-price'},line(item)):null);
  tile.onclick=()=>openDetail(item.id);
- return el('div',{className:'product-card'},tile);
+ return el('div',{className:'product-card'+(item.suggestion?' has-suggestion':'')},tile,item.suggestion?suggestionAsk(item):null);
 }
 
 function renderQuestions(){
@@ -115,19 +142,21 @@ function renderQuestions(){
 function renderCategories(){
  const present=Object.keys(CATEGORY_LABELS).filter(c=>view.items.some(i=>i.category===c));
  if(category!=='all'&&!present.includes(category))category='all';
- const chip=(key,label)=>{const b=el('button',{type:'button',className:'chip'+(key===category?' chip--on':''),textContent:label});b.setAttribute('aria-pressed',String(key===category));b.onclick=()=>{category=key;render();};return b;};
+ const chip=(key,label)=>{const b=el('button',{type:'button',className:'chip'+(key===category?' chip--on':''),textContent:label},el('span',{className:'chip-count'},String(key==='all'?view.items.length:view.items.filter(i=>i.category===key).length)));b.setAttribute('aria-pressed',String(key===category));b.onclick=()=>{category=key===category?'all':key;render();};return b;};
  $('categories').replaceChildren(...(present.length>1?[chip('all','All'),...present.map(c=>chip(c,CATEGORY_LABELS[c]))]:[]));
 }
 
 function render(){
  if(!view)return;
+ saveList(localStorage,'wardrobe',token,view);
  $('login').hidden=true;$('wardrobe').hidden=false;
  const count=view.items.length,reading=['listing','extracting','questions'].includes(view.status);
- $('count').textContent=count?`${count} ${count===1?'ITEM':'ITEMS'}`:'';
- $('reading').hidden=!reading;
+  $('reading').hidden=!reading;
  for(const link of document.querySelectorAll('.text-jules')){link.hidden=!view.text_url;if(view.text_url)link.href=view.text_url;}
  renderQuestions();renderCategories();
  const shown=view.items.filter(i=>category==='all'||i.category===category);
+ const total=`${count} ${count===1?'item':'items'}`;
+ $('count').textContent=count?(category==='all'?total:`${shown.length} of ${total}`):'';
  $('grid').replaceChildren(...shown.map(card));
  $('toolbar').hidden=!count;
  $('empty').hidden=Boolean(count)||reading;
@@ -140,7 +169,8 @@ function render(){
 
 function openDetail(id){
  const item=view.items.find(i=>i.id===id);if(!item)return;current=id;
- $('detail-photo').replaceWith(Object.assign(photo(item),{id:'detail-photo'}));
+ const media=photo(item);
+ $('detail-photo').replaceWith(item.suggestion?Object.assign(el('div',{className:'suggested-frame detail-suggestion'},media,suggestionLabel(),suggestionAsk(item)),{id:'detail-photo'}):Object.assign(media,{id:'detail-photo'}));
  $('detail-brand').textContent=item.brand??'';$('detail-title').textContent=name(item);
  const facts=[['Size',item.size??'Unknown'],['Color',item.color??'Unknown'],['Bought',[item.merchant,item.bought_at&&day(item.bought_at)].filter(Boolean).join(' · ')||'Unknown'],
   // A configured product lists the parts chosen for it (the strap and carabiners of a built bag).
@@ -190,11 +220,24 @@ function loading(){
  $('grid').setAttribute('aria-busy','true');
  $('grid').replaceChildren(...Array.from({length:4},()=>{const tile=el('div',{className:'tile'},el('div',{className:'skeleton photo'}),el('div',{className:'skeleton skeleton-card-title'}),el('div',{className:'skeleton skeleton-price'}));tile.setAttribute('aria-hidden','true');return tile;}));
 }
+// Photos for purchases that had none are looked for a few at a time while the page is open. Each one
+// arrives as a suggestion; nothing becomes an item's photo without the owner's yes.
+async function findPhotos(){
+ for(let pass=0;pass<12&&view;pass++){
+  try{const next=await api('POST',{action:'suggest_photos'},{quiet:true});const remaining=next.photo_search?.remaining??0;delete next.photo_search;view=next;render();if(!remaining)return;}
+  catch{return;}
+ }
+}
+// A return visit draws the wardrobe it showed last time straight away, then swaps in the server's copy only if it changed.
 async function load(){
  if(!token){login();return;}
- loading();
- try{view=await api();render();void enableAdminLink(token);}
- catch(error){$('grid').replaceChildren();if(error.status===401)return login();message(error.message);}
+ let saved=readList(localStorage,'wardrobe',token);
+ // A saved copy that no longer draws (say, from before a deploy) is dropped, never a broken page.
+ if(saved)try{view=saved;render();$('wardrobe').dataset.listSource='saved';}catch{saved=null;view=null;forgetLists(localStorage);}
+ if(!saved)loading();
+ // A change made on the saved wardrobe while this refresh runs wins: wait for it, then read again.
+ try{let fresh;for(;;){const seen=written;fresh=await api();if(!writes.size&&written===seen)break;await Promise.allSettled([...writes]);}if(!saved||JSON.stringify(fresh)!==JSON.stringify(view)){view=fresh;render();$('wardrobe').dataset.listSource='server';}void enableAdminLink(token);void findPhotos();}
+ catch(error){if(!saved)$('grid').replaceChildren();if(error.status===401)return login();message(error.message);}
  finally{$('grid').setAttribute('aria-busy','false');}
 }
 load();

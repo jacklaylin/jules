@@ -308,6 +308,20 @@ $('approve-confirm').onclick = async () => {
   } catch (error) { $('approve-error').textContent = error.message; $('approve-error').hidden = false; }
   finally { buttons.forEach(b => { b.disabled = false; }); $('approve-confirm').textContent = 'Approve'; }
 };
+// ---------- Contact card ----------
+// Re-sends the welcome's contact card on its own, without resetting onboarding or imported history.
+$('contact-card').onclick = () => { $('card-person').textContent = $('person-name').textContent; $('card-error').hidden = true; $('card-dialog').showModal(); };
+$('card-cancel').onclick = () => $('card-dialog').close();
+$('card-confirm').onclick = async () => {
+  const buttons = [$('card-confirm'), $('card-cancel')]; buttons.forEach(b => { b.disabled = true; }); $('card-confirm').textContent = 'Sending…';
+  try {
+    const data = await api('/api/admin', { method: 'POST', body: JSON.stringify({ action: 'send-contact-card', conversation: person, confirm: true }) });
+    $('card-dialog').close();
+    notice(data.contact_card === 'sent' ? 'Contact card sent.' : `Contact card not confirmed (${data.contact_card}); check their phone before sending again.`);
+    loadMessages().catch(error => notice(`Conversation: ${error.message}`));
+  } catch (error) { $('card-error').textContent = error.message; $('card-error').hidden = false; }
+  finally { buttons.forEach(b => { b.disabled = false; }); $('card-confirm').textContent = 'Send'; }
+};
 // ---------- Reset onboarding ----------
 // Owner re-test of signup and onboarding with an existing number; the dialog lists what is removed.
 $('reset-onboarding').onclick = () => { $('reset-person').textContent = $('person-name').textContent; $('reset-error').hidden = true; $('reset-dialog').showModal(); };

@@ -44,7 +44,7 @@ test('unauthorized style requests never read private state or sources',async()=>
 });
 test('GET returns source metadata without bytes, and arbitrary owner IDs cannot retrieve another user source',async()=>{
   const store=db(),h=handler(store);let r=res();await h(req(null,'GET'),r);
-  assert.equal(r.statusCode,200);assert.equal(data(r).sources[0].data,undefined);assert.equal(data(r).signup_url,'https://shopper.invalid/style');
+  assert.equal(r.statusCode,200);assert.equal(data(r).sources[0].data,undefined);assert.equal(data(r).signup_url,'https://shopper.invalid/signup?ref=style-card');
   r=res();await h(req(null,'GET','/api/style?source='+other),r);assert.equal(r.statusCode,404);
   r=res();await h(req(null,'GET','/api/style?source='+source.id),r);assert.equal(r.headers['Cache-Control'],'no-store');assert.equal(r.headers['Content-Type'],'image/jpeg');
 });

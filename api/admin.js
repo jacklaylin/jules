@@ -8,12 +8,15 @@ import { groupWishlist } from '../lib/wishlist.js';
 import { marketEnvironment } from '../lib/shopping-market.js';
 import { metricsTrend } from '../lib/chat-metrics.js';
 import { loadTurnOutcomes } from '../lib/turn-outcomes.js';
+import { loadScorecard, replayDraft } from '../lib/scorecard.js';
 import { deleteImportedHistory } from '../lib/gmail-import.js';
 import { tagPurchaseHistory } from '../lib/item-tags.js';
 import { buildReport, sendReportLink, sendNewCardText, reportView, withReadPhoto } from '../lib/style-report.js';
+import { referralRef } from '../lib/referral.js';
 import { firstName } from '../lib/memory.js';
 import { copyWeek } from '../lib/report-copy.js';
 import { adoptionReport } from '../lib/adoption.js';
+import { resendContactCard } from '../lib/onboarding.js';
 import { approveAccess, approvalPreview, waitlistAgain, WAITLIST_REPLIES } from '../lib/waitlist.js';
 import { profileFirstName, displayName } from '../lib/memory.js';
 
@@ -27,14 +30,33 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
       if (access !== 200) return json(res, access, { error: access === 503 ? 'Admin is not configured yet.' : 'Please sign in with the owner account.' });
       if (!['GET','POST'].includes(req.method)) { res.setHeader('Allow', 'GET, POST'); return json(res, 405, { error: 'Method not allowed.' }); }
       if (req.method === 'POST') {
-        // The only writes are purchase-history reviews, tagging, the onboarding reset and waitlist approval; manual replies stay retired.
+        // The only writes are purchase-history reviews, tagging, the onboarding reset, waitlist approval and texting the contact card; manual replies stay retired.
         const input = await readJson(req);
-        if (!['review', 'missed', 'tag', 'build-report', 'send-report', 'reset-onboarding', 'approve', 'waitlist'].includes(input.action)) return json(res, 400, { error: 'Unknown purchase action.' });
+        if (!['review', 'missed', 'tag', 'build-report', 'send-report', 'reset-onboarding', 'approve', 'waitlist', 'send-contact-card', 'judge-mark', 'replay-draft'].includes(input.action)) return json(res, 400, { error: 'Unknown purchase action.' });
+        if (input.action === 'judge-mark' && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Mark the judge from the Jules admin page.' });
         if (['approve', 'waitlist'].includes(input.action) && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Change waitlist status from the Jules admin page.' });
         if (input.action === 'reset-onboarding' && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Reset onboarding from the Jules admin page.' });
+        if (input.action === 'send-contact-card' && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Send the contact card from the Jules admin page.' });
         const store = storeFactory(env);
         if (!uuid(input.conversation) || !await store.conversation(input.conversation)) return json(res, 404, { error: 'Conversation not found.' });
         if (input.action === 'reset-onboarding') return json(res, 200, await resetOnboarding(store, input, env, fetcher));
+        // Scorecard (lib/scorecard.js): the owner's "judge was right / wrong" mark, and a draft replay case.
+        if (['judge-mark', 'replay-draft'].includes(input.action)) {
+          if (typeof input.operation !== 'string' || !/^ai:[A-Za-z0-9:_-]{1,200}$/.test(input.operation)) return json(res, 400, { error: 'Unknown turn.' });
+          const turn = await store.sourcingTurn(input.operation);
+          if (!turn || turn.conversation_id !== input.conversation) return json(res, 404, { error: 'This turn hasn’t been saved by the nightly judge yet.' });
+          if (input.action === 'replay-draft') { const draft = await replayDraft(store, turn); return draft ? json(res, 200, { draft }) : json(res, 404, { error: 'The turn’s message is no longer in the conversation.' }); }
+          if (![null, 'agree', 'disagree'].includes(input.verdict ?? null)) return json(res, 400, { error: 'Choose agree or disagree.' });
+          await store.markJudgement(input.operation, input.verdict ?? null);
+          return json(res, 200, { operation: input.operation, founder_verdict: input.verdict ?? null });
+        }
+        if (input.action === 'send-contact-card') {
+          if (input.confirm !== true) throw Object.assign(new Error('Confirm sending the contact card first.'), { status: 400 });
+          const status = await resendContactCard(store, await store.conversation(input.conversation), env, send);
+          console.log(JSON.stringify({ event: 'admin_contact_card', status }));
+          if (status === 'skipped') throw Object.assign(new Error('Set JULES_PUBLIC_LINE in Vercel first; the card needs Jules’s number.'), { status: 409 });
+          return json(res, 200, { contact_card: status });
+        }
         if (['approve', 'waitlist'].includes(input.action)) {
           if (input.confirm !== true) throw Object.assign(new Error('Confirm the status change first.'), { status: 400 });
           const conversation = await store.conversation(input.conversation);
@@ -73,6 +95,7 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
       if (query.get('view') === 'adoption') return json(res, 200, await adoptionReport(store));
       if (query.get('view') === 'metrics') return json(res, 200, await metricsTrend(store, { days: 7 }));
       // Per sourcing turn outcomes (lib/turn-outcomes.js): ids, counts and labels only, no message text.
+      if (query.get('view') === 'scorecard') return json(res, 200, await loadScorecard(store));
       if (query.get('view') === 'turn-outcomes') return json(res, 200, await loadTurnOutcomes(store, { days: Math.min(56, Math.max(1, Number(query.get('days')) || 7)) }));
       const id = query.get('conversation');
       if (!id) {
@@ -83,10 +106,15 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
         const blank = () => new Map();
         const [statuses, signups, profiles] = await Promise.all([store.accessFor(conversations.map(c => c.id)).catch(blank),
           store.signupNames?.(conversations.map(c => c.sender_id)).catch(blank) ?? blank(), store.profilesFor?.(conversations.map(c => c.id)).catch(blank) ?? blank()]);
+        const names = new Map(conversations.map(c => {
+          const signup = signups.get(c.sender_id);
+          return [c.id, (signup ? [displayName(signup.first_name), displayName(signup.last_name)].filter(Boolean).join(' ') : displayName(profileFirstName(profiles.get(c.id)))) || null];
+        }));
+        // A signup from someone's shared link (?ref=u-…) is credited to the person who shared it.
+        const sharers = new Map(conversations.map(c => [referralRef(c.id, env), c.id]).filter(([ref]) => ref));
         return json(res, 200, { conversations: conversations.map(c => {
-          const signup = signups.get(c.sender_id), status = statuses.get(c.id);
-          const name = signup ? [displayName(signup.first_name), displayName(signup.last_name)].filter(Boolean).join(' ') : displayName(profileFirstName(profiles.get(c.id)));
-          return { ...c, name: name || null, source: sources.get(c.sender_id) ?? null, access: status?.access ?? null, waitlist_replies: status?.waitlist_replies ?? null };
+          const status = statuses.get(c.id), source = sources.get(c.sender_id) ?? null, sharer = source ? sharers.get(source) : null;
+          return { ...c, name: names.get(c.id), source, referred_by: sharer && sharer !== c.id ? { id: sharer, name: names.get(sharer) ?? null } : null, access: status?.access ?? null, waitlist_replies: status?.waitlist_replies ?? null };
         }), waitlist_enabled: env.WAITLIST_ENABLED === 'true', waitlist_replies: WAITLIST_REPLIES, approval_text: approvalPreview(env)?.text ?? null, approval_account: approvalPreview(env)?.account ?? false });
       }
       if (!uuid(id)) return json(res, 400, { error: 'Invalid conversation.' });
