@@ -5,7 +5,7 @@
 //   node --env-file=.env.local scripts/frozen-evals.js run --model gpt-5.5 --runs 3
 //   node --env-file=.env.local scripts/frozen-evals.js run --cases dev-1a2b3c4d --no-sync
 //   node --env-file=.env.local scripts/frozen-evals.js list
-// Options: --since <ISO> (sync; default October 13), --category <name>, --concurrency 4, --max-cost 10 (USD).
+// Options: --since <ISO> (sync; default October 13), --category <name>, --concurrency 4, --max-cost 15 (USD).
 // Cases and run results live in FROZEN_EVALS_DIR (default ~/.jules/frozen-evals), outside the repository:
 // they hold private conversations. Nothing is searched, saved, alerted or sent.
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -41,7 +41,7 @@ if (command === 'list') {
 if (command !== 'run') process.exit(0);
 
 if (!env.OPENAI_API_KEY || env.OPENAI_API_KEY.startsWith('replace-with')) throw Error('OPENAI_API_KEY is missing; run with --env-file=.env.local');
-const runs = Number(option('--runs') ?? 1), concurrency = Number(option('--concurrency') ?? 4), maxCost = Number(option('--max-cost') ?? 10);
+const runs = Number(option('--runs') ?? 1), concurrency = Number(option('--concurrency') ?? 4), maxCost = Number(option('--max-cost') ?? 15);
 const model = option('--model') ?? null, only = option('--cases')?.split(',').map(s => s.trim()).filter(Boolean), category = option('--category');
 if (!(Number.isInteger(runs) && runs > 0)) throw Error('--runs must be a positive whole number');
 const cases = all.filter(c => (!only || only.includes(c.id)) && (!category || c.category === category));
@@ -72,6 +72,8 @@ console.log(`PASS RATE  ${pct(report.pass_rate)}  (${results.filter(r => r.passe
 for (const c of report.categories) console.log(`  ${pct(c.pass_rate)}  ${c.category.padEnd(30)} ${c.passes}/${c.runs}`);
 console.log('\nBy criterion:');
 for (const c of report.criteria) console.log(`  ${pct(c.pass_rate)}  ${c.label.padEnd(30)} ${c.scored} scored`);
+const untestable = report.report_about.what_search_found + report.report_about.link_delivery + report.report_about.outside_the_reply;
+if (untestable) console.log(`\nReports only about search results, link delivery or outside the reply (judge's reading): ${report.report_about.what_search_found} / ${report.report_about.link_delivery} / ${report.report_about.outside_the_reply} runs. "Respects the report" is not applicable for those when this replay cannot reproduce them.`);
 if (report.skipped.length) console.log(`\n${report.skipped.length} cases not replayable (not an agent reply): ${[...new Set(report.skipped.map(s => s.reason))].join(', ')}`);
 const failing = report.case_rates.filter(c => c.pass_rate < 1);
 if (failing.length) { console.log('\nFailing cases:'); for (const c of failing) console.log(`  ${pct(c.pass_rate)}  ${c.id} (${c.category}): ${c.failures.join('; ').slice(0, 300)}`); }

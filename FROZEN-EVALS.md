@@ -19,7 +19,7 @@ It first freezes any new reports (needs `SUPABASE_URL` and `SUPABASE_SERVICE_ROL
 - the pass rate per criterion,
 - each failing case with the judge's one-line reasons.
 
-A full run (about 80 cases) takes a few minutes and costs roughly $1–3 in OpenAI credits, mostly the judge. It uses no SerpApi searches and never texts anyone, saves items or turns on alerts. Spending stops at `--max-cost` (default $10).
+A full run (76 replayable cases) takes about 6 minutes and costs about $3 in OpenAI credits, mostly the judge; `--runs 3` about $9. It uses no SerpApi searches and never texts anyone, saves items or turns on alerts. Spending stops at `--max-cost` (default $15).
 
 Useful options:
 
@@ -31,6 +31,25 @@ Useful options:
 - `node --env-file=.env.local scripts/frozen-evals.js sync --since 2026-10-13T00:00:00Z`: freeze only.
 
 The chat bake-off (`scripts/model-bakeoff.js chat`, `MODEL-BAKEOFF.md`) runs these cases too and prints `frozen NN%` next to each model; add `--no-frozen` to leave them out.
+
+## Baseline (October 21, 2026)
+
+76 replayable cases × 2 runs, chat `gpt-4.1-mini`, judge `gpt-5.5`, $6.18:
+
+| | Pass rate |
+| --- | --- |
+| **All cases** | **52%** (79/152) |
+| wrong_results | 46% |
+| ignored_request | 41% |
+| reply_quality | 59% |
+| misunderstood | 64% |
+| missed_available_item | 57% |
+| Did what the user asked | 66% |
+| One coherent message | 90% |
+| No repeated questions | 79% |
+| Respects the report | 54% |
+
+34 cases passed both runs, 31 failed both, 11 passed once: a single run moves by several points from chance alone, so compare changes on `--runs 3`. Both Maison Margiela cases (`dev-c92121ef`, `dev-5d59f14e`) still fail on both runs: the agent tries to save before anything is pending (and asks which item to keep), then shows the same MR PORTER listing.
 
 ## Where the cases live
 
@@ -60,6 +79,8 @@ The judge (`gpt-5.5` by default, `FROZEN_JUDGE_MODEL` to change; it never change
 4. **Respects the report**: the problem the report describes does not happen again
 
 A case passes when no criterion fails.
+
+Because searches replay their recorded results, a report that is only about *what the search found* (wrong item, store, gender, sold out, spam site, a missed listing) or only about *how links are delivered* (wrapping, shortening, preview cards) is scored not applicable on “respects the report”. It still fails when Jules's own choices repeat the problem, for example re-showing a result the user rejected or calling a different item the exact one. Frozen runs always use the production capabilities (search, wishlist, price alerts, memory on), whatever the local `.env.local` says.
 
 ## Limits
 

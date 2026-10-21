@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createStore } from '../lib/store.js';
 import { reportedTurn, scrub, casesDir, freezeReport, syncCases, loadCases, runFrozenCase, scoreFrozen, frozenReport, judgeInput, recordedDraft, conversationHash } from '../lib/frozen-evals.js';
-import { agentTurn, tool, agentContext, isAgentRequest } from './helpers/agent.js';
+import { agentTurn, tool, agentContext, isAgentRequest, toolNames } from './helpers/agent.js';
 
 const out = value => ({ ok: true, json: async () => ({ status: 'completed', output: [{ type: 'message', content: [{ type: 'output_text', text: JSON.stringify(value) }] }] }) });
 const at = minute => `2026-10-21T20:${String(minute).padStart(2, '0')}:00.000Z`;
@@ -133,17 +133,19 @@ test('running a case re-runs only the agent turn: the frozen context, a recorded
     seen.models.push(body.model);
     if (isAgentRequest(options)) {
       rounds++;
-      if (rounds === 1) { seen.context = agentContext(options); return agentTurn(tool('find_products', { query: 'Maison Margiela mesh-trimmed shell jacket cheaper at other stores' })); }
+      if (rounds === 1) { seen.context = agentContext(options); seen.tools = toolNames(options); return agentTurn(tool('find_products', { query: 'Maison Margiela mesh-trimmed shell jacket cheaper at other stores' })); }
       seen.toolOutput = body.input.filter(i => i.type === 'function_call_output').map(i => i.output).join('\n');
       return agentTurn(tool('conversation_reply', { response: 'only MR PORTER has it so far, at the same listing you sent. want me to save it?' }));
     }
     if (body.text?.format?.name === 'frozen_judge') { seen.judge = JSON.parse(body.input);
-      return out({ did_what_asked: { verdict: 'pass', reason: 'Searched other stores.' }, coherent: { verdict: 'pass', reason: 'One message.' }, no_repeated_questions: { verdict: 'not_applicable', reason: 'None.' }, meets_report: { verdict: 'pass', reason: 'No contradiction.' } }); }
+      return out({ report_about: 'jules_reply', did_what_asked: { verdict: 'pass', reason: 'Searched other stores.' }, coherent: { verdict: 'pass', reason: 'One message.' }, no_repeated_questions: { verdict: 'not_applicable', reason: 'None.' }, meets_report: { verdict: 'pass', reason: 'No contradiction.' } }); }
     if (body.text?.format?.name === 'jules_reply') return out({ body: 'composed', captions: [] });
     if (body.text?.format?.name === 'quality' || body.text?.format?.name === 'profile_check') return out({ verdict: 'fine', kind: null, about: null, summary: null, newest_message: 'other', changes: [] });
     return out({});
   };
-  const result = await runFrozenCase(frozen, { OPENAI_API_KEY: 'test' }, { fetcher, model: 'gpt-test-chat' });
+  const result = await runFrozenCase(frozen, { OPENAI_API_KEY: 'test', PRICE_ALERTS_ENABLED: 'replace-me' }, { fetcher, model: 'gpt-test-chat' });
+  // Production capabilities, whatever the local environment says.
+  assert.ok(seen.tools.includes('manage_price_alerts'));
   assert.equal(seen.context.pending_shopping.stage, 'search_clarification');
   assert.deepEqual(seen.context.saved_wishlist.items.map(i => i.name), ['Older jacket']);
   assert.equal(seen.context.saved_profile[0].value, 'M');
@@ -165,6 +167,13 @@ test('a case passes only when no criterion fails, and an empty reply fails', () 
   assert.ok(!contradicted.failures[0].includes('555'), 'reasons are redacted');
   assert.deepEqual(scoreFrozen({ did_what_asked: pass, coherent: pass, no_repeated_questions: pass, meets_report: pass }, { reply: '', error: 'AI request failed' }).failed, ['did_what_asked']);
   assert.deepEqual(scoreFrozen(null, { reply: 'hi' }).failed.length, 4);
+  // A report about what the search found cannot be tested when the turn searched again (the same recorded results come back),
+  // nor one about link delivery; one about Jules's own reply is scored as judged.
+  const stale = { report_about: 'what_search_found', did_what_asked: pass, coherent: pass, no_repeated_questions: pass, meets_report: fail };
+  assert.equal(scoreFrozen(stale, { reply: 'hi', calls: [{ name: 'find_products', args: {} }] }).criteria.meets_report.verdict, 'not_applicable');
+  assert.equal(scoreFrozen(stale, { reply: 'hi', calls: [{ name: 'respond_to_options', args: {} }] }).passed, false);
+  assert.equal(scoreFrozen({ ...stale, report_about: 'link_delivery' }, { reply: 'hi', calls: [] }).passed, true);
+  assert.equal(scoreFrozen({ ...stale, report_about: 'jules_reply' }, { reply: 'hi', calls: [{ name: 'find_products', args: {} }] }).passed, false);
 });
 
 test('one number: the pass rate over every replayed case, with categories and criteria', () => {
