@@ -87,26 +87,29 @@ function ledger({asked=true,photos=0,questions=[]}={}){
 }
 const env={STYLE_ENABLED:'true'};
 const reading=async(store)=>store.sources.length?[{text:'mostly black',source_ids:[store.sources[0].id]}]:[];
-test('after asking for outfit photos, the summary waits for two before it is sent',async()=>{
+const kinds=store=>[...store.operations.keys()].filter(k=>!k.includes(':outfits:')).map(k=>k.split(':')[2]);
+test('after asking for outfit photos, the summary no longer waits: it uses the photos already sent',async()=>{
  const store=ledger({photos:1});
  await announceImport(store,owner,env,store.send);
- assert.equal(store.sent.length,1,'only the completion text: the summary waits for photos');
- assert.equal(await sendProfile(store,owner,env,store.send,null,{reading}),null);
- for(let i=1;i<2;i++)store.sources.push({id:'p'+i,kind:'outfit',mime_type:'image/jpeg',data:'x'});
- await sendProfile(store,owner,env,store.send,null,{reading});
- assert.equal(store.sent.length,2);assert.match(store.sent[1],/what you wear: mostly black/);
+ assert.deepEqual(kinds(store),['ready','profile'],'the count, then the summary straight away');
+ // The same send with the photo read: one photo is enough to be in it, no waiting for a second.
+ const read=ledger({photos:1});read.operations.set(`gmail:${owner}:ready:s1`,{status:'sent'});
+ await sendProfile(read,owner,env,read.send,null,{reading});assert.match(read.sent[0],/what you wear: mostly black/);
+ store.sources.push({id:'p1',kind:'outfit',mime_type:'image/jpeg',data:'x'});
  assert.equal(await sendProfile(store,owner,env,store.send,null,{reading:()=>assert.fail('read once')}),null,'sent once, without reading the photos again');
+ assert.equal(store.sent.length,2,'a later photo does not resend it');
 });
-test('the 24-hour fallback sends the summary with whatever photos came',async()=>{
- const store=ledger({photos:1});store.operations.set(`gmail:${owner}:ready:s1`,{status:'sent'});
- await sendProfile(store,owner,env,store.send,null,{reading,force:true});
- assert.match(store.sent[0],/what you wear: mostly black/);
+test('no photos yet: the summary goes from purchases alone, and still invites photos when it is the early read',async()=>{
+ const store=ledger({photos:0});
+ await announceImport(store,owner,env,store.send);
+ assert.deepEqual(kinds(store),['ready','profile']);
+ assert.ok(!/what you wear/.test(store.sent[1]));
 });
 test('without a photo request (or the style feature) the summary is not held',async()=>{
  let store=ledger({asked:false});await announceImport(store,owner,env,store.send);assert.equal(store.sent.length,2);
  store=ledger({photos:0});await announceImport(store,owner,{},store.send);assert.equal(store.sent.length,2);
 });
-test('kept photos send the waiting summary only when no question is open',async()=>{
+test('kept photos send a summary the import could not send, only when no question is open',async()=>{
  let store=ledger({photos:5,questions:[{id:'q1',status:'open',question:'Q?'}]});store.operations.set(`gmail:${owner}:ready:s1`,{status:'sent'});
  assert.equal(await profileAfterOutfits(store,owner,{},store.send),null);assert.equal(store.sent.length,0);
  store=ledger({photos:5});store.operations.set(`gmail:${owner}:ready:s1`,{status:'sent'});
