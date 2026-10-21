@@ -334,6 +334,8 @@ Seven developer feedback reports (one 👎 tapback, six `#dev`) from one tester 
 - **Proposals, not implemented:** (1) Detect aggregator pages in the page check (no price or stock of their own, and the buy link goes to another store's domain) so new ones are blocked without listing each; needs a page-structure read and care not to block marketplaces. One more candidate already seen this batch: a site whose product URLs carry another store's item id. Founder call whether to add it. (2) For a dupe of a linked item, check the linked page first and show the same product elsewhere only when its verified price is lower; needs the reference product kept on the plan. (3) A reply that names an item's colour as different from what was asked ("not bright red") should drop it before writing; today the writer is honest about it but still shows it.
 - **Unknown:** whether the 👎 also covered the reply calling a different model "exact" in its text (the reply's own wording, not only the card); the claim check does not compare "exact" with the shown items' identity.
 
+Follow-up (October 21, dupe price check): proposal (2) built. The link never reached that search because only the newest message's links were read; the link's own turn had been set aside for the dupe request a second later. A link sent in the same burst now counts (`burstLinks`), and the linked item stays on the plan as the reference with its page price (`lib/dupe-reference.js`).
+
 Evals added: dupe-linked-item, dupe-reworded, dupe-widen-keeps-look, dupe-widen-reworded, dupe-drop-brand-look, cheaper-same-brand, refine-right-track, refine-closer-reworded.
 
 Triage cursor: 2026-10-21T16:45:19.22576+00:00
