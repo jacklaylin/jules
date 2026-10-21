@@ -68,6 +68,7 @@ test('options sold out in the user’s size go last and say so; a sized price an
  assert.equal(sizeText(ranked[0]),'size 12 in stock');assert.equal(sizeText(ranked[2]),'size 12 sold out');assert.equal(sizeText(ranked[1]),null);
  assert.equal(priceText({listing_check:{price_was:{amount:260,currency:'USD'}},price_snapshot:{amount:221,currency:'USD'}}),'$221.00 (on sale, was $260.00)');
  assert.equal(priceText({listing_check:{},your_size:{amount:182,currency:'USD'}}),'$182.00 in your size');
+ assert.equal(priceText({listing_check:{},price_snapshot:{amount:190,currency:'USD',evidence_level:'indexed'}}),'$190.00 · stock not confirmed','a search-result price keeps its caveat without internal wording');
  assert.equal(priceText({listing_check:{price_range:{min:176,max:182,currency:'USD'}}}),'$176.00–$182.00 depending on size or color');
  assert.equal(priceText({listing_check:{foreign_price:{amount:320,currency:'EUR'},market_match:true}}),'€320.00 (the store charges in EUR)');
  assert.equal(priceText({listing_check:{foreign_price:{amount:320,currency:'EUR'},market_match:false}}),null,'a foreign store’s price is already in its market label');
