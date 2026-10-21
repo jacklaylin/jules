@@ -118,7 +118,7 @@ test('a save reports exactly what happened: saved now, alerts on, or already sav
   outcome = {};
   await finishTextWishlist({ store, result:{ ...base, alert_requests:[{ url, size:null, baselines:[], links:[{ url }] }] }, env:{}, conversationId:id, outcome }); assert.deepEqual(outcome, { saved_now:true, alerts_turned_on:true, saved_items:['Romi'] });
   outcome = {};
-  await finishTextWishlist({ store, result:{ ...base, existing_saved_groups:[groupWishlist(rows)[0].id] }, env:{}, conversationId:id, outcome }); assert.deepEqual(outcome, { saved_now:false, alerts_turned_on:false });
+  await finishTextWishlist({ store, result:{ ...base, existing_saved_groups:[groupWishlist(rows)[0].id] }, env:{}, conversationId:id, outcome }); assert.deepEqual(outcome, { saved_now:false, alerts_turned_on:false, already_saved_items:['Romi'] });
 });
 
 test('notifications are composed before sending and the sent wording is what the conversation stores', async () => {
