@@ -246,7 +246,11 @@ let wishlist = null;
 const money = price => new Intl.NumberFormat(undefined, { style: 'currency', currency: price.currency }).format(price.amount);
 function alertBadge(alert) {
   if (!alert) return badge('plain', 'No price alert');
-  return alert.active ? badge('ok', `Alert on${alert.size ? ` · ${alert.size}` : ''}`) : badge('plain', 'Alert off');
+  if (!alert.active) return badge('plain', 'Alert off');
+  const low = alert.low_stock, check = alert.low_stock_check;
+  return el('span', {}, badge('ok', `Alert on${alert.size ? ` · ${alert.size}` : ''}`),
+    low ? badge('warn', `Only ${low.quantity} left · ${low.store}${low.fresh ? '' : ' (old)'}`) : null,
+    check ? el('span', { className: 'muted', textContent: ` low stock: ${check.reason.replaceAll('_', ' ')}${check.would_send ? ' · would text' : ''}` }) : null);
 }
 function storeLinks(item) {
   return el('ul', { className: 'store-links' }, ...item.links.map(link => el('li', {},
@@ -264,13 +268,15 @@ function testForm(item) {
   const currency = el('input', { required: true, maxLength: 3, pattern: '[A-Z]{3}', value: ref?.currency ?? 'USD' });
   const shipping = el('input', { type: 'number', min: '0', step: '0.01' });
   const available = el('input', { type: 'checkbox', checked: true });
+  const quantity = el('input', { type: 'number', min: '0', max: '999', step: '1', placeholder: 'Not stated' });
+  const episode = el('select', {}, el('option', { value: '', textContent: 'As last recorded' }), el('option', { value: 'none', textContent: 'None open' }), el('option', { value: 'open', textContent: 'Already open (texted)' }));
   const previous = el('select', {}, el('option', { value: '', textContent: 'As last recorded' }), el('option', { value: 'sold_out', textContent: 'Sold out (rehearse a restock)' }), el('option', { value: 'in_stock', textContent: 'In stock' }));
   const result = el('pre', { className: 'alert-result', role: 'status' });
   const preview = el('button', { type: 'submit', className: 'small', textContent: 'Preview message' });
   const send = el('button', { type: 'button', className: 'small btn--butter', textContent: 'Send test text', disabled: !wishlist.test_delivery });
   form.append(
     el('p', { className: 'muted', textContent: `Runs the real alert decision on a made-up price. Nothing is saved. Reference: ${alert.baselines.map(b => money(b)).join(', ') || 'none yet'} · last stock: ${(alert.stock ?? 'unknown').replace('_', ' ')}.` }),
-    el('div', { className: 'add-fact-fields' }, field('Store', storeSelect), field('Size', size), field('Price', price), field('Currency', currency), field('Listed shipping (optional)', shipping), field('Previous stock', previous)),
+    el('div', { className: 'add-fact-fields' }, field('Store', storeSelect), field('Size', size), field('Price', price), field('Currency', currency), field('Listed shipping (optional)', shipping), field('Previous stock', previous), field('Stated left in size (optional)', quantity), field('Low-stock episode', episode)),
     el('label', { className: 'check' }, available, 'Size in stock'),
     el('div', { className: 'toolbar' }, preview, send, !wishlist.test_delivery && el('span', { className: 'muted', textContent: 'Test texts only go to the designated test account.' })),
     result);
@@ -278,9 +284,9 @@ function testForm(item) {
     if (!form.reportValidity()) return;
     [preview, send].forEach(b => { b.disabled = true; }); result.textContent = deliver ? 'Sending test text…' : 'Running…';
     try {
-      const data = await api('/api/price-checks', { method: 'POST', body: JSON.stringify({ alert_id: alert.id, deliver, previous_stock: previous.value || undefined,
-        offers: [{ url: storeSelect.value, size: size.value, amount: Number(price.value), currency: currency.value.toUpperCase(), available: available.checked, ...(shipping.value ? { shipping: Number(shipping.value) } : {}) }] }) });
-      result.textContent = `Outcome: ${data.status}${data.event ? ` (${data.event})` : ''}${data.delivery ? ` · Delivery: ${data.delivery}` : ''}\n\n${data.message ?? 'No text would be sent.'}`;
+      const data = await api('/api/price-checks', { method: 'POST', body: JSON.stringify({ alert_id: alert.id, deliver, previous_stock: previous.value || undefined, low_stock_episode: episode.value || undefined,
+        offers: [{ url: storeSelect.value, size: size.value, amount: Number(price.value), currency: currency.value.toUpperCase(), available: available.checked, ...(shipping.value ? { shipping: Number(shipping.value) } : {}), ...(quantity.value ? { quantity: Number(quantity.value) } : {}) }] }) });
+      result.textContent = `Outcome: ${data.status}${data.event ? ` (${data.event})` : ''}${data.delivery ? ` · Delivery: ${data.delivery}` : ''}\n\n${data.message ?? 'No text would be sent.'}${data.low_stock ? `\n\nLow stock: ${data.low_stock.state} (${data.low_stock.reason.replaceAll('_', ' ')})${data.low_stock.message ? `\nWould send (not sent yet; low-stock texts are off in this step):\n${data.low_stock.message}` : ''}` : ''}`;
     } catch (error) { result.textContent = error.message; }
     finally { preview.disabled = false; send.disabled = !wishlist.test_delivery; }
   };
