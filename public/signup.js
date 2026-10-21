@@ -134,9 +134,11 @@ function answer(values){
 // Arriving from the landing page, the compose box is mid-morph (signup.css): replacing it now would cancel the view transition, so the dock waits for it to land.
 const morphing=()=>CSS.supports('selector(:active-view-transition)')&&document.documentElement.matches(':active-view-transition');
 let dockWaiting=false,dockFocus=false;
-function afterMorph(){const running=document.getAnimations().filter(a=>a.effect?.pseudoElement?.startsWith('::view-transition'));return running.length?Promise.allSettled(running.map(a=>a.finished)):new Promise(done=>requestAnimationFrame(done));}
-function renderDock(focus){
- if(morphing()){dockFocus||=focus;if(!dockWaiting){dockWaiting=true;afterMorph().then(()=>{dockWaiting=false;const f=dockFocus;dockFocus=false;renderDock(f);});}return;}
+// Checked every frame rather than through the transition's animations, whose promises can stay pending when the transition ends (the dock then never came alive).
+// The morph lasts under a second; after 1.5s the dock renders regardless.
+function afterMorph(){return new Promise(done=>{const until=performance.now()+1500,check=()=>!morphing()||performance.now()>until?done():requestAnimationFrame(check);requestAnimationFrame(check);setTimeout(done,1600);});}
+function renderDock(focus,landed=false){
+ if(!landed&&morphing()){dockFocus||=focus;if(!dockWaiting){dockWaiting=true;afterMorph().then(()=>{dockWaiting=false;const f=dockFocus;dockFocus=false;renderDock(f,true);});}return;}
  const step=currentStep();
  dock.replaceChildren();
  // While signup availability loads, the first question's box is shown but not usable yet.
