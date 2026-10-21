@@ -77,7 +77,7 @@ Someone who got the welcome but tapped **Not now, go to Messages**, or never ope
 
 **Turn it on:**
 
-1. In Supabase **SQL Editor**, run `db/044_onboarding_reminder.sql` (after 039). It adds the Not now column, the “who is due” check, and teaches the sweep to wake for it. No credential is produced. Re-running is safe.
+1. In Supabase **SQL Editor**, run `db/046_onboarding_reminder.sql` (after 045). It adds the Not now column, the “who is due” check, and teaches the sweep to wake for it. No credential is produced. Re-running is safe.
 2. In Vercel **Settings → Environment Variables**, add `ONBOARDING_REMINDER_ENABLED` = `true` (Production). It also needs `GMAIL_IMPORT_ENABLED=true` and `SITE_ORIGIN`, which are already set. Set it to `false` (and redeploy) to stop reminders; nothing else changes.
 3. Redeploy so the setting takes effect.
 

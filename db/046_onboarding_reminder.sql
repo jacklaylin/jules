@@ -1,5 +1,5 @@
 -- One onboarding reminder, about a day after the welcome (lib/onboarding.js sendOnboardingReminders).
--- Run in the Supabase SQL editor after 039_site_origin.sql. Re-running is safe.
+-- Run in the Supabase SQL editor after 045_gmail_profile_sweep.sql. Re-running is safe.
 -- 1. onboarding_sessions.not_now_at: when the person last tapped "Not now, go to Messages" on /onboarding.
 --    It records the tap only; their onboarding state does not change.
 -- 2. onboarding_reminders_due(): people whose welcome was sent 24 to 48 hours ago, still offered or
@@ -7,7 +7,7 @@
 --    and no reminder in the message ledger yet. The 48-hour edge means turning the reminder on later
 --    never texts people welcomed long ago, and a switched-off reminder stops waking Vercel after a day.
 -- 3. gmail_sweep_tick(): the existing once-a-minute sweep also calls Vercel when a reminder is due.
---    Otherwise unchanged from 039.
+--    Otherwise unchanged from 045 (keeps its gmail_profiles_due() wake-up; tests/gmail-sweep-tick.test.js).
 begin;
 alter table public.onboarding_sessions add column if not exists not_now_at timestamptz;
 
@@ -35,6 +35,7 @@ begin
  if not exists(select 1 from gmail_imports where (data->'job'->>'status' in ('listing','extracting','questions')
      or exists(select 1 from jsonb_each(coalesce(data->'connections','{}'::jsonb)) c where c.value->>'status' in ('awaiting_approval','extracting')))
    and updated_at<now()-interval '1 minute' and (lease_until is null or lease_until<now()))
+   and not exists(select 1 from gmail_profiles_due())
    and not exists(select 1 from onboarding_reminders_due()) then return; end if;
  perform net.http_get(url:=site_origin()||'/api/wishlist?gmail=sweep',
   headers:=jsonb_build_object('Authorization','Bearer '||gmail_sweep_secret()),timeout_milliseconds:=10000);

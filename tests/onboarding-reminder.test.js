@@ -87,7 +87,7 @@ test('Not now is recorded without changing state, sending a text or starting the
   await remind(f);assert.equal(f.sent.length,1);
  }
  for(const state of ['declined','ready']){const f=fixture({state}),res=response();await api(f)(post('not-now'),res);assert.deepEqual(res.data,{state,recorded:false});assert.equal(f.notNow(),null);assert.equal(f.state(),state);}
- // Before db/044 the write fails; the tap still answers and nothing changes.
+ // Before db/046 the write fails; the tap still answers and nothing changes.
  const f=fixture();f.store.recordOnboardingNotNow=async()=>{throw Object.assign(Error('missing column'),{database_status:400});};
  const res=response();await api(f)(post('not-now'),res);assert.deepEqual(res.data,{state:'offered',recorded:false});assert.equal(f.state(),'offered');
 });

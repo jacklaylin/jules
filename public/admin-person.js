@@ -306,7 +306,7 @@ function renderWishlist() {
 async function loadWishlist() { wishlist = await api(`/api/admin?view=wishlist&conversation=${encodeURIComponent(person)}`); renderWishlist(); }
 
 // ---------- Onboarding ----------
-// Beside the name: a "Not now" tap on /onboarding and the one reminder text (db/044), when either happened.
+// Beside the name: a "Not now" tap on /onboarding and the one reminder text (db/046), when either happened.
 const REMINDER = { sent: ['ok', 'Reminder sent'], uncertain: ['warn', 'Reminder uncertain'], blocked: ['plain', 'Reminder blocked (opted out)'], sending: ['warn', 'Reminder sending'] };
 function showOnboarding(onboarding) {
   const [kind, label] = REMINDER[onboarding?.reminder?.status] ?? ['plain', 'Reminder'];
