@@ -20,7 +20,7 @@ import { referralRef } from '../lib/referral.js';
 import { firstName } from '../lib/memory.js';
 import { copyWeek } from '../lib/report-copy.js';
 import { adoptionReport } from '../lib/adoption.js';
-import { resendContactCard, resendWelcome, resendWelcomeText } from '../lib/onboarding.js';
+import { resendContactCard, resendWelcome, resendWelcomeText, contactCardEnabled } from '../lib/onboarding.js';
 import { compareEmail, sampleSources, COMPARE_MODELS } from '../lib/extract-compare.js';
 import { gmailReconnectNeeded } from '../lib/gmail-client.js';
 import { rereadImage } from '../lib/image-reread.js';
@@ -183,7 +183,7 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
         return json(res, 200, { conversations: conversations.map(c => {
           const status = statuses.get(c.id), source = sources.get(c.sender_id) ?? null, sharer = source ? sharers.get(source) : null;
           return { ...c, name: names.get(c.id), source, arrival: arrivals.get(c.sender_id) ?? null, referred_by: sharer && sharer !== c.id ? { id: sharer, name: names.get(sharer) ?? null } : null, access: status?.access ?? null, waitlist_replies: status?.waitlist_replies ?? null };
-        }), waitlist_enabled: env.WAITLIST_ENABLED === 'true', waitlist_replies: WAITLIST_REPLIES, approval_text: approvalPreview(env)?.text ?? null, approval_account: approvalPreview(env)?.account ?? false });
+        }), waitlist_enabled: env.WAITLIST_ENABLED === 'true', waitlist_replies: WAITLIST_REPLIES, approval_text: approvalPreview(env)?.text ?? null, approval_account: approvalPreview(env)?.account ?? false, contact_card_enabled: contactCardEnabled(env) });
       }
       if (!uuid(id)) return json(res, 400, { error: 'Invalid conversation.' });
       const conversation = await store.conversation(id);
@@ -211,7 +211,7 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
       const [history, waitlist, onboarding] = await Promise.all([store.messages(id, before), before ? null : store.accessFor([id]).then(m => m.get(id) ?? null).catch(() => null),
         before ? null : Promise.resolve(store.onboardingOverview?.(id)).catch(() => null)]);
       const resend = onboarding ? await resendWelcomeText(store, id, env, onboarding.state).catch(() => null) : null;
-      return json(res, 200, { conversation, ...history, ...(before ? {} : { access: waitlist, onboarding: onboarding ?? null, resend_welcome: resend, approval_text: approvalPreview(env)?.text ?? null, approval_account: approvalPreview(env)?.account ?? false }) });
+      return json(res, 200, { conversation, ...history, ...(before ? {} : { access: waitlist, onboarding: onboarding ?? null, resend_welcome: resend, contact_card_enabled: contactCardEnabled(env), approval_text: approvalPreview(env)?.text ?? null, approval_account: approvalPreview(env)?.account ?? false }) });
     } catch (error) {
       console.error(JSON.stringify({ event: 'admin_request_failed', status: error.status ?? null }));
       // Review validation and busy-lease messages are written for the owner; everything else is generic.

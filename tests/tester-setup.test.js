@@ -10,7 +10,7 @@ import { filterSignups, setupLines, setupResult } from '../public/admin-people-v
 
 // Setting up a new tester from Admin › People: Jules creates the conversation for that phone on the shared
 // line inbound messages arrive on, and runs the usual approval. Synthetic numbers only.
-const env = { SITE_ORIGIN: 'https://jules.example', SUPABASE_URL: 'https://db.example', SUPABASE_SERVICE_ROLE_KEY: 'synthetic-key', WAITLIST_ENABLED: 'true', ONBOARDING_ENABLED: 'true', GMAIL_IMPORT_ENABLED: 'true', SELF_SERVE_ONBOARDING_ENABLED: 'true', JULES_PUBLIC_LINE: '+15555550100' };
+const env = { SITE_ORIGIN: 'https://jules.example', SUPABASE_URL: 'https://db.example', SUPABASE_SERVICE_ROLE_KEY: 'synthetic-key', WAITLIST_ENABLED: 'true', ONBOARDING_ENABLED: 'true', GMAIL_IMPORT_ENABLED: 'true', SELF_SERVE_ONBOARDING_ENABLED: 'true', JULES_PUBLIC_LINE: '+15555550100', CONTACT_CARD_ENABLED: 'true' };
 const signupId = '00000000-0000-4000-8000-00000000a001', phone = '+15555550123', line = SHARED_LINE, otherLine = '+15555550188';
 
 function world({ conversations = [], profile = { first_name: 'sam', last_name: 'rivera', gender: 'woman' } } = {}) {
@@ -75,6 +75,13 @@ test('a new signup gets a conversation on the shared line, an account, and the w
   assert.equal(inbound.id, result.conversation);
   assert.equal(inbound.access, 'approved');
   assert.equal(w.state.conversations.length, 1);
+});
+
+test('with the contact card paused (no CONTACT_CARD_ENABLED), setup texts the welcome alone', async () => {
+  const w = world();
+  const result = await setUpTester(w.store, { signup: signupId }, { ...env, CONTACT_CARD_ENABLED: undefined }, w.send, w.fetcher);
+  assert.deepEqual([result.text, result.contact_card], ['sent', undefined]);
+  assert.deepEqual(w.state.sent.map(s => s.body), [approvedWelcomeText(env)]);
 });
 
 test('a repeat click reuses the conversation and sends nothing new', async () => {
@@ -186,12 +193,13 @@ test('the store creates a conversation once and reuses one a concurrent setup cr
 });
 
 test('the admin page explains the setup, searches by name or last four, and reports the result', () => {
-  const lines = setupLines('welcome text', true);
+  const lines = setupLines('welcome text', true, true);
   assert.match(lines[0], /saves their conversation/);
   assert.doesNotMatch(lines.join(' '), /line you enter/);
   assert.ok(lines.some(l => l.includes('“welcome text”')));
   assert.match(lines.at(-1), /contact card/);
-  assert.doesNotMatch(setupLines(null, false).join(' '), /contact card/);
+  assert.doesNotMatch(setupLines(null, false, true).join(' '), /contact card/);
+  assert.doesNotMatch(setupLines('welcome text', true).join(' '), /contact card/, 'paused card: the dialog doesn’t promise it');
   const signups = [{ name: 'Sam Rivera', phone: '•••-0123' }, { name: null, phone: '•••-9876' }];
   assert.equal(filterSignups(signups, 'sam').length, 1);
   assert.equal(filterSignups(signups, '9876')[0].phone, '•••-9876');

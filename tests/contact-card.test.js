@@ -4,7 +4,7 @@ import {julesVCard,contactCardFile,loadContactPhoto,CONTACT_CARD_TEXT} from '../
 import {welcomeTester} from '../lib/onboarding.js';
 import {sendGreeting} from '../lib/photon.js';
 
-const env={ONBOARDING_ENABLED:'true',SITE_ORIGIN:'https://jules.example/',JULES_PUBLIC_LINE:'+1 (415) 555-0100'};
+const env={ONBOARDING_ENABLED:'true',CONTACT_CARD_ENABLED:'true',SITE_ORIGIN:'https://jules.example/',JULES_PUBLIC_LINE:'+1 (415) 555-0100'};
 const unfold=card=>card.replace(/\r\n /g,'');
 
 test('vCard names Jules, uses the configured line and site, and embeds the orb photo',async()=>{

@@ -109,9 +109,10 @@ export function filterSignups(signups, query = '') {
 }
 
 // What setting someone up does, for its confirmation: their conversation, then the approval.
-export function setupLines(approvalText, approvalAccount = false) {
+// The contact card line shows only while the card after the welcome is on (CONTACT_CARD_ENABLED).
+export function setupLines(approvalText, approvalAccount = false, contactCard = false) {
   return ['Jules saves their conversation, so when they text Jules it continues there. Enroll their number in Photon first, or the welcome can’t reach them.', ...approvalLines(approvalText, approvalAccount),
-    ...(approvalAccount && approvalText ? ['Right after the welcome, Jules texts its contact card, so they can save the number.'] : [])];
+    ...(contactCard && approvalAccount && approvalText ? ['Right after the welcome, Jules texts its contact card, so they can save the number.'] : [])];
 }
 
 // The result of a setup for the status line.

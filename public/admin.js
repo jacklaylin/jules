@@ -75,7 +75,7 @@ function confirmSetup(signup) {
   setupPending = signup;
   $('setup-title').textContent = `Set up ${signup.name ?? 'this tester'}?`;
   $('setup-person').textContent = `${signup.name ? `${signup.name} · ` : ''}${signup.phone} · signed up ${ago(signup.signed_up_at)}`;
-  $('setup-lines').replaceChildren(...setupLines(waitlist.approvalText, waitlist.approvalAccount).map(line => el('p', { textContent: line })));
+  $('setup-lines').replaceChildren(...setupLines(waitlist.approvalText, waitlist.approvalAccount, waitlist.contactCard).map(line => el('p', { textContent: line })));
   $('setup-confirm').textContent = waitlist.approvalText ? 'Set up and text them' : 'Set up';
   $('setup-error').hidden = true;
   $('setup-dialog').showModal(); $('setup-confirm').focus();
@@ -141,7 +141,7 @@ async function load() {
   loading = true; failed = ''; signupsFailed = ''; render();
   // The signup list is its own read: if it fails, Testers still loads.
   const pendingSignups = adminJson('/api/admin?view=signups').then(data => { signups = data.signups; }, error => { signupsFailed = `Could not load new signups: ${error.message} Try Refresh in More.`; });
-  try { const data = await adminJson('/api/admin'); people = data.conversations; waitlist = { allowance: data.waitlist_replies ?? 3, approvalText: data.approval_text ?? null, approvalAccount: data.approval_account === true }; refreshedAt = Date.now(); }
+  try { const data = await adminJson('/api/admin'); people = data.conversations; waitlist = { allowance: data.waitlist_replies ?? 3, approvalText: data.approval_text ?? null, approvalAccount: data.approval_account === true, contactCard: data.contact_card_enabled === true }; refreshedAt = Date.now(); }
   catch (error) { failed = `Could not load people: ${error.message} Try Refresh in More.`; }
   finally { await pendingSignups; loading = false; render(); }
 }

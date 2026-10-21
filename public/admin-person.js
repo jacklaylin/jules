@@ -100,7 +100,7 @@ async function loadMessages(earlier = false) {
   const query = new URLSearchParams({ conversation: person });
   if (earlier && cursor) query.set('before', JSON.stringify(cursor));
   const data = await api(`/api/admin?${query}`);
-  if (!earlier) { $('person-name').textContent = data.conversation.sender_id; document.title = `Jules admin · ${data.conversation.sender_id}`; showAccess(data.access?.access ?? null, data.approval_text ?? null, data.approval_account === true); showOnboarding(data.onboarding); resendText = data.resend_welcome ?? null; $('resend-welcome').hidden = !resendText; }
+  if (!earlier) { $('person-name').textContent = data.conversation.sender_id; document.title = `Jules admin · ${data.conversation.sender_id}`; showAccess(data.access?.access ?? null, data.approval_text ?? null, data.approval_account === true); showOnboarding(data.onboarding); resendText = data.resend_welcome ?? null; $('resend-welcome').hidden = !resendText; $('welcome-card').hidden = data.contact_card_enabled !== true; }
   messages = earlier ? [...data.messages, ...messages] : data.messages; cursor = data.before;
   renderMessages();
 }

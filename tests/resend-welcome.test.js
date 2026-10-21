@@ -7,7 +7,7 @@ import { welcomeResult } from '../public/admin-people-view.js';
 
 // Admin › person › Resend the welcome: texts the onboarding welcome again on purpose, e.g. after the first
 // ended 'uncertain'. Synthetic numbers and ids only.
-const env = { SITE_ORIGIN: 'https://jules.example', JULES_PUBLIC_LINE: '+15555550100' };
+const env = { SITE_ORIGIN: 'https://jules.example', JULES_PUBLIC_LINE: '+15555550100', CONTACT_CARD_ENABLED: 'true' };
 const id = '00000000-0000-4000-8000-0000000000c1', phone = '+15555550123';
 const original = 'good news: your spot just opened. connect here: https://jules.example/onboarding';
 
@@ -42,6 +42,12 @@ test('a resend after an uncertain welcome texts the same welcome with a signed l
   assert.equal(w.ledger.get(`onboarding:${id}:welcome`).status, 'uncertain', 'the first welcome is never reused or deleted');
   const resent = [...w.ledger].find(([op]) => op.startsWith(`onboarding:${id}:welcome:`));
   assert.deepEqual([resent[1].body, resent[1].status], [original, 'sent'], 'the ledger keeps the plain link');
+});
+
+test('with the contact card paused (no CONTACT_CARD_ENABLED), the resend goes alone', async () => {
+  const w = world();
+  assert.deepEqual(await resendWelcome(w.store, w.conversation, { ...env, CONTACT_CARD_ENABLED: undefined }, w.send), { welcome: 'sent' });
+  assert.equal(w.sent.length, 1);
 });
 
 test('two clicks are two separate ledger entries; an accepted tester can get it too', async () => {
