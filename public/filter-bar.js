@@ -21,10 +21,10 @@ export function fitFilterBar(bar){
  const wrap=make('div','filter-menu');wrap.hidden=true;
  const trigger=make('button','chip filter-menu__trigger',{type:'button'});trigger.setAttribute('aria-haspopup','dialog');trigger.setAttribute('aria-expanded','false');
  const clear=make('button','close-button filter-menu__clear',{type:'button',innerHTML:icon(CROSS)});clear.setAttribute('aria-label','Clear filter, show all');
- const dialog=make('dialog','filter-menu__panel');dialog.setAttribute('aria-label',chips.getAttribute('aria-label')||'Filter');
+ const dialog=make('dialog','filter-menu__panel sheet');dialog.tabIndex=-1;dialog.setAttribute('aria-label',chips.getAttribute('aria-label')||'Filter');
  const close=make('button','close-button',{type:'button',innerHTML:icon(CROSS)});close.setAttribute('aria-label','Close');
- const heading=make('div','dialog-heading filter-menu__heading');heading.append(make('h2','',{textContent:'Filter'}),close);
- const list=make('div','filter-menu__list');dialog.append(heading,list);
+ const heading=make('div','dialog-heading filter-menu__heading sheet-head');heading.append(make('h2','',{textContent:'Filter'}),close);
+ const list=make('div','filter-menu__list sheet-body');dialog.append(heading,list);
  wrap.append(trigger,clear);chips.after(wrap);document.body.append(dialog);
 
  const all=()=>[...chips.querySelectorAll('.chip')];
@@ -53,7 +53,8 @@ export function fitFilterBar(bar){
   // Below the button, never past the bottom of the window (the list scrolls instead).
   dialog.style.top=`${Math.round(r.bottom+8)}px`;dialog.style.maxHeight=`${Math.max(160,Math.round(innerHeight-r.bottom-24))}px`;dialog.style.left=`${Math.round(Math.max(16,Math.min(r.left,innerWidth-dialog.offsetWidth-16)))}px`;
  }
- trigger.onclick=()=>{syncMenu();dialog.showModal();place();trigger.setAttribute('aria-expanded','true');list.querySelector('[aria-pressed=true]')?.focus();};
+ // Focus goes to the sheet, not a row: a ring on a tapped-open menu reads as a stray highlight. Tab reaches the rows.
+ trigger.onclick=()=>{syncMenu();dialog.showModal();place();trigger.setAttribute('aria-expanded','true');dialog.focus();list.querySelector('[aria-pressed=true]')?.scrollIntoView({block:'nearest'});};
  clear.onclick=()=>{chips.inert=false;selected()?.click();chips.inert=bar.classList.contains('filter-bar--menu');};
  close.onclick=()=>dialog.close();
  dialog.addEventListener('close',()=>{trigger.setAttribute('aria-expanded','false');if(!wrap.hidden)trigger.focus({preventScroll:true});});
