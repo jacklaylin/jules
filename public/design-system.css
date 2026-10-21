@@ -209,6 +209,12 @@ dialog:focus-visible{outline:none}
 form{display:grid;gap:12px}label{display:block;font-size:13px}
 input:not([type=checkbox]):not([type=radio]),select,textarea{display:block;width:100%;min-width:0;min-height:44px;border:1px solid var(--line-strong);background:var(--white);border-radius:var(--r-card);color:var(--ink);padding:12px 18px;margin-top:7px}
 input[type=file]{border-radius:var(--r-file)}input::file-selector-button{font:600 13px var(--font-sans);background:var(--white);border:1px solid var(--ink);border-radius:var(--r-pill);padding:8px 14px;margin-right:12px}
+/* Select: the text-field shell with the browser arrow replaced by the Jules line chevron, inset like the text. The open list stays native. */
+select{-webkit-appearance:none;appearance:none;padding-right:52px;background-image:url('/brand/chevron-down.svg');background-repeat:no-repeat;background-position:right 16px center;background-size:22px;cursor:pointer;text-overflow:ellipsis}
+select:required:has(option[value=""]:checked){color:var(--text-2)}select option{color:var(--ink)}
+select:disabled{opacity:.45;cursor:default}
+@media(hover:hover) and (pointer:fine){select:not(:disabled):hover{border-color:var(--ink)}}
+@media(forced-colors:active){select{-webkit-appearance:auto;appearance:auto;background-image:none;padding-right:18px}}
 textarea{resize:vertical;line-height:1.5}input[type=checkbox],input[type=radio]{accent-color:var(--grape);width:18px;height:18px;flex:none;padding:0}
 .eyebrow,#count,.card-number,.label{font:500 11px/1.6 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--text-2)}
 .fine,.quiet,.muted{font-size:12px;color:var(--text-2)}.intro{font-size:17px;max-width:420px;color:var(--text-2)}
@@ -381,7 +387,7 @@ button.small{min-height:32px;padding:0 14px;font-size:13px}
 .dv-head{min-height:32px;border-bottom:1px solid var(--line);font-size:12px;color:var(--text-2)}
 .dv-row{min-height:40px;border-bottom:1px solid var(--line);color:var(--ink);text-decoration:none;font-size:13px}
 /* A compact select inside a dense data row (People status). Waitlisted is tinted like a warn badge. */
-.dv-select{display:inline-block;width:auto;min-height:30px;margin:0;padding:4px 10px;border-radius:var(--r-pill);font-size:13px}.dv-select[data-access=waitlisted]{background:var(--warn-bg);color:var(--warn-text);border-color:transparent}
+.dv-select{display:inline-block;width:auto;min-height:30px;margin:0;padding:4px 30px 4px 10px;background-position:right 8px center;background-size:16px;border-radius:var(--r-pill);font-size:13px}.dv-select[data-access=waitlisted]{background-color:var(--warn-bg);color:var(--warn-text);border-color:transparent}
 .dv-row>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dv-row .muted{color:var(--text-2)}
 .dv-row:hover{background:#FAF9F7}.dv-row[aria-current=true]{background:var(--fog)}.dv-row:focus-visible{outline:3px solid var(--grape);outline-offset:-3px}
 .dv-row strong{font-weight:600}.dv-row .end{text-align:right}.dv-facts{display:none}
