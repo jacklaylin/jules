@@ -25,6 +25,7 @@ import { gmailReconnectNeeded } from '../lib/gmail-client.js';
 import { rereadImage } from '../lib/image-reread.js';
 import { approveAccess, approvalPreview, waitlistAgain, WAITLIST_REPLIES } from '../lib/waitlist.js';
 import { profileFirstName, displayName } from '../lib/memory.js';
+import { setUpTester, signupsToSetUp } from '../lib/tester-setup.js';
 
 export const config = { api: { bodyParser: false }, maxDuration: 30 };
 // Owner view. Conversations are read-only (Jules replies automatically); the owner can review and
@@ -36,9 +37,9 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
       if (access !== 200) return json(res, access, { error: access === 503 ? 'Admin is not configured yet.' : 'Please sign in with the owner account.' });
       if (!['GET','POST'].includes(req.method)) { res.setHeader('Allow', 'GET, POST'); return json(res, 405, { error: 'Method not allowed.' }); }
       if (req.method === 'POST') {
-        // The only writes are purchase-history reviews, tagging, the onboarding reset, waitlist approval and texting the contact card, re-reading a failed photo; manual replies stay retired.
+        // The only writes are purchase-history reviews, tagging, the onboarding reset, waitlist approval, setting up a new tester and texting the contact card, re-reading a failed photo; manual replies stay retired.
         const input = await readJson(req);
-        if (!['review', 'missed', 'tag', 'build-report', 'send-report', 'reset-onboarding', 'approve', 'waitlist', 'send-contact-card', 'start-interview', 'reread-image', 'judge-mark', 'replay-draft', 'extract-compare'].includes(input.action)) return json(res, 400, { error: 'Unknown purchase action.' });
+        if (!['review', 'missed', 'tag', 'build-report', 'send-report', 'reset-onboarding', 'approve', 'waitlist', 'send-contact-card', 'start-interview', 'reread-image', 'judge-mark', 'replay-draft', 'extract-compare', 'set-up'].includes(input.action)) return json(res, 400, { error: 'Unknown purchase action.' });
         if (input.action === 'judge-mark' && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Mark the judge from the Jules admin page.' });
         if (['approve', 'waitlist'].includes(input.action) && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Change waitlist status from the Jules admin page.' });
         if (input.action === 'extract-compare' && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Run the comparison from the Jules admin page.' });
@@ -46,7 +47,15 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
         if (input.action === 'start-interview' && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Send style questions from the Jules admin page.' });
         if (input.action === 'send-contact-card' && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Send the contact card from the Jules admin page.' });
         if (input.action === 'reread-image' && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Re-read photos from the Jules admin page.' });
+        if (input.action === 'set-up' && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Set up testers from the Jules admin page.' });
         const store = storeFactory(env);
+        // A new signup has no conversation yet: this creates it on the line the owner typed, then approves (lib/tester-setup.js).
+        if (input.action === 'set-up') {
+          if (input.confirm !== true) throw Object.assign(new Error('Confirm the setup first.'), { status: 400 });
+          if (!uuid(input.signup)) return json(res, 404, { error: 'This signup is no longer there. Refresh and try again.' });
+          try { return json(res, 200, await setUpTester(store, input, env, send, fetcher)); }
+          catch (error) { if (error.status === 404) return json(res, 404, { error: error.message }); throw error; }
+        }
         if (!uuid(input.conversation) || !await store.conversation(input.conversation)) return json(res, 404, { error: 'Conversation not found.' });
         if (input.action === 'reset-onboarding') return json(res, 200, await resetOnboarding(store, input, env, fetcher));
         // Model bake-off (MODEL-BAKEOFF.md): one sampled receipt email read by each candidate extract
@@ -129,6 +138,8 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
       if (query.get('view') === 'feedback') return json(res, 200, { feedback: await store.feedback() });
       // The style report jokes loop: this week's best and worst lines, and each prompt version's votes.
       if (query.get('view') === 'report-copy') return json(res, 200, copyWeek(await store.reportCopyRows()));
+      // New signups with no conversation yet, to set up (lib/tester-setup.js). Phones are masked to the last four digits.
+      if (query.get('view') === 'signups') return json(res, 200, { signups: await signupsToSetUp(store), approval_text: approvalPreview(env)?.text ?? null, approval_account: approvalPreview(env)?.account ?? false });
       if (query.get('view') === 'adoption') return json(res, 200, await adoptionReport(store));
       if (query.get('view') === 'metrics') return json(res, 200, await metricsTrend(store, { days: 7 }));
       // Per sourcing turn outcomes (lib/turn-outcomes.js): ids, counts and labels only, no message text.

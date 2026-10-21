@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Jules admin · People</title><meta name="robots" content="noindex"><link rel="stylesheet" href="/design-system.css"><link rel="stylesheet" href="/admin.css">
-  <script src="/admin.js" type="module"></script><link rel="modulepreload" href="/admin-console.js"><link rel="modulepreload" href="/design-system.js"><link rel="modulepreload" href="/brand-ui.js"><link rel="modulepreload" href="/activity.js"><link rel="modulepreload" href="/wishlist-session.js"><link rel="modulepreload" href="/admin-session.js"><link rel="modulepreload" href="/admin-review.js"><link rel="modulepreload" href="/admin-people-view.js">
+  <script src="/admin.js" type="module"></script><link rel="modulepreload" href="/admin-console.js"><link rel="modulepreload" href="/design-system.js"><link rel="modulepreload" href="/brand-ui.js"><link rel="modulepreload" href="/activity.js"><link rel="modulepreload" href="/wishlist-session.js"><link rel="modulepreload" href="/admin-session.js"><link rel="modulepreload" href="/admin-review.js"><link rel="modulepreload" href="/admin-people-view.js"><link rel="modulepreload" href="/signup-phone.js">
 <link rel="icon" href="/brand/icon.svg" type="image/svg+xml"></head>
 <body class="admin-console">
   <main>
@@ -15,6 +15,10 @@
       <details class="fold metrics-help"><summary>What these numbers mean</summary><dl id="chat-metrics-help"></dl></details>
     </section>
     <div class="dv-toolbar">
+      <div id="people-views" class="dv-views" role="group" aria-label="People views">
+        <button type="button" data-view="" aria-pressed="true">Testers</button>
+        <button type="button" data-view="signups" aria-pressed="false">New signups<span id="signups-count" class="count"></span></button>
+      </div>
       <div id="people-access" class="seg" role="group" aria-label="Filter by waitlist status" hidden></div>
       <label class="dv-search"><span class="sr-only">Search name or number</span><input id="people-search" type="search" maxlength="40" placeholder="Search name or number"><span class="kbd" aria-hidden="true">/</span></label>
       <span id="people-count" class="dv-toolbar-note"></span>
@@ -24,8 +28,10 @@
     <div id="people-more" class="dv-pop dv-menu" popover aria-label="More actions">
       <button id="refresh" type="button">Refresh <span class="hint">people and chat quality</span></button>
     </div>
-    <div class="dv-status"><span id="metrics-note"></span><span id="notice" role="status" aria-live="polite"></span><span class="dv-keys" aria-hidden="true"><span class="kbd">J</span><span class="kbd">K</span> move <span class="kbd">↵</span> open</span></div>
+    <div class="dv-status"><span id="metrics-note"></span><span id="notice" role="status" aria-live="polite"></span><span id="people-keys" class="dv-keys" aria-hidden="true"><span class="kbd">J</span><span class="kbd">K</span> move <span class="kbd">↵</span> open</span></div>
     <div id="people" class="dv-list people-list" aria-label="People"></div>
+    <div id="signups" class="dv-list signups-list" aria-label="New signups" hidden></div>
+    <p id="signups-note" class="dv-note" hidden>Signups whose number has no conversation yet. Enroll the number in Photon first, then click Set up and enter the line Photon assigned them.</p>
   </main>
   <dialog id="access-dialog" class="confirm-dialog" aria-labelledby="access-title">
     <h2 id="access-title">Change waitlist status?</h2>
@@ -33,6 +39,18 @@
     <div id="access-lines"></div>
     <p id="access-error" class="error" role="alert" hidden></p>
     <div class="dialog-actions"><button id="access-confirm" class="btn--butter" type="button">Confirm</button><button id="access-cancel" type="button">Cancel</button></div>
+  </dialog>
+  <dialog id="setup-dialog" class="confirm-dialog" aria-labelledby="setup-title">
+    <form id="setup-form" method="dialog" novalidate>
+      <h2 id="setup-title">Set up this tester?</h2>
+      <p><strong id="setup-person">This person</strong></p>
+      <label for="setup-line">Their Photon line</label>
+      <input id="setup-line" type="tel" inputmode="tel" autocomplete="off" maxlength="32" placeholder="+1 415 555 0100" aria-describedby="setup-line-error">
+      <p id="setup-line-error" class="error" hidden></p>
+      <div id="setup-lines"></div>
+      <p id="setup-error" class="error" role="alert" hidden></p>
+      <div class="dialog-actions"><button id="setup-confirm" class="btn--butter" type="submit">Set up</button><button id="setup-cancel" type="button">Cancel</button></div>
+    </form>
   </dialog>
 </body>
 </html>

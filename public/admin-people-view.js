@@ -100,3 +100,26 @@ export function metricsNote(current) {
   return `Last 7 days: ${count(current.turns, ['tester message', 'tester messages'])}, ${failed} failed (${current.fallbacks} generic, ${current.stuck} never sent)`
     + `${current.named_searches ? `, ${current.named_accepted} of ${current.named_searches} named-product searches ended in a pick` : ''}.`;
 }
+
+// ---------- New signups (lib/tester-setup.js) ----------
+// Signups with no conversation yet. Phones arrive masked ("•••-0123"), so a search matches the name or those digits.
+export function filterSignups(signups, query = '') {
+  const q = query.replace(/\s/g, '').toLowerCase(), digits = q.replace(/\D/g, '');
+  return signups.filter(s => !q || (s.name ?? '').replace(/\s/g, '').toLowerCase().includes(q) || (digits && s.phone.slice(-4).includes(digits)));
+}
+
+// What setting someone up does, for its confirmation: the conversation on their line, then the approval.
+export function setupLines(approvalText, approvalAccount = false) {
+  return ['Jules saves their conversation on the line you enter, so the welcome and every reply come from that line.', ...approvalLines(approvalText, approvalAccount),
+    ...(approvalAccount && approvalText ? ['Right after the welcome, Jules texts its contact card with this line’s number, so they can save it.'] : [])];
+}
+
+// The result of a setup for the status line.
+export function setupResult({ created, ...result }) {
+  if (!result.changed) return `Nothing new was sent: they were already set up${created ? '' : ' on this line'}.`;
+  if (result.onboarding && result.text === 'sent') {
+    const card = { sent: ' and the contact card', blocked: '', uncertain: '; the contact card may not have been delivered', failed: '; the contact card could not be sent (try Send contact card on their page)' }[result.contact_card] ?? '';
+    return `Set up on their line. ${result.account === 'created' ? 'Account set up. ' : ''}Jules texted them the welcome${card}.`;
+  }
+  return `Set up on their line. ${accessResult('approved', result).replace(/^Approved\. /, '')}`;
+}
