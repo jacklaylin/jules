@@ -1,6 +1,6 @@
 # Chat skills: splitting Jules's one big prompt into small jobs
 
-Status: **approved by the founder on October 21, 2026** (all four decisions in section 7: yes). Build follows the PR order in section 5, one PR at a time.
+Status: **approved by the founder on October 21, 2026** (all four decisions in section 7: yes). Build follows the PR order in section 5, one PR at a time. Step 1 shipped in #319 (October 21).
 Written October 21, 2026. Full rule-by-rule inventory: [docs/chat-skills-inventory.md](docs/chat-skills-inventory.md).
 
 ## Summary for the founder
@@ -178,6 +178,8 @@ Every PR from PR 3 on has to pass this before merge:
 | 10 | **history** (context-field notes, existing guides) | Small | Full gate |
 | 11 | **conversation + core trim** | Small | Full gate |
 | 12 | **Selective loading on**, plus the `load_skill` escape hatch | Yes | Full gate + recall ≥98% |
+
+Step 2 records each turn's route in `reply_diagnostics.skill_route` (jobs, confidence, the skills it would load, the tools the agent called and any it would have missed). Read recall with `node --env-file=.env.local scripts/router-recall.js --days 2`. `CHAT_ROUTER=off` turns the router off; `MODEL_ROUTE` changes its model. There is no admin screen for it.
 
 Until PR 12, every turn still gets every skill. PRs 3–11 already help, because they remove duplicates and conflicts, but selective loading is the change that stops rules interfering across jobs. Any PR can be reverted alone.
 
