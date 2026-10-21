@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {rankDiscoveryProducts} from '../lib/discovery-ranking.js';
-import {textWishlistAction} from '../lib/text-wishlist.js';
+import {textWishlistAction,searchPlan} from '../lib/text-wishlist.js';
 import {auditProblems,auditClaims} from '../lib/compose.js';
 
 // Founder decision, October 20: when the user names brands as the look, Jules shows fewer results
@@ -80,4 +80,28 @@ test('the audit reads already-saved items as the items to compare with',async()=
  const audit=await auditClaims({reply:'those cropped flannels are already in your wishlist.',facts:{already_saved_items:['LEMAIRE Black Leather Biker Jacket']},results:'already in your wishlist.',env,fetcher});
  assert.equal(audit.names_other_saved_item,true);
  assert.match(input[0].content,/SAVED_ITEMS \(data\): \["LEMAIRE Black Leather Biker Jacket"\]/);
+});
+
+// October 21: "look at luxury brands" was stored as a brand called "luxury brands", so the filter above had
+// no real brand to hold results to and a small novelty label's store was shown. A level is its own field.
+test('a level asked for holds results to it, with no brands named',async()=>{
+ let body;const fetcher=async(u,o)=>{body=JSON.parse(o.body);return reply({indices:[0,1,2],rejected_indices:[],unlike_references_indices:[1,2]})(u,o);};
+ const record={};
+ const out=await rankDiscoveryProducts([designer,mass,fast],{query:'tiger stripe sherpa fleece',level:'luxury',env,fetcher,record});
+ assert.deepEqual(out.map(x=>x.brand),['Auralee']);assert.equal(record.unlike_references,2);
+ assert.equal(JSON.parse(body.input[0].content).level,'luxury');assert.match(body.instructions,/requested level/);
+ const levelPlan={...plan,reference_brands:[],level:'luxury'};
+ const kept=await textWishlistAction({action:'start',query:'tiger stripe sherpa fleece',search_plan:levelPlan},{env:{},facts:[],record:async()=>{},stylist:async()=>[],search:async()=>({status:'found',products:[designer,mass]}),
+  rank:async(list,{record,level})=>{assert.equal(level,'luxury');record.unlike_references=1;return list.slice(0,1);},owned:async()=>[]});
+ assert.match(kept,/left out one that wasn’t close to the luxury level you asked for/);
+ const none=await textWishlistAction({action:'start',query:'tiger stripe sherpa fleece',search_plan:levelPlan},{env:{},facts:[],record:async()=>{},stylist:async()=>[],search:async()=>({status:'found',products:[mass]}),
+  rank:async(_l,{record})=>{record.unlike_references=1;return [];},owned:async()=>[]});
+ assert.match(none,/nothing i found is close enough to the luxury level you asked for yet/);assert.match(none,/curated stores/);
+});
+
+test('the plan keeps a valid level and drops anything else; old plans without one are unchanged',()=>{
+ const base={continuation:'new_request',mode:'discover',named_model:null,brands:[],hard_constraints:[],guidance:[],keep_option_indices:[],exclude_option_indices:[],price:null};
+ for(const level of ['luxury','premium','affordable'])assert.equal(searchPlan({...base,level}).level,level);
+ for(const level of [null,'luxury brands','cheap',3])assert.equal(searchPlan({...base,level}).level,null);
+ assert.ok(!Object.hasOwn(searchPlan({...base}),'level'));
 });

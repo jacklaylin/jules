@@ -75,3 +75,23 @@ test('size clarification retains approval and resumes it without another consent
  const changed=await act({decision:'interest',option_indices:[2]},pending.next);
  assert.equal(changed.result.user_confirmed,undefined);
 });
+
+// October 21: Jules offered two items it had no product record for; "yes" then confirmed the saved list,
+// which stands in as the options when nothing is pending, and the reply said "already in your wishlist".
+test('a plain save of the saved list standing in saves nothing and asks which item; alerts on saved items still work',async()=>{
+ const {shoppingContext}=await import('../lib/shopping-context.js');
+ const savedItems=[{id:'saved-jacket',name:'Biker jacket',links:[{url:'https://shop.example/jacket'}]},{id:'saved-boots',name:'Square-toe boots',links:[{url:'https://shop.example/boots'}]}];
+ const standIn=shoppingContext([{direction:'inbound',body:'yes'}],null,savedItems);
+ for(const option_indices of [[0],[0,1]]){
+  const r=await act({decision:'confirm',option_indices,consent:'wishlist',consent_context:'explicit_request',option_sizing:[]},standIn);
+  assert.notEqual(r.result.user_confirmed,true,'nothing is committed');
+  assert.match(r.body,/already in your wishlist, so nothing new was saved\. which item did you mean\?/);
+  for(const i of option_indices)assert.ok(r.body.includes(savedItems[i].name),'it names what is saved');
+ }
+ // Asking for alerts on a saved item is not held back by this.
+ const alert=await act({decision:'confirm',option_indices:[0],consent:'wishlist_alerts',consent_context:'explicit_request',option_sizing:[]},standIn);
+ assert.doesNotMatch(alert.body,/nothing new was saved/);
+ // Real pending options are saved as before.
+ const offer=(await act({option_indices:[0]})).next;
+ assert.equal((await act({decision:'confirm',option_indices:[0],consent:'wishlist'},offer)).result.user_confirmed,true);
+});
