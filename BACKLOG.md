@@ -10,6 +10,7 @@ Ideas the founder wants kept, not built yet. Nothing here is assigned work: buil
 ## Closet and planning (UI/UX inspiration: Alta)
 
 - **Outfit and closet planner.** Builds on the wardrobe and evidence store. Take layout and interaction cues from Alta's closet and outfit views.
+- **Wear signal: "seen in your outfit photos".** Match pieces in outfit photos to wardrobe items, so Jules knows what is worn as well as owned. Only distinctive pieces count as an item, after the owner taps Yes; basics are counted by kind ("black tees: 5 of 9 photos"). About $0.004–0.01 per photo. Needs a PRD decision (sections 29 and 30 exclude wear tracking). Share the matcher with Section 30 step 2 (texted outfits into the wardrobe). Plan: [design/wear-signal-plan.md](design/wear-signal-plan.md).
 - **Trip planner.** "I'm going to Italy next month, handle it": a packing list from the closet plus gaps Jules shops for.
 
 ## Commerce
