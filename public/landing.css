@@ -53,7 +53,3 @@ body.landing-page{padding-top:0}.scroll-story{height:100dvh}.landing-stage{posit
 /* Tapback: a centered heart in a round grey badge (iMessage reactions have no tail). */
 .demo-photo>.demo-tapback{padding:0;top:-16px;left:-20px;width:34px;height:34px;display:grid;place-items:center;box-shadow:0 0 0 2.5px var(--white)}
 .demo-tapback svg{width:17px;height:17px;margin:1px 0 0}
-
-/* When the example prices were captured, in a quiet line under the phone. */
-.phone-demo{position:relative}.demo-note{position:absolute;top:100%;left:0;right:0;margin:8px 0 0;text-align:center;font-size:12px;line-height:16px;color:var(--text-2)}
-@media(max-width:1099px){.phone-demo{margin-bottom:20px}.demo-note{margin-top:4px}}

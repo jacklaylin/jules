@@ -105,10 +105,11 @@ test('the FAQ page opens with what Jules is, dated, and its FAQPage data matches
  assert.deepEqual(toc,items.map(i=>i.id));
 });
 
-test('the landing page defines Jules, dates its example prices and links FAQ, Privacy and Terms',()=>{
+test('the landing page defines Jules, dates its example prices for machines and links FAQ, Privacy and Terms',()=>{
  const page=read('public/index.html');
  for(const copy of page.match(/<p class="landing-intro">(.*?)<\/p>/s)[1].match(/<span class="(?:desktop|mobile)-copy">.*?<\/span>/g))assert.match(copy,/personal shopper you text by iMessage/);
- assert.match(page,/<p class="demo-note">[^<]*Prices as of October 2026\.<\/p>/);
+ // The price date lives in the transcript only; the visible page carries no small print under the phone.
+ assert.doesNotMatch(page,/demo-note/);
  assert.match(page.match(/<section class="sr-only"[^>]*>(.*?)<\/section>/s)[1],/^<h2>What can you text Jules\?<\/h2><p>[^<]*Prices as of October 2026\.<\/p>/);
  assert.equal(page.match(/<footer class="landing-legal">(.*?)<\/footer>/s)[1],'<a href="/faq">FAQ</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a>');
  for(const file of ['faq.html','privacy.html','terms.html']){
