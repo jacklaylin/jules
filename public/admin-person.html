@@ -30,6 +30,7 @@
       <button id="approve-person" type="button" aria-haspopup="dialog" hidden>Approve from waitlist…</button>
       <button id="contact-card" type="button" aria-haspopup="dialog">Text them Jules’s contact card…</button>
       <button id="ask-style" type="button" aria-haspopup="dialog">Ask them style questions…</button>
+      <button id="nudges" type="button" aria-haspopup="dialog">Purchase nudges…</button>
       <button id="reset-onboarding" type="button" aria-haspopup="dialog">Reset onboarding…</button>
     </div>
     <nav class="tabs" aria-label="Person sections">
@@ -119,6 +120,21 @@
     <p>Jules texts <strong id="ask-person">this person</strong> the first of up to three short questions about the gaps in their taste profile (the Coverage chips), then each next one after they reply, as if they had asked. Their answers show in Conversation. Nothing is sent if they said no to more questions.</p>
     <p id="ask-error" class="error" role="alert" hidden></p>
     <div class="dialog-actions"><button id="ask-confirm" class="btn--butter" type="button">Send</button><button id="ask-cancel" type="button">Cancel</button></div>
+  </dialog>
+  <dialog id="nudge-dialog" class="confirm-dialog" aria-labelledby="nudge-title">
+    <h2 id="nudge-title">Purchase nudges</h2>
+    <p id="nudge-setting" class="muted"></p>
+    <div id="nudge-test" hidden>
+      <p>Send <strong id="nudge-person">this person</strong> the “goes with your new purchase” offer about one item from their wardrobe, labelled <code>[test nudge]</code>. It ignores the daily limit, quiet hours and how recent the purchase is, never counts toward their limits, and can be sent again. Their reply goes to Jules like any other message.</p>
+      <label for="nudge-item">Item</label>
+      <select id="nudge-item"></select>
+      <p id="nudge-draft" class="muted"></p>
+    </div>
+    <p id="nudge-no-test" class="muted" hidden>Test nudges go only to the designated test conversation (PRICE_ALERT_TEST_CONVERSATION_ID in Vercel).</p>
+    <h3 class="mono-label">Decisions, newest first</h3>
+    <ul id="nudge-log" class="nudge-log"></ul>
+    <p id="nudge-error" class="error" role="alert" hidden></p>
+    <div class="dialog-actions"><button id="nudge-confirm" class="btn--butter" type="button" hidden>Send test nudge</button><button id="nudge-cancel" type="button">Close</button></div>
   </dialog>
   <dialog id="reread-dialog" class="confirm-dialog" aria-labelledby="reread-title">
     <h2 id="reread-title">Re-read this photo?</h2>
