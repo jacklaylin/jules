@@ -23,7 +23,8 @@ test('the completion text counts confirmed purchases and returns, never removed 
 test('the profile summary lists brands, stores and purchased sizes from their own purchases only',()=>{
  const text=profileText(stateOf(labelled));
  assert.match(text,/brands you buy most: Our Legacy, BODE, MFPEN/);
- assert.match(text,/where you shop: FARFETCH, MFPEN, Mr Porter/);
+ // MFPEN is already named as a brand (its own shop), so it is not named again as a store.
+ assert.match(text,/other stores you buy from: FARFETCH, Mr Porter/);
  assert.match(text,/sizes you’ve bought: 32, M, XL/);
  assert.ok(!/Gift Brand|Not Real|XS/.test(text),'gifts and removed items are excluded');
  assert.ok(!/fit|price|\$/.test(text),'no fit or price claims');
