@@ -4,7 +4,7 @@ import { mkdtemp, readFile, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createStore } from '../lib/store.js';
-import { reportedTurn, scrub, casesDir, freezeReport, syncCases, loadCases, runFrozenCase, scoreFrozen, frozenReport, judgeInput, recordedDraft, conversationHash } from '../lib/frozen-evals.js';
+import { reportedTurn, scrub, casesDir, freezeReport, syncCases, loadCases, runFrozenCase, scoreFrozen, frozenReport, judgeInput, recordedDraft, conversationHash, combineJudges, judgeModels } from '../lib/frozen-evals.js';
 import { agentTurn, tool, agentContext, isAgentRequest, toolNames } from './helpers/agent.js';
 
 const out = value => ({ ok: true, json: async () => ({ status: 'completed', output: [{ type: 'message', content: [{ type: 'output_text', text: JSON.stringify(value) }] }] }) });
@@ -203,4 +203,38 @@ test('the judge sees the report, both replies and the new actions, without tool 
   assert.deepEqual(input.new_actions.map(a => a.tool), ['find_products']);
   assert.ok(input.new_actions[0].args.length < 500);
   assert.equal(input.original_reply, 'old');
+});
+
+test('with two judges a case passes only when both pass it, and their agreement is reported', () => {
+  const pass = { verdict: 'pass', reason: 'ok' }, fail = { verdict: 'fail', reason: 'Asked to save and said saved.' };
+  const verdict = (model, coherent) => ({ ...scoreFrozen({ report_about: 'jules_reply', did_what_asked: pass, coherent, no_repeated_questions: pass, meets_report: pass }, { reply: 'hi' }), judge_model: model });
+  const split = combineJudges([verdict('gpt-5.5', pass), verdict('openrouter:anthropic/claude-opus-5.5', fail)]);
+  assert.equal(split.passed, false);
+  assert.equal(split.judges_agree, false);
+  assert.deepEqual(split.failed, ['coherent']);
+  assert.equal(split.criteria.coherent.by, 'openrouter:anthropic/claude-opus-5.5');
+  assert.match(split.failures[0], /^\[claude-opus-5\.5\] coherent:/);
+  const both = combineJudges([verdict('gpt-5.5', pass), verdict('openrouter:anthropic/claude-opus-5.5', pass)]);
+  assert.equal(both.passed, true);
+  const report = frozenReport([{ id: 'a', category: 'frozen:x', ...split, timeouts: 1, refused: [] }, { id: 'b', category: 'frozen:x', ...both, timeouts: 0, refused: [502] }]);
+  assert.equal(report.pass_rate, 0.5);
+  assert.equal(report.judge_agreement, 0.5);
+  assert.deepEqual(report.judges.map(j => [j.model, j.pass_rate]), [['gpt-5.5', 1], ['openrouter:anthropic/claude-opus-5.5', 0.5]]);
+  assert.equal(report.timeout_rate, 0.5);
+  assert.equal(report.refused_rate, 0.5);
+  assert.deepEqual(judgeModels({ FROZEN_JUDGE_MODELS: 'gpt-5.5, openrouter:anthropic/claude-opus-5.5' }), ['gpt-5.5', 'openrouter:anthropic/claude-opus-5.5']);
+  assert.deepEqual(judgeModels({}), ['gpt-5.5']);
+});
+
+test('an agent round that runs out of time is counted, apart from a wrong answer', async () => {
+  const frozen = await freezeReport(fakeStore(), report, {}, { classify: async () => 'reply_quality' });
+  const fetcher = async (url, options) => {
+    const body = JSON.parse(options.body);
+    if (body.tools) { const error = new Error('The operation timed out.'); error.name = 'TimeoutError'; throw error; }
+    if (body.text?.format?.name === 'frozen_judge') return out({ report_about: 'jules_reply', did_what_asked: { verdict: 'fail', reason: 'No reply.' }, coherent: { verdict: 'pass', reason: '' }, no_repeated_questions: { verdict: 'not_applicable', reason: '' }, meets_report: { verdict: 'fail', reason: '' } });
+    return out({});
+  };
+  const result = await runFrozenCase(frozen, { OPENAI_API_KEY: 'test' }, { fetcher });
+  assert.ok(result.timeouts >= 1);
+  assert.equal(result.passed, false);
 });

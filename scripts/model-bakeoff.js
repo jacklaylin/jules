@@ -8,7 +8,8 @@
 // OPENROUTER_API_KEY. Options: --runs 3, --concurrency 6, --max-cost 25 (USD for the whole bake-off),
 // --out <folder> (default .eval-local/bakeoff-<role>-<time>; raw results and replies are kept there).
 //   chat:   the agent routing evals (tools stubbed) and the replay cases that need no search.
-//           Plus every frozen production case (FROZEN-EVALS.md), judged by a fixed model; --no-frozen leaves them out.
+//           Plus every frozen production case (FROZEN-EVALS.md), judged by a fixed model; --no-frozen leaves them out,
+//           --judges gpt-5.5,openrouter:anthropic/claude-opus-5.5 judges them twice (a case passes only when both pass it).
 //   search: the replay sourcing cases with the chat model fixed, only the web_search model varying.
 //           SerpApi is switched off for these runs so the comparison isolates the search model and
 //           uses none of the monthly SerpApi searches (production also merges SerpApi results).
@@ -58,7 +59,7 @@ globalThis.fetch = async (input, init) => {
 const [spec] = [ROLES[role]];
 const envFor = model => {
   const [id, effort] = model.split(/:(?=[a-z]+$)/);
-  const env = { ...process.env, SEARCH_ENABLED: 'true', [spec.env]: id, ...(effort ? { [`${spec.env}_REASONING`]: effort } : {}) };
+  const env = { ...process.env, SEARCH_ENABLED: 'true', [spec.env]: id, ...(effort ? { [`${spec.env}_REASONING`]: effort } : {}), ...(option('--judges') ? { FROZEN_JUDGE_MODELS: option('--judges') } : {}) };
   if (role === 'search') delete env.SERPAPI_API_KEY;
   return env;
 };
@@ -92,7 +93,9 @@ async function worker() {
     const row = { model: job.model, id: job.c.id, category: job.c.category, run: job.i, passed: Boolean(outcome.passed) && !outcome.error,
       failures: [...(outcome.error ? [`error: ${String(outcome.error).slice(0, 120)}`] : []), ...(outcome.failures ?? [])],
       elapsed_ms: Date.now() - started, cost_usd: cost, role_cost_usd: roleCost, role_calls: roleCalls.length, role_input_tokens: roleIn, role_cached_tokens: roleCached,
-      role_http_errors: roleCalls.filter(c => c.status !== 200).map(c => c.status), reply: outcome.reply ?? outcome.body ?? null, tools: outcome.tools ?? (outcome.tool ? [outcome.tool] : []) };
+      role_http_errors: roleCalls.filter(c => c.status !== 200).map(c => c.status), reply: outcome.reply ?? outcome.body ?? null, tools: outcome.tools ?? (outcome.tool ? [outcome.tool] : []),
+      // A round past the agent's time limit or refused by the provider: slow or mis-wired, told apart from a wrong answer.
+      timed_out: (outcome.timeouts ?? 0) > 0, refused: outcome.refused ?? [], ...(outcome.judges ? { judges: outcome.judges, judges_agree: outcome.judges_agree } : {}) };
     results.push(row);
     await appendFile(resolve(out, 'runs.jsonl'), JSON.stringify(row) + '\n', { mode: 0o600 });
     if (process.stderr.isTTY || results.length % 25 === 0) process.stderr.write(`${results.length}/${total} runs · ~$${spent.toFixed(2)}\n`);
@@ -112,6 +115,8 @@ const summary = models.map(model => {
   const timed = rows.filter(r => !r.category.startsWith('frozen:')), frozenRows = rows.filter(r => r.category.startsWith('frozen:'));
   return { model, runs: rows.length, pass_rate: rows.length ? rows.filter(r => r.passed).length / rows.length : null,
     frozen_pass_rate: frozenRows.length ? frozenRows.filter(r => r.passed).length / frozenRows.length : null,
+    frozen_judge_agreement: frozenRows.some(r => r.judges?.length > 1) ? frozenRows.filter(r => r.judges_agree).length / frozenRows.filter(r => r.judges?.length > 1).length : null,
+    timeout_rate: rows.length ? rows.filter(r => r.timed_out).length / rows.length : null, refused_rate: rows.length ? rows.filter(r => r.refused.length).length / rows.length : null,
     median_ms: quantile(timed.map(r => r.elapsed_ms), 0.5), p90_ms: quantile(timed.map(r => r.elapsed_ms), 0.9),
     role_cost_per_100_turns: rows.length ? 100 * rows.reduce((s, r) => s + r.role_cost_usd, 0) / rows.length : null,
     total_cost_per_100_turns: rows.length ? 100 * rows.reduce((s, r) => s + r.cost_usd, 0) / rows.length : null,
@@ -121,5 +126,5 @@ const summary = models.map(model => {
 await writeFile(resolve(out, 'summary.json'), JSON.stringify({ role, runs, cases: cases.length, elapsed_s: Math.round((Date.now() - startedAll) / 1000), spent_usd: spent, summary }, null, 2), { mode: 0o600 });
 const pct = v => v === null ? '  —' : `${Math.round(v * 100)}%`.padStart(4);
 console.log(`\n${role} role · ${cases.length} cases × ${runs} runs · ~$${spent.toFixed(2)} · results in ${out}\n`);
-for (const s of summary) console.log(`${s.model.padEnd(44)} pass ${pct(s.pass_rate)}${s.frozen_pass_rate === null ? '' : `  frozen ${pct(s.frozen_pass_rate)}`}  median ${(s.median_ms / 1000).toFixed(1)}s  p90 ${(s.p90_ms / 1000).toFixed(1)}s  ${role} $${s.role_cost_per_100_turns?.toFixed(3)}/100 turns  cache ${pct(s.role_cache_share)}${s.http_errors.length ? `  http errors ${s.http_errors.length}` : ''}`);
+for (const s of summary) console.log(`${s.model.padEnd(44)} pass ${pct(s.pass_rate)}${s.frozen_pass_rate === null ? '' : `  frozen ${pct(s.frozen_pass_rate)}${s.frozen_judge_agreement === null ? '' : ` (judges agree ${pct(s.frozen_judge_agreement)})`}`}  timeouts ${pct(s.timeout_rate)}${s.refused_rate ? `  refused ${pct(s.refused_rate)}` : ''}  median ${(s.median_ms / 1000).toFixed(1)}s  p90 ${(s.p90_ms / 1000).toFixed(1)}s  ${role} $${s.role_cost_per_100_turns?.toFixed(3)}/100 turns  cache ${pct(s.role_cache_share)}${s.http_errors.length ? `  http errors ${s.http_errors.length}` : ''}`);
 process.exit(0);
