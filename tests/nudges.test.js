@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {nudgeDecision,sendingHours,localDay,recordNudge,nudgeTimezone,NUDGE_OPERATIONS,LIMITS} from '../lib/nudges.js';
+import {nudgeDecision,sendingHours,localDay,recordNudge,nudgeTimezone,backoffUntil,nudgeSummary,NUDGE_OPERATIONS,LIMITS,BACKOFF} from '../lib/nudges.js';
 
 const OWNER='owner-1',HOUR=3600000,DAY=24*HOUR;
 // 1pm Eastern on a Tuesday (17:00 UTC in daylight time): inside every sending window.
@@ -75,4 +75,45 @@ test('each decision is kept on the row, newest last, at most fifty',()=>{
  assert.equal(data.nudges.log.length,50);
  assert.deepEqual(data.nudges.log.at(-1),{at:new Date(NOW+54).toISOString(),kind:'goes_with',status:'sent',reason:null,item_ids:['a','b','c','d','e']});
  assert.equal(recordNudge({},{kind:'goes_with',status:'sent',item_ids:[],test:true}).test,true);
+});
+
+test('back off: two nudges in a row with no reply for two days pause nudges for 14 days',()=>{
+ const first=goesWith(NOW-5*DAY),second=fitCheck(NOW-3*DAY);
+ // Both unanswered, the newer one for over two days: paused until 16 days after it.
+ const paused=nudgeDecision({now:NOW,sent:[first,second],lastInbound:new Date(NOW-10*DAY).toISOString()});
+ assert.deepEqual([paused.send,paused.reason,paused.until],[false,'ignored_backoff',new Date(NOW-3*DAY+16*DAY).toISOString()]);
+ assert.equal(backoffUntil({sent:[first,second],now:NOW}),NOW-3*DAY+16*DAY,'never texted Jules counts as no reply');
+ // Any message from them after either nudge resets it.
+ assert.equal(nudgeDecision({now:NOW,sent:[first,second],lastInbound:new Date(NOW-4*DAY).toISOString()}).send,true);
+ assert.equal(nudgeDecision({now:NOW,sent:[first,second],lastInbound:new Date(NOW-HOUR).toISOString()}).send,true);
+ // The newer nudge is not ignored until two days have passed.
+ assert.equal(backoffUntil({sent:[goesWith(NOW-5*DAY),goesWith(NOW-DAY)],now:NOW}),null);
+ // One ignored nudge is not enough; failed sends, price alerts and test texts never count.
+ assert.equal(backoffUntil({sent:[first],now:NOW}),null);
+ assert.equal(backoffUntil({sent:[first,{...second,status:'uncertain'}],now:NOW}),null);
+ assert.equal(backoffUntil({sent:[first,sent('price-alert:a:1:fp',NOW-3*DAY)],now:NOW}),null);
+ assert.equal(backoffUntil({sent:[first,sent(`nudge-test:${OWNER}:x`,NOW-3*DAY)],now:NOW}),null);
+ // After 14 days the pause ends.
+ assert.equal(nudgeDecision({now:NOW+14*DAY,sent:[first,second],timezone:'America/New_York'}).send,true);
+ assert.deepEqual([BACKOFF.ignored,BACKOFF.reply_ms/DAY,BACKOFF.pause_ms/DAY],[2,2,14]);
+});
+
+test('the admin summary counts offers, answers and holds per tester, leaving test sends out of the rates',()=>{
+ const at=h=>new Date(NOW-h*HOUR).toISOString(),e=(h,kind,status,reason=null,test)=>({at:at(h),kind,status,reason,item_ids:['i'],...(test?{test:true}:{})});
+ const rows=[
+  {conversation_id:'a',nudges:{log:[e(200,'goes_with','sent'),e(190,'goes_with','replied','accepted'),e(100,'goes_with','sent'),e(99,'goes_with','replied','declined'),e(80,'goes_with','held','quiet_hours'),e(60,'goes_with','sent'),e(50,'fit_check','sent'),e(10,'goes_with','held','ignored_backoff')]}},
+  {conversation_id:'b',nudges:{open:{kind:'goes_with',at:at(5)},log:[e(30,'goes_with','sent','x',true),e(29,'goes_with','replied','accepted',true),e(5,'goes_with','sent'),e(4,'goes_with','replied','unrelated')]}},
+  {conversation_id:'c',nudges:{log:[]}},
+ ];
+ const s=nudgeSummary(rows,NOW);
+ assert.deepEqual(s.people.map(p=>p.id),['b','a'],'newest decision first; nobody with nothing logged');
+ const a=s.people.find(p=>p.id==='a');
+ assert.deepEqual([a.offers,a.answered,a.yes,a.no,a.unrelated,a.no_reply,a.fit_checks,a.open],[3,2,1,1,0,1,1,false]);
+ assert.deepEqual(a.held,{quiet_hours:1,ignored_backoff:1});
+ assert.deepEqual(a.latest,{at:at(10),kind:'goes_with',status:'held',reason:'ignored_backoff'});
+ const b=s.people.find(p=>p.id==='b');
+ assert.deepEqual([b.offers,b.answered,b.unrelated,b.no_reply,b.tests],[1,0,1,0,2]);
+ assert.deepEqual([s.totals.offers,s.totals.answered,s.totals.yes,s.totals.reply_rate,s.totals.yes_rate],[4,2,1,0.5,0.25]);
+ assert.equal(s.recent[0].id,'b');assert.equal(s.recent.length,12);
+ assert.deepEqual(nudgeSummary([]).totals.reply_rate,null);
 });
