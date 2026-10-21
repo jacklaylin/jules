@@ -1,5 +1,6 @@
 // Loads first so the cost meter wraps fetch before any handler below keeps a reference to it.
 import '../lib/usage.js';
+import { lowStockSummary } from '../lib/low-stock.js';
 import { readCoverage } from '../lib/coverage.js';
 import { adminStartInterview } from '../lib/interview.js';
 import { previewEarlyRead } from '../lib/early-read.js';
@@ -231,7 +232,8 @@ async function personWishlist(store, id, env) {
     const alert = alerts.find(a => a.group_id === item.id);
     return { ...item, price_alert: alert ? { id: alert.id, active: alert.active, size: alert.size, last_checked_at: alert.last_checked_at, notified: alert.notified,
       links: (alert.links ?? []).map(l => l.url), baselines: (alert.baselines ?? []).map(({ amount, currency, url, available }) => ({ amount, currency, url, available })),
-      stock: alert.last_result?.stock ?? null } : null };
+      stock: alert.last_result?.stock ?? null, low_stock: lowStockSummary(alert),
+      low_stock_check: alert.last_result?.low_stock ? (({ state, reason, would_send, checked_at, episode }) => ({ state, reason, would_send, checked_at, episode_started_at: episode?.started_at ?? null }))(alert.last_result.low_stock) : null } : null };
   });
   return { items, alerts_enabled: alertsOn, test_delivery: Boolean(env.PRICE_ALERT_TEST_CONVERSATION_ID) && env.PRICE_ALERT_TEST_CONVERSATION_ID === id };
 }
