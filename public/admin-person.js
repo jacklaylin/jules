@@ -369,6 +369,43 @@ $('ask-confirm').onclick = async () => {
   } catch (error) { $('ask-error').textContent = error.message; $('ask-error').hidden = false; }
   finally { buttons.forEach(b => { b.disabled = false; }); $('ask-confirm').textContent = 'Send'; }
 };
+// ---------- Purchase nudges ----------
+// The decision log for unprompted texts (lib/nudges.js) and, for the designated test conversation only, a
+// test "goes with" offer about a chosen wardrobe item. Nothing is reset; a test can be sent again.
+const NUDGE_REASONS = { quiet_hours: 'quiet hours', daily_cap: 'already texted today', weekly_cap: '3 this week already', price_alert_today: 'price alert went out today',
+  mid_conversation: 'mid-conversation', opted_out: 'texted STOP', texts_off: 'purchase texts off', not_clothing: 'not clothing', not_worth_a_text: 'model: not worth an offer', nothing_recent: 'nothing recent' };
+const NUDGE_KINDS = { goes_with: 'Goes with', fit_check: 'Fit check' };
+let nudgeItems = [];
+function renderNudges(data) {
+  $('nudge-setting').textContent = `Texts about purchases are ${data.texts_on ? 'on' : 'off'} · time zone ${data.timezone ?? 'unknown (noon–8pm Eastern only)'}`;
+  $('nudge-test').hidden = !data.test_delivery || !data.candidates.length; $('nudge-confirm').hidden = $('nudge-test').hidden;
+  $('nudge-no-test').hidden = data.test_delivery;
+  if (data.test_delivery && !data.candidates.length) { $('nudge-no-test').hidden = false; $('nudge-no-test').textContent = 'No clothing or accessories in their wardrobe yet.'; }
+  nudgeItems = data.candidates;
+  $('nudge-item').replaceChildren(...data.candidates.map(i => el('option', { value: i.id, textContent: `${i.name}${i.merchant ? ` · ${i.merchant}` : ''}${i.bought_at ? ` · ${i.bought_at.slice(0, 10)}` : ''}` })));
+  $('nudge-draft').textContent = nudgeItems[0] ? `Draft: ${nudgeItems[0].draft}` : '';
+  $('nudge-log').replaceChildren(...(data.log.length ? data.log.map(e => el('li', { textContent: `${e.at.slice(0, 16).replace('T', ' ')} UTC · ${NUDGE_KINDS[e.kind] ?? e.kind} · ${e.status}${e.reason ? ` (${NUDGE_REASONS[e.reason] ?? e.reason})` : ''}${e.test ? ' · test' : ''}` }))
+    : [el('li', { className: 'muted', textContent: 'No nudge decisions yet.' })]));
+}
+$('nudge-item').onchange = () => { const item = nudgeItems.find(i => i.id === $('nudge-item').value); $('nudge-draft').textContent = item ? `Draft: ${item.draft}` : ''; };
+$('nudges').onclick = async () => {
+  $('nudge-person').textContent = $('person-name').textContent; $('nudge-error').hidden = true;
+  $('nudge-log').replaceChildren(el('li', { className: 'muted', textContent: 'Loading…' })); $('nudge-test').hidden = true; $('nudge-confirm').hidden = true; $('nudge-no-test').hidden = true;
+  $('nudge-dialog').showModal();
+  try { renderNudges(await api(`/api/admin?conversation=${person}&view=nudges`)); }
+  catch (error) { $('nudge-error').textContent = error.message; $('nudge-error').hidden = false; }
+};
+$('nudge-cancel').onclick = () => $('nudge-dialog').close();
+$('nudge-confirm').onclick = async () => {
+  const buttons = [$('nudge-confirm'), $('nudge-cancel')]; buttons.forEach(b => { b.disabled = true; }); $('nudge-confirm').textContent = 'Sending…'; $('nudge-error').hidden = true;
+  try {
+    const data = await api('/api/admin', { method: 'POST', body: JSON.stringify({ action: 'send-test-nudge', conversation: person, item: $('nudge-item').value, confirm: true }) });
+    renderNudges(data);
+    notice(data.nudge.status === 'sent' ? `Test nudge about ${data.nudge.item} sent.` : `Test nudge not confirmed (${data.nudge.status}); check Conversation before sending again.`);
+    loadMessages().catch(error => notice(`Conversation: ${error.message}`));
+  } catch (error) { $('nudge-error').textContent = error.message; $('nudge-error').hidden = false; }
+  finally { buttons.forEach(b => { b.disabled = false; }); $('nudge-confirm').textContent = 'Send test nudge'; }
+};
 // ---------- Re-read a failed photo ----------
 // Reads the photo again from Photon (recompressing a large screenshot) and saves it to that message; no text is sent.
 let rereadMessage = null;

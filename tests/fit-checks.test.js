@@ -4,7 +4,8 @@ import {createReceiptFeedback,applyReceiptAnswer,applyReceiptFeedback,receiptLea
 import {reconcileReceipt,emptyReceiptState,projectReceiptState} from '../lib/receipt-extraction.js';
 import {loadReceipts,purchaseSummary} from '../lib/evidence.js';
 import {wardrobeView} from '../lib/wardrobe.js';
-import {deliveryOf,fitCheckCandidates,fitCheckDraft,sendFitCheck,PROACTIVE} from '../lib/fit-checks.js';
+import {deliveryOf,fitCheckCandidates,fitCheckDraft,sendFitCheck} from '../lib/fit-checks.js';
+import {NUDGE_OPERATIONS} from '../lib/nudges.js';
 import {announcePurchases,refreshOwner} from '../lib/purchase-texts.js';
 import {updatePurchaseHistory} from '../lib/receipt-chat.js';
 
@@ -25,8 +26,9 @@ function storage({items=[jeans],feedback=createReceiptFeedback(OWNER,items,[]),d
   claimGmailImport:async()=>{if(busy)return null;busy=true;row.revision++;return structuredClone(row);},
   finishGmailImport:async(owner,revision,next,token,evidence=[])=>{busy=false;if(revision!==row.revision)return false;row={...row,data:structuredClone(next),token_ciphertext:token};for(const e of evidence)if(!rows.some(r=>r.id===e.id))rows.push(structuredClone(e));return true;},
   operation:async key=>operations.get(key)??null,conversation:async()=>({id:OWNER,line:'line',sender_id:'sender'}),recent:async()=>recent,
-  reserve:async(o,key,body)=>{if(operations.has(key))return false;operations.set(key,{status:'sending',body,conversation_id:o});return true;},
-  finish:async(key,status)=>{operations.get(key).status=status;}};
+  reserve:async(o,key,body)=>{if(operations.has(key))return false;operations.set(key,{status:'sending',body,conversation_id:o,created_at:`${key.match(/\d{4}-\d{2}-\d{2}$/)?.[0]??TODAY}T17:00:00.000Z`});return true;},
+  finish:async(key,status)=>{operations.get(key).status=status;},smsOptedOut:async()=>false,
+  unpromptedSince:async(o,since)=>[...operations].map(([operation_id,m])=>({operation_id,status:m.status,created_at:m.created_at})).filter(m=>m.created_at>=since)};
 }
 const send=store=>async(target,body)=>{store.sent.push(body);return {id:'msg'};};
 const stateOf=async store=>(await loadReceipts(store,OWNER,store.row)).state;
@@ -68,7 +70,7 @@ test('a fit check names the item and its size as recorded, goes out once, and is
  assert.deepEqual([result.status,result.item_id,result.delivery_basis],['sent','jeans','delivery_email']);
  assert.equal(store.sent.length,1);assert.ok(store.sent[0].includes('1996 Jeans')&&store.sent[0].includes('32'));
  assert.deepEqual(store.row.data.refresh.fit_checks.map(c=>c.item_id),['jeans']);
- assert.equal(store.operations.get(PROACTIVE.fit_check(OWNER,TODAY)).status,'sent');
+ assert.equal(store.operations.get(NUDGE_OPERATIONS.fit_check(OWNER,TODAY)).status,'sent');
  // Once per item: tomorrow it is not asked again.
  const next=await sendFitCheck(store,OWNER,{},{send:send(store),now:NOW+DAY});
  assert.equal(next.status,'nothing_due');assert.equal(next.skipped.already_asked,1);assert.equal(store.sent.length,1);
@@ -94,17 +96,17 @@ test('one proactive text a day: a purchase text and a fit check never go out on 
  // A purchase text today takes the day; the fit check waits for tomorrow.
  const store=storage({items:[jeans,bought('cargo',{events:[]})],data:{refresh:{pending:['cargo'],announced:[]}}});
  store.row.data.feedback.items[1].source_events[0].at=NOW-DAY;
- const pick=async()=>({send:true,angle:'just_added',lead_item_id:'cargo',similar_owned_item_ids:[],related_item_ids:[],hook:''});
+ const pick=async()=>({send:true,lead_item_id:'cargo'});
  assert.equal((await announcePurchases(store,OWNER,{},{interpret:pick,send:send(store),now:NOW})).status,'sent');
  const held=await sendFitCheck(store,OWNER,{},{send:send(store),now:NOW});
- assert.deepEqual([held.status,held.reason],['skipped','texted_today']);
+ assert.deepEqual([held.status,held.reason],['skipped','daily_cap']);
  assert.equal(store.row.data.refresh.fit_checks,undefined);
  assert.equal((await sendFitCheck(store,OWNER,{},{send:send(store),now:NOW+DAY})).status,'sent');
  assert.equal(store.sent.length,2);
  // A fit check today also takes the day from a new purchase text.
- const other=storage({items:[jeans,bought('cargo')],data:{refresh:{pending:['cargo'],announced:[]}}});
+ const other=storage({items:[jeans,bought('cargo',{days:1})],data:{refresh:{pending:['cargo'],announced:[]}}});
  assert.equal((await sendFitCheck(other,OWNER,{},{send:send(other),now:NOW})).status,'sent');
- assert.equal((await announcePurchases(other,OWNER,{},{interpret:pick,send:send(other),now:NOW})).status,'already_sent_today');
+ assert.equal((await announcePurchases(other,OWNER,{},{interpret:pick,send:send(other),now:NOW})).status,'held');
  assert.deepEqual(other.row.data.refresh.pending,['cargo']);
 });
 

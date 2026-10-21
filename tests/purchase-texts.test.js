@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createReceiptFeedback,applyReceiptFeedback} from '../lib/receipt-feedback.js';
 import {sealToken} from '../lib/gmail-client.js';
 import {importStep} from '../lib/gmail-import.js';
-import {newRefreshJob,refreshStep,refreshOwner,announcePurchases,managePurchaseTexts,validPick,purchaseDraft,runDailyRefresh,handleGmailRefresh} from '../lib/purchase-texts.js';
+import {newRefreshJob,refreshStep,refreshOwner,announcePurchases,managePurchaseTexts,validPick,goesWithDraft,goesWithFits,sendTestNudge,goesWithCandidates,TEST_LABEL,runDailyRefresh,handleGmailRefresh} from '../lib/purchase-texts.js';
 
 const OWNER='owner-1',DAY=86400000,NOW=Date.parse('2026-10-18T17:00:00Z');
 const bought=(id,daysAgo,extra={})=>({id,source_ids:[`gmail:${id}`],brand:'Brand',product:`Item ${id}`,merchant:'shop.com',size_label:'32',color:null,
@@ -18,9 +18,13 @@ function storage({items=[bought('jeans',200),bought('tee',100)],data={},recent=[
   finishGmailImport:async(owner,revision,data,token)=>{if(revision!==row.revision)return false;row={...row,data:structuredClone(data),token_ciphertext:token};return true;},
   gmailImport:async()=>structuredClone(row),evidence:async()=>[],profile:async()=>({facts:[]}),
   operation:async key=>operations.get(key)??null,conversation:async()=>({id:OWNER,line:'line',sender_id:'sender'}),recent:async()=>recent,
-  reserve:async(o,key,body)=>{if(operations.has(key))return false;operations.set(key,{status:'sending',body,conversation_id:o});return true;},
-  finish:async(key,status)=>{operations.get(key).status=status;}};
+  reserve:async(o,key,body)=>{if(operations.has(key))return false;operations.set(key,{status:'sending',body,conversation_id:o,created_at:sentAt(key)});return true;},
+  finish:async(key,status)=>{operations.get(key).status=status;},
+  optedOut:false,smsOptedOut:async function(){return this.optedOut;},
+  unpromptedSince:async(o,since)=>[...operations].map(([operation_id,m])=>({operation_id,status:m.status,created_at:m.created_at})).filter(m=>m.created_at>=since)};
 }
+// A ledger row's time: the day in its key (the daily text keys end in a date), at the run's hour.
+const sentAt=key=>{const day=key.match(/\d{4}-\d{2}-\d{2}$/)?.[0];return day?`${day}T17:00:00.000Z`:new Date(NOW).toISOString();};
 // Stands in for the email reader: records the baseline, adds the purchases "found" in new mail, and finishes the search.
 const finding=items=>async row=>{const data=structuredClone(row.data);data.job.baseline_items=row.receipts.state.items.map(i=>i.id);
  data.feedback=createReceiptFeedback(OWNER,[...row.receipts.state.items,...items],[]);data.job.ids=items.map(i=>'m-'+i.id);data.job.status='questions';return {...row,data,evidence:[]};};
@@ -65,22 +69,85 @@ test('a failed step keeps completed work and is not marked checked',async()=>{
  assert.equal(store.row.data.refresh?.failures,1);assert.equal(store.row.data.refresh.checked_on,undefined);
 });
 
-test('one text names the purchase, uses the chosen angle with items they own, and is sent once a day',async()=>{
- const store=storage({data:{refresh:{pending:['cargo'],announced:[]}},items:[bought('jeans',200),bought('tee',100),cargos]});
- const result=await announcePurchases(store,OWNER,{},{interpret:pick({send:true,angle:'styling',lead_item_id:'cargo',related_item_ids:['tee','invented'],hook:''}),send:send(store),now:NOW});
- assert.deepEqual([result.status,result.angle],['sent','styling']);
- assert.equal(store.sent.length,1);assert.match(store.sent[0],/Camo Cargo Pants/);assert.match(store.sent[0],/END\./);assert.match(store.sent[0],/Item tee/);assert.doesNotMatch(store.sent[0],/invented/);
+test('one text names the new purchase as the email does and offers to find things that go with it, once a day',async()=>{
+ const store=storage({data:{refresh:{pending:['cargo'],announced:[]}},items:[bought('jeans',200),bought('tee',1),cargos]});
+ const result=await announcePurchases(store,OWNER,{},{interpret:pick({send:true,lead_item_id:'cargo'}),send:send(store),now:NOW});
+ assert.deepEqual([result.status,result.item_id],['sent','cargo']);
+ assert.equal(store.sent.length,1);assert.match(store.sent[0],/Carhartt WIP Camo Cargo Pants from END\./);assert.match(store.sent[0],/go with it\?/);
+ // Nothing it doesn't know: no price, size, stock or shipping.
+ assert.doesNotMatch(store.sent[0],/[$€£]|\b32\b|stock|ship/i);
  assert.deepEqual(store.row.data.refresh.pending,[]);assert.deepEqual(store.row.data.refresh.announced,['cargo']);
+ assert.deepEqual(store.row.data.nudges.log.map(e=>[e.kind,e.status,e.item_ids]),[['goes_with','sent',['cargo']]]);
  store.row.data.refresh.pending=['tee'];
- assert.equal((await announcePurchases(store,OWNER,{},{interpret:()=>assert.fail(),send:send(store),now:NOW+3600000})).status,'already_sent_today');
- assert.equal(store.sent.length,1);
+ const again=await announcePurchases(store,OWNER,{},{interpret:()=>assert.fail('held before choosing'),send:send(store),now:NOW+3600000});
+ assert.deepEqual([again.status,store.sent.length],['held',1]);
+ assert.equal(store.row.data.nudges.log.at(-1).reason,'daily_cap');
 });
 
-test('several purchases on the same day become one text',async()=>{
+test('several new purchases still make one offer, about the item the model picks',async()=>{
  const shirt=bought('shirt',2,{product:'Oxford Shirt'});
  const store=storage({data:{refresh:{pending:['cargo','shirt'],announced:[]}},items:[bought('jeans',200),cargos,shirt]});
- await announcePurchases(store,OWNER,{},{interpret:pick({send:true,angle:'new_direction',lead_item_id:'cargo',related_item_ids:[],hook:'first camo in your wardrobe (are we entering a phase?)'}),send:send(store),now:NOW});
- assert.equal(store.sent.length,1);assert.match(store.sent[0],/one other new purchase/);assert.match(store.sent[0],/first camo/);
+ await announcePurchases(store,OWNER,{},{interpret:pick({send:true,lead_item_id:'shirt'}),send:send(store),now:NOW});
+ assert.equal(store.sent.length,1);assert.match(store.sent[0],/Oxford Shirt/);assert.doesNotMatch(store.sent[0],/Cargo/);
+ assert.deepEqual(store.row.data.refresh.announced.sort(),['cargo','shirt']);
+});
+
+test('only clothing, shoes, bags and accessories get an offer; basics and other things join the wardrobe quietly',async()=>{
+ assert.ok(goesWithFits({category:'bottoms'}));assert.ok(goesWithFits({category:'accessories'}));assert.ok(goesWithFits({category:null}));
+ assert.equal(goesWithFits({category:'other'}),false);
+ const socks=bought('socks',1,{product:'Crew Socks'});
+ const store=storage({data:{refresh:{pending:['socks'],announced:[]},item_tags:{}},items:[socks]});
+ // The owner filed them as other (underwear, socks and non-clothing land there).
+ store.row.data.feedback=applyReceiptFeedback(store.row.data.feedback,{id:'closet:socks',owner_id:OWNER,source:'closet_edit',at:new Date(NOW).toISOString(),item_ids:['socks'],action:'correct_fields',values:{wardrobe_category:'other'}});
+ const result=await announcePurchases(store,OWNER,{},{interpret:()=>assert.fail('nothing to choose'),send:send(store),now:NOW});
+ assert.equal(result.status,'not_clothing');assert.equal(store.sent.length,0);assert.deepEqual(store.row.data.refresh.pending,[]);
+ assert.deepEqual(store.row.data.nudges.log.map(e=>[e.status,e.reason]),[['skipped','not_clothing']]);
+});
+
+test('a model pick naming an unknown item falls back to the first new purchase; a failed pick still offers',async()=>{
+ const items=[{id:'cargo',product:'Camo Cargo Pants'}];
+ assert.equal(validPick({send:true,lead_item_id:'invented'},items).lead.id,'cargo');
+ assert.deepEqual([validPick(null,items).send,validPick(null,items).lead.id],[true,'cargo']);
+ assert.equal(goesWithDraft({product:'1996 Jeans',brand:'Acne Studios',color:'Black',merchant:'SSENSE'}),'saw your new Black Acne Studios 1996 Jeans from SSENSE in your email. want me to find a couple of things that go with it?');
+ const store=storage({data:{refresh:{pending:['cargo'],announced:[]}},items:[cargos]});
+ assert.equal((await announcePurchases(store,OWNER,{},{interpret:async()=>{throw Error('down');},send:send(store),now:NOW})).status,'sent');
+});
+
+test('the shared rules hold the offer: quiet hours, a price alert today, the weekly limit; STOP settles it',async()=>{
+ const pending=()=>({refresh:{pending:['cargo'],announced:[]}});
+ // 8am Eastern (no known time zone: noon to 8pm Eastern only).
+ const early=storage({data:pending(),items:[cargos]});
+ assert.equal((await announcePurchases(early,OWNER,{},{interpret:()=>assert.fail(),send:send(early),now:Date.parse('2026-10-18T12:00:00Z')})).status,'held');
+ assert.equal(early.row.data.nudges.log[0].reason,'quiet_hours');assert.deepEqual(early.row.data.refresh.pending,['cargo']);
+ // Their own time zone, from the style report page: 1pm in London is fine.
+ const london=storage({data:{...pending(),style_report:{timezone:'Europe/London'}},items:[cargos]});
+ assert.equal((await announcePurchases(london,OWNER,{},{interpret:pick({send:true,lead_item_id:'cargo'}),send:send(london),now:Date.parse('2026-10-18T12:00:00Z')})).status,'sent');
+ const alerted=storage({data:pending(),items:[cargos]});alerted.operations.set('price-alert:a1:1:fp',{status:'sent',created_at:new Date(NOW-4*3600000).toISOString()});
+ assert.equal((await announcePurchases(alerted,OWNER,{},{interpret:()=>assert.fail(),send:send(alerted),now:NOW})).status,'held');
+ assert.equal(alerted.row.data.nudges.log[0].reason,'price_alert_today');
+ const busyWeek=storage({data:pending(),items:[cargos]});
+ for(const d of [1,3,5])busyWeek.operations.set(`gmail:${OWNER}:fit-check:2026-10-1${8-d}`,{status:'sent',created_at:new Date(NOW-d*DAY).toISOString()});
+ assert.equal((await announcePurchases(busyWeek,OWNER,{},{interpret:()=>assert.fail(),send:send(busyWeek),now:NOW})).status,'held');
+ assert.equal(busyWeek.row.data.nudges.log[0].reason,'weekly_cap');
+ const stopped=storage({data:pending(),items:[cargos]});stopped.optedOut=true;
+ assert.equal((await announcePurchases(stopped,OWNER,{},{interpret:()=>assert.fail(),send:send(stopped),now:NOW})).status,'opted_out');
+ assert.deepEqual([stopped.sent.length,stopped.row.data.refresh.pending],[0,[]]);
+});
+
+test('an admin test nudge goes only to the designated test conversation, labelled, and can be sent again',async()=>{
+ const store=storage({items:[bought('jeans',200),cargos]});const env={PRICE_ALERT_TEST_CONVERSATION_ID:OWNER};
+ assert.deepEqual((await goesWithCandidates(store,OWNER)).map(i=>i.id),['cargo','jeans']);
+ await assert.rejects(sendTestNudge(store,OWNER,'cargo',{},{send:send(store)}),/designated test conversation/);
+ await assert.rejects(sendTestNudge(store,OWNER,'cargo',{PRICE_ALERT_TEST_CONVERSATION_ID:'someone-else'},{send:send(store)}),/designated test conversation/);
+ await assert.rejects(sendTestNudge(store,OWNER,'invented',env,{send:send(store)}),/not in their wardrobe/);
+ // An old purchase works too, outside the limits; pending purchases are untouched.
+ const first=await sendTestNudge(store,OWNER,'jeans',env,{send:send(store),now:NOW});
+ const second=await sendTestNudge(store,OWNER,'jeans',env,{send:send(store),now:NOW});
+ assert.deepEqual([first.status,second.status],['sent','sent']);
+ assert.equal(store.sent.length,2);assert.ok(store.sent.every(b=>b.startsWith(TEST_LABEL)&&b.includes('Item jeans')));
+ assert.deepEqual(store.row.data.nudges.log.map(e=>[e.status,e.test]),[['sent',true],['sent',true]]);
+ // Test texts never count toward the person's limits.
+ assert.equal([...store.operations.keys()].filter(k=>k.startsWith('gmail:')).length,0);
 });
 
 test('gifts, returns and older purchases join the wardrobe without a text',async()=>{
@@ -94,58 +161,16 @@ test('gifts, returns and older purchases join the wardrobe without a text',async
  assert.equal(result.status,'nothing_recent');assert.equal(store.sent.length,0);assert.deepEqual(store.row.data.refresh.pending,[]);
 });
 
+test('a purchase the model judges not worth an offer is settled quietly',async()=>{
+ const store=storage({data:{refresh:{pending:['cargo'],announced:[]}},items:[cargos]});
+ assert.equal((await announcePurchases(store,OWNER,{},{interpret:pick({send:false,lead_item_id:'cargo'}),send:send(store),now:NOW})).status,'not_worth_a_text');
+ assert.equal(store.sent.length,0);assert.deepEqual(store.row.data.refresh.announced,['cargo']);
+});
+
 test('mid-conversation, the text waits for the next day with its purchases kept',async()=>{
  const store=storage({data:{refresh:{pending:['cargo'],announced:[]}},items:[cargos],recent:[{direction:'inbound',body:'hi',created_at:new Date(NOW-5*60000).toISOString()}]});
  assert.equal((await announcePurchases(store,OWNER,{},{interpret:()=>assert.fail(),send:send(store),now:NOW})).status,'held');
  assert.equal(store.sent.length,0);assert.deepEqual(store.row.data.refresh.pending,['cargo']);
-});
-
-test('a purchase the model judges not worth a text is settled quietly',async()=>{
- const store=storage({data:{refresh:{pending:['cargo'],announced:[]}},items:[cargos]});
- assert.equal((await announcePurchases(store,OWNER,{},{interpret:pick({send:false,angle:'just_added',lead_item_id:'cargo',related_item_ids:[],hook:''}),send:send(store),now:NOW})).status,'not_worth_a_text');
- assert.equal(store.sent.length,0);assert.deepEqual(store.row.data.refresh.announced,['cargo']);
-});
-
-test('unsupported choices fall back to a plain "added to your wardrobe" text',async()=>{
- const items=[{id:'cargo',product:'Camo Cargo Pants'}],wardrobe=[{id:'tee',product:'Tee'}];
- assert.equal(validPick({send:true,angle:'styling',lead_item_id:'cargo',related_item_ids:['invented'],hook:''},items,wardrobe).angle,'just_added');
- assert.equal(validPick({send:true,angle:'pattern',lead_item_id:'cargo',related_item_ids:['tee'],hook:'now $40 off'},items,wardrobe).angle,'just_added');
- assert.equal(validPick({send:true,angle:'new_direction',lead_item_id:'cargo',related_item_ids:[],hook:'see https://x.example'},items,wardrobe).angle,'just_added');
- const unknown=validPick({send:true,angle:'price_watch',lead_item_id:'nope',related_item_ids:[],hook:''},items,wardrobe);
- assert.deepEqual([unknown.angle,unknown.lead.id],['just_added','cargo']);
- const failed=validPick(null,items,wardrobe);assert.deepEqual([failed.send,failed.angle],[true,'just_added']);
- assert.match(purchaseDraft(failed,items,wardrobe),/added it to your wardrobe\. tell me if it was a gift/);
- // A failed model call still sends the plain text.
- const store=storage({data:{refresh:{pending:['cargo'],announced:[]}},items:[cargos]});
- assert.equal((await announcePurchases(store,OWNER,{},{interpret:async()=>{throw Error('down');},send:send(store),now:NOW})).angle,'just_added');
-});
-
-test('an observation must agree with what they already own',()=>{
- const items=[{id:'cargo',product:'Wide Leg Cargo Pants',category:'bottoms'}];
- const wardrobe=[{id:'old-cargo',product:'Straight-Leg Cargo Trousers',category:'bottoms'},{id:'oxford',product:'Oxford Shirt',category:'tops'},{id:'jeans',product:'Straight Jeans',category:'bottoms'}];
- const choose=extra=>validPick({send:true,lead_item_id:'cargo',related_item_ids:[],hook:'another pair for the collection (a uniform is forming)',...extra},items,wardrobe);
- // "Their first of its kind" is refused when they own one; it stands when they own none.
- assert.equal(choose({angle:'new_direction',similar_owned_item_ids:['old-cargo']}).angle,'just_added');
- assert.equal(choose({angle:'new_direction',similar_owned_item_ids:[]}).angle,'new_direction');
- // "Another one" needs the similar items it repeats, of the same kind; invented or off-category ones don't count.
- assert.equal(choose({angle:'pattern',similar_owned_item_ids:[]}).angle,'just_added');
- assert.equal(choose({angle:'pattern',similar_owned_item_ids:['oxford','invented']}).angle,'just_added');
- const pattern=choose({angle:'pattern',similar_owned_item_ids:['old-cargo','oxford']});
- assert.deepEqual([pattern.angle,pattern.related],['pattern',['old-cargo']]);
- // Counts and dates are left out of observations; the model miscounts them.
- assert.equal(choose({angle:'pattern',similar_owned_item_ids:['old-cargo'],hook:'your 5th pair of cargos'}).angle,'just_added');
-});
-
-test('the composer is told the purchase was recorded in the wardrobe, not saved to the wishlist',async()=>{
- const {composeReply}=await import('../lib/compose.js');const bodies=[];
- const reply=text=>new Response(JSON.stringify({status:'completed',output:[{content:[{type:'output_text',text}]}]}),{status:200});
- const fetcher=async(url,init)=>{const body=JSON.parse(init.body);bodies.push(body);
-  return body.text.format.name==='claim_audit'?reply(JSON.stringify({saved_now:false,alerts_turned_on:false,alerts_turned_off:false,names_other_saved_item:false}))
-   :reply(JSON.stringify({reply:'added your cargos to your wardrobe. yet another pair (a uniform is forming).',claims:{saved_now:false,alerts_turned_on:false,alerts_turned_off:false},photo_captions:[]}));};
- const result=await composeReply({draft:'i saw your new Cargo Pants in your email and added it to your wardrobe.',facts:{wardrobe_added:['Cargo Pants']},purpose:'new_purchase',env:{OPENAI_API_KEY:'k',WISHLIST_ENABLED:'true'},fetcher});
- assert.equal(result.composed,true);
- assert.ok(JSON.stringify(bodies[0].input).includes('wardrobe_added'));
- assert.ok(bodies[1].input.some(m=>m.content.startsWith('ADDED_TO_WARDROBE')));
 });
 
 test('the person turns purchase texts off and back on in chat, and can ask where they stand',async()=>{
