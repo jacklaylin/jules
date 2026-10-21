@@ -30,6 +30,19 @@ The configured Supabase Auth redirect allowlist must permit `SITE_ORIGIN/onboard
 
 The existing public-launch/provider-review notes in LANDING-PAGE.md remain relevant for broad public outreach. This change does not implement universal messaging unsubscribe or general public account enrollment. Declining this demo cancels its onboarding progression, not existing shopping alerts.
 
+## New-signup text to the owner
+
+On Photon's Free plan each tester needs their own line, so a signup can't start until you enroll them in Photon, add their conversation row and click **Approve** in Admin › People. Jules texts you when someone signs up at `/signup`, so you don't have to wait to be told:
+
+> new signup: Sam R., •••-0123, from podcast. set them up: https://textjules.com/admin
+
+- It goes to your own Jules conversation, set by the Vercel variable `OWNER_ALERT_CONVERSATION_ID`. Find your id in **Admin › People**: open yourself; the id is the last part of the page address (`/admin/people/<id>`). Add the variable in Vercel **Settings → Environment Variables** (Production), then redeploy. No phone number is stored anywhere new.
+- Only the first name, last initial and last four digits are shown. "from" is the signup link's `ref`, else how they arrived (utm source or referring site), and is left out when unknown.
+- Once per signup: a retried submit never texts again (ledger operation `signup-alert:<request id>`). No text when the number already has an approved conversation, or when the onboarding welcome went because you had already invited them. Your STOP status applies like any other Jules text.
+- The text is sent after the signup is answered; a failed text never fails or slows a signup.
+- It is shown in Admin as a "System message (alert or test)" and kept out of the chat context Jules reads, so it never looks like something Jules said to you.
+- Vercel logs: `signup_alert` (status `sent`, `uncertain` or `blocked`; `duplicate`), `signup_alert_skipped` (reason `not_configured`, `invalid_setting`, `invited`, `approved` or `owner_conversation_missing`), `signup_alert_failed`.
+
 ## Jules's contact card
 
 Right after the welcome is delivered, Jules sends “save me so you know it’s me:” and a contact card, `jules.vcf`: name **Jules**, note **Personal shopper**, the Jules number, the site link and the still-orb photo (`public/brand/contact-photo-512.jpg`). Tapping it on iPhone opens **Create New Contact** with everything filled in. The card is built at send time by `lib/contact-card.js` from two Vercel settings, so no phone number lives in the repository:
@@ -52,6 +65,25 @@ The contact card covers people who save it. Separately, iMessage can show Jules'
 4. No credential or value is produced. Nothing goes into Vercel or the repository.
 
 Then text the line from a phone that has never saved Jules. After Jules replies, the thread should offer or show the orb and “Jules” (iOS may show a banner to accept the updated name and photo).
+
+## One reminder for people who haven't connected (October 21)
+
+Someone who got the welcome but tapped **Not now, go to Messages**, or never opened the link, gets one text about a day later: “whenever you’re ready, here’s your link to connect your shopping accounts: …/onboarding” (Jules may reword it in its voice; the link is signed so they land logged in).
+
+- **Who gets it:** onboarding still `offered` or `accepted`, welcome delivered 24 to 48 hours ago, and nothing connected or started (no Gmail sign-in, no import, no Shop connection, including one waiting for approval in Shop). Someone who declined in chat, finished onboarding, or texted STOP gets nothing; the message ledger blocks opted-out numbers.
+- **Once per person, ever:** it is the ledger entry `onboarding:<conversation>:reminder`. Repeated sweeps never send it twice, and an uncertain send is never retried. **Reset onboarding** in Admin removes it with the other onboarding texts, so a re-test can receive it again.
+- **When:** the existing once-a-minute Supabase sweep (`jules-gmail-sweep`) checks `onboarding_reminders_due()` and calls Vercel only when someone is due. The 48-hour edge means turning it on never texts people welcomed long ago.
+- **Not now** still just opens Messages; nothing on the page changes and the onboarding state stays the same. The tap is saved as `onboarding_sessions.not_now_at`. It does not stop the reminder (it is exactly who the reminder is for).
+- **Admin › People › person** shows “Tapped Not now · date” and “Reminder sent · date” beside the name; the reminder also appears in the Conversation tab.
+- **Logs (Vercel):** `onboarding_not_now` (state, whether it was saved), `onboarding_reminder_sent`, `onboarding_reminder_not_sent` (status, e.g. `blocked` or `uncertain`), `onboarding_reminder_failed`. The sweep's `gmail_sweep` line counts `reminders`. Model cost shows as **Onboarding reminder** under the Import restart sweep job.
+
+**Turn it on:**
+
+1. In Supabase **SQL Editor**, run `db/046_onboarding_reminder.sql` (after 045). It adds the Not now column, the “who is due” check, and teaches the sweep to wake for it. No credential is produced. Re-running is safe.
+2. In Vercel **Settings → Environment Variables**, add `ONBOARDING_REMINDER_ENABLED` = `true` (Production). It also needs `GMAIL_IMPORT_ENABLED=true` and `SITE_ORIGIN`, which are already set. Set it to `false` (and redeploy) to stop reminders; nothing else changes.
+3. Redeploy so the setting takes effect.
+
+To check it with one phone: reset your own onboarding in Admin, sign up again, tap **Not now**, and confirm Admin shows the tap. The reminder arrives about 24 hours after the welcome.
 
 ## Failure and retry behavior
 

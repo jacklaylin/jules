@@ -118,7 +118,7 @@ test('a stored flag records its target as the reply reference; feedback reads st
   assert.match(paths[2], /developer_feedback=not.is.null/);
   assert.match(paths[4], /developer_feedback=is.null/);
   assert.match(paths[5], /developer_feedback=is.null/);
-  assert.match(paths[4], /operation_id.is.null,operation_id.not.like.feedback/);
+  assert.match(paths[4], /operation_id.is.null,and\(operation_id.not.like.feedback:\*,operation_id.not.like.signup-alert:\*\)/);
 });
 
 test('owner can retrieve feedback through admin', async () => {

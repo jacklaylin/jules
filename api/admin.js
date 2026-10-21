@@ -175,8 +175,10 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
         try { before = JSON.parse(query.get('before')); } catch { return json(res, 400, { error: 'Invalid history cursor.' }); }
         if (!uuid(before?.id) || !/^\d{4}-\d{2}-\d{2}T[\d:.]+(?:Z|\+00:00)$/.test(before.at ?? '')) return json(res, 400, { error: 'Invalid history cursor.' });
       }
-      const [history, waitlist] = await Promise.all([store.messages(id, before), before ? null : store.accessFor([id]).then(m => m.get(id) ?? null).catch(() => null)]);
-      return json(res, 200, { conversation, ...history, ...(before ? {} : { access: waitlist, approval_text: approvalPreview(env)?.text ?? null, approval_account: approvalPreview(env)?.account ?? false }) });
+      // Onboarding state, the "Not now" tap and the reminder (db/046); unknown (null) before that migration runs.
+      const [history, waitlist, onboarding] = await Promise.all([store.messages(id, before), before ? null : store.accessFor([id]).then(m => m.get(id) ?? null).catch(() => null),
+        before ? null : Promise.resolve(store.onboardingOverview?.(id)).catch(() => null)]);
+      return json(res, 200, { conversation, ...history, ...(before ? {} : { access: waitlist, onboarding: onboarding ?? null, approval_text: approvalPreview(env)?.text ?? null, approval_account: approvalPreview(env)?.account ?? false }) });
     } catch (error) {
       console.error(JSON.stringify({ event: 'admin_request_failed', status: error.status ?? null }));
       // Review validation and busy-lease messages are written for the owner; everything else is generic.

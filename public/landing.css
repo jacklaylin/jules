@@ -57,5 +57,6 @@ body.landing-page{padding-top:0}.scroll-story{height:100dvh}.landing-stage{posit
 @view-transition{navigation:auto}
 .headline-line{view-transition-name:headline}
 .landing-actions .btn--butter{view-transition-name:signup-cta}
+.landing-actions .btn--butter.vt-bare{background:none;border-color:transparent;box-shadow:none}.landing-actions .btn--butter.vt-bare::after{content:none}
 ::view-transition-old(headline),::view-transition-new(headline){width:auto;height:100%;left:0;right:auto}
 @media(prefers-reduced-motion:reduce){::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none!important}}

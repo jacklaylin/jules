@@ -100,7 +100,7 @@ async function loadMessages(earlier = false) {
   const query = new URLSearchParams({ conversation: person });
   if (earlier && cursor) query.set('before', JSON.stringify(cursor));
   const data = await api(`/api/admin?${query}`);
-  if (!earlier) { $('person-name').textContent = data.conversation.sender_id; document.title = `Jules admin · ${data.conversation.sender_id}`; showAccess(data.access?.access ?? null, data.approval_text ?? null, data.approval_account === true); }
+  if (!earlier) { $('person-name').textContent = data.conversation.sender_id; document.title = `Jules admin · ${data.conversation.sender_id}`; showAccess(data.access?.access ?? null, data.approval_text ?? null, data.approval_account === true); showOnboarding(data.onboarding); }
   messages = earlier ? [...data.messages, ...messages] : data.messages; cursor = data.before;
   renderMessages();
 }
@@ -304,6 +304,15 @@ function renderWishlist() {
   }) : [el('p', { className: 'empty-state', textContent: 'Nothing saved to this wishlist yet.' })]));
 }
 async function loadWishlist() { wishlist = await api(`/api/admin?view=wishlist&conversation=${encodeURIComponent(person)}`); renderWishlist(); }
+
+// ---------- Onboarding ----------
+// Beside the name: a "Not now" tap on /onboarding and the one reminder text (db/046), when either happened.
+const REMINDER = { sent: ['ok', 'Reminder sent'], uncertain: ['warn', 'Reminder uncertain'], blocked: ['plain', 'Reminder blocked (opted out)'], sending: ['warn', 'Reminder sending'] };
+function showOnboarding(onboarding) {
+  const [kind, label] = REMINDER[onboarding?.reminder?.status] ?? ['plain', 'Reminder'];
+  const badges = [onboarding?.not_now_at && badge('plain', `Tapped Not now · ${when(onboarding.not_now_at)}`), onboarding?.reminder && badge(kind, `${label} · ${when(onboarding.reminder.at)}`)].filter(Boolean);
+  $('person-onboarding').hidden = !badges.length; $('person-onboarding').replaceChildren(...badges);
+}
 
 // ---------- Waitlist ----------
 // Status beside the name (none before db/035 runs); Approve shows only while they are waitlisted.
