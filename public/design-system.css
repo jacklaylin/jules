@@ -444,14 +444,14 @@ button.quiet{border-color:transparent;box-shadow:none;background:transparent;col
 .skeleton-card-title{height:14px;width:75%;margin:16px 0 10px}.skeleton-price{height:14px;width:30%;margin:12px 0}
 @media(hover:hover) and (pointer:fine){button.tile{transition:transform .22s ease}button.tile:hover{transform:translateY(-3px)}button.tile:active{transform:translateY(-1px)}}
 @media(max-width:800px){.product-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 14px}.tile{padding:8px 8px 20px}.tile .photo{aspect-ratio:3/4}.tile strong{font-size:14px;margin-inline:4px}.card-price{font-size:10px;margin-inline:4px}.photo-pending .orb{--s:34px}.photo-pending .photo-status{font-size:9px}}
-/* Round icon buttons on product photos: remove at the upper-left, price alert at the upper-right. */
+/* Round icon buttons on product photos: price alert at the upper-left, remove at the upper-right (× top-right always gets rid of something). */
 .icon-button{position:absolute;top:24px;width:44px;height:44px;display:grid;place-items:center;padding:0;border-radius:50%;background:var(--photo-overlay);color:var(--ink);overflow:visible}
 .icon-button:disabled{opacity:.5;cursor:wait}
-.remove-item{left:24px;font-size:24px;line-height:1}
-.alert-toggle{right:24px}.alert-toggle .alert-on{display:none}
+.remove-item{right:24px}
+.alert-toggle{left:24px}.alert-toggle .alert-on{display:none}
 .alert-toggle[aria-pressed=true]{background:var(--butter)}.alert-toggle[aria-pressed=true]::after{display:none}.alert-toggle[aria-pressed=true] .bell-shape{fill:currentColor}
 .alert-toggle[aria-pressed=true] .alert-on{display:block;position:absolute;right:-3px;bottom:0;padding:2px 4px;border-radius:var(--r-pill);background:var(--ink);color:var(--white);font-size:8px;line-height:1.2;font-weight:700;letter-spacing:.5px}
-@media(max-width:800px){.icon-button{top:18px}.remove-item{left:18px}.alert-toggle{right:18px}}
+@media(max-width:800px){.icon-button{top:18px}.remove-item{right:18px}.alert-toggle{left:18px}}
 
 /* Toast: one notice at a time, bottom centre, with an optional Undo. */
 .toast{position:fixed;z-index:20;bottom:24px;left:50%;transform:translateX(-50%);width:max-content;max-width:calc(100vw - 32px);background:var(--ink);color:var(--white);padding:16px 20px;border-radius:var(--r-card);box-shadow:var(--shadow-panel);font-size:13px;line-height:1.5;animation:enter .2s ease}
