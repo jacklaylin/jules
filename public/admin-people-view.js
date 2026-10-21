@@ -108,18 +108,27 @@ export function filterSignups(signups, query = '') {
   return signups.filter(s => !q || (s.name ?? '').replace(/\s/g, '').toLowerCase().includes(q) || (digits && s.phone.slice(-4).includes(digits)));
 }
 
-// What setting someone up does, for its confirmation: the conversation on their line, then the approval.
-export function setupLines(approvalText, approvalAccount = false) {
-  return ['Jules saves their conversation on the line you enter, so the welcome and every reply come from that line.', ...approvalLines(approvalText, approvalAccount),
-    ...(approvalAccount && approvalText ? ['Right after the welcome, Jules texts its contact card with this line’s number, so they can save it.'] : [])];
+// What setting someone up does, for its confirmation: their conversation, then the approval.
+// The contact card line shows only while the card after the welcome is on (CONTACT_CARD_ENABLED).
+export function setupLines(approvalText, approvalAccount = false, contactCard = false) {
+  return ['Jules saves their conversation, so when they text Jules it continues there. Enroll their number in Photon first, or the welcome can’t reach them.', ...approvalLines(approvalText, approvalAccount),
+    ...(contactCard && approvalAccount && approvalText ? ['Right after the welcome, Jules texts its contact card, so they can save the number.'] : [])];
 }
 
 // The result of a setup for the status line.
-export function setupResult({ created, ...result }) {
-  if (!result.changed) return `Nothing new was sent: they were already set up${created ? '' : ' on this line'}.`;
+export function setupResult(result) {
+  if (!result.changed) return 'Nothing new was sent: they were already set up.';
   if (result.onboarding && result.text === 'sent') {
     const card = { sent: ' and the contact card', blocked: '', uncertain: '; the contact card may not have been delivered', failed: '; the contact card could not be sent (try Send contact card on their page)' }[result.contact_card] ?? '';
-    return `Set up on their line. ${result.account === 'created' ? 'Account set up. ' : ''}Jules texted them the welcome${card}.`;
+    return `Set up. ${result.account === 'created' ? 'Account set up. ' : ''}Jules texted them the welcome${card}.`;
   }
-  return `Set up on their line. ${accessResult('approved', result).replace(/^Approved\. /, '')}`;
+  return `Set up. ${accessResult('approved', result).replace(/^Approved\. /, '')}`;
+}
+
+// ---------- Resend welcome (Admin › person, lib/onboarding.js resendWelcome) ----------
+export function welcomeResult({ welcome, contact_card }) {
+  if (welcome === 'blocked') return 'Not sent: they texted STOP.';
+  if (welcome !== 'sent') return 'The welcome may not have been delivered again; check imessage_send_failed in the Vercel logs before resending.';
+  const card = { sent: ' and the contact card', uncertain: '; the contact card may not have been delivered', failed: '; the contact card could not be sent', skipped: '' }[contact_card] ?? '';
+  return `Welcome sent again${card}.`;
 }
