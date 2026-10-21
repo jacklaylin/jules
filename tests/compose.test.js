@@ -41,8 +41,12 @@ test('the model writes the reply from the outcome, the recent turns and the voic
 test('a rejected reply is retried once with the problems, then the factual draft is used', async () => {
   let calls = 0, retry;
   const fixed = await composeReply({ draft, facts:none, env, fetcher:async (_url, options) => { calls++; if (calls === 2) retry = JSON.parse(options.body).input.at(-1).content;
-    return calls === 1 ? written('No link here.') : written(`Here you go, $1,295.\n${url}`); } });
-  assert.equal(calls, 2); assert.match(retry, /Include these links/); assert.match(retry, /Include the prices the results give/); assert.equal(fixed.body, `Here you go, $1,295.\n${url}`);
+    return calls === 1 ? written(`Here you go, $900.\n${url}`) : written(`Here you go, $1,295.\n${url}`); } });
+  assert.equal(calls, 2); assert.match(retry, /Remove prices.*900/); assert.equal(fixed.body, `Here you go, $1,295.\n${url}`);
+  calls = 0;
+  // A link or price the message left out is added by code, not sent back to the model.
+  const repaired = await composeReply({ draft, facts:none, env, fetcher:async () => { calls++; return written('Here you go.'); } });
+  assert.equal(calls, 1); assert.ok(repaired.body.includes(url)); assert.match(repaired.body, /1,295/); assert.equal(repaired.composed, true);
   calls = 0;
   const stuck = await composeReply({ draft, facts:none, env, fetcher:async () => { calls++; return written(`Saved it!\n${url}`, { saved_now:true }); } });
   assert.equal(calls, 2); assert.equal(stuck.body, draft); assert.equal(stuck.composed, false);
