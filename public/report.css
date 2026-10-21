@@ -269,10 +269,10 @@ body.report-page:has(.report-player:not([hidden])[data-ground="inout"]){backgrou
 .report-copy-field{position:fixed;opacity:0;pointer-events:none}
 
 /* Sheets */
-.report-sheet{border:0;border-radius:24px 24px 0 0;margin:auto auto 0;width:100%;max-width:440px;box-sizing:border-box;padding:24px 22px 34px;color:var(--ink);background:var(--white)}
+.report-sheet{border:0;border-radius:24px 24px 0 0;margin:auto auto 0;width:100%;max-width:440px;max-height:90dvh;box-sizing:border-box;padding:24px 22px 34px;color:var(--ink);background:var(--white)}
 .report-sheet::backdrop{background:#17120f80}
 .report-sheet h2{margin:0 0 6px;font-size:32px;line-height:1}
-.report-sheet>p{margin:0 0 14px;font-size:14px;color:var(--text-2)}
+.report-sheet .sheet-head>p{margin:0 0 14px;font-size:14px;color:var(--text-2)}
 .report-chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
 .report-chips button{min-height:44px;border-radius:999px;padding:0 18px;border:1.5px solid var(--ink);background:var(--white);color:var(--ink);font:600 15px var(--font-sans);cursor:pointer;box-shadow:0 3px 6px #17120f26}
 /* 👎 "which one missed?": the card's lines, any number picked, then a reason sends it. */
@@ -296,6 +296,8 @@ body.report-page:has(.report-player:not([hidden])[data-ground="inout"]){backgrou
 .report-sheet-close::after{display:none}
 @media (hover:hover) and (pointer:fine){.report-sheet-close:hover{transform:none}}
 .report-share-row{min-height:64px;padding:8px 4px}
+/* The share rows draw their focus ring inside the row, so their scroll area needs no gutter. */
+.report-share-sheet .report-end-rows{margin:0;padding:0}
 .report-share-text{flex:1;display:flex;flex-direction:column;gap:2px;min-width:0}
 .report-share-note{font:400 13px/1.35 var(--font-sans);color:var(--text-2)}
 .report-share-url{font:500 12px var(--font-mono);word-break:break-all}

@@ -3,6 +3,8 @@ export const DEMOS={
  hoka:{duration:21.6,typing:[[2.8,4.2],[5.4,7.4],[8.6,9.6],[12.8,14.2],[15,16.4],[19.6,20.8]]},
  rodeo:{duration:23.4,typing:[[2.8,4.2],[5.4,7.0],[8.2,9.6],[11,12.2],[15.2,17],[18.4,19.8],[20.8,22.4]]}
 };
+// Timeline seconds per real second: below 1 plays the conversation slower than the data-at marks.
+export const PLAYBACK_RATE=.75;
 export const DEMO_IDS=Object.keys(DEMOS);
 export const DEMO_DURATION=DEMOS.hoka.duration;
 export function bubbleProgress(time,at){return Math.max(0,Math.min(1,(time-at)/.45));}

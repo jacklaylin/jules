@@ -18,7 +18,7 @@ const quiet=async work=>{const log=console.log,lines=[];console.log=line=>lines.
 
 function storage(seed){let row=structuredClone(seed),busy=false,nonce=null;return {
  get row(){return row;},set row(v){row=v;},
- onboardingSession:async()=>({state:'accepted'}),wishlistMember:async email=>email==='tester@example.test'?{conversation_id:'owner'}:null,
+ onboardingSession:async()=>({state:'accepted'}),wishlistMember:async email=>email==='tester@example.test'?{conversation_id:'owner'}:null,gmailAccountOwners:async()=>[],
  gmailImport:async()=>structuredClone(row),evidence:async()=>[],profile:async()=>({facts:[]}),
  beginGmailOAuth:async(owner,hash)=>{nonce=hash;return true;},consumeGmailOAuth:async hash=>{if(hash!==nonce)return null;nonce=null;return row.conversation_id;},
  claimGmailImport:async()=>{if(busy)return null;busy=true;row.revision++;return structuredClone(row);},

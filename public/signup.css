@@ -1,6 +1,6 @@
 /* Signup: a short chat with Jules over the animated brand haze.
    The one page that leaves the white ground (DESIGN-SYSTEM.md, "Signup chat"). Composition only; colours are tokens. */
-.signup-page{margin:0;height:100dvh;display:flex;flex-direction:column;align-items:center;background:var(--haze-base);isolation:isolate;overflow:hidden;color:var(--ink)}
+.signup-page{margin:0;padding-top:0;height:100dvh;display:flex;flex-direction:column;align-items:center;background:var(--haze-base);isolation:isolate;overflow:hidden;color:var(--ink)}
 .signup-page::before,.signup-page::after{content:"";position:fixed;inset:-25%;z-index:-1;pointer-events:none;filter:blur(60px)}
 .signup-page::before{background:radial-gradient(38% 34% at 22% 30%,var(--haze-bubblegum),transparent 70%),radial-gradient(34% 30% at 78% 22%,var(--haze-grape),transparent 70%),radial-gradient(40% 36% at 70% 80%,var(--haze-tangerine),transparent 70%);animation:haze-a 22s ease-in-out infinite alternate}
 .signup-page::after{background:radial-gradient(32% 30% at 30% 78%,var(--haze-butter),transparent 70%),radial-gradient(28% 26% at 60% 45%,var(--haze-bubblegum),transparent 70%);animation:haze-b 17s ease-in-out infinite alternate}
@@ -18,6 +18,7 @@
 .thread{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding:48px 4px 8px;-webkit-mask-image:linear-gradient(to bottom,transparent 0,var(--ink) 48px);mask-image:linear-gradient(to bottom,transparent 0,var(--ink) 48px);scrollbar-width:none}
 .thread>:first-child{margin-top:auto}
 .thread .gap{height:10px;flex:none}
+.thread [hidden]{display:none}
 
 /* Jules's lines: outlined frosted bubbles led by the still-orb avatar */
 .thread .them{display:flex;align-items:flex-start;gap:12px;max-width:92%;align-self:flex-start}
@@ -47,6 +48,10 @@ button.bubble--me:hover{color:var(--white)}
 .consent input{width:22px;height:22px;margin:0;flex:none;accent-color:var(--ink)}
 
 .thread .new{animation:line-in .45s var(--ease-out-expo) both}
+/* Chat lines pop from the sender's corner, as in Messages */
+.thread .them.new{transform-origin:0 100%;animation-name:bubble-in}
+.thread .me.new{transform-origin:100% 100%;animation-name:bubble-in}
+@keyframes bubble-in{0%{opacity:0;transform:translateY(10px) scale(.4)}60%{opacity:1}100%{opacity:1;transform:none}}
 @keyframes line-in{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
 @keyframes pop{0%{transform:scale(.4);opacity:0}60%{transform:scale(1.12);opacity:1}100%{transform:scale(1)}}
 
@@ -61,18 +66,39 @@ button.bubble--me:hover{color:var(--white)}
 .link-button{background:none;border:0;box-shadow:none;padding:0 8px;min-height:44px;font:400 13px var(--font-sans);color:var(--text-2);text-decoration:underline;text-underline-offset:4px;justify-self:center}
 .link-button::after{display:none}
 .link-button:hover{transform:none;color:var(--grape)}
-.signup-foot{margin:4px 0 0;text-align:center;flex:none}
+.consent-more{margin:0 0 0 38px}
 .noscript{width:min(640px,calc(100% - 32px));font-size:14px;line-height:1.6}
 #signup-privacy p{font-size:14px;line-height:1.6;color:var(--text-2)}
 
-@media(max-width:700px){
- .signup-head{padding-top:28px}
- .signup-head h1{font-size:min(84px,21vw);white-space:nowrap}
- .signup-login{white-space:nowrap}
- .chatting .signup-head{padding:16px 4px 12px;border-bottom:1px solid var(--line);align-items:center}
- .chatting .signup-head h1{font-size:44px}
- .signup-login{padding-bottom:0;align-items:center}
+/* Phones: the wordmark sits exactly where the landing headline does (landing.css), so it holds still between pages */
+@media(max-width:699px){
+ .signup-head,.signup-chat{width:calc(100% - 48px)}
+ .signup-head{padding-top:34px;align-items:center}
+ .signup-head h1{font-size:44px;line-height:1.1;white-space:nowrap}
+ .signup-login{white-space:nowrap;padding-bottom:0;align-items:center}
  .signup-chat{padding-top:8px}
  .bubble--them{font-size:16px;padding:10px 16px}
- .consent{margin-left:0}
+ .consent,.consent-more{margin-left:0}
 }
+@media(max-width:359px){
+ .signup-head,.signup-chat{width:calc(100% - 36px)}
+ .signup-head h1{font-size:38px}
+}
+
+/* Arriving from the landing page: the headline holds, the page fades, Get early access becomes the compose box */
+@view-transition{navigation:auto}
+.signup-head h1{view-transition-name:headline}
+.dock>.compose{view-transition-name:signup-cta}
+.dock>.compose .send{view-transition-name:signup-send}
+::view-transition-group(*){animation-duration:.75s;animation-timing-function:var(--ease-out-expo)}
+::view-transition-old(root){animation:vt-out .35s ease both}
+::view-transition-new(root){animation:vt-in .6s ease .15s both}
+::view-transition-old(headline),::view-transition-new(headline){width:auto;height:100%;left:0;right:auto}
+::view-transition-old(signup-cta){animation:vt-out-quick .2s ease both}
+::view-transition-new(signup-cta){animation:vt-in .35s ease .25s both}
+::view-transition-new(signup-send){animation:vt-pop .5s cubic-bezier(.34,1.56,.64,1) .55s both}
+@keyframes vt-out{to{opacity:0;transform:translateY(18px)}}
+@keyframes vt-out-quick{to{opacity:0}}
+@keyframes vt-in{from{opacity:0}}
+@keyframes vt-pop{from{transform:scale(0)}}
+@media(prefers-reduced-motion:reduce){::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none!important}}

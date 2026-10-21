@@ -1,5 +1,6 @@
 import {trackedFetch as fetch} from './activity.js';
 import {mountHeader,enableAdminLink,closeDialog,removeWithMotion,popIn,riseIn} from './design-system.js';
+import {fitFilterBar} from './filter-bar.js';
 mountHeader('wishlist');
 import {createSession} from './wishlist-session.js';
 import {rememberWishlistTarget,consumeWishlistTarget} from './wishlist-deep-link.js';
@@ -8,6 +9,7 @@ import {readList,saveList,forgetLists} from './list-cache.js';
 import {whenNear} from './lazy-photo.js';
 import {filterChips,matchesFilter,nextFilter,filterLabel,filterFromURL,filterURL,countLabel,wantedCount} from './wishlist-filters.js';
 const $ = id => document.getElementById(id);
+fitFilterBar($('toolbar'));
 const session=createSession({fetcher:fetch,storage:localStorage,lock:work=>navigator.locks?navigator.locks.request('jules-wishlist-refresh',work):work()});
 let token=session.read()?.access_token||sessionStorage.getItem('jules_wishlist_token'), generation=0, detailVersion=0, filter=filterFromURL(location.search);
 const urls=new Set(), imageCache=new Map(), itemCache=new Map();
