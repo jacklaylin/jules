@@ -1,5 +1,6 @@
 import {trackedFetch as fetch} from './activity.js';
 import {mountHeader,enableAdminLink,answerWithMotion} from './design-system.js';
+import {fitFilterBar} from './filter-bar.js';
 import {createSession} from './wishlist-session.js';
 import {matchPhotoBackground} from './photo-background.js';
 import {readList,saveList,forgetLists} from './list-cache.js';
@@ -9,6 +10,7 @@ mountHeader('wardrobe');
 // The wardrobe (PRD section 29): what Jules counts as yours, from your receipts. Every change goes
 // through /api/wishlist?wardrobe=1 as a structured correction; this page never edits facts itself.
 const $=id=>document.getElementById(id);
+fitFilterBar($('toolbar'));
 const session=createSession({fetcher:fetch,storage:localStorage,lock:work=>navigator.locks?navigator.locks.request('jules-wishlist-refresh',work):work()});
 const fragment=new URLSearchParams(location.hash.slice(1));
 // Same sign-in rules as the wishlist: the shared rotating session, or an older per-tab token.
