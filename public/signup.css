@@ -94,11 +94,16 @@ button.bubble--me:hover{color:var(--white)}
 ::view-transition-old(root){animation:vt-out .35s ease both}
 ::view-transition-new(root){animation:vt-in .6s ease .15s both}
 ::view-transition-old(headline),::view-transition-new(headline){width:auto;height:100%;left:0;right:auto}
-::view-transition-old(signup-cta){animation:vt-out-quick .2s ease both}
-::view-transition-new(signup-cta){animation:vt-in .35s ease .25s both}
+/* One pill morphs: the shell is drawn on the image pair (butter to white) while the snapshots carry only the label and the placeholder */
+html:active-view-transition .dock>.compose{background:none;border-color:transparent;box-shadow:none}
+::view-transition-image-pair(signup-cta){box-sizing:border-box;border:1.5px solid var(--ink);border-radius:var(--r-pill);background:var(--white);box-shadow:var(--shadow-gel);overflow:clip;animation:vt-fill .75s var(--ease-out-expo) both}
+::view-transition-old(signup-cta),::view-transition-new(signup-cta){width:100%;height:100%;object-fit:none}
+::view-transition-old(signup-cta){animation:vt-out-quick .25s ease both}
+::view-transition-new(signup-cta){object-position:left center;animation:vt-in .4s ease .3s both}
 ::view-transition-new(signup-send){animation:vt-pop .5s cubic-bezier(.34,1.56,.64,1) .55s both}
 @keyframes vt-out{to{opacity:0;transform:translateY(18px)}}
 @keyframes vt-out-quick{to{opacity:0}}
 @keyframes vt-in{from{opacity:0}}
 @keyframes vt-pop{from{transform:scale(0)}}
-@media(prefers-reduced-motion:reduce){::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none!important}}
+@keyframes vt-fill{from{background:var(--butter)}}
+@media(prefers-reduced-motion:reduce){::view-transition-group(*),::view-transition-image-pair(*),::view-transition-old(*),::view-transition-new(*){animation:none!important}}
