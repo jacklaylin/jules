@@ -57,7 +57,7 @@ footer p{max-width:520px}
 .quiet{color:var(--muted);font-size:12px}
 #export-dialog,#delete-dialog{border:1px solid var(--line);border-radius:var(--r-card);padding:28px;max-width:620px;width:calc(100% - 30px);max-height:90dvh;overflow:auto;background:var(--white);color:var(--ink);margin:auto}
 #export-dialog[open],#delete-dialog[open]{display:block}
-.dialog-heading{display:flex;justify-content:space-between;gap:20px;align-items:center;margin-bottom:16px}
+
 dialog p{margin:16px 0}
 dialog .check{margin:16px 0}
 #export-preview canvas{display:block;width:100%;height:auto;max-height:55dvh;object-fit:contain;margin:20px 0}

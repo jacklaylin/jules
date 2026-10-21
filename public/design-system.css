@@ -233,6 +233,11 @@ dialog{height:fit-content;border:1px solid var(--line);border-radius:var(--r-car
 dialog::backdrop{background:var(--backdrop)}dialog[open]{animation:detail-enter .28s var(--ease-out-expo) both}dialog[open]::backdrop{animation:enter .22s ease both}
 @keyframes enter{from{opacity:0}to{opacity:1}}@keyframes detail-enter{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
 .dialog-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+/* Close: one 44px round × with a 1px line border, top-right of a dialog, sheet, panel or menu. Never a text button or a row. */
+.dialog-heading{display:flex;justify-content:space-between;gap:20px;align-items:center;margin-bottom:16px}.dialog-heading h2{margin:0}
+.close-button{flex:none;display:inline-grid;place-items:center;width:44px;height:44px;min-height:44px;padding:0;border:1px solid var(--line);border-radius:50%;background:var(--white);color:var(--ink);box-shadow:none;cursor:pointer}
+.close-button::after{display:none}.close-button svg{width:16px;height:16px}
+@media(hover:hover) and (pointer:fine){.close-button:not(:disabled):hover{transform:none;border-color:var(--ink)}}
 @media(max-width:700px){:root{--header-height:84px;--page-top:30px}.app-header{gap:10px}.app-header.compact{height:64px}.wordmark{font-size:42px}.app-header.compact .wordmark{font-size:36px}h1{font-size:38px}.app-heading{margin-bottom:28px;gap:16px}#login h1{font-size:48px}:where(button:not(.tile)){padding:10px 16px}}
 @media(max-width:380px){.app-header{padding:0 12px}.app-header::after{left:12px;right:12px}.wordmark{font-size:36px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
