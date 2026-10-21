@@ -88,6 +88,12 @@ Prefer recommendations that make the whole class of failure impossible or visibl
   the cause in the packet, the missing diagnostic is itself a recommendation);
 - removing duplication so a fix lands in every flow that shares the mechanism.
 
+The chat agent's rules live in `lib/skills/`, one file per job (`CHAT-SKILLS.md`). Founder rule
+(October 21, 2026): a fix lands, in order of preference, as code (a validation or a result field) > a
+structured field or enum > a rule in one skill, always with a new eval case. A migrated skill stays
+within 150 words, so adding a rule over budget means merging or removing one; and a rule appears in one
+place only (if a tool or field description says it, the prompt doesn't).
+
 Respect `AGENTS.md`: keep it boring, avoid new infrastructure unless the pattern requires it, state the
 tradeoff when a recommendation materially adds complexity, and never recommend phrase-based routing.
 
