@@ -48,6 +48,19 @@ test('a correction to an item re-tags it; removed and duplicate items are not ta
  assert.deepEqual(untaggedItems(s,{}).map(i=>i.id).sort(),['item-1','item-2']);
 });
 
+test('adding the activewear category leaves existing tags current; an owner who picks it gets an activewear group',async()=>{
+ let s=state([record(1,{product:'Team Bib Evo'}),record(2,{product:'Pace Breaker Short 5"'})]);
+ // A fingerprint made before the category existed (no owner category) still matches: nothing re-tags.
+ const tags=Object.fromEntries(s.items.map(i=>[i.id,{fp:tagFingerprint(i),group:'activewear'}]));
+ assert.deepEqual(untaggedItems(s,tags),[]);
+ s=applyReceiptFeedback(s,{id:'closet:1',owner_id:owner,source:'closet_edit',at:'2026-10-20T00:00:00Z',item_ids:['item-2'],action:'correct_fields',values:{wardrobe_category:'activewear'}});
+ assert.deepEqual(untaggedItems(s,tags).map(i=>i.id),['item-2']);
+ const fn=async({context})=>{fn.context=context;return {items:context.items.map(i=>({id:i.id,item_type:'running shorts',group:'shorts',color_family:'unknown',color_quote:null,resale:'no'}))};};
+ const result=await tagBatch(s,tags,fn);
+ assert.equal(fn.context.items[0].owner_category,'activewear');
+ assert.equal(result.tags['item-2'].group,'activewear');assert.deepEqual(result.rejected,['outside_owner_category']);
+});
+
 test('an owner-set category re-tags only that item, tells the tagger, and keeps its group inside it',async()=>{
  let s=state([record(1,{product:'Aviators'}),record(2,{product:'Tee'})]);
  const tags=Object.fromEntries(s.items.map(i=>[i.id,{fp:tagFingerprint(i)}]));
