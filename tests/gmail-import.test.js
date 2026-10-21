@@ -18,7 +18,7 @@ const withBasis=e=>({basis:{value:e.kind==='purchased'?'order_confirmation':e.ki
 const receipt=(extra={})=>withBasis({kind:'purchased',existing_item_id:null,evidence:'purchased',merchant:fact('Shop'),order_reference:fact('O1'),product:fact('Jeans'),sku:fact(null),brand:fact('Brand'),color:fact('Blue'),size_label:fact('31'),size_system:fact(null),quantity:fact('1'),units_per_pack:fact(null),...extra});
 const jsonResponse=value=>new Response(JSON.stringify(value),{status:200,headers:{'Content-Type':'application/json'}});
 function storage(){let row=null,nonce=null,busy=false,rows=[];const self={
- onboardingSession:async()=>({state:'accepted'}),wishlistMember:async email=>email==='tester@example.test'?{conversation_id:'owner'}:null,
+ onboardingSession:async()=>({state:'accepted'}),wishlistMember:async email=>email==='tester@example.test'?{conversation_id:'owner'}:null,gmailAccountOwners:async()=>[],
  gmailImport:async()=>row?structuredClone(row):null,
  beginGmailOAuth:async(owner,hash)=>{row??={conversation_id:owner,revision:0,data:{},token_ciphertext:null};nonce=hash;return true;},
  consumeGmailOAuth:async hash=>{if(hash!==nonce)return null;nonce=null;return row.conversation_id;},
@@ -156,10 +156,30 @@ test('callback binds browser state and invited Gmail account; state is single-us
  const callback=await request(handler,{url,cookie});assert.equal(callback.statusCode,303);assert.equal(callback.headers.Location,'/onboarding?gmail=connected');assert.ok(store.row.token_ciphertext);assert.ok(!JSON.stringify(store.row).includes('synthetic-refresh'));
  assert.equal((await request(handler,{url,cookie})).statusCode,403);assert.ok(!JSON.stringify((await request(handler)).data).includes('token'));
 });
-test('wrong Gmail account is revoked and cannot connect to another user',async()=>{
- const store=storage();let revoked=false;const fetcher=async url=>url.includes('/token')?jsonResponse({...tokens,scope:GMAIL_SCOPE,expires_in:3600}):url.includes('/revoke')?(revoked=true,new Response('',{status:200})):jsonResponse({emailAddress:'other@example.test'});
+// Runs a full connect + callback for a Gmail profile address; store overrides set up other members.
+async function connectGmail(emailAddress,overrides={}){
+ const store=Object.assign(storage(),overrides);let revoked=false;
+ const fetcher=async url=>url.includes('/token')?jsonResponse({...tokens,scope:GMAIL_SCOPE,expires_in:3600}):url.includes('/revoke')?(revoked=true,new Response('',{status:200})):jsonResponse({emailAddress});
  const handler=createGmailHandler({env,storeFactory:()=>store,auth,fetcher}),res=await request(handler,{method:'POST',body:{action:'connect',consent:CONSENT_VERSION}}),state=new URL(res.data.url).searchParams.get('state');
- await request(handler,{url:'/api/wishlist?gmail=callback&state='+state+'&code=synthetic',cookie:res.headers['Set-Cookie'].split(';')[0]});assert.equal(revoked,true);assert.equal(store.row.token_ciphertext,null);assert.equal(store.busy,false);
+ const callback=await request(handler,{url:'/api/wishlist?gmail=callback&state='+state+'&code=synthetic',cookie:res.headers['Set-Cookie'].split(';')[0]});
+ return {store,callback,revoked};
+}
+test('self-serve member (internal email) connects any Gmail account to their own conversation',async()=>{
+ const {store,callback,revoked}=await connectGmail('Someone.Else@Gmail.example',{wishlistMember:async email=>email==='owner@members.jules.invalid'?{conversation_id:'owner'}:null});
+ assert.equal(callback.statusCode,303);assert.equal(callback.headers.Location,'/onboarding?gmail=connected');assert.equal(revoked,false);
+ assert.ok(store.row.token_ciphertext);assert.equal(store.row.conversation_id,'owner');assert.equal(store.row.data.account,'someone.else@gmail.example');
+});
+test('owner-provisioned member whose email is their Gmail still connects',async()=>{
+ const {store,callback,revoked}=await connectGmail('tester@example.test');
+ assert.equal(callback.statusCode,303);assert.equal(revoked,false);assert.ok(store.row.token_ciphertext);assert.equal(store.row.data.account,'tester@example.test');
+});
+test('Gmail already connected to another conversation is revoked and refused',async()=>{
+ const {store,callback,revoked}=await connectGmail('shared@gmail.example',{gmailAccountOwners:async email=>email==='shared@gmail.example'?['someone-else']:[]});
+ assert.notEqual(callback.statusCode,303);assert.equal(revoked,true);assert.equal(store.row.token_ciphertext,null);assert.equal(store.busy,false);
+});
+test('Gmail invited as another member\'s email is revoked and refused',async()=>{
+ const {store,callback,revoked}=await connectGmail('other@example.test',{wishlistMember:async email=>email==='other@example.test'?{conversation_id:'someone-else'}:null});
+ assert.notEqual(callback.statusCode,303);assert.equal(revoked,true);assert.equal(store.row.token_ciphertext,null);assert.equal(store.busy,false);
 });
 test('history corrections are owned, persisted, revocable and public output excludes raw evidence',async()=>{
  const store=storage(),feedback=reconcileReceipt(emptyReceiptState('owner'),source,{events:[receipt()]}).state;store.seed({conversation_id:'owner',revision:0,token_ciphertext:sealToken(tokens,'owner',env),data:{feedback,sources:[source]}});

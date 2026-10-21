@@ -14,7 +14,7 @@ Open `/onboarding-preview` to walk through the flow with a demo tester. It uses 
 
 ## Setup for the first tester
 
-**October 19 update: self-serve onboarding (in progress).** With `SELF_SERVE_ONBOARDING_ENABLED=true` (plus `ONBOARDING_ENABLED` and `GMAIL_IMPORT_ENABLED`), approving someone in Admin › People does steps 2–3 below automatically for anyone who has texted Jules. It creates a Supabase sign-in user with an internal address (`<conversation id>@members.jules.invalid`, never shown or mailed; they sign in by phone), adds the `wishlist_members` row and the onboarding invite, then texts the onboarding welcome. Testers you already provisioned keep their account. Leave the switch off until Gmail can be connected with any Google account (the next step); until then, Gmail only connects when its address matches the member email.
+**October 19 update: self-serve onboarding (in progress).** With `SELF_SERVE_ONBOARDING_ENABLED=true` (plus `ONBOARDING_ENABLED` and `GMAIL_IMPORT_ENABLED`), approving someone in Admin › People does steps 2–3 below automatically for anyone who has texted Jules. It creates a Supabase sign-in user with an internal address (`<conversation id>@members.jules.invalid`, never shown or mailed; they sign in by phone), adds the `wishlist_members` row and the onboarding invite, then texts the onboarding welcome. Testers you already provisioned keep their account. **October 21:** Gmail now connects with any Google account. The Google OAuth app is in Production publishing status (anyone can sign in; Google shows an "unverified app" warning until verification, and caps it at 100 users), and the connected Gmail is bound to the person who started the connection, whatever their member email. A Gmail address already connected to another Jules account, or invited as another tester's member email, is refused and its sign-in revoked.
 
 This is deliberately invite-only, using the existing private wishlist sign-in. Phone signup alone does not grant account access. Provision each tester once (maximum ten for this experiment):
 
@@ -32,7 +32,8 @@ The existing public-launch/provider-review notes in LANDING-PAGE.md remain relev
 
 Right after the welcome is delivered, Jules sends “save me so you know it’s me:” and a contact card, `jules.vcf`: name **Jules**, note **Personal shopper**, the Jules number, the site link and the still-orb photo (`public/brand/contact-photo-512.jpg`). Tapping it on iPhone opens **Create New Contact** with everything filled in. The card is built at send time by `lib/contact-card.js` from two Vercel settings, so no phone number lives in the repository:
 
-- `JULES_PUBLIC_LINE`: the Photon line in international format, e.g. `+14155550100`. Without it, the welcome goes alone and no card is sent.
+- The number is the line this person texts (stored on their conversation). On Photon's Free plan each tester has their own line, so each card carries that tester's number.
+- `JULES_PUBLIC_LINE`: the Photon line in international format, e.g. `+14155550100`. Used only when the person's line isn't a phone number. With neither, the welcome goes alone and no card is sent.
 - `SITE_ORIGIN`: already required above; it becomes the card's website.
 
 The card is its own ledger entry (`onboarding:<conversation>:contact_card`), so it goes once, only after a welcome Photon accepted, never after an uncertain one. A failed card never changes the welcome's outcome; Vercel logs show `imessage_file_sent` or `imessage_file_failed`.

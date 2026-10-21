@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readScreenshotProducts,findListedProduct,SCREENSHOT_PRODUCTS_TOOL} from '../lib/screenshot-products.js';
+import {readScreenshotProducts,findListedProduct,screenshotStore,SCREENSHOT_PRODUCTS_TOOL,SCREENSHOT_PRODUCTS_GUIDE} from '../lib/screenshot-products.js';
 import {generateReply as agentReply} from '../lib/ai.js';
 import {textWishlistAction} from '../lib/text-wishlist.js';
 import {agentTurn,tool,toolNames,toolOutputs,withConsent,isClaimAudit} from './helpers/agent.js';
@@ -50,6 +50,9 @@ test('lookups that fail or run out of time are partial results; an unreadable sc
  const read=await readScreenshotProducts({images:[shot(1)],env,read:async()=>FIRST,find:slow,timeoutMs:20});
  assert.deepEqual(read.options.map(o=>o.name),['Black Chino Straight Trousers']);
  assert.deepEqual(read.unmatched.map(u=>u.reason),['timed_out','failed','not_readable']);
+ // A lookup that ran out of time or failed was never answered: it is "not checked yet", never "not found".
+ assert.match(read.body,/Not checked yet[^.]*Black Third Cut Jeans; STOCKHOLM \(SURFBOARD\) CLUB Navy Relaxed Fit Trousers/);
+ assert.ok(!/without finding/.test(read.body),'nothing the search did not finish is called not found');
  const failed=await readScreenshotProducts({images:[shot(1)],env,read:async()=>{throw Error('model down');},find:finder});
  assert.equal(failed.state,null);assert.match(failed.body,/could not be read/);
  const nothing=await readScreenshotProducts({images:[shot(1)],env,read:async()=>({lines:[],platform:none,items:[]}),find:finder});
@@ -69,6 +72,26 @@ test('a tile is matched only to the exact product of its written brand, one opti
  const found=await findListedProduct({brand:'MFPEN',title:'Black Croc Drivers Belt'},{env,search});
  // One belt, lowest verified price first, the other store kept with it; another brand's belt is dropped.
  assert.equal(found.url,beltSsense.url);assert.deepEqual(found.merchant_options.map(m=>m.url),[belt.url]);
+});
+
+test('the store named in the screenshot is searched with each item; unfinished, missing and found items stay distinct',async()=>{
+ // The platform is matched to a listed store by its written name only; an unlisted or missing name adds nothing.
+ assert.equal(screenshotStore('SSENSE')?.domain,'ssense.com');assert.equal(screenshotStore('ssense ')?.domain,'ssense.com');
+ for(const platform of [null,'','My Closet','Instagram'])assert.equal(screenshotStore(platform),null);
+ const briefs=[],search=async brief=>{briefs.push(brief);return {products:[]};};
+ await findListedProduct({brand:'KAMIYA',title:'Black Chino Straight Trousers'},{env,search,store:screenshotStore('SSENSE')});
+ await findListedProduct({brand:'KAMIYA',title:'Black Chino Straight Trousers'},{env,search});
+ assert.deepEqual(briefs,['KAMIYA Black Chino Straight Trousers SSENSE','KAMIYA Black Chino Straight Trousers']);
+ // Every lookup of one screenshot gets the same store; mixed outcomes are each reported as what happened.
+ const stores=[],mixed=async(item,{store})=>{stores.push(store?.domain??null);
+  return item.title==='Black Chino Straight Trousers'?new Promise(()=>{}):item.title==='Black Third Cut Jeans'?PAGES[item.title]:null;};
+ const read=await readScreenshotProducts({images:[shot(1)],env,read:async()=>({...FIRST,platform:q('SSENSE'),lines:[line('SSENSE'),...FIRST.lines]}),find:mixed,timeoutMs:20});
+ assert.deepEqual(stores,['ssense.com','ssense.com','ssense.com']);assert.equal(read.store,'ssense.com');
+ assert.deepEqual(read.options.map(o=>o.name),['Black Third Cut Jeans']);
+ assert.deepEqual(read.unmatched.map(u=>[u.title,u.reason]),[['Black Chino Straight Trousers','timed_out'],['Navy Relaxed Fit Trousers','not_found'],[null,'not_readable']]);
+ assert.match(read.body,/without finding a store page \(searched SSENSE[^)]*\) for: STOCKHOLM \(SURFBOARD\) CLUB Navy Relaxed Fit Trousers\./);
+ assert.match(read.body,/Not checked yet[^.]*: KAMIYA Black Chino Straight Trousers\./);
+ assert.match(SCREENSHOT_PRODUCTS_GUIDE,/did not finish checking/);
 });
 
 // The agent: the scripted tool call, then a reply once its result is back.
