@@ -14,7 +14,7 @@
 <p id="notice" role="status" aria-live="polite"></p></main>
 
 <dialog id="detail" class="wardrobe-detail" aria-labelledby="detail-title">
-<button id="detail-close" type="button" class="detail-close" aria-label="Close item details">Close ×</button>
+<button id="detail-close" type="button" class="close-button detail-close" aria-label="Close item details"><svg aria-hidden="true" viewBox="0 0 18 18"><path d="M3 3 L15 15 M15 3 L3 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
 <div class="detail-body"><div id="detail-photo" class="photo outline-photo"></div>
 <div class="detail-info"><span id="detail-brand" class="label"></span><h2 id="detail-title"></h2>
 <dl id="detail-facts" class="detail-facts"></dl>
@@ -36,14 +36,14 @@
 </dialog>
 
 <dialog id="add-sheet" class="wardrobe-sheet" aria-labelledby="add-title">
-<h2 id="add-title">Add item</h2>
+<div class="dialog-heading"><h2 id="add-title">Add item</h2><button type="button" class="close-button" data-close aria-label="Close add item"><svg aria-hidden="true" viewBox="0 0 18 18"><path d="M3 3 L15 15 M15 3 L3 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></div>
 <a class="btn btn--butter text-jules sheet-wide" hidden>Text Jules an order screenshot</a>
 <div class="source-rows"><div class="source-row"><strong>Gmail</strong><span id="gmail-state" class="label"></span></div><div class="source-row"><strong>Shop</strong><span id="shop-state" class="label"></span></div></div>
-<button type="button" class="btn sheet-cancel" data-close>Close</button>
+
 </dialog>
 
 <dialog id="removed" class="wardrobe-sheet wardrobe-removed" aria-labelledby="removed-title">
-<div class="removed-head"><h2 id="removed-title">Removed</h2><button type="button" class="btn" data-close>Close ×</button></div>
+<div class="dialog-heading"><h2 id="removed-title">Removed</h2><button type="button" class="close-button" data-close aria-label="Close removed items"><svg aria-hidden="true" viewBox="0 0 18 18"><path d="M3 3 L15 15 M15 3 L3 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></div>
 <div id="removed-list"></div>
 </dialog>
 
