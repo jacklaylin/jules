@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {textWishlistAction,finishTextWishlist} from '../lib/text-wishlist.js';
+import {textWishlistAction,finishTextWishlist,occasionBrief} from '../lib/text-wishlist.js';
 import {wishlistProducts} from '../lib/wishlist.js';
 import {generateReply} from '../lib/ai.js';
 import {agentTurn,tool} from './helpers/agent.js';
@@ -76,4 +76,13 @@ test('repeated unreadable candidates stop after one refinement without inventing
  const reply=await textWishlistAction({action:'start',query:'Example Trail sneaker'},{env,record:h.record,search:async()=>{calls++;return {products:[{...product,sourcing_status:'store_not_found',listing_check:{status:'check_failed'}}]};}});
  // The page that couldn't be read is offered as it is: its link, with no price or color from the unread page.
  assert.equal(calls,2);assert.equal(h.result.text_wishlist_state.options.length,1);assert.equal(h.result.user_confirmed,undefined);assert.doesNotMatch(reply,/400|Brown/);assert.match(reply,/can’t see its price or sizes/);assert.doesNotMatch(reply,/\$\d/);
+});
+
+test('a named venue is searched as its dress norms, not as a word', () => {
+  const plan = occasion => ({ search_plan: { occasion } });
+  const club = occasionBrief({ query: 'cool shirts for basement, not expensive', ...plan({ name: 'Basement, Brooklyn', dress: 'techno club: dark, minimal, sweat-friendly' }) });
+  assert.equal(club.query, 'cool shirts for basement, not expensive, for Basement, Brooklyn: techno club: dark, minimal, sweat-friendly');
+  assert.equal(occasionBrief(club).query, club.query, 'applied once');
+  assert.equal(occasionBrief({ query: 'shorts for Coachella', ...plan({ name: 'Coachella', dress: 'desert festival: light, breathable' }) }).query, 'shorts for Coachella, desert festival: light, breathable');
+  assert.equal(occasionBrief({ query: 'white sneakers', ...plan(null) }).query, 'white sneakers');
 });
