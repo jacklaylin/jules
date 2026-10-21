@@ -62,3 +62,32 @@ test('the early read also leaves basics out of brands and spend',()=>{
  assert.match(read.text,/sometimes as much as \$700/);
  assert.equal(withoutBasics(state.items,tags).length,6);
 });
+
+test('the Gatekeeper card leaves basics brands out of its chips and score',async()=>{
+ const {gatekeeper}=await import('../lib/style-report.js');
+ const all=gatekeeper(state),without=gatekeeper(state,tags);
+ assert.ok(all.brands.some(b=>/CDLP|Lululemon/i.test(b.name)),'without tags the basics brands count, as before');
+ assert.ok(without.eligible);
+ assert.ok(!without.brands.some(b=>/CDLP|Lululemon/i.test(b.name)),JSON.stringify(without.brands));
+ // CDLP's high niche score no longer lifts the peak.
+ assert.ok(without.score<=all.score);
+});
+
+// The voice check: the summary's writer may not name a brand or store more than once.
+test('a summary that names a brand or store twice is rewritten, and kept as drafted when it still does',async()=>{
+ const {checkComposed,composeReply,problemKinds}=await import('../lib/compose.js');
+ const draft='here’s what your purchases show so far:\nbrands you buy most: MAAP, John Elliott\nother stores you buy from: SSENSE\ntell me anytime if something’s off.';
+ const names=['MAAP','John Elliott','SSENSE','Lululemon','Our Legacy'];
+ const none={saved_now:false,alerts_turned_on:false,alerts_turned_off:false};
+ for(const reply of ['your go-to brands are MAAP and John Elliott, and you mainly shop at maap and John Elliott.','MAAP, John Elliott and SSENSE. MAAP again!','you buy MAAP and JOHN ELLIOTT, and john elliott often'])
+  assert.deepEqual(problemKinds(checkComposed({reply,claims:none},{draft,facts:{names}})),['repeated_name'],reply);
+ // Once each, a name the draft doesn't give, or a part of another word, is fine.
+ for(const reply of ['mostly MAAP and John Elliott, plus SSENSE for the rest.','MAAP and John Elliott, from SSENSE. the maapping is done.'])
+  assert.deepEqual(checkComposed({reply,claims:none},{draft,facts:{names}}),[],reply);
+ // Without names (other messages), nothing is checked.
+ assert.deepEqual(checkComposed({reply:'MAAP, MAAP, MAAP',claims:none},{draft:'MAAP',facts:{}}),[]);
+ // End to end: twice repeated, the draft goes out as written.
+ const written=reply=>({ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({reply,claims:none,photo_captions:[]})}]}]})});
+ const out=await composeReply({draft,facts:{names},purpose:'notification',env:{OPENAI_API_KEY:'test'},fetcher:async()=>written('MAAP and John Elliott are your brands, and you shop MAAP and John Elliott.')});
+ assert.equal(out.body,draft);assert.deepEqual(out.fallback.problem_kinds,['repeated_name']);
+});
