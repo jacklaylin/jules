@@ -1,5 +1,5 @@
 import {createLogo,initBrandActivity} from './brand-ui.js';
-import {demoState,bubbleProgress,pickDemo} from './landing-timeline.js';
+import {demoState,bubbleProgress,pickDemo,PLAYBACK_RATE} from './landing-timeline.js';
 import {carryRef,rememberArrival} from './signup-ref.js';
 carryRef(document.querySelectorAll('a[href="/signup"]'),location.search);
 rememberArrival(()=>sessionStorage,{referrer:document.referrer,search:location.search,host:location.hostname});
@@ -43,7 +43,7 @@ function render(t,{animate=true}={}){
 function play(stamp){
  if(mode!=='autoplay'||document.hidden)return;
  const elapsed=lastStamp===null?0:Math.min((stamp-lastStamp)/1000,.1);lastStamp=stamp;
- render(time+elapsed);
+ render(time+elapsed*PLAYBACK_RATE);
  if(demoState(time,false,demo).done)setMode('complete');else playFrame=requestAnimationFrame(play);
 }
 function autoplay(){
