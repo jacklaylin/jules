@@ -21,14 +21,14 @@ const links=store=>store.sent.filter(b=>/style report is ready.*\/report#signin=
 // The worker's background build (lib/gmail-worker.js prepareReport), with a stand-in for buildReport.
 const built=(store,{id='r1',on=env,status='built'}={})=>prepareReport(store,owner,on,{tag:async()=>{},build:async()=>{if(status==='built')store.data.style_report=report(id);return {status,unlocked:[]};},autoSend:(s,o,e)=>autoSendReport(s,o,e,{send:store.send})});
 
-test('report built first: the link follows the summary, once the last question is answered',async()=>{
+test('report built first: the summary goes after the count, the link once the last question is answered',async()=>{
  const questions=[{id:'q1',status:'open',question:'Were the jeans for you?',item_ids:['item-1']}];
  const store=fixture({questions});
  await announceImport(store,owner,env,store.send);await built(store);
- assert.equal(store.sent.length,2,'completion and the question; no link while a question is open');
+ assert.equal(store.sent.length,3,'completion, summary and the question; no link while a question is open');
+ assert.match(store.sent[1],/what your purchases show so far/);
  questions[0].status='answered';await nextReceiptQuestion(store,owner,env,store.send);
- assert.match(store.sent[2],/what your purchases show so far/);
- assert.equal(links(store).length,1);assert.equal(store.sent.indexOf(links(store)[0]),3,'the link comes right after the summary');
+ assert.equal(links(store).length,1);assert.equal(store.sent.indexOf(links(store)[0]),3,'the link comes once the question is answered');
  await nextReceiptQuestion(store,owner,env,store.send);
  store.data.style_report.linked=true;await built(store,{id:'r2'});
  assert.equal(links(store).length,1,'only the first link, even after a rebuild');
@@ -43,17 +43,38 @@ test('summary first: the link goes out when the report finishes building',async(
  assert.equal(store.sent.length,3);assert.equal(links(store).length,1);
 });
 
-test('never before the summary, and never while a question waits after the 24-hour summary',async()=>{
+test('never before the summary, and never while a question waits after it, even with the report ready',async()=>{
  const questions=[{id:'q1',status:'open',question:'Q?',item_ids:['item-1']}];
  const store=fixture({questions,style_report:report('r1')});
+ assert.equal(await autoSendReport(store,owner,env,{send:store.send}),null,'no summary yet');
  await announceImport(store,owner,env,store.send);await built(store,{status:'busy'});
- assert.equal(links(store).length,0,'summary not sent yet');
- // The sweep sends the summary with the question still open: the link still waits.
+ assert.match(store.sent[1],/what your purchases show so far/);assert.equal(links(store).length,0,'the question is still open');
+ // A sweep finds nothing to send and does not release the link either.
  const sweep={...store,gmailProfilesDue:async()=>[owner],quietGmailImports:async()=>[]};
- await sweepGmailImports(sweep,env,{profile:(s,o,e)=>sendProfile(s,o,e,store.send,null,{force:true})});
- assert.match(store.sent.at(-1),/what your purchases show so far/);assert.equal(links(store).length,0);
+ await sweepGmailImports(sweep,env,{profile:(s,o,e)=>sendProfile(s,o,e,store.send)});
+ assert.equal(links(store).length,0);
  questions[0].status='answered';await nextReceiptQuestion(store,owner,env,store.send);
  assert.equal(links(store).length,1,'sent once the question closes');
+});
+
+test('with the style interview on, the link waits for the round to close and comes after it',async()=>{
+ const {recordAnswer,continueInterview,BATCH}=await import('../lib/interview.js');
+ const store=fixture({style_report:report('r1')}),on={...env,INTERVIEW_ENABLED:'true'};
+ let row={revision:0,state:{}};
+ Object.assign(store,{interview:async()=>structuredClone(row),writeInterview:async(o,revision,state)=>{if(revision!==row.revision)return false;row={revision:revision+1,state:structuredClone(state)};return true;},
+  recordEvidence:async()=>{},profile:async()=>({facts:[]})});
+ await announceImport(store,owner,on,store.send);await built(store,{on,status:'busy'});
+ assert.match(store.operations.get('gmail:owner:profile:s1')?.body??'',/early read|purchases show/,'the summary went after the count');
+ assert.ok([...store.operations.keys()].some(k=>k.startsWith('interview:')),'then a style question');
+ assert.equal(links(store).length,0,'no link while the round is open');
+ for(let i=0;i<BATCH;i++){
+  const waiting=row.state.asked.at(-1);if(!waiting||waiting.outcome)break;
+  await recordAnswer(store,owner,{questionId:waiting.qid,outcome:'answered',messageId:'a'+i,log:()=>{}});
+  await continueInterview(store,owner,on,{send:store.send,log:()=>{}});
+ }
+ assert.equal(links(store).length,1,'sent once the round closes');
+ const offer=store.sent.findIndex(t=>/want them now, or another time/.test(t));
+ if(offer>=0)assert.ok(store.sent.indexOf(links(store)[0])<offer,'the link before the offer of more questions');
 });
 
 test('fewer than 3 purchase lines: no report, so nothing is sent after the summary',async()=>{

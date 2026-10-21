@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {startInterview,continueInterview,recordAnswer,planNext,candidates,interviewContext,interviewOpen,questionsLeft,adminStartInterview,BATCH} from '../lib/interview.js';
 import {coverage} from '../lib/coverage.js';
-import {announceImport,nextReceiptQuestion,sendProfile} from '../lib/receipt-notifications.js';
+import {announceImport,nextReceiptQuestion,SHARPEN} from '../lib/receipt-notifications.js';
 import {purchaseEvidence,projectReceiptEvidence} from '../lib/receipt-extraction.js';
 import {tagFingerprint,TAG_VERSION} from '../lib/item-tags.js';
 
@@ -134,28 +134,51 @@ test('with INTERVIEW_ENABLED off nothing is sent or written',async()=>{
  assert.equal(store.sent.length,0);assert.deepEqual(store.state,{});
 });
 
-test('a thin import (case A): completion, then the questions, and the summary only after the round closes',async()=>{
+const kinds=store=>[...store.operations.keys()].map(k=>k.startsWith('interview:')?'interview':k.split(':')[2]);
+test('a thin import (case A): completion, the early read straight away, then the questions that sharpen it',async()=>{
  const rows=[1,2,3,4,5,6,7].map(n=>buy(n,{color:n<=3?'brown':null,size_label:n<=5?'M':null}));
  const store=fakeStore({rows,job:{status:'ready',started_at:'s1'},tags:tagsFor(rows,i=>({group:['item-1','item-2'].includes(i.id)?'trousers':'tops',color_family:i.color?'brown':'unknown'}))});
  await announceImport(store,owner,env,store.send);
- assert.match(store.sent[0],/found 7 clothing purchases/);
- assert.equal(store.sent.length,2);assert.equal(asked(store)[0],'wear_most');
- assert.equal(await sendProfile(store,owner,env,store.send),null,'the summary waits while a round is open');
+ assert.deepEqual(kinds(store),['ready','profile','interview'],'count, early read, first question');
+ assert.match(store.operations.get('gmail:owner:profile:s1').body,/early read/);
+ assert.ok(store.operations.get('gmail:owner:profile:s1').body.endsWith(SHARPEN),'the read leads into the questions');
+ assert.match(store.operations.get('gmail:owner:profile:s1').body,/photos of outfits/,'and still invites outfit photos');
+ assert.equal(asked(store)[0],'wear_most');assert.ok(interviewOpen(store.state));
  for(let i=0;i<BATCH;i++){await answer(store,asked(store).at(-1),'answered','a'+i);await next(store);}
- // A thin profile's summary is the early read; it goes first, then the offer of more questions.
- assert.match(store.sent.at(-2),/early read/);
+ // The round's close no longer carries the summary: only the offer of more questions follows.
  assert.match(store.sent.at(-1),/want them now, or another time/);
+ assert.ok(!/early read/.test(store.sent.at(-1)));
  await nextReceiptQuestion(store,owner,env,store.send);
- assert.equal(store.sent.filter(t=>/early read/.test(t)).length,1,'and is sent once');
+ assert.equal(store.sent.filter(t=>/early read/.test(t)).length,1,'the read is sent once per import');
 });
 
-test('the 24-hour sweep still sends the summary while questions wait',async()=>{
+test('interview on but declined before: the summary has no lead-in, since no questions follow',async()=>{
  const rows=[buy(1),buy(2)];
  const store=fakeStore({rows,job:{status:'ready',started_at:'s1'},tags:tagsFor(rows)});
+ await store.writeInterview(owner,0,{declined_at:'2026-10-01T00:00:00Z'});
  await announceImport(store,owner,env,store.send);
- assert.ok(interviewOpen(store.state));
- await sendProfile(store,owner,env,store.send,null,{force:true});
- assert.match(store.sent.at(-1),/early read/);
+ assert.deepEqual(kinds(store),['ready','profile']);assert.ok(!store.sent[1].includes(SHARPEN));
+});
+
+test('interview off: the purchase summary goes right after the count and nothing else follows',async()=>{
+ const rows=[buy(1,{brand:'COS'}),buy(2,{brand:'COS'})];
+ const store=fakeStore({rows,job:{status:'ready',started_at:'s1'},tags:tagsFor(rows)});
+ await announceImport(store,owner,{},store.send);
+ assert.deepEqual(kinds(store),['ready','profile']);assert.match(store.sent[1],/what your purchases show/);
+ assert.equal(store.state.batches,undefined,'no interview round');
+});
+
+test('nothing to say after the count: the questions go first, and answers can make the summary possible at the close',async()=>{
+ const facts=[];
+ const store=fakeStore({facts,rows:[buy(1)],job:{status:'ready',started_at:'s1'},tags:tagsFor([buy(1)])});
+ await announceImport(store,owner,env,store.send);
+ assert.deepEqual(kinds(store),['ready','interview'],'no summary with one purchase and no photos');
+ facts.push({field:'size',key:'tops/us',value:'M',basis:'stated',evidence_ids:['c1']});
+ for(let i=0;i<BATCH;i++){await answer(store,asked(store).at(-1),'answered','a'+i);await next(store);}
+ assert.ok(kinds(store).includes('profile'),'the read from their answers goes at the close');
+ assert.match(store.operations.get('gmail:owner:profile:s1').body,/sizes you told me: M in tops/);
+ assert.ok(!store.operations.get('gmail:owner:profile:s1').body.includes(SHARPEN),'no lead-in: the questions are over');
+ assert.match(store.sent.at(-1),/want them now, or another time/,'then the offer of more');
 });
 
 test('asking for questions when nothing is left says so instead of sending an empty round',async()=>{

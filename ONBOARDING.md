@@ -1,5 +1,7 @@
 **October 12 entry-flow update:** See [ENTRY-FLOW.md](ENTRY-FLOW.md). Login now uses a code texted to the invited phone, Gmail analysis continues in background requests, and all post-import questions happen in Messages. The email-login and browser-driven import descriptions below describe the earlier implementation.
 
+**October 21 update:** after a Gmail import, the tester now gets the count, then straight away the "who you are" summary (or early read), then the receipt and style questions, which sharpen it, then the style report link. The summary no longer waits for the questions, outfit photos or a 24-hour fallback. Details in [ENTRY-FLOW.md](ENTRY-FLOW.md#october-21-update-the-first-style-result-comes-first).
+
 # Tester onboarding: Gmail demo and real import pilot
 
 **Real import pilot:** With `GMAIL_IMPORT_ENABLED=true`, `/onboarding` uses the actual read-only Gmail connection, history and feedback flow described in [GMAIL-IMPORT.md](GMAIL-IMPORT.md). The following demo remains available only when that flag is false.
