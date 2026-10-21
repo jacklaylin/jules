@@ -28,7 +28,7 @@ function storage({items=[jeans],feedback=createReceiptFeedback(OWNER,items,[]),d
   operation:async key=>operations.get(key)??null,conversation:async()=>({id:OWNER,line:'line',sender_id:'sender'}),recent:async()=>recent,
   reserve:async(o,key,body)=>{if(operations.has(key))return false;operations.set(key,{status:'sending',body,conversation_id:o,created_at:`${key.match(/\d{4}-\d{2}-\d{2}$/)?.[0]??TODAY}T17:00:00.000Z`});return true;},
   finish:async(key,status)=>{operations.get(key).status=status;},smsOptedOut:async()=>false,
-  unpromptedSince:async(o,since)=>[...operations].map(([operation_id,m])=>({operation_id,status:m.status,created_at:m.created_at})).filter(m=>m.created_at>=since)};
+  lastInbound:async()=>null,unpromptedSince:async(o,since)=>[...operations].map(([operation_id,m])=>({operation_id,status:m.status,created_at:m.created_at})).filter(m=>m.created_at>=since)};
 }
 const send=store=>async(target,body)=>{store.sent.push(body);return {id:'msg'};};
 const stateOf=async store=>(await loadReceipts(store,OWNER,store.row)).state;
