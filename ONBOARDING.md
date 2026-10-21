@@ -51,6 +51,25 @@ The contact card covers people who save it. Separately, iMessage can show Jules'
 
 Then text the line from a phone that has never saved Jules. After Jules replies, the thread should offer or show the orb and “Jules” (iOS may show a banner to accept the updated name and photo).
 
+## One reminder for people who haven't connected (October 21)
+
+Someone who got the welcome but tapped **Not now, go to Messages**, or never opened the link, gets one text about a day later: “whenever you’re ready, here’s your link to connect your shopping accounts: …/onboarding” (Jules may reword it in its voice; the link is signed so they land logged in).
+
+- **Who gets it:** onboarding still `offered` or `accepted`, welcome delivered 24 to 48 hours ago, and nothing connected or started (no Gmail sign-in, no import, no Shop connection, including one waiting for approval in Shop). Someone who declined in chat, finished onboarding, or texted STOP gets nothing; the message ledger blocks opted-out numbers.
+- **Once per person, ever:** it is the ledger entry `onboarding:<conversation>:reminder`. Repeated sweeps never send it twice, and an uncertain send is never retried. **Reset onboarding** in Admin removes it with the other onboarding texts, so a re-test can receive it again.
+- **When:** the existing once-a-minute Supabase sweep (`jules-gmail-sweep`) checks `onboarding_reminders_due()` and calls Vercel only when someone is due. The 48-hour edge means turning it on never texts people welcomed long ago.
+- **Not now** still just opens Messages; nothing on the page changes and the onboarding state stays the same. The tap is saved as `onboarding_sessions.not_now_at`. It does not stop the reminder (it is exactly who the reminder is for).
+- **Admin › People › person** shows “Tapped Not now · date” and “Reminder sent · date” beside the name; the reminder also appears in the Conversation tab.
+- **Logs (Vercel):** `onboarding_not_now` (state, whether it was saved), `onboarding_reminder_sent`, `onboarding_reminder_not_sent` (status, e.g. `blocked` or `uncertain`), `onboarding_reminder_failed`. The sweep's `gmail_sweep` line counts `reminders`. Model cost shows as **Onboarding reminder** under the Import restart sweep job.
+
+**Turn it on:**
+
+1. In Supabase **SQL Editor**, run `db/044_onboarding_reminder.sql` (after 039). It adds the Not now column, the “who is due” check, and teaches the sweep to wake for it. No credential is produced. Re-running is safe.
+2. In Vercel **Settings → Environment Variables**, add `ONBOARDING_REMINDER_ENABLED` = `true` (Production). It also needs `GMAIL_IMPORT_ENABLED=true` and `SITE_ORIGIN`, which are already set. Set it to `false` (and redeploy) to stop reminders; nothing else changes.
+3. Redeploy so the setting takes effect.
+
+To check it with one phone: reset your own onboarding in Admin, sign up again, tap **Not now**, and confirm Admin shows the tap. The reminder arrives about 24 hours after the welcome.
+
 ## Failure and retry behavior
 
 Outbound messages use the existing persisted reservation/delivery ledger. Concurrent signup submissions and repeated demo clicks cannot send the same stage twice. An uncertain send is not retried automatically because it may already have reached the tester. The browser reports uncertainty and retains a wishlist link. Stage state survives reloads. Account access is checked on every request; the client cannot choose another conversation. The demo POST checks the site origin. Consent to a product save or alert cannot be reused as acceptance of the style-reading offer.
