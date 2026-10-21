@@ -6,7 +6,7 @@
 //   node --env-file=.env.local scripts/model-bakeoff.js search --models gpt-4.1,gpt-6-luna,gpt-5.6-luna
 // A model may carry a reasoning effort after a colon (gpt-5-nano:minimal). openrouter: ids need
 // OPENROUTER_API_KEY. Options: --runs 3, --concurrency 6, --max-cost 25 (USD for the whole bake-off),
-// --out <folder> (default .eval-local/bakeoff-<role>-<time>; raw results and replies are kept there).
+// --out <folder> (default ~/.jules/bakeoffs/<role>-<time>; raw results and replies are kept there).
 //   chat:   the agent routing evals (tools stubbed) and the replay cases that need no search.
 //           Plus every frozen production case (FROZEN-EVALS.md), judged by a fixed model; --no-frozen leaves them out,
 //           --judges gpt-5.5,openrouter:anthropic/claude-opus-5.5 judges them twice (a case passes only when both pass it).
@@ -15,7 +15,8 @@
 //           uses none of the monthly SerpApi searches (production also merges SerpApi results).
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { mkdir, writeFile, appendFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { resolve, join } from 'node:path';
+import { homedir } from 'node:os';
 import { AGENT_EVAL_CASES, runAgentEval } from '../lib/agent-eval.js';
 import { REPLAY_CASES, runReplay } from '../lib/replay.js';
 import { withUsage, priceFor } from '../lib/usage.js';
@@ -30,7 +31,8 @@ const models = (option('--models') ?? '').split(',').map(s => s.trim()).filter(B
 if (!models.length) throw Error('--models is required, e.g. --models gpt-4.1-mini,gpt-6-luna');
 const runs = Number(option('--runs') ?? 3), concurrency = Number(option('--concurrency') ?? 6), maxCost = Number(option('--max-cost') ?? 25);
 const only = option('--cases')?.split(',').map(s => s.trim()).filter(Boolean);
-const out = resolve(option('--out') ?? `.eval-local/bakeoff-${role}-${new Date().toISOString().replace(/[:.]/g, '-')}`);
+// Outside the repository: the frozen cases' replies are private conversation data.
+const out = resolve(option('--out') ?? join(homedir(), '.jules', 'bakeoffs', `${role}-${new Date().toISOString().replace(/[:.]/g, '-')}`));
 if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY.startsWith('replace-with')) throw Error('OPENAI_API_KEY is missing; run with --env-file=.env.local');
 if (models.some(m => m.startsWith('openrouter:')) && (!process.env.OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY.startsWith('replace-with'))) throw Error('OPENROUTER_API_KEY is missing: create a key at openrouter.ai/settings/keys and add it to .env.local (never to Git)');
 await mkdir(out, { recursive: true, mode: 0o700 });
