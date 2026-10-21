@@ -25,6 +25,16 @@ Keys live in `.env.local` on your computer (and in the cloud environment's setti
 | `PERPLEXITY_API_KEY` | perplexity.ai → Settings → API → add a payment method and a few dollars of credit → Create API key. |
 | `ANTHROPIC_API_KEY` | console.anthropic.com → Settings → Billing (add a few dollars) → API keys → Create key. |
 
+**Scheduled cloud runs** don't use environment variables for keys (the cloud environment's own note says not to put secrets there). Each key is a **network secret** on the Default cloud environment instead (claude.ai/code → environment menu → Cloud → Default → gear → Network secrets → Add secret). The secret is added to requests to that one website and sessions never see it:
+
+| Engine | Allowed website | Header |
+|---|---|---|
+| OpenAI | `api.openai.com` | `Authorization`, prefix `Bearer` |
+| Perplexity | `api.perplexity.ai` | `Authorization`, prefix `Bearer` |
+| Anthropic | `api.anthropic.com` | `x-api-key`, no prefix |
+
+Then list those engines in the environment variables as `AEO_INJECTED_KEYS=openai,perplexity,anthropic` (only the ones with a secret). The probe then calls them without a key of its own.
+
 Optional: `AEO_OPENAI_MODEL`, `AEO_PERPLEXITY_MODEL`, `AEO_ANTHROPIC_MODEL` to change models; `AEO_MAX_COST_USD` (default 5) stops the run once estimated spend passes it.
 
 ```bash

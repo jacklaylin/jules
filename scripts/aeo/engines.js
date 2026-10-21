@@ -1,6 +1,7 @@
 // Answer engines the visibility probe asks (scripts/aeo/probe.js). Each engine sends one question with
 // web search on and reads back the answer text, the URLs it cites, the sources it searched and its token
-// usage. Plain fetch, no SDKs. Keys come from the environment only; a missing key skips that engine.
+// usage. Plain fetch, no SDKs. Keys come from environment variables, or from the cloud environment's
+// network secrets (AEO_INJECTED_KEYS); an engine with neither is skipped.
 
 // List prices in USD per 1M tokens, checked 2026-10-20 (OpenAI rows copied from lib/usage.js). Estimates
 // only: provider invoices are the source of truth. Not imported from lib/usage.js on purpose: importing it
@@ -38,6 +39,10 @@ async function post(fetchImpl, url, headers, body) {
   return JSON.parse(text);
 }
 
+// key is null when the cloud environment adds the key to requests itself (a network secret), so the
+// probe sends no key of its own and never sees it.
+const bearer = key => key ? { authorization: `Bearer ${key}` } : {};
+
 const unique = urls => [...new Set(urls.filter(u => typeof u === 'string' && /^https?:\/\//.test(u)))];
 
 // OpenAI Responses API with the web_search tool (what ChatGPT search is built on).
@@ -47,7 +52,7 @@ export const openai = {
   keyEnv: 'OPENAI_API_KEY',
   modelEnv: 'AEO_OPENAI_MODEL',
   defaultModel: 'gpt-5.5',
-  request: (fetchImpl, key, model, question) => post(fetchImpl, 'https://api.openai.com/v1/responses', { authorization: `Bearer ${key}` }, {
+  request: (fetchImpl, key, model, question) => post(fetchImpl, 'https://api.openai.com/v1/responses', bearer(key), {
     model,
     input: question,
     tools: [{ type: 'web_search', user_location: { type: 'approximate', country: 'US' } }],
@@ -82,7 +87,7 @@ export const perplexity = {
   keyEnv: 'PERPLEXITY_API_KEY',
   modelEnv: 'AEO_PERPLEXITY_MODEL',
   defaultModel: 'sonar',
-  request: (fetchImpl, key, model, question) => post(fetchImpl, 'https://api.perplexity.ai/chat/completions', { authorization: `Bearer ${key}` }, {
+  request: (fetchImpl, key, model, question) => post(fetchImpl, 'https://api.perplexity.ai/chat/completions', bearer(key), {
     model,
     messages: [{ role: 'user', content: question }],
     web_search_options: { user_location: { country: 'US' } },
@@ -113,7 +118,7 @@ export const anthropic = {
   // One request per question: a paused turn (stop_reason pause_turn) is recorded as is, not resumed, so
   // cost stays capped. Server-side fallback re-runs a declined request on another model inside the same call.
   request: (fetchImpl, key, model, question) => post(fetchImpl, 'https://api.anthropic.com/v1/messages', {
-    'x-api-key': key,
+    ...(key ? { 'x-api-key': key } : {}),
     'anthropic-version': '2023-06-01',
     'anthropic-beta': 'server-side-fallback-2026-07-01',
   }, {

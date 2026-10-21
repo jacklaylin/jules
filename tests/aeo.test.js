@@ -119,3 +119,14 @@ test('the report compares with the previous run', () => {
   assert.match(md, /`q1`: now mentioned by openai/);
   assert.match(md, /openai\*\*, `q1` \(confirmed, cited\)/);
 });
+
+test('an engine whose key the cloud environment adds sends no key of its own', async () => {
+  for (const engine of [openai, perplexity, anthropic]) {
+    const sent = [];
+    const fake = async (url, init) => { sent.push(init.headers); return { ok: true, text: async () => '{}' }; };
+    await engine.request(fake, null, engine.defaultModel, 'q');
+    await engine.request(fake, 'k', engine.defaultModel, 'q');
+    assert.ok(!('authorization' in sent[0]) && !('x-api-key' in sent[0]), engine.id);
+    assert.ok(sent[1].authorization === 'Bearer k' || sent[1]['x-api-key'] === 'k', engine.id);
+  }
+});
