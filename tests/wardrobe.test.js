@@ -117,6 +117,18 @@ test('swimwear and eyewear are wardrobe categories of their own', () => {
  assert.deepEqual(Object.fromEntries(view.items.map(i=>[i.id,i.category])),{i1:'swimwear',i2:'eyewear',i3:'accessories'});
 });
 
+test('activewear is its own category, not tops, and an owner who files it under tops keeps that', () => {
+ const s=state();
+ const tags=tagged(s,{i1:'activewear',i2:'tops',i3:'shorts'});
+ assert.deepEqual(Object.fromEntries(wardrobeView(s,{tags}).items.map(i=>[i.id,i.category])),{i1:'activewear',i2:'tops',i3:'bottoms'});
+ // The owner's own category wins; the tag made before the correction no longer counts.
+ const fixed=act(s,{action:'fix',item_id:'i1',values:{wardrobe_category:'tops'}});
+ assert.equal(wardrobeView(fixed,{tags}).items.find(i=>i.id==='i1').category,'tops');
+ // And an owner can file something under activewear.
+ const moved=act(s,{action:'fix',item_id:'i3',values:{wardrobe_category:'activewear'}});
+ assert.equal(wardrobeView(moved,{tags}).items.find(i=>i.id==='i3').category,'activewear');
+});
+
 test('the owner corrects a category; it wins over the tag and survives other fixes', () => {
  const s=state([bought('i1')]),tags=tagged(s,{i1:'accessories'});
  assert.equal(wardrobeView(s,{tags}).items[0].category,'accessories');
