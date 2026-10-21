@@ -75,7 +75,7 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
           if (input.confirm !== true) throw Object.assign(new Error('Confirm sending the contact card first.'), { status: 400 });
           const status = await resendContactCard(store, await store.conversation(input.conversation), env, send);
           console.log(JSON.stringify({ event: 'admin_contact_card', status }));
-          if (status === 'skipped') throw Object.assign(new Error('Set JULES_PUBLIC_LINE in Vercel first; the card needs Jules’s number.'), { status: 409 });
+          if (status === 'skipped') throw Object.assign(new Error('This person’s line isn’t a phone number; set JULES_PUBLIC_LINE in Vercel so the card has Jules’s number.'), { status: 409 });
           return json(res, 200, { contact_card: status });
         }
         // Texts the person the next style question (lib/interview.js), as if they had asked for it.

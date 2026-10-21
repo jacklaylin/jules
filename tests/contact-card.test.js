@@ -35,9 +35,27 @@ test('no card without a valid configured line; no photo still yields a card',asy
  assert.match(logs[0],/contact_card_photo_missing/);
 });
 
-function fixture(){
+test('the card carries the line this person texts, falling back to JULES_PUBLIC_LINE',async()=>{
+ const own=unfold(julesVCard(env,null,'+1 415 555 0199')).split('\r\n');
+ assert.ok(own.includes('TEL;TYPE=CELL,VOICE,pref:+14155550199'));
+ assert.ok(!own.some(l=>l.includes('+14155550100')));
+ assert.ok(unfold(julesVCard(env,null,'not-a-number')).includes('pref:+14155550100'));
+ const file=await contactCardFile({SITE_ORIGIN:'https://jules.example'},{line:'+14155550199',load:async()=>null});
+ assert.match(file.bytes.toString(),/pref:\+14155550199/);
+ assert.equal(await contactCardFile({},{line:'synthetic-line'}),null);
+});
+
+test('the welcome card is built from the tester\'s own conversation line',async()=>{
+ const f=fixture('+14155550199');
+ const files=[];const send=async(delivery,body,_env,options={})=>{files.push(...(options.files??[]));return {};};
+ const result=await welcomeTester('synthetic',f.store,env,send);
+ assert.equal(result.contact_card,'sent');
+ assert.match(files[0].bytes.toString(),/pref:\+14155550199/);
+});
+
+function fixture(line='synthetic-line'){
  const operations=new Map(),sent=[];let state='invited';
- const conversation={id:'tester-id',sender_id:'synthetic-tester',line:'synthetic-line'};
+ const conversation={id:'tester-id',sender_id:'synthetic-tester',line};
  const store={onboardingInvite:async()=>conversation,onboardingSession:async()=>({state}),advanceOnboarding:async(id,from,to)=>{if(state!==from)return false;state=to;return true;},operation:async id=>operations.get(id),reserve:async(id,key,body)=>{if(operations.has(key))return false;operations.set(key,{conversation_id:id,body,status:'sending'});return true;},finish:async(key,status)=>{operations.get(key).status=status;}};
  const send=async(delivery,body,_env,options={})=>{sent.push({body,files:(options.files??[]).map(f=>f.name)});return {};};
  return {store,send,sent,operations};
