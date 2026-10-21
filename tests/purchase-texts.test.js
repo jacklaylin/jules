@@ -78,6 +78,8 @@ test('one text names the new purchase as the email does and offers to find thing
  assert.doesNotMatch(store.sent[0],/[$€£]|\b32\b|stock|ship/i);
  assert.deepEqual(store.row.data.refresh.pending,[]);assert.deepEqual(store.row.data.refresh.announced,['cargo']);
  assert.deepEqual(store.row.data.nudges.log.map(e=>[e.kind,e.status,e.item_ids]),[['goes_with','sent',['cargo']]]);
+ // The offer waits for a reply, naming the item as the email did (lib/goes-with.js).
+ assert.deepEqual([store.row.data.nudges.open.operation,store.row.data.nudges.open.item.name,store.row.data.nudges.open.item.merchant],[`gmail:${OWNER}:purchases:2026-10-18`,'Carhartt WIP Camo Cargo Pants','END.']);
  store.row.data.refresh.pending=['tee'];
  const again=await announcePurchases(store,OWNER,{},{interpret:()=>assert.fail('held before choosing'),send:send(store),now:NOW+3600000});
  assert.deepEqual([again.status,store.sent.length],['held',1]);
@@ -146,6 +148,8 @@ test('an admin test nudge goes only to the designated test conversation, labelle
  assert.deepEqual([first.status,second.status],['sent','sent']);
  assert.equal(store.sent.length,2);assert.ok(store.sent.every(b=>b.startsWith(TEST_LABEL)&&b.includes('Item jeans')));
  assert.deepEqual(store.row.data.nudges.log.map(e=>[e.status,e.test]),[['sent',true],['sent',true]]);
+ // A test offer opens like a real one, so a reply goes down the same path.
+ assert.deepEqual([store.row.data.nudges.open.test,store.row.data.nudges.open.item.id],[true,'jeans']);assert.match(store.row.data.nudges.open.operation,/^nudge-test:/);
  // Test texts never count toward the person's limits.
  assert.equal([...store.operations.keys()].filter(k=>k.startsWith('gmail:')).length,0);
 });

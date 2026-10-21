@@ -373,7 +373,8 @@ $('ask-confirm').onclick = async () => {
 // The decision log for unprompted texts (lib/nudges.js) and, for the designated test conversation only, a
 // test "goes with" offer about a chosen wardrobe item. Nothing is reset; a test can be sent again.
 const NUDGE_REASONS = { quiet_hours: 'quiet hours', daily_cap: 'already texted today', weekly_cap: '3 this week already', price_alert_today: 'price alert went out today',
-  mid_conversation: 'mid-conversation', opted_out: 'texted STOP', texts_off: 'purchase texts off', not_clothing: 'not clothing', not_worth_a_text: 'model: not worth an offer', nothing_recent: 'nothing recent' };
+  mid_conversation: 'mid-conversation', opted_out: 'texted STOP', texts_off: 'purchase texts off', not_clothing: 'not clothing', not_worth_a_text: 'model: not worth an offer', nothing_recent: 'nothing recent',
+  accepted: 'said yes', declined: 'said no', not_now: 'not now', unrelated: 'replied about something else', stopped: 'turned purchase texts off' };
 const NUDGE_KINDS = { goes_with: 'Goes with', fit_check: 'Fit check' };
 let nudgeItems = [];
 function renderNudges(data) {

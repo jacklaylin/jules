@@ -240,6 +240,6 @@ async function personWishlist(store, id, env) {
 async function nudgeView(store, id, env) {
   const row = await store.gmailImport(id), test = Boolean(nudgeTestConversation(env)) && nudgeTestConversation(env) === id;
   return { log: [...(row?.data?.nudges?.log ?? [])].reverse(), texts_on: purchaseTextsOn(row?.data), timezone: nudgeTimezone(row?.data), test_delivery: test,
-    candidates: test ? (await goesWithCandidates(store, id)).map(({ facts, ...item }) => item) : [] };
+    candidates: test ? (await goesWithCandidates(store, id)).map(({ facts, raw, ...item }) => item) : [] };
 }
 export default createAdminHandler();
