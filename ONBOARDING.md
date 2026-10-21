@@ -49,6 +49,8 @@ It is safe to click again. A number that already has a conversation (for example
 - the number already has a conversation on a line other than `shared`, or on several lines. Use **Approve** in Testers instead;
 - Jules's newest conversation isn't on `shared` (Photon was switched to dedicated lines). Set up would guess the line, so it refuses; tell Claude so Set up can be changed.
 
+**If the welcome "may not have been delivered".** Jules never resends an uncertain text by itself, because it can't tell whether the first one arrived. Ask the tester; if they didn't get it, open them in **Admin › People** and click **Resend the welcome…** (shown only while their onboarding is offered or accepted). The dialog quotes the exact text: the first welcome's wording, with a fresh sign-in link. If it goes through, the contact card follows. Each click sends once more as its own entry in the message ledger; the earlier entry stays as it was. Someone who texted STOP gets nothing. Vercel logs: `admin_welcome_resent` (`welcome`, `contact_card`).
+
 Vercel logs: `admin_tester_set_up` (`created`, `changed`, `text`, `account`). If the welcome ends **may not have been delivered**, look for `imessage_send_failed` just before it: `name`, `code` and `status` say what Photon's send threw (for example an expired token or an unknown recipient). The message text, numbers and the error's own wording are never logged. No migration is needed.
 
 ## New-signup text to the owner

@@ -123,3 +123,11 @@ export function setupResult(result) {
   }
   return `Set up. ${accessResult('approved', result).replace(/^Approved\. /, '')}`;
 }
+
+// ---------- Resend welcome (Admin › person, lib/onboarding.js resendWelcome) ----------
+export function welcomeResult({ welcome, contact_card }) {
+  if (welcome === 'blocked') return 'Not sent: they texted STOP.';
+  if (welcome !== 'sent') return 'The welcome may not have been delivered again; check imessage_send_failed in the Vercel logs before resending.';
+  const card = { sent: ' and the contact card', uncertain: '; the contact card may not have been delivered', failed: '; the contact card could not be sent', skipped: '' }[contact_card] ?? '';
+  return `Welcome sent again${card}.`;
+}

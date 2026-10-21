@@ -1,7 +1,7 @@
 import {mountAdminShell,adminJson,adminFetch,adminToken,anchorMenus} from './admin-console.js';
 import {mountPurchases,loadPurchases,syncPurchaseView} from './admin-purchases.js';
 import {browseKey} from './admin-review.js';
-import {approvalLines,accessResult} from './admin-people-view.js';
+import {approvalLines,accessResult,welcomeResult} from './admin-people-view.js';
 // Admin › People › one person: Personal memory, Conversation, Purchase history and Wishlist tabs.
 // The selected tab lives in the URL (?tab=) so every view can be linked.
 mountAdminShell('people');
@@ -100,7 +100,7 @@ async function loadMessages(earlier = false) {
   const query = new URLSearchParams({ conversation: person });
   if (earlier && cursor) query.set('before', JSON.stringify(cursor));
   const data = await api(`/api/admin?${query}`);
-  if (!earlier) { $('person-name').textContent = data.conversation.sender_id; document.title = `Jules admin · ${data.conversation.sender_id}`; showAccess(data.access?.access ?? null, data.approval_text ?? null, data.approval_account === true); showOnboarding(data.onboarding); }
+  if (!earlier) { $('person-name').textContent = data.conversation.sender_id; document.title = `Jules admin · ${data.conversation.sender_id}`; showAccess(data.access?.access ?? null, data.approval_text ?? null, data.approval_account === true); showOnboarding(data.onboarding); resendText = data.resend_welcome ?? null; $('resend-welcome').hidden = !resendText; }
   messages = earlier ? [...data.messages, ...messages] : data.messages; cursor = data.before;
   renderMessages();
 }
@@ -345,6 +345,21 @@ $('approve-confirm').onclick = async () => {
     loadMessages().catch(error => notice(`Conversation: ${error.message}`));
   } catch (error) { $('approve-error').textContent = error.message; $('approve-error').hidden = false; }
   finally { buttons.forEach(b => { b.disabled = false; }); $('approve-confirm').textContent = 'Approve'; }
+};
+// ---------- Resend welcome ----------
+// Texts the onboarding welcome again (e.g. the first ended "may not have been delivered"); offered only while they're onboarding.
+let resendText = null;
+$('resend-welcome').onclick = () => { $('welcome-person').textContent = $('person-name').textContent; $('welcome-text').textContent = `“${resendText}”`; $('welcome-error').hidden = true; $('welcome-dialog').showModal(); };
+$('welcome-cancel').onclick = () => $('welcome-dialog').close();
+$('welcome-confirm').onclick = async () => {
+  const buttons = [$('welcome-confirm'), $('welcome-cancel')]; buttons.forEach(b => { b.disabled = true; }); $('welcome-confirm').textContent = 'Sending…';
+  try {
+    const data = await api('/api/admin', { method: 'POST', body: JSON.stringify({ action: 'resend-welcome', conversation: person, confirm: true }) });
+    $('welcome-dialog').close();
+    notice(welcomeResult(data));
+    loadMessages().catch(error => notice(`Conversation: ${error.message}`));
+  } catch (error) { $('welcome-error').textContent = error.message; $('welcome-error').hidden = false; }
+  finally { buttons.forEach(b => { b.disabled = false; }); $('welcome-confirm').textContent = 'Resend'; }
 };
 // ---------- Contact card ----------
 // Re-sends the welcome's contact card on its own, without resetting onboarding or imported history.
