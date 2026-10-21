@@ -1,10 +1,9 @@
 import {mountAdminShell,adminJson,anchorMenus} from './admin-console.js';
 import {browseKey} from './admin-review.js';
 import {filterPeople,accessSegments,accessChange,accessResult,ago,countLine,metricCells,metricsNote,filterSignups,setupLines,setupResult} from './admin-people-view.js';
-import {normalizeSignupPhone} from './signup-phone.js';
 import {closeDialog} from './design-system.js';
 // Admin › People: the list of testers as a data view. The name opens the person page; Status changes waitlist access in place.
-// New signups lists signups with no conversation yet; Set up saves their Photon line and approves them.
+// New signups lists signups with no conversation yet; Set up saves their conversation and approves them.
 mountAdminShell('people');
 anchorMenus();
 const $ = id => document.getElementById(id);
@@ -78,23 +77,16 @@ function confirmSetup(signup) {
   $('setup-person').textContent = `${signup.name ? `${signup.name} · ` : ''}${signup.phone} · signed up ${ago(signup.signed_up_at)}`;
   $('setup-lines').replaceChildren(...setupLines(waitlist.approvalText, waitlist.approvalAccount).map(line => el('p', { textContent: line })));
   $('setup-confirm').textContent = waitlist.approvalText ? 'Set up and text them' : 'Set up';
-  $('setup-line').value = ''; lineError(''); $('setup-error').hidden = true;
-  $('setup-dialog').showModal(); $('setup-line').focus();
+  $('setup-error').hidden = true;
+  $('setup-dialog').showModal(); $('setup-confirm').focus();
 }
-function lineError(message) {
-  $('setup-line-error').textContent = message; $('setup-line-error').hidden = !message;
-  if (message) $('setup-line').setAttribute('aria-invalid', 'true'); else $('setup-line').removeAttribute('aria-invalid');
-}
-$('setup-line').oninput = () => lineError('');
 $('setup-cancel').onclick = () => closeDialog($('setup-dialog'));
 $('setup-form').onsubmit = async event => {
   event.preventDefault();
-  const line = normalizeSignupPhone($('setup-line').value);
-  if (!line) { lineError('Enter the line Photon assigned them as a phone number, with + and the country code outside the US or Canada.'); $('setup-line').focus(); return; }
   const signup = setupPending, label = $('setup-confirm').textContent, buttons = [$('setup-confirm'), $('setup-cancel')];
   buttons.forEach(b => { b.disabled = true; }); $('setup-confirm').textContent = 'Setting up…'; $('setup-error').hidden = true;
   try {
-    const data = await adminJson('/api/admin', { method: 'POST', body: JSON.stringify({ action: 'set-up', signup: signup.signup, line, confirm: true }) });
+    const data = await adminJson('/api/admin', { method: 'POST', body: JSON.stringify({ action: 'set-up', signup: signup.signup, confirm: true }) });
     done = `${signup.name ?? signup.phone}: ${setupResult(data)}`;
     signups = signups.filter(s => s !== signup);
     closeDialog($('setup-dialog')); render(); load();

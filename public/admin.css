@@ -10,7 +10,7 @@ p{line-height:1.65}.login-card{max-width:490px;margin:7vh auto}.login-card>p{col
 .people-list .person-link>*,.people-list .person-phone{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.people-list .person-phone-sub{display:none;font-size:12px}
 .people-list .dv-row>a.end{color:var(--ink);text-decoration:none}
 .signups-list{--dv-cols:minmax(0,1.6fr) minmax(0,1fr) minmax(0,1fr) 96px}.signups-list .dv-row>:last-child{justify-self:end}.signup-name{display:flex;flex-direction:column;min-width:0;padding:6px 0}.signup-name>*{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.signup-sub{display:none;font-size:12px}
-#setup-form{display:block}#setup-line{width:100%;margin-top:6px}
+#setup-form{display:block}
 /* Chat quality strip and its explanations (shared .dv-metrics and .fold) */
 .chat-metrics .dv-metric-was{color:var(--text-2);white-space:nowrap}
 .metrics-help{margin:8px 0 4px}.metrics-help>summary{font-size:13px;color:var(--text-2)}

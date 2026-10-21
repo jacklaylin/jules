@@ -53,7 +53,7 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
         if (input.action === 'send-test-nudge' && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Send test nudges from the Jules admin page.' });
         if (input.action === 'set-up' && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Set up testers from the Jules admin page.' });
         const store = storeFactory(env);
-        // A new signup has no conversation yet: this creates it on the line the owner typed, then approves (lib/tester-setup.js).
+        // A new signup has no conversation yet: this creates it on the shared line, then approves (lib/tester-setup.js).
         if (input.action === 'set-up') {
           if (input.confirm !== true) throw Object.assign(new Error('Confirm the setup first.'), { status: 400 });
           if (!uuid(input.signup)) return json(res, 404, { error: 'This signup is no longer there. Refresh and try again.' });
