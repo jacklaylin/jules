@@ -1,17 +1,26 @@
 import {mountAdminShell,adminJson,anchorMenus} from './admin-console.js';
 import {browseKey} from './admin-review.js';
-import {filterPeople,accessSegments,accessChange,accessResult,ago,countLine,metricCells,metricsNote} from './admin-people-view.js';
+import {filterPeople,accessSegments,accessChange,accessResult,ago,countLine,metricCells,metricsNote,filterSignups,setupLines,setupResult} from './admin-people-view.js';
+import {normalizeSignupPhone} from './signup-phone.js';
 import {closeDialog} from './design-system.js';
 // Admin › People: the list of testers as a data view. The name opens the person page; Status changes waitlist access in place.
+// New signups lists signups with no conversation yet; Set up saves their Photon line and approves them.
 mountAdminShell('people');
 anchorMenus();
 const $ = id => document.getElementById(id);
 const el = (tag, props = {}, ...children) => { const node = Object.assign(document.createElement(tag), props); node.append(...children.filter(c => c !== null)); return node; };
 const exact = at => new Date(at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+let signups = [], signupsFailed = '', view = new URLSearchParams(location.search).get('view') === 'signups' ? 'signups' : '';
 let people = [], refreshedAt = null, loading = false, failed = '', accessFilter = '', waitlist = { allowance: 3, approvalText: null }, done = '';
 const shownPeople = () => filterPeople(people, $('people-search').value, accessFilter);
 
 function render() {
+  const onSignups = view === 'signups';
+  for (const button of $('people-views').querySelectorAll('button')) button.setAttribute('aria-pressed', String(button.dataset.view === view));
+  $('signups-count').textContent = signups.length || '';
+  $('people').hidden = onSignups; $('signups').hidden = !onSignups; $('signups-note').hidden = !onSignups; $('people-keys').hidden = onSignups;
+  $('people-search').placeholder = onSignups ? 'Search name or last 4 digits' : 'Search name or number';
+  if (onSignups) return renderSignups();
   const segments = accessSegments(people);
   if (!segments.length) accessFilter = '';
   $('people-access').hidden = !segments.length;
@@ -40,6 +49,58 @@ function render() {
   $('notice').className = failed ? 'error' : '';
   $('notice').textContent = failed || done;
 }
+
+// ---------- New signups ----------
+function renderSignups() {
+  $('people-access').hidden = true;
+  const shown = filterSignups(signups, $('people-search').value);
+  const head = el('div', { className: 'dv-head', ariaHidden: 'true' }, el('span', { textContent: 'Name' }), el('span', { textContent: 'Phone' }), el('span', { textContent: 'Signed up' }), el('span', { className: 'end' }));
+  $('signups').replaceChildren(head, ...shown.map(signup => el('div', { className: 'dv-row' },
+    el('span', { className: 'signup-name' }, signup.name ? el('strong', { textContent: signup.name }) : el('span', { className: 'muted', textContent: 'No name' }),
+      el('span', { className: 'muted signup-sub', textContent: `${signup.phone} · ${ago(signup.signed_up_at)}` })),
+    el('span', { className: 'muted', textContent: signup.phone }),
+    el('span', { className: 'muted', textContent: ago(signup.signed_up_at), title: exact(signup.signed_up_at) }),
+    el('button', { type: 'button', className: 'small quiet', textContent: 'Set up', ariaLabel: `Set up ${signup.name ?? signup.phone}`, onclick: () => confirmSetup(signup) }))));
+  if (!shown.length) $('signups').append(el('p', { className: 'dv-empty', textContent: loading ? 'Loading…' : signupsFailed ? '' : !signups.length ? 'Nobody is waiting to be set up.' : 'No signups match this search.' }));
+  $('people-count').textContent = signups.length || refreshedAt ? `${shown.length === signups.length ? '' : `${shown.length} of `}${signups.length} ${signups.length === 1 ? 'signup' : 'signups'}` : '';
+  $('notice').className = signupsFailed ? 'error' : '';
+  $('notice').textContent = signupsFailed || done;
+}
+for (const button of $('people-views').querySelectorAll('button')) button.onclick = () => {
+  view = button.dataset.view; const url = new URL(location.href);
+  if (view) url.searchParams.set('view', view); else url.searchParams.delete('view');
+  history.replaceState(null, '', url); render();
+};
+let setupPending = null;
+function confirmSetup(signup) {
+  setupPending = signup;
+  $('setup-title').textContent = `Set up ${signup.name ?? 'this tester'}?`;
+  $('setup-person').textContent = `${signup.name ? `${signup.name} · ` : ''}${signup.phone} · signed up ${ago(signup.signed_up_at)}`;
+  $('setup-lines').replaceChildren(...setupLines(waitlist.approvalText, waitlist.approvalAccount).map(line => el('p', { textContent: line })));
+  $('setup-confirm').textContent = waitlist.approvalText ? 'Set up and text them' : 'Set up';
+  $('setup-line').value = ''; lineError(''); $('setup-error').hidden = true;
+  $('setup-dialog').showModal(); $('setup-line').focus();
+}
+function lineError(message) {
+  $('setup-line-error').textContent = message; $('setup-line-error').hidden = !message;
+  if (message) $('setup-line').setAttribute('aria-invalid', 'true'); else $('setup-line').removeAttribute('aria-invalid');
+}
+$('setup-line').oninput = () => lineError('');
+$('setup-cancel').onclick = () => closeDialog($('setup-dialog'));
+$('setup-form').onsubmit = async event => {
+  event.preventDefault();
+  const line = normalizeSignupPhone($('setup-line').value);
+  if (!line) { lineError('Enter the line Photon assigned them as a phone number, with + and the country code outside the US or Canada.'); $('setup-line').focus(); return; }
+  const signup = setupPending, label = $('setup-confirm').textContent, buttons = [$('setup-confirm'), $('setup-cancel')];
+  buttons.forEach(b => { b.disabled = true; }); $('setup-confirm').textContent = 'Setting up…'; $('setup-error').hidden = true;
+  try {
+    const data = await adminJson('/api/admin', { method: 'POST', body: JSON.stringify({ action: 'set-up', signup: signup.signup, line, confirm: true }) });
+    done = `${signup.name ?? signup.phone}: ${setupResult(data)}`;
+    signups = signups.filter(s => s !== signup);
+    closeDialog($('setup-dialog')); render(); load();
+  } catch (error) { $('setup-error').textContent = error.message; $('setup-error').hidden = false; }
+  finally { buttons.forEach(b => { b.disabled = false; }); $('setup-confirm').textContent = label; }
+};
 
 // ---------- Waitlist status ----------
 // A compact select per row; a change asks for confirmation (approving texts them) before anything is saved.
@@ -85,10 +146,12 @@ $('access-confirm').onclick = async () => {
 };
 
 async function load() {
-  loading = true; failed = ''; render();
+  loading = true; failed = ''; signupsFailed = ''; render();
+  // The signup list is its own read: if it fails, Testers still loads.
+  const pendingSignups = adminJson('/api/admin?view=signups').then(data => { signups = data.signups; }, error => { signupsFailed = `Could not load new signups: ${error.message} Try Refresh in More.`; });
   try { const data = await adminJson('/api/admin'); people = data.conversations; waitlist = { allowance: data.waitlist_replies ?? 3, approvalText: data.approval_text ?? null, approvalAccount: data.approval_account === true }; refreshedAt = Date.now(); }
   catch (error) { failed = `Could not load people: ${error.message} Try Refresh in More.`; }
-  finally { loading = false; render(); }
+  finally { await pendingSignups; loading = false; render(); }
 }
 
 // The people list does not depend on metrics: if they fail, the strip stays hidden.
@@ -116,11 +179,11 @@ addEventListener('keydown', event => {
   if (!action) return;
   event.preventDefault();
   if (action.type === 'search') $('people-search').focus();
-  else if (action.type === 'row') focusRow(action.step);
+  else if (action.type === 'row' && view !== 'signups') focusRow(action.step);
 });
 $('people-search').oninput = render;
 $('refresh').onclick = () => { $('people-more').hidePopover(); load(); loadMetrics(); };
 // Keep "refreshed 3 min ago" honest while the page sits open.
-setInterval(() => { if (refreshedAt) $('people-count').textContent = countLine(shownPeople().length, people.length, refreshedAt); }, 30000);
+setInterval(() => { if (refreshedAt && view !== 'signups') $('people-count').textContent = countLine(shownPeople().length, people.length, refreshedAt); }, 30000);
 load();
 loadMetrics();

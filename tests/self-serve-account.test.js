@@ -42,7 +42,7 @@ test('a sign-in user is created once; an existing one is fine and other failures
 test('approving a new person sets up their account and texts the onboarding welcome instead of the plain text', async () => {
   const w = world();
   const result = await approveAccess(w.store, conversation, env, w.send, w.fetcher);
-  assert.deepEqual(result, { changed: true, text: 'sent', account: 'created', onboarding: true });
+  assert.deepEqual(result, { changed: true, text: 'sent', account: 'created', onboarding: true, contact_card: 'skipped' });
   assert.equal(w.state.users.length, 1);
   assert.equal(w.state.member, accountEmail(id));
   assert.equal(w.state.session, 'offered');
@@ -52,7 +52,7 @@ test('approving a new person sets up their account and texts the onboarding welc
 
 test('an owner-provisioned tester keeps their account; someone past onboarding gets the plain text', async () => {
   const invited = world({ member: 'tester@example.com', session: 'invited' });
-  assert.deepEqual(await approveAccess(invited.store, conversation, env, invited.send, invited.fetcher), { changed: true, text: 'sent', account: 'existing', onboarding: true });
+  assert.deepEqual(await approveAccess(invited.store, conversation, env, invited.send, invited.fetcher), { changed: true, text: 'sent', account: 'existing', onboarding: true, contact_card: 'skipped' });
   assert.equal(invited.state.users.length, 0);
   assert.equal(invited.state.member, 'tester@example.com');
   const done = world({ member: 'tester@example.com', session: 'ready' });

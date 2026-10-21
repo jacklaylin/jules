@@ -21,7 +21,7 @@ Open `/onboarding-preview` to walk through the flow with a demo tester. It uses 
 This is deliberately invite-only, using the existing private wishlist sign-in. Phone signup alone does not grant account access. Provision each tester once (maximum ten for this experiment):
 
 1. In Supabase **SQL Editor**, run `db/016_onboarding.sql` after the existing migrations, including `014_public_signup.sql`. It creates the private onboarding state table. No credential is produced.
-2. In Supabase **Table Editor → conversations**, find the tester’s conversation. For a tester who has never texted Jules, create a row with `sender_id` set to their phone in international format and `line` set to the Photon line assigned to them. Leave generated fields at their defaults. Copy the resulting conversation `id`. Confirm the assigned line in Photon; do not guess a pooled line.
+2. In Supabase **Table Editor → conversations**, find the tester’s conversation. (Since October 21, **Set up** in Admin › People › New signups does this step and the next; see [Setting up a new tester from Admin](#setting-up-a-new-tester-from-admin-october-21).) For a tester who has never texted Jules, create a row with `sender_id` set to their phone in international format and `line` set to the Photon line assigned to them. Leave generated fields at their defaults. Copy the resulting conversation `id`. Confirm the assigned line in Photon; do not guess a pooled line.
 3. In **wishlist_members**, add the tester’s invited email and that `conversation_id`, using the existing companion-access setup. In **onboarding_sessions**, add that same `conversation_id`; leave `state` as `invited`. Keep phone numbers and emails in Supabase, never in SQL committed to the repository. Only one invited conversation may match a signup phone; ambiguous matches send no text.
 4. In Vercel **Settings → Environment Variables**, enable `ONBOARDING_ENABLED=true`, `PUBLIC_SIGNUP_ENABLED=true`, and `WISHLIST_ENABLED=true`. Keep the existing AI, memory, image and search configuration enabled for the shopping portion. `SITE_ORIGIN` must be the actual site URL. Photon, Supabase and OpenAI credentials stay in Vercel’s secret settings. No new API key is needed.
 5. Deploy the code and settings. Have the tester open `/signup` and submit their own number and consent. Jules sends the first message only for a provisioned onboarding invitation. Uninvited numbers remain early-access signups.
@@ -30,11 +30,28 @@ The configured Supabase Auth redirect allowlist must permit `SITE_ORIGIN/onboard
 
 The existing public-launch/provider-review notes in LANDING-PAGE.md remain relevant for broad public outreach. This change does not implement universal messaging unsubscribe or general public account enrollment. Declining this demo cancels its onboarding progression, not existing shopping alerts.
 
+## Setting up a new tester from Admin (October 21)
+
+You no longer add a `conversations` row in Supabase by hand. For each new signup:
+
+1. **Photon:** in the [Photon Dashboard](https://app.photon.codes/), enroll the tester's number and note the line Photon assigns them. This stays manual: Photon's SDK (`@spectrum-ts`) has no call to enroll a number or assign a line, so Jules can't do it for you.
+2. **Admin › People › New signups** (the link in your new-signup text opens it). It lists signups whose number has no conversation yet, with their name, the last four digits of their number and when they signed up. The full number is never shown.
+3. Click **Set up** on their row, type the Photon line (for example `+1 415 555 0100`), read the confirmation, which quotes the exact text Jules will send, and click **Set up and text them**.
+
+That one click saves their conversation on that line, approves them, sets up their account and invite (as **Approve** does), and texts the welcome and then the contact card from their line. Their gender from the signup form is added to their profile, as it would be if they had texted first. They then move from New signups to Testers.
+
+It is safe to click again. A number that already has a conversation on that line reuses it, a second one is never created, and someone already approved gets no second text. Nothing is changed or sent when:
+- the line isn't a phone number (the dialog says so before anything is sent);
+- the number texted STOP to Jules;
+- the number already has a conversation on a different line, or on several lines. The message gives the last four digits of the existing line so you can check Photon. To keep that line, use **Approve** in Testers instead.
+
+Vercel logs: `admin_tester_set_up` (`created`, `changed`, `text`, `account`). No migration is needed.
+
 ## New-signup text to the owner
 
-On Photon's Free plan each tester needs their own line, so a signup can't start until you enroll them in Photon, add their conversation row and click **Approve** in Admin › People. Jules texts you when someone signs up at `/signup`, so you don't have to wait to be told:
+On Photon's Free plan each tester needs their own line, so a signup can't start until you enroll them in Photon and set them up in Admin (below). Jules texts you when someone signs up at `/signup`, so you don't have to wait to be told:
 
-> new signup: Sam R., •••-0123, from podcast. set them up: https://textjules.com/admin
+> new signup: Sam R., •••-0123, from podcast. set them up: https://textjules.com/admin?view=signups
 
 - It goes to your own Jules conversation, set by the Vercel variable `OWNER_ALERT_CONVERSATION_ID`. Find your id in **Admin › People**: open yourself; the id is the last part of the page address (`/admin/people/<id>`). Add the variable in Vercel **Settings → Environment Variables** (Production), then redeploy. No phone number is stored anywhere new.
 - Only the first name, last initial and last four digits are shown. "from" is the signup link's `ref`, else how they arrived (utm source or referring site), and is left out when unknown.
