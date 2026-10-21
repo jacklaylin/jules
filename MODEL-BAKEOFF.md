@@ -8,7 +8,7 @@ Question: can cheaper models do Jules's jobs as well as today's? No production m
 | --- | --- | --- | --- |
 | chat | The conversation (agent loop and reply writer) | gpt-4.1-mini | **Keep for now; needs more data.** Both luna models tie on pass rate at a quarter to a ninth of the cost, but each has a weak spot testers would notice. gpt-5.6-luna sometimes searches again when asked to save, and gpt-6-luna asks questions instead of searching. Fixing the save case and rerunning would settle it. |
 | search | Product sourcing with web search | gpt-4.1 | **Keep.** Both cheaper models found the right product less often. |
-| extract | Gmail receipts and other small structured reads | gpt-4.1-mini | **Needs more data.** Not run: reading your Gmail needs your go-ahead (see "What you need to do"). |
+| extract | Gmail receipts and other small structured reads | gpt-4.1-mini | **Keep.** gpt-6-luna catches returns and refunds today's model misses, but drops some real purchases and marks more items as gifts. It is not a drop-in switch yet. See the Extract section. |
 | write | Style report lines | gpt-5.5 | **Switch report lines to gpt-6-luna.** It passed every copy check, you preferred it 5 to 2 in the blind pairs (3 even), and it costs about 1/60th as much. See "Switching the write role" for how. |
 
 Quality comes before cost. The write role is the only switch: the cheaper model matched on the checks and won your blind judgement. For chat, your blind picks were mostly even (7 of 10), so voice doesn't decide it; the weak spots below do.
@@ -88,7 +88,31 @@ Ten pairs per group is a small sample. It's enough to say the cheaper writer is 
 
 ## Extract role (Gmail import)
 
-Not run. `scripts/extract-bakeoff.js` is ready but untested: reading your Gmail needs your go-ahead, and the session's safety check stopped it. It re-reads 40 of your already-imported receipt emails with the stored read-only token and runs each through the receipt prompt with each model, 3 times. It compares what Jules would keep after code verification against today's gpt-4.1-mini, and lists every disagreement for you to look over. Results stay in `.eval-local/` on your computer. Only OpenAI models read the emails. Code refuses DeepSeek and any OpenRouter provider not pinned to a US host.
+Run October 20 on 40 of your already-imported receipt emails, 3 times each, inside production through an owner-only admin action (`extract-compare`). The production Gmail key is Sensitive in Vercel, so the local script couldn't open your Gmail sign-in. It had also expired, and worked again after you reconnected. Only OpenAI models read the emails. What's compared is what Jules would keep after its own checks, not the raw model text. The email-by-email list is in your private `.eval-local/bakeoff-2026-10-19/extract-disagreements.md`, which is not in Git.
+
+| Model | Same as today's model (whole email) | Same number of items | Agrees with itself over 3 runs | Median / p90 per email | Reading step for a 443-receipt import | Cost per 100 receipts |
+| --- | --- | --- | --- | --- | --- | --- |
+| gpt-4.1-mini (today) | 76% (its own reruns) | 100% | 29 of 40 | 2.8 s / 5.0 s | ~9 min | $0.19 |
+| gpt-6-luna | 21% | 77% | 29 of 40 | 3.3 s / 7.9 s | ~11 min | $0.04 |
+| gpt-5.6-luna | 15% | 72% | 28 of 40 | 4.3 s / 8.3 s | ~13.5 min | $0.10 |
+| gpt-5-nano (minimal) | 6% | 73% | 2 of 40 | 2.7 s / 6.5 s | ~10.5 min | $0.03 |
+
+"Whole email" is strict: any difference in any field counts. Most differences are harmless, so here is gpt-6-luna's first run sorted by kind (30 of 40 emails differ):
+
+- **Cosmetic, same items (16 emails).** It keeps a brand, color or quantity that today's model leaves blank, or lists "×2" as two lines. Those values passed the same quote check, so it's extra detail rather than a mistake.
+- **Better (5 emails).** It records a return request, return or refund that today's model missed entirely. That matters for the style report, which counts what you kept.
+- **Worse (3 emails).** It drops a real purchase or delivery. gpt-5.6-luna drops 2 of the same 3.
+- **Different recipient (6 emails).** Mostly it marks items as bought for someone else where today's model says unknown, in one email for all six items. Only you know which is right. These six are flagged in the private list.
+
+gpt-5-nano refused 33 of its 120 readings (Jules's checks rejected the evidence it quoted) and rarely agreed with itself, so it's out.
+
+Whole-import time is an estimate for the reading step only: the import reads 6 emails at a time and waits for the slowest. Gmail listing, sorting and photos come on top and don't change with the model. Each request read the same email with all four models at once, so these times are slightly pessimistic for every model.
+
+**Recommendation: keep gpt-4.1-mini for now.** gpt-6-luna is the one worth pursuing. It costs about a fifth as much per receipt, caches 85% of its input versus 0% today, and finds returns and refunds that today's model misses. But it's about 2 minutes slower on a 443-receipt import, which is the activation moment, and it drops some purchases. Next steps:
+
+1. Look at the six "different recipient" emails in the private list and say which model is right.
+2. Separately, today's model misses returns and refunds (5 of these 40 emails). That's worth fixing in the receipt prompt whatever model is used.
+3. After those, re-run this comparison. gpt-6-luna becomes a switch if it stops dropping purchases.
 
 Caching finding for the import: with structured outputs, gpt-4.1-mini got **0%** cache hits on varied receipts even with a cache key. gpt-6-luna got 85% and gpt-5-nano 70% on the same requests. So the import's 0% cache rate is a gpt-4.1-mini limitation, not prompt order. A newer extract model would also cut the import's input cost through caching. Fast processing stays unchanged: no Batch or Flex.
 
@@ -118,14 +142,14 @@ The fit reading moves to gpt-6-luna too. It is the same kind of writing, but it 
 ## What you need to do
 
 1. ~~Judge the blind pairs.~~ Done October 20 (results above).
-2. **Run the Gmail comparison.** This reads your own Gmail, which is why it needs you. In Terminal, from the `jules` folder:
-   `node --env-file=.env.local .claude/worktrees/peaceful-noyce-17a7e2/scripts/extract-bakeoff.js --models gpt-4.1-mini,gpt-6-luna,gpt-5.6-luna,gpt-5-nano:minimal --emails 40`
-   It costs about $1–2 and prints where the results went. Or tell the Claude session it may read your imported Gmail receipts for this test, and it will run it.
+2. ~~Run the Gmail comparison.~~ Done October 20 (results above). **Next:** check the six "different recipient" emails in `.eval-local/bakeoff-2026-10-19/extract-disagreements.md`.
 3. **Optional: OpenRouter models** (Claude Haiku 5.5, Gemini 3.1 Flash-Lite, gpt-oss-120b on Groq, DeepSeek V4.1 Flash on a US host) were not tested because there is no OpenRouter key. To add them: sign in at openrouter.ai, open Settings → Keys, create a key, and add `OPENROUTER_API_KEY=<the key>` to your `.env.local` (never to Git, and not in Vercel unless you later switch a role to one of these models). Then ask the Claude session to run the OpenRouter chat bake-off. Model ids on OpenRouter need checking at that point.
 4. **Before switching a role later:** check OpenAI's rate limits for the new model on your account (Settings → Limits). gpt-6-luna and gpt-5-nano hit token limits during the bake-off at the load these tests put on them.
 
 ## Cost and side effects of the bake-off
 
 About $32 of OpenAI usage, recorded as eval features on the Costs page. No SerpApi searches were used for the search comparison. Nothing was sent, saved or alerted. The first chat run sent up to 8 requests at a time and got 64 rate-limit retries on gpt-4.1-mini, the model production uses, so a tester's reply around 23:00–00:00 PT on October 19 may have been slowed. Later runs used less concurrency and had none.
+
+The Gmail extract comparison on October 20 added $0.44 (feature eval_extract). It ran one email at a time, with at most one gpt-4.1-mini call in flight, and saw no rate limits.
 
 Raw results: `.eval-local/bakeoff-2026-10-19/` (private, not in Git).
