@@ -63,7 +63,7 @@ function threadItems(){
  // The server can say why signup is closed (for example, Jules is over its spending cap: lib/cost-caps.js).
  if(state.phase==='closed')return jules('closed',state.closedMessage?['hey, it’s jules.',state.closedMessage]:['hey, it’s jules. signups aren’t open yet.','check back soon.']);
  if(state.phase==='unreachable')return jules('unreachable',['hey, it’s jules. i couldn’t check whether signups are open.','reload to try again.'],{error:true});
- items.push(...jules('intro',['hey, it’s jules. i’m a personal shopper who lives in your texts.','a few quick things and i’ll text you first.','what should i call you?']));
+ items.push(...jules('intro',['hey, it’s jules. i’m a personal shopper who lives in your texts.','a few quick questions and then i’ll text you.','what should i call you?']));
  if(state.phase==='checking')return items;
  if(a.first){items.push(gap(),mine('name',a.last&&a.oneWord!==true?`${a.first} ${a.last}`:a.first,'name','name'));}
  if(a.first&&a.oneWord){items.push(gap(),...jules('last',['and your last name?']));if(a.last)items.push(gap(),mine('last',a.last,'last','last name'));}
@@ -72,7 +72,7 @@ function threadItems(){
  if(state.hint.birthday)items.push(...jules('hint-bday',[state.hint.birthday],{error:true}));
  if(a.birthday){const sign=starSign(a.birthday.month,a.birthday.day);const tap=el('span',{className:'tapback',textContent:sign.symbol+'\uFE0E'});tap.setAttribute('role','img');tap.setAttribute('aria-label',`Jules reacted with the ${sign.name} sign`);items.push(gap(),mine('bday',a.birthday.text,'birthday','birthday',tap));}
  else return items;
- items.push(gap(),...jules('gender-q',['and which fits you best?']));
+ items.push(gap(),...jules('gender-q',['and how do you identify?']));
  if(!a.gender||state.editing==='gender'){items.push(gap(),genderChips());if(!a.gender)return items;}
  else items.push(gap(),mine('gender',GENDERS.find(([v])=>v===a.gender)[1],'gender','answer'));
  items.push(gap(),...jules('phone-q',['last one. what’s your number?','i’ll text you first.']));
@@ -153,6 +153,7 @@ function renderDock(focus){
 }
 
 // Jules's new lines arrive one at a time, each after a moment of typing dots, like a text thread.
+// Anything new after a line still on its way (answer chips, the consent card) waits its turn behind it.
 const calm=matchMedia('(prefers-reduced-motion: reduce)');
 const typingRow=el('div',{className:'them'},el('span',{className:'av'},avatar()),el('div',{className:'bubble bubble--them typing'},el('i'),el('i'),el('i')));
 typingRow.setAttribute('aria-label','Jules is typing');
@@ -166,27 +167,28 @@ async function revealPending(){
  while(pending.length){
   upNext=pending.shift();
   if(!upNext.isConnected)continue;
-  upNext.before(typingRow);pop(typingRow);thread.scrollTop=thread.scrollHeight;
-  await wait(Math.min(450+upNext.textContent.length*12,1100));
-  typingRow.remove();
+  const typed=isLine(upNext);
+  if(typed){upNext.before(typingRow);pop(typingRow);thread.scrollTop=thread.scrollHeight;await wait(Math.min(450+upNext.textContent.length*12,1100));typingRow.remove();}
   if(upNext.isConnected){upNext.hidden=false;pop(upNext);thread.scrollTop=thread.scrollHeight;}
-  upNext=null;await wait(200);
+  upNext=null;await wait(typed?200:120);
  }
  revealing=false;
 }
+
+const isLine=node=>node.classList.contains('them')&&!node.querySelector('.typing');
 
 function render(focus=false){
  const items=threadItems();
  for(const item of items){
   const key=item.dataset?.key;if(!key||seen.has(key))continue;
   seen.add(key);
-  if(!calm.matches&&item.classList.contains('them')&&!item.querySelector('.typing')){item.hidden=true;pending.push(item);}
+  if(!calm.matches&&(isLine(item)||pending.length||upNext)){item.hidden=true;pending.push(item);}
   else pop(item);
  }
  // Lines already on screen are kept as they are, so the live region only announces new ones.
  const old=new Map([...thread.children].filter(n=>n.dataset.key).map(n=>[n.dataset.key,n]));
  thread.replaceChildren(...items.map(item=>old.get(item.dataset?.key)??item));
- if(upNext?.isConnected&&upNext.hidden)upNext.before(typingRow);
+ if(upNext?.isConnected&&upNext.hidden&&isLine(upNext))upNext.before(typingRow);
  renderDock(focus);
  thread.scrollTop=thread.scrollHeight;
  revealPending();
