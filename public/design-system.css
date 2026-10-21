@@ -271,7 +271,10 @@ fieldset label input[type=radio]{accent-color:var(--grape)}
 .nav-account .avatar{display:inline-grid;place-items:center;width:38px;height:38px;border-radius:50%;background:var(--fog);border:1px solid var(--line);color:var(--ink);flex:none;transition:border-color .15s}
 .header-actions .nav-account .nav-text{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .header-actions .nav-account:hover .avatar,.header-actions .nav-account:focus-visible .avatar,.header-actions .nav-account[aria-current=page] .avatar{border-color:var(--grape)}
-.mobile-menu .nav-account .nav-text{position:static;width:auto;height:auto;clip:auto}.mobile-menu .nav-account .avatar{width:48px;height:48px;order:-1}
+/* In the phone menu Account is a quiet text row under a hairline: a setting, not one of the sections. */
+.mobile-menu .nav-account .nav-text{position:static;width:auto;height:auto;clip:auto}.mobile-menu .nav-account .avatar{display:none}
+.mobile-menu .header-actions .nav-account{margin-top:12px;padding-top:24px;border-top:1px solid var(--line);font-size:32px;min-height:44px;color:var(--text-2)}
+.mobile-menu .header-actions .nav-account[aria-current=page]{color:var(--ink)}
 .menu-toggle{display:none}.menu-open{overflow:hidden}
 .mobile-menu{width:100%;height:100dvh;max-width:none;max-height:none;margin:0;border:0;border-radius:0;padding:0 var(--page-gutter) max(24px,env(safe-area-inset-bottom));background:var(--white);box-shadow:none;overflow:auto}
 .mobile-menu[open]{display:flex;flex-direction:column;animation:enter .2s ease both}
