@@ -59,7 +59,7 @@ test('the sweep endpoint requires the secret generated in Supabase Vault',async(
  const env={GMAIL_IMPORT_ENABLED:'true'},secret='s'.repeat(64),store={gmailSweepSecret:async()=>secret,quietGmailImports:async()=>[]};
  resetSweepSecret();let r=res();await handleGmailSweep({headers:{}},r,store,env);assert.equal(r.statusCode,401);
  r=res();await handleGmailSweep({headers:{authorization:'Bearer wrong'}},r,store,env);assert.equal(r.statusCode,401);
- r=res();await handleGmailSweep({headers:{authorization:'Bearer '+secret}},r,store,env);assert.equal(r.statusCode,200);assert.deepEqual(r.body,{quiet:0,restarted:0,abandoned:0,profiles:0});
+ r=res();await handleGmailSweep({headers:{authorization:'Bearer '+secret}},r,store,env);assert.equal(r.statusCode,200);assert.deepEqual(r.body,{quiet:0,restarted:0,abandoned:0,profiles:0,reminders:0});
  // Not installed yet (no secret): refused, never open.
  resetSweepSecret();r=res();await handleGmailSweep({headers:{authorization:'Bearer null'}},r,{gmailSweepSecret:async()=>null},env);assert.equal(r.statusCode,401);
  resetSweepSecret();r=res();await handleGmailSweep({headers:{authorization:'Bearer x'}},r,{gmailSweepSecret:async()=>{throw Error('missing function');}},env);assert.equal(r.statusCode,503);

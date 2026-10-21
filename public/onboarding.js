@@ -178,6 +178,8 @@ $('shop-connect').onclick=()=>act($('shop-connect'),async()=>{
  finally{shopWaiting=false;}
  render();await refresh();
 });
+// "Not now" still just opens Messages; the tap is recorded in the background (keepalive outlives the page).
+$('not-now').addEventListener('click',()=>{session.token().then(token=>token&&fetch('/api/wishlist?onboarding=1',{method:'POST',keepalive:true,headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({action:'not-now'})})).catch(()=>{});});
 $('continue').onclick=()=>{continued=true;store('jules-onboarding-continued','1');render();};
 $('retry').onclick=()=>{say('');start();};
 $('resend').onclick=()=>act($('resend'),async()=>{
