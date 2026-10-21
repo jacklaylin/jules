@@ -47,3 +47,13 @@ test('named-item replay cases fail when the item was found only on a retry, acro
  assert.deepEqual(run(false).failures,['not_found_on_first_search']);
  assert.ok(scoreReplay(peyter,{body:'i couldn’t find it.',result:{}}).failures.includes('named_item_not_found'));
 });
+test('alert replays run with production capabilities even when the local env leaves price alerts off',async()=>{
+ const c=REPLAY_CASES.find(c=>c.id==='alert-consent-profile');let seen,inspected=0;
+ const report=await runReplay(c,{OPENAI_API_KEY:'test'},{
+  generate:async(messages,env,fetcher,ctx)=>{seen=env;return ctx.wishlistAction({action:'selection',decision:'confirm',consent:'wishlist_alerts',consent_context:'answer_to_offer',option_indices:c.expected_watches,size_choices:[],option_sizing:c.expected_watches.map(option_index=>({option_index,sizing:'footwear'}))});},
+  inspect:async links=>{inspected++;return {sizes:['EU 45'],checks:[{offers:[{size:'EU 45',key:'EU 45',amount:400,currency:'USD',available:true,url:links[0].url}]}]};},
+ });
+ assert.equal(seen.PRICE_ALERTS_ENABLED,'true');
+ assert.ok(inspected>0,'the approved alert reached the alert path');
+ assert.equal(report.result.user_confirmed,true);assert.equal(report.result.text_wishlist_state,null);
+});
