@@ -22,7 +22,7 @@ export function mountHeader(page){
  }
  menuButton=document.createElement('button');menuButton.type='button';menuButton.className='menu-toggle';menuButton.textContent='Menu';menuButton.setAttribute('aria-expanded','false');menuButton.setAttribute('aria-controls','mobile-menu');menuButton.setAttribute('aria-haspopup','dialog');
  menu=document.createElement('dialog');menu.id='mobile-menu';menu.className='mobile-menu';menu.setAttribute('aria-label','Main navigation');menu.tabIndex=-1;
- const top=document.createElement('div');top.className='menu-header';const menuBrand=brand.cloneNode(true);const close=document.createElement('button');close.type='button';close.innerHTML='<svg aria-hidden="true" viewBox="0 0 18 18"><path d="M3 3 L15 15 M15 3 L3 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';close.className='close-button menu-close';close.setAttribute('aria-label','Close menu');top.append(menuBrand,close);
+ const top=document.createElement('div');top.className='menu-header';const menuBrand=brand.cloneNode(true);const close=document.createElement('button');close.type='button';close.innerHTML='<svg aria-hidden="true" viewBox="0 0 18 18" width="16" height="16"><path d="M3 3 L15 15 M15 3 L3 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';close.className='close-button menu-close';close.setAttribute('aria-label','Close menu');top.append(menuBrand,close);
  menu.append(top);document.body.append(menu);
  function restore(){if(menu.open)return;header.insertBefore(nav,menuButton);menuButton.setAttribute('aria-expanded','false');document.body.classList.remove('menu-open');}
  function closeMenu(){if(menu.open)closeDialog(menu);else restore();}
