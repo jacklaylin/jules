@@ -15,6 +15,23 @@ Quality comes before cost. The write role is the only switch: the cheaper model 
 
 ## Chat role
 
+### Frozen production cases (October 21)
+
+76 frozen cases (`FROZEN-EVALS.md`) × 1 run, judged by gpt-5.5 and Claude Sonnet 5.5 (a case passes only when both pass it), $21:
+
+| Model | Frozen pass | Chat cost per 100 turns | vs today |
+| --- | --- | --- | --- |
+| gpt-4.1-mini (today) | 46% | $0.95 | 1× |
+| gpt-5.4-mini | 47% | $1.32 | 1.4× |
+| **gpt-5.6-luna** | **54%** | $0.33 | 0.35× |
+| gpt-5.5 | 46% | $7.93 | 8× |
+
+- **No model is clearly better.** One run of 76 cases moves by about ±7 points from chance, and all four are within 8 points. The eightfold-pricier gpt-5.5 is no better than today's model.
+- **21 cases fail on every model** (17 pass on every model). Those failures come from the prompt and the application, not the model, so they are the target for the next steps (stitched replies, skills).
+- gpt-5.6-luna was best on reply quality (14/17 vs 8/17 for today's model) at a third of the cost, but it mishandled saves on October 20; it needs more runs and the routing evals before any switch.
+- The judges disagree on 14–28% of cases. gpt-5.5 rated its own replies 14 points higher than Claude did (67% vs 53%), the self-preference the second judge is there to cancel.
+- Claude Sonnet and Opus were tried on 5 cases only (Opus 4/5) and cost 25–45× today's model per turn through OpenRouter (no prompt caching there); not pursued.
+
 From October 21 the chat bake-off also runs every frozen production case (`FROZEN-EVALS.md`) and prints `frozen NN%` beside each model's overall pass rate; this is the number that reflects real reported failures. Latency is measured on the other cases, since frozen cases also wait for their judge. `--no-frozen` leaves them out. The results below predate it.
 
 148 cases (132 routing evals with stubbed tools, 16 replay cases that need no search) × 3 runs per model. Same code for all models, run back to back on October 20.
