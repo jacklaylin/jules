@@ -8,6 +8,7 @@
 // OPENROUTER_API_KEY. Options: --runs 3, --concurrency 6, --max-cost 25 (USD for the whole bake-off),
 // --out <folder> (default .eval-local/bakeoff-<role>-<time>; raw results and replies are kept there).
 //   chat:   the agent routing evals (tools stubbed) and the replay cases that need no search.
+//           Plus every frozen production case (FROZEN-EVALS.md), judged by a fixed model; --no-frozen leaves them out.
 //   search: the replay sourcing cases with the chat model fixed, only the web_search model varying.
 //           SerpApi is switched off for these runs so the comparison isolates the search model and
 //           uses none of the monthly SerpApi searches (production also merges SerpApi results).
@@ -19,6 +20,7 @@ import { REPLAY_CASES, runReplay } from '../lib/replay.js';
 import { withUsage, priceFor } from '../lib/usage.js';
 import { createStore } from '../lib/store.js';
 import { ROLES } from '../lib/models.js';
+import { casesDir, loadCases, runFrozenCase } from '../lib/frozen-evals.js';
 
 const args = process.argv.slice(2), option = name => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : undefined; };
 const role = args[0];
@@ -62,9 +64,12 @@ const envFor = model => {
 };
 const replayCategory = c => c.category ?? (c.expected_status ? 'wishlist-status' : c.expected_saved ? 'save' : c.expected_watches ? 'alerts' : c.expected_selection ? 'selection' : 'sourcing');
 const sources = c => replayCategory(c) === 'sourcing' || c.category === 'named-first-try';
+// The frozen production cases (FROZEN-EVALS.md, scripts/frozen-evals.js sync) join the chat bake-off unless --no-frozen.
+const frozen = role === 'chat' && !args.includes('--no-frozen') ? (await loadCases(casesDir(process.env))).filter(c => c.replayable) : [];
 const cases = (role === 'chat'
   ? [...AGENT_EVAL_CASES.map(c => ({ id: c.id, category: `agent:${c.category}`, feature: 'eval_agent', run: env => runAgentEval(c, env) })),
-     ...REPLAY_CASES.filter(c => !sources(c)).map(c => ({ id: c.id, category: `replay:${replayCategory(c)}`, feature: 'eval_replay', run: env => runReplay(c, env) }))]
+     ...REPLAY_CASES.filter(c => !sources(c)).map(c => ({ id: c.id, category: `replay:${replayCategory(c)}`, feature: 'eval_replay', run: env => runReplay(c, env) })),
+     ...frozen.map(c => ({ id: c.id, category: `frozen:${c.category}`, feature: 'eval_frozen', run: env => runFrozenCase(c, env) }))]
   : REPLAY_CASES.filter(sources).map(c => ({ id: c.id, category: `replay:${replayCategory(c)}`, feature: 'eval_replay', run: env => runReplay(c, env) })))
   .filter(c => !only || only.includes(c.id));
 
@@ -103,8 +108,11 @@ const summary = models.map(model => {
   const byCategory = {};
   for (const r of rows) { const c = byCategory[r.category] ??= { runs: 0, passed: 0, failures: {} }; c.runs++; if (r.passed) c.passed++; else for (const f of r.failures.length ? r.failures : ['unknown']) c.failures[f] = (c.failures[f] ?? 0) + 1; }
   const roleIn = rows.reduce((s, r) => s + r.role_input_tokens, 0);
+  // Frozen cases also wait for their judge, so latency is read from the other cases; their pass rate is its own number.
+  const timed = rows.filter(r => !r.category.startsWith('frozen:')), frozenRows = rows.filter(r => r.category.startsWith('frozen:'));
   return { model, runs: rows.length, pass_rate: rows.length ? rows.filter(r => r.passed).length / rows.length : null,
-    median_ms: quantile(rows.map(r => r.elapsed_ms), 0.5), p90_ms: quantile(rows.map(r => r.elapsed_ms), 0.9),
+    frozen_pass_rate: frozenRows.length ? frozenRows.filter(r => r.passed).length / frozenRows.length : null,
+    median_ms: quantile(timed.map(r => r.elapsed_ms), 0.5), p90_ms: quantile(timed.map(r => r.elapsed_ms), 0.9),
     role_cost_per_100_turns: rows.length ? 100 * rows.reduce((s, r) => s + r.role_cost_usd, 0) / rows.length : null,
     total_cost_per_100_turns: rows.length ? 100 * rows.reduce((s, r) => s + r.cost_usd, 0) / rows.length : null,
     role_cache_share: roleIn ? rows.reduce((s, r) => s + r.role_cached_tokens, 0) / roleIn : null,
@@ -113,5 +121,5 @@ const summary = models.map(model => {
 await writeFile(resolve(out, 'summary.json'), JSON.stringify({ role, runs, cases: cases.length, elapsed_s: Math.round((Date.now() - startedAll) / 1000), spent_usd: spent, summary }, null, 2), { mode: 0o600 });
 const pct = v => v === null ? '  —' : `${Math.round(v * 100)}%`.padStart(4);
 console.log(`\n${role} role · ${cases.length} cases × ${runs} runs · ~$${spent.toFixed(2)} · results in ${out}\n`);
-for (const s of summary) console.log(`${s.model.padEnd(44)} pass ${pct(s.pass_rate)}  median ${(s.median_ms / 1000).toFixed(1)}s  p90 ${(s.p90_ms / 1000).toFixed(1)}s  ${role} $${s.role_cost_per_100_turns?.toFixed(3)}/100 turns  cache ${pct(s.role_cache_share)}${s.http_errors.length ? `  http errors ${s.http_errors.length}` : ''}`);
+for (const s of summary) console.log(`${s.model.padEnd(44)} pass ${pct(s.pass_rate)}${s.frozen_pass_rate === null ? '' : `  frozen ${pct(s.frozen_pass_rate)}`}  median ${(s.median_ms / 1000).toFixed(1)}s  p90 ${(s.p90_ms / 1000).toFixed(1)}s  ${role} $${s.role_cost_per_100_turns?.toFixed(3)}/100 turns  cache ${pct(s.role_cache_share)}${s.http_errors.length ? `  http errors ${s.http_errors.length}` : ''}`);
 process.exit(0);

@@ -15,6 +15,8 @@ Quality comes before cost. The write role is the only switch: the cheaper model 
 
 ## Chat role
 
+From October 21 the chat bake-off also runs every frozen production case (`FROZEN-EVALS.md`) and prints `frozen NN%` beside each model's overall pass rate; this is the number that reflects real reported failures. Latency is measured on the other cases, since frozen cases also wait for their judge. `--no-frozen` leaves them out. The results below predate it.
+
 148 cases (132 routing evals with stubbed tools, 16 replay cases that need no search) × 3 runs per model. Same code for all models, run back to back on October 20.
 
 | Model | Pass rate | Median | p90 | Chat model cost per 100 turns | Whole turn cost per 100 turns |
