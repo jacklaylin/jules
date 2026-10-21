@@ -7,7 +7,6 @@ import {splitName,maskBirthday,parseBirthday,starSign,GENDERS,validPhone,formatP
 
 const $=id=>document.getElementById(id),thread=$('thread'),dock=$('dock');
 $('signup-logo').replaceChildren(createLogo());initBrandActivity();
-$('privacy-open').onclick=()=>$('signup-privacy').showModal();
 const ref=refFromSearch(location.search),arrival=rememberArrival(()=>sessionStorage,{referrer:document.referrer,search:location.search,host:location.hostname});
 const el=(tag,props={},...kids)=>{const node=Object.assign(document.createElement(tag),props);node.append(...kids.filter(k=>k!==null&&k!==undefined&&k!==false));return node;};
 
@@ -53,6 +52,12 @@ function consentCard(){
  const card=el('label',{className:'check consent'},box,text);card.dataset.key=`consent-card:${state.phase==='chat'}`;return card;
 }
 
+// The privacy note sits with the consent it explains, so the compose box can stay last on the screen.
+function privacyLink(){
+ const row=el('p',{className:'consent-more'},el('button',{type:'button',className:'link-button',textContent:'How we use your signup info',onclick:()=>$('signup-privacy').showModal()}));
+ row.dataset.key='privacy-link';return row;
+}
+
 function threadItems(){
  const a=state.answers,items=[];
  // The server can say why signup is closed (for example, Jules is over its spending cap: lib/cost-caps.js).
@@ -74,7 +79,7 @@ function threadItems(){
  if(state.hint.phone)items.push(...jules('hint-phone',[state.hint.phone],{error:true}));
  if(!a.phone)return items;
  items.push(gap(),mine('phone',a.phone.text,'phone','number'));
- items.push(gap(),...jules('fine-q',['before i do, the fine print:']),consentCard());
+ items.push(gap(),...jules('fine-q',['before i do, the fine print:']),consentCard(),privacyLink());
  if(state.phase==='saving'||state.phase==='done'){const sent=el('div',{className:'me'},el('div',{className:'bubble bubble--me',textContent:'Have Jules text me'}));sent.dataset.key='sent';items.push(gap(),sent);}
  if(state.phase==='saving'){const typing=el('div',{className:'them'},el('span',{className:'av'},avatar()),el('div',{className:'bubble bubble--them typing'},el('i'),el('i'),el('i')));typing.setAttribute('aria-label','Jules is typing');typing.dataset.key='typing';items.push(gap(),typing);}
  if(state.error)items.push(gap(),...jules('error',[state.error],{error:true}));
@@ -88,18 +93,18 @@ function genderChips(){
  return set;
 }
 
-function compose(step){
+function compose(step,{disabled=false}={}){
  const spec={
   name:{label:'Your first and last name',placeholder:'First and last name',autocomplete:'name',value:state.answers.first?[state.answers.first,state.answers.oneWord?'':state.answers.last].filter(Boolean).join(' '):''},
   last:{label:'Your last name',placeholder:'Last name',autocomplete:'family-name',value:state.answers.oneWord?state.answers.last??'':''},
   birthday:{label:'Your birthday, month, day and year',placeholder:'MM / DD / YYYY',autocomplete:'bday',inputMode:'numeric',value:state.answers.birthday?.text??''},
   phone:{label:'Your mobile number. In the US or Canada, 10 digits; elsewhere start with + and your country code',placeholder:'Mobile number',autocomplete:'tel',type:'tel',inputMode:'tel',value:state.answers.phone?.text??''},
  }[step];
- const input=el('input',{id:'reply',type:spec.type??'text',placeholder:spec.placeholder,autocomplete:spec.autocomplete,maxLength:step==='phone'?32:80,value:state.draft?.step===step?state.draft.value:spec.value,enterKeyHint:'send'});
+ const input=el('input',{id:'reply',disabled,type:spec.type??'text',placeholder:spec.placeholder,autocomplete:spec.autocomplete,maxLength:step==='phone'?32:80,value:state.draft?.step===step?state.draft.value:spec.value,enterKeyHint:'send'});
  if(spec.inputMode)input.inputMode=spec.inputMode;
  input.setAttribute('aria-label',spec.label);
  if(step==='birthday')input.addEventListener('input',()=>{input.value=maskBirthday(input.value);});
- const form=el('form',{className:'compose',onsubmit:e=>{e.preventDefault();submitStep(step,input.value);}},input,el('button',{type:'submit',className:'send',textContent:'↑'}));
+ const form=el('form',{className:'compose',onsubmit:e=>{e.preventDefault();submitStep(step,input.value);}},input,el('button',{type:'submit',className:'send',textContent:'↑',disabled}));
  form.lastChild.setAttribute('aria-label','Send');
  return form;
 }
@@ -129,6 +134,8 @@ function answer(values){
 function renderDock(focus){
  const step=currentStep();
  dock.replaceChildren();
+ // While signup availability loads, the first question's box is shown but not usable yet.
+ if(state.phase==='checking')dock.append(compose('name',{disabled:true}));
  if(state.phase==='chat'){
   if(step==='gender'){const off=el('div',{className:'compose compose--off'},el('span',{textContent:'Pick one above'}));dock.append(off);}
   else if(step==='consent'){const go=el('button',{type:'button',id:'signup-button',className:'btn--butter',textContent:'Have Jules text me',disabled:!state.consent||!state.available,onclick:send});dock.append(go);}
@@ -140,15 +147,44 @@ function renderDock(focus){
  }
 }
 
+// Jules's new lines arrive one at a time, each after a moment of typing dots, like a text thread.
+const calm=matchMedia('(prefers-reduced-motion: reduce)');
+const typingRow=el('div',{className:'them'},el('span',{className:'av'},avatar()),el('div',{className:'bubble bubble--them typing'},el('i'),el('i'),el('i')));
+typingRow.setAttribute('aria-label','Jules is typing');
+const pending=[],wait=ms=>new Promise(done=>setTimeout(done,ms));
+let revealing=false,upNext=null,firstReveal=true;
+function pop(node){node.classList.add('new');node.addEventListener('animationend',()=>node.classList.remove('new'),{once:true});}
+async function revealPending(){
+ if(revealing)return;revealing=true;
+ // On arrival, leave room for the page transition before Jules starts typing.
+ if(firstReveal){firstReveal=false;await wait(600);}
+ while(pending.length){
+  upNext=pending.shift();
+  if(!upNext.isConnected)continue;
+  upNext.before(typingRow);pop(typingRow);thread.scrollTop=thread.scrollHeight;
+  await wait(Math.min(450+upNext.textContent.length*12,1100));
+  typingRow.remove();
+  if(upNext.isConnected){upNext.hidden=false;pop(upNext);thread.scrollTop=thread.scrollHeight;}
+  upNext=null;await wait(200);
+ }
+ revealing=false;
+}
+
 function render(focus=false){
  const items=threadItems();
- for(const item of items){const key=item.dataset?.key;if(key&&!seen.has(key)){item.classList.add('new');item.addEventListener('animationend',()=>item.classList.remove('new'),{once:true});seen.add(key);}}
+ for(const item of items){
+  const key=item.dataset?.key;if(!key||seen.has(key))continue;
+  seen.add(key);
+  if(!calm.matches&&item.classList.contains('them')&&!item.querySelector('.typing')){item.hidden=true;pending.push(item);}
+  else pop(item);
+ }
  // Lines already on screen are kept as they are, so the live region only announces new ones.
  const old=new Map([...thread.children].filter(n=>n.dataset.key).map(n=>[n.dataset.key,n]));
  thread.replaceChildren(...items.map(item=>old.get(item.dataset?.key)??item));
- document.body.classList.toggle('chatting',Boolean(state.answers.first));
+ if(upNext?.isConnected&&upNext.hidden)upNext.before(typingRow);
  renderDock(focus);
  thread.scrollTop=thread.scrollHeight;
+ revealPending();
 }
 
 async function send(){

@@ -240,6 +240,11 @@ dialog{height:fit-content;border:1px solid var(--line);border-radius:var(--r-car
 dialog::backdrop{background:var(--backdrop)}dialog[open]{animation:detail-enter .28s var(--ease-out-expo) both}dialog[open]::backdrop{animation:enter .22s ease both}
 @keyframes enter{from{opacity:0}to{opacity:1}}@keyframes detail-enter{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
 .dialog-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+/* Sheets (every bottom sheet, and any dialog that can outgrow the screen): .sheet-head (title, ×) and .sheet-foot
+   (Cancel, Done) stay put; only .sheet-body scrolls between them. Its side padding keeps focus rings inside the scroll box. */
+dialog.sheet[open]{display:flex;flex-direction:column;overflow:hidden}
+.sheet-head,.sheet-foot{flex:none}
+.sheet-body{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;margin:0 -6px;padding:6px}
 /* Close: one 44px round × with a 1px line border, top-right of a dialog, sheet, panel or menu. Never a text button or a row. */
 .dialog-heading{display:flex;justify-content:space-between;gap:20px;align-items:center;margin-bottom:16px}.dialog-heading h2{margin:0}
 .close-button{flex:none;display:inline-grid;place-items:center;width:44px;height:44px;min-height:44px;padding:0;border:1px solid var(--line);border-radius:50%;background:var(--white);color:var(--ink);box-shadow:none;cursor:pointer}
@@ -490,13 +495,13 @@ button.quiet{border-color:transparent;box-shadow:none;background:transparent;col
 .filter-menu__trigger svg:last-child{transition:transform .25s var(--ease-out-expo)}
 .filter-menu__trigger[aria-expanded=true] svg:last-child{transform:rotate(180deg)}
 /* Desktop: a popover under the button. Phones: a sheet from the bottom. Same rows in both. */
-dialog.filter-menu__panel{position:fixed;margin:0;width:300px;max-width:calc(100vw - 32px);max-height:min(70dvh,560px);overflow:auto;padding:8px;border-radius:var(--r-card);box-shadow:var(--shadow-panel)}
+dialog.filter-menu__panel{position:fixed;margin:0;width:300px;max-width:calc(100vw - 32px);max-height:min(70dvh,560px);padding:8px;border-radius:var(--r-card);box-shadow:var(--shadow-panel)}
 .filter-menu__panel::backdrop{background:transparent}
 .filter-menu__panel[open]{animation:filter-menu-in .22s var(--ease-out-expo) both}
 @keyframes filter-menu-in{from{opacity:0;transform:translateY(-6px) scale(.98)}}
 @keyframes filter-sheet-in{from{transform:translateY(100%)}}
 .filter-menu__heading{display:none}
-.filter-menu__list{display:flex;flex-direction:column;gap:2px}
+.filter-menu__list{display:flex;flex-direction:column;gap:2px;padding:0;margin:0}
 .filter-menu__row{display:flex;align-items:center;justify-content:space-between;gap:24px;width:100%;min-height:44px;padding:0 14px 0 10px;border:0;border-radius:14px;background:transparent;box-shadow:none;color:var(--ink);font:600 15px var(--font-sans);text-align:left}
 .filter-menu__row::after{display:none}
 .filter-menu__row[aria-pressed=true]{background:var(--fog)}
@@ -517,7 +522,7 @@ dialog.filter-menu__panel{position:fixed;margin:0;width:300px;max-width:calc(100
 dialog.filter-menu__panel{inset:auto 0 0;width:100%;max-width:none;max-height:85dvh;padding:10px 12px max(24px,env(safe-area-inset-bottom));border-width:1px 0 0;border-radius:var(--r-card) var(--r-card) 0 0;box-shadow:var(--shadow-dialog)}
 .filter-menu__panel::backdrop{background:var(--backdrop)}
 .filter-menu__panel[open]{animation:filter-sheet-in .32s var(--ease-out-expo) both}
-.filter-menu__heading{display:flex;margin:0;padding:4px 0 8px 12px}.filter-menu__heading h2{font-size:30px}
+.filter-menu__heading{display:flex;margin:0;padding:4px 0 8px 12px}.filter-menu__list{padding-bottom:6px}.filter-menu__heading h2{font-size:30px}
 .filter-menu__row{min-height:52px;padding:0 16px 0 12px;border-radius:16px;font-size:16px}
 }
 
