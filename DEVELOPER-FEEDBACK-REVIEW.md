@@ -339,3 +339,20 @@ Follow-up (October 21, dupe price check): proposal (2) built. The link never rea
 Evals added: dupe-linked-item, dupe-reworded, dupe-widen-keeps-look, dupe-widen-reworded, dupe-drop-brand-look, cheaper-same-brand, refine-right-track, refine-closer-reworded.
 
 Triage cursor: 2026-10-21T16:45:19.22576+00:00
+
+## October 21 (fourth batch): the import summary named brands twice, sizes without categories, and basics on top
+
+One developer feedback report (the founder's), about the "who you are" summary sent after a Gmail import. The packet now names the reported message (#298). Chat metrics (since the previous cursor vs the period before, 23 → 41 timed turns): first message 17 s → 13.4 s (better); final result median 37.4 s → 55.3 s (worse), p90 76.3 s → 96.9 s (worse); failed replies 26.1% → 4.9% (better); model-written share 69.6% → 75.6% (better); first-try find rate no data → 1 of 1 (too few to tell). Findings:
+
+- **The same three brands were named twice (polish/voice).** `profileText` listed the brands bought most and then the stores bought from; for brands sold through their own shop the two lists are the same names. Fix: a store already named as a brand is left out, and the line becomes "other stores you buy from".
+- **"Your go-to brands" (trust, small).** The draft said "brands you buy most"; the reply writer turned it into a favourite claim, which AGENTS.md rules out for receipt history. Fix: the composer's rules say bought brands and stores are never favourites, go-tos or loyalty, bought sizes are not a confirmed fit, and each brand, store and fact is named once.
+- **Sizes came as one list with no category (degraded).** Fix: sizes are grouped by the item's tagged category ("tops L/XL, bottoms 31/32"), the two most bought per category, written smallest first. A stale or missing tag falls back to the old list, so no category is guessed.
+- **One expensive purchase was hidden inside the usual range (degraded).** Fix: `priceRange(items, {outlier: true})` adds "sometimes as much as …" when the highest price is at least 1.5 times the top of the usual range. Used by the purchase summary and the early read; other callers are unchanged.
+- **Underwear and sock restocks put basics brands on top and pulled the spend down (degraded).** Same mechanism as the style report, which already skips basics (`closet-summary.js`). Fix: `withoutBasics` leaves items tagged `underwear_basics` out of the brands, stores, sizes and spend in the purchase summary and the early read. Untagged items still count.
+- **Observed, not reported:** a "find this cheaper" turn with a store link just before the report hit the 105 s turn deadline and sent the generic fallback (founder alerted). The catalog lookup finished at 34 s; nothing is recorded between then and the deadline, so the step that stalled is unknown. Fix (founder go-ahead, same day): the product search notes each stage on the turn trace (`search:exact_done`, `search:model_done`, `search:page_checks` / `_done`, `search:collections`, `search:direct_recovery`, `search:second_pass`), so the next stalled turn names its stage in `reply_diagnostics.steps`.
+- **Voice check (founder go-ahead):** the writer's checks now count the person's own brand and store names (`facts.names`, passed by the summary send): a name the draft gives once may appear only once in the reply; otherwise it is rewritten, and after a second miss the draft goes out as written (`problem_kinds: repeated_name`). A count of known names, not a reading of intent.
+- **Style report (founder go-ahead):** the Gatekeeper card's brand chips and niche score leave basics out too (`gatekeeper(state, tags)`; one shared `withoutBasics` in `lib/item-tags.js`). The receipt card and the basics-restock card keep counting socks on purpose.
+
+Evals added: none (no agent routing changed; deterministic tests in `tests/purchase-summary.test.js` and `tests/search-steps.test.js`).
+
+Triage cursor: 2026-10-21T20:03:16.711222+00:00
