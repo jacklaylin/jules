@@ -96,3 +96,14 @@ test('a save draft names what was saved, so a reply that also reports a search c
     assert.deepEqual(outcome.saved_items, names);
   }
 });
+
+test('an already-saved confirmation records which items were already saved, for the claim check', async () => {
+  const rows = [{ reply_id:'r0', item_id:'00000000-0000-4000-8000-000000000001', name:'LEMAIRE Black Leather Biker Jacket', links:[{ url:'https://shop.example/jacket' }], messages:{ created_at:'2026-10-15' } }];
+  const store = { wishlistReplyId:async () => 'r1', wishlistEntries:async () => rows, recordEvidence:async () => {} };
+  const { groupWishlist } = await import('../lib/wishlist.js');
+  const outcome = {};
+  const body = await finishTextWishlist({ store, operation:'op', conversationId:'c', result:{ identification_policy:'text_wishlist', user_confirmed:true, existing_saved_groups:[groupWishlist(rows)[0].id] }, env:{}, outcome });
+  assert.match(body, /already in your wishlist/);
+  assert.equal(outcome.saved_now, false); assert.equal(outcome.saved_items, undefined);
+  assert.deepEqual(outcome.already_saved_items, ['LEMAIRE Black Leather Biker Jacket']);
+});
