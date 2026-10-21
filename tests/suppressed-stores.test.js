@@ -9,7 +9,7 @@ const page=product=>new Response('<script type="application/ld+json">'+JSON.stri
 const listing={'@type':'Product',name,brand:'Our Legacy',offers:{'@type':'Offer',price:'250.00',priceCurrency:'USD',availability:'https://schema.org/InStock'}};
 
 test('suppressed stores are recognised by host, including subdomains and country sites, and other stores are not',()=>{
- for(const url of ['https://www.lyst.com/clothing/our-legacy-still-chino-trousers-1/','https://lyst.com/x','https://www.modesens.com/product/x','https://joincheckmate.com/products/fivefourfive.it/545/1/2','https://www.shopstyle.co.uk/p/1','https://www.temu.com/goods.html?id=1','https://www.rakuten.com/shop/x','https://de.aliexpress.com/item/1.html','https://item.rakuten.co.jp/shop/1/'])assert.ok(isSuppressedStore(url),url);
+ for(const url of ['https://www.lyst.com/clothing/our-legacy-still-chino-trousers-1/','https://lyst.com/x','https://www.modesens.com/product/x','https://joincheckmate.com/products/fivefourfive.it/545/1/2','https://www.shopstyle.co.uk/p/1','https://www.temu.com/goods.html?id=1','https://www.rakuten.com/shop/x','https://de.aliexpress.com/item/1.html','https://item.rakuten.co.jp/shop/1/','https://clothbase.com/items/cb0df269_brand-black-scout-derbys_brand','https://www.clothbase.com/x'])assert.ok(isSuppressedStore(url),url);
  for(const url of ['https://www.ssense.com/en-us/men/product/our-legacy/x/1','https://eu.fivefourfive.it/products/545','https://notlyst.com/x','https://temu.com.example.org/x','https://www.farfetch.com/x','not a url'])assert.equal(isSuppressedStore(url),false,url);
 });
 
