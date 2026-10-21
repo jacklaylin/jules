@@ -17,7 +17,7 @@ if(fragment.has('access_token'))token=fragment.get('access_token'),sessionStorag
 if(location.hash)history.replaceState(null,'','/wardrobe'+location.search);
 
 const el=(tag,props={},...children)=>{const node=Object.assign(document.createElement(tag),props);node.append(...children.filter(c=>c!=null&&c!==false));return node;};
-const CATEGORY_LABELS={tops:'Tops',bottoms:'Bottoms',dresses:'Dresses',outerwear:'Outerwear',suits:'Suits',swimwear:'Swimwear',shoes:'Shoes',bags:'Bags',accessories:'Accessories',eyewear:'Eyewear',other:'Other'};
+const CATEGORY_LABELS={tops:'Tops',bottoms:'Bottoms',dresses:'Dresses',outerwear:'Outerwear',suits:'Suits',activewear:'Activewear',swimwear:'Swimwear',shoes:'Shoes',bags:'Bags',accessories:'Accessories',eyewear:'Eyewear',other:'Other'};
 const REASON_LABELS={returned:'Returned',cancelled:'Order cancelled',gift:'Gift for someone',gone:'Don’t have it anymore',never_bought:'Never bought'};
 const ANSWER_LABELS={mine:'Mine',gift:'A gift',bought:'I bought it',not_bought:'I didn’t',kept:'Kept it',returned:'Returned',same:'Same item',not_sure:'Not sure'};
 // Outline drawings stand in when there is no photo: none in the purchase itself and no searched photo the

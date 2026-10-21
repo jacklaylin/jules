@@ -42,6 +42,12 @@ test('Shopify product type and tags are structured department data; mixed or mis
  assert.equal(shopifyRange({type:'Tops',tags:'womens, new in'}),'women');
  assert.equal(shopifyRange({type:'Shirt',tags:['Unisex']}),'unisex');
  assert.equal(shopifyRange({type:'Shirt',tags:['men','women']}),null);
+ // October 20: tags that join words with underscores.
+ assert.equal(shopifyRange({type:'Tops',tags:['9444-2013_MRNPL','ASPEN DEADSTOCK','Fall 2026','Gender_Women','GETAWAY']}),'women');
+ for(const tag of ['Gender_Men','dept_mens','GENDER__MALE'])assert.equal(shopifyRange({type:'Shirt',tags:[tag]}),'men',tag);
+ assert.equal(shopifyRange({type:'Shirt',tags:['gender_unisex']}),'unisex');
+ // Words that only contain the department letters still say nothing.
+ for(const tag of ['WOMENSWEAR_ARCHIVE_ID','hymen_x','salesmen'])assert.notEqual(shopifyRange({type:'Shirt',tags:[tag]}),'men',tag);
  // MAYE's own product data has no department.
  assert.equal(shopifyRange({type:'SHIRT',tags:['bestsellers','Full price','LACE','MAYE Signatures','SHIRT','SHOP ALL']}),null);
 });
