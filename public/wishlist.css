@@ -1,6 +1,6 @@
 /* Wishlist-specific composition: product detail, retailer previews and the price-alert picker. Product cards, photo buttons, the collection heading and the toast live in design-system.css. */
 #empty{margin-top:90px;color:var(--text-2);line-height:1.8}
-#close{display:block;margin-left:auto;margin-bottom:20px}
+#close{display:grid;margin-left:auto;margin-bottom:20px}
 #detail-content{display:grid;grid-template-columns:1fr 1fr;gap:32px}
 .info h2{font-size:30px}
 .info p{font-size:13px;line-height:1.7;color:var(--text-2)}
@@ -30,7 +30,7 @@
 @media(max-width:800px){#detail-content{grid-template-columns:1fr;gap:0}
 #detail-content>.photo{width:100%;max-height:65dvh;aspect-ratio:4/5}
 #detail-content>.info{padding:0}
-#close{display:block;position:sticky;top:0;z-index:2;margin:0 0 20px auto}}
+#close{display:grid;position:sticky;top:0;z-index:2;margin:0 0 20px auto}}
 @media(min-width:801px){#detail-content{min-height:0;grid-template-rows:minmax(0,1fr);overflow:hidden}
 #detail-content>.photo{height:100%;min-height:0;aspect-ratio:auto}
 #detail-content>.info{min-height:0;min-width:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding:0 12px 12px 0}
@@ -53,7 +53,7 @@
 #alert-picker[open]{display:block}
 #alert-picker h2{font-size:30px}
 #alert-picker p{font-size:13px;line-height:1.6;color:var(--text-2)}
-#alert-close{display:block;margin-left:auto}
+#alert-close{display:grid;margin-left:auto}
 #alert-size{margin-top:8px}
 #alert-save:disabled{opacity:.4;cursor:default}
 .info .action-rows{margin-top:20px}
