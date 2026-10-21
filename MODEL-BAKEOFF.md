@@ -150,6 +150,6 @@ The fit reading moves to gpt-6-luna too. It is the same kind of writing, but it 
 
 About $32 of OpenAI usage, recorded as eval features on the Costs page. No SerpApi searches were used for the search comparison. Nothing was sent, saved or alerted. The first chat run sent up to 8 requests at a time and got 64 rate-limit retries on gpt-4.1-mini, the model production uses, so a tester's reply around 23:00–00:00 PT on October 19 may have been slowed. Later runs used less concurrency and had none.
 
-The Gmail extract comparison on October 20 added $0.44 (feature eval_extract). It ran one email at a time, with at most one gpt-4.1-mini call in flight, and saw no rate limits.
+The Gmail extract comparison on October 20 added $0.44 (feature eval_extract). It ran one email at a time, with at most one gpt-4.1-mini call in flight. Every request succeeded except one network error.
 
 Raw results: `.eval-local/bakeoff-2026-10-19/` (private, not in Git).
