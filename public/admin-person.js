@@ -246,7 +246,11 @@ let wishlist = null;
 const money = price => new Intl.NumberFormat(undefined, { style: 'currency', currency: price.currency }).format(price.amount);
 function alertBadge(alert) {
   if (!alert) return badge('plain', 'No price alert');
-  return alert.active ? badge('ok', `Alert on${alert.size ? ` · ${alert.size}` : ''}`) : badge('plain', 'Alert off');
+  if (!alert.active) return badge('plain', 'Alert off');
+  const low = alert.low_stock, check = alert.low_stock_check;
+  return el('span', {}, badge('ok', `Alert on${alert.size ? ` · ${alert.size}` : ''}`),
+    low ? badge('warn', `Only ${low.quantity} left · ${low.store}${low.fresh ? '' : ' (old)'}`) : null,
+    check ? el('span', { className: 'muted', textContent: ` low stock: ${check.reason.replaceAll('_', ' ')}${check.would_send ? ' · would text' : ''}` }) : null);
 }
 function storeLinks(item) {
   return el('ul', { className: 'store-links' }, ...item.links.map(link => el('li', {},
@@ -264,13 +268,15 @@ function testForm(item) {
   const currency = el('input', { required: true, maxLength: 3, pattern: '[A-Z]{3}', value: ref?.currency ?? 'USD' });
   const shipping = el('input', { type: 'number', min: '0', step: '0.01' });
   const available = el('input', { type: 'checkbox', checked: true });
+  const quantity = el('input', { type: 'number', min: '0', max: '999', step: '1', placeholder: 'Not stated' });
+  const episode = el('select', {}, el('option', { value: '', textContent: 'As last recorded' }), el('option', { value: 'none', textContent: 'None open' }), el('option', { value: 'open', textContent: 'Already open (texted)' }));
   const previous = el('select', {}, el('option', { value: '', textContent: 'As last recorded' }), el('option', { value: 'sold_out', textContent: 'Sold out (rehearse a restock)' }), el('option', { value: 'in_stock', textContent: 'In stock' }));
   const result = el('pre', { className: 'alert-result', role: 'status' });
   const preview = el('button', { type: 'submit', className: 'small', textContent: 'Preview message' });
   const send = el('button', { type: 'button', className: 'small btn--butter', textContent: 'Send test text', disabled: !wishlist.test_delivery });
   form.append(
     el('p', { className: 'muted', textContent: `Runs the real alert decision on a made-up price. Nothing is saved. Reference: ${alert.baselines.map(b => money(b)).join(', ') || 'none yet'} · last stock: ${(alert.stock ?? 'unknown').replace('_', ' ')}.` }),
-    el('div', { className: 'add-fact-fields' }, field('Store', storeSelect), field('Size', size), field('Price', price), field('Currency', currency), field('Listed shipping (optional)', shipping), field('Previous stock', previous)),
+    el('div', { className: 'add-fact-fields' }, field('Store', storeSelect), field('Size', size), field('Price', price), field('Currency', currency), field('Listed shipping (optional)', shipping), field('Previous stock', previous), field('Stated left in size (optional)', quantity), field('Low-stock episode', episode)),
     el('label', { className: 'check' }, available, 'Size in stock'),
     el('div', { className: 'toolbar' }, preview, send, !wishlist.test_delivery && el('span', { className: 'muted', textContent: 'Test texts only go to the designated test account.' })),
     result);
@@ -278,9 +284,9 @@ function testForm(item) {
     if (!form.reportValidity()) return;
     [preview, send].forEach(b => { b.disabled = true; }); result.textContent = deliver ? 'Sending test text…' : 'Running…';
     try {
-      const data = await api('/api/price-checks', { method: 'POST', body: JSON.stringify({ alert_id: alert.id, deliver, previous_stock: previous.value || undefined,
-        offers: [{ url: storeSelect.value, size: size.value, amount: Number(price.value), currency: currency.value.toUpperCase(), available: available.checked, ...(shipping.value ? { shipping: Number(shipping.value) } : {}) }] }) });
-      result.textContent = `Outcome: ${data.status}${data.event ? ` (${data.event})` : ''}${data.delivery ? ` · Delivery: ${data.delivery}` : ''}\n\n${data.message ?? 'No text would be sent.'}`;
+      const data = await api('/api/price-checks', { method: 'POST', body: JSON.stringify({ alert_id: alert.id, deliver, previous_stock: previous.value || undefined, low_stock_episode: episode.value || undefined,
+        offers: [{ url: storeSelect.value, size: size.value, amount: Number(price.value), currency: currency.value.toUpperCase(), available: available.checked, ...(shipping.value ? { shipping: Number(shipping.value) } : {}), ...(quantity.value ? { quantity: Number(quantity.value) } : {}) }] }) });
+      result.textContent = `Outcome: ${data.status}${data.event ? ` (${data.event})` : ''}${data.delivery ? ` · Delivery: ${data.delivery}` : ''}\n\n${data.message ?? 'No text would be sent.'}${data.low_stock ? `\n\nLow stock: ${data.low_stock.state} (${data.low_stock.reason.replaceAll('_', ' ')})${data.low_stock.message ? `\nWould send (not sent yet; low-stock texts are off in this step):\n${data.low_stock.message}` : ''}` : ''}`;
     } catch (error) { result.textContent = error.message; }
     finally { preview.disabled = false; send.disabled = !wishlist.test_delivery; }
   };
@@ -368,6 +374,43 @@ $('ask-confirm').onclick = async () => {
     loadCoverage().catch(() => {});
   } catch (error) { $('ask-error').textContent = error.message; $('ask-error').hidden = false; }
   finally { buttons.forEach(b => { b.disabled = false; }); $('ask-confirm').textContent = 'Send'; }
+};
+// ---------- Purchase nudges ----------
+// The decision log for unprompted texts (lib/nudges.js) and, for the designated test conversation only, a
+// test "goes with" offer about a chosen wardrobe item. Nothing is reset; a test can be sent again.
+const NUDGE_REASONS = { quiet_hours: 'quiet hours', daily_cap: 'already texted today', weekly_cap: '3 this week already', price_alert_today: 'price alert went out today',
+  mid_conversation: 'mid-conversation', opted_out: 'texted STOP', texts_off: 'purchase texts off', not_clothing: 'not clothing', not_worth_a_text: 'model: not worth an offer', nothing_recent: 'nothing recent' };
+const NUDGE_KINDS = { goes_with: 'Goes with', fit_check: 'Fit check' };
+let nudgeItems = [];
+function renderNudges(data) {
+  $('nudge-setting').textContent = `Texts about purchases are ${data.texts_on ? 'on' : 'off'} · time zone ${data.timezone ?? 'unknown (noon–8pm Eastern only)'}`;
+  $('nudge-test').hidden = !data.test_delivery || !data.candidates.length; $('nudge-confirm').hidden = $('nudge-test').hidden;
+  $('nudge-no-test').hidden = data.test_delivery;
+  if (data.test_delivery && !data.candidates.length) { $('nudge-no-test').hidden = false; $('nudge-no-test').textContent = 'No clothing or accessories in their wardrobe yet.'; }
+  nudgeItems = data.candidates;
+  $('nudge-item').replaceChildren(...data.candidates.map(i => el('option', { value: i.id, textContent: `${i.name}${i.merchant ? ` · ${i.merchant}` : ''}${i.bought_at ? ` · ${i.bought_at.slice(0, 10)}` : ''}` })));
+  $('nudge-draft').textContent = nudgeItems[0] ? `Draft: ${nudgeItems[0].draft}` : '';
+  $('nudge-log').replaceChildren(...(data.log.length ? data.log.map(e => el('li', { textContent: `${e.at.slice(0, 16).replace('T', ' ')} UTC · ${NUDGE_KINDS[e.kind] ?? e.kind} · ${e.status}${e.reason ? ` (${NUDGE_REASONS[e.reason] ?? e.reason})` : ''}${e.test ? ' · test' : ''}` }))
+    : [el('li', { className: 'muted', textContent: 'No nudge decisions yet.' })]));
+}
+$('nudge-item').onchange = () => { const item = nudgeItems.find(i => i.id === $('nudge-item').value); $('nudge-draft').textContent = item ? `Draft: ${item.draft}` : ''; };
+$('nudges').onclick = async () => {
+  $('nudge-person').textContent = $('person-name').textContent; $('nudge-error').hidden = true;
+  $('nudge-log').replaceChildren(el('li', { className: 'muted', textContent: 'Loading…' })); $('nudge-test').hidden = true; $('nudge-confirm').hidden = true; $('nudge-no-test').hidden = true;
+  $('nudge-dialog').showModal();
+  try { renderNudges(await api(`/api/admin?conversation=${person}&view=nudges`)); }
+  catch (error) { $('nudge-error').textContent = error.message; $('nudge-error').hidden = false; }
+};
+$('nudge-cancel').onclick = () => $('nudge-dialog').close();
+$('nudge-confirm').onclick = async () => {
+  const buttons = [$('nudge-confirm'), $('nudge-cancel')]; buttons.forEach(b => { b.disabled = true; }); $('nudge-confirm').textContent = 'Sending…'; $('nudge-error').hidden = true;
+  try {
+    const data = await api('/api/admin', { method: 'POST', body: JSON.stringify({ action: 'send-test-nudge', conversation: person, item: $('nudge-item').value, confirm: true }) });
+    renderNudges(data);
+    notice(data.nudge.status === 'sent' ? `Test nudge about ${data.nudge.item} sent.` : `Test nudge not confirmed (${data.nudge.status}); check Conversation before sending again.`);
+    loadMessages().catch(error => notice(`Conversation: ${error.message}`));
+  } catch (error) { $('nudge-error').textContent = error.message; $('nudge-error').hidden = false; }
+  finally { buttons.forEach(b => { b.disabled = false; }); $('nudge-confirm').textContent = 'Send test nudge'; }
 };
 // ---------- Re-read a failed photo ----------
 // Reads the photo again from Photon (recompressing a large screenshot) and saves it to that message; no text is sent.

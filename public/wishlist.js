@@ -42,8 +42,16 @@ const shortDate=value=>new Date(value).toLocaleDateString(undefined,{month:'shor
 const stockTag=text=>node('span',text,'stock-tag');
 // A sold-out reading older than three days is reported as history, not as the current state.
 const soldOutWhen=checked=>checked?`Sold out when checked ${shortDate(checked)}`:'Sold out when last checked';
-function cardStock(stock){
- if(!stock)return [];
+// A store-stated low count for the watched size (lib/low-stock.js), from the alert's last check.
+const lowLeft=low=>`Only ${low.quantity} left`;
+const lowWhere=low=>`${low.size&&low.size!=='One size'?`In ${low.size} at `:'At '}${low.store}`;
+function cardLow(low){
+ if(!low)return [];
+ if(!low.fresh)return [node('span',`${lowLeft(low)} in ${low.size} when checked ${shortDate(low.checked_at)}`,'card-note')];
+ return [stockTag(lowLeft(low)),node('span',`${lowWhere(low)} · checked ${shortDate(low.checked_at)}`,'card-note')];
+}
+function cardStock(stock,low){
+ if(!stock)return cardLow(low);
  if(!stock.fresh)return [node('span',soldOutWhen(stock.checked_at),'card-note')];
  return [stockTag('Sold out'),node('span',(stock.stores>1?'At every store · ':'')+'checked '+shortDate(stock.checked_at),'card-note')];
 }
@@ -124,7 +132,7 @@ async function load(){
 // Redrawing keeps the page's photo cache, so photos already shown reappear without a reload.
 function render(items,version,source){
  itemCache.clear();$('grid').replaceChildren();$('login').hidden=true;$('collection').hidden=false;
- for(const item of items){itemCache.set(item.id,item);const card=node('div',null,'product-card');card.dataset.group=item.id;const tile=node('button',null,'tile');tile.type='button';tile.append(item.has_image?photo(productPhoto(item),item.name):pendingPhoto(item.photo_status==='retry_pending'),node('strong',item.name),node('span',priceRange(item.price_ranges),'card-price'+(item.stock?' sold-out':'')),...(item.bought?[]:cardStock(item.stock)));if(item.bought)tile.append(node('span',boughtLine(item.bought),'card-state'));else if(item.sourcing_status==='store_not_found')tile.append(node('span','Product identified · Store not found','card-state'));tile.onclick=()=>detail(item.id);card.append(tile,removeButton(item,card));if(item.alerts_enabled&&!item.bought)card.append(alertToggle(item));$('grid').append(card);}
+ for(const item of items){itemCache.set(item.id,item);const card=node('div',null,'product-card');card.dataset.group=item.id;const tile=node('button',null,'tile');tile.type='button';tile.append(item.has_image?photo(productPhoto(item),item.name):pendingPhoto(item.photo_status==='retry_pending'),node('strong',item.name),node('span',priceRange(item.price_ranges),'card-price'+(item.stock?' sold-out':'')),...(item.bought?[]:cardStock(item.stock,item.price_alert?.active?item.price_alert.low_stock:null)));if(item.bought)tile.append(node('span',boughtLine(item.bought),'card-state'));else if(item.sourcing_status==='store_not_found')tile.append(node('span','Product identified · Store not found','card-state'));tile.onclick=()=>detail(item.id);card.append(tile,removeButton(item,card));if(item.alerts_enabled&&!item.bought)card.append(alertToggle(item));$('grid').append(card);}
  // A link to a filter with nothing in it opens the whole wishlist.
  if(filter!=='all'&&!items.some(item=>matchesFilter(item,filter)))setFilter('all',false);
  applyFilter();message('');$('collection').dataset.listSource=source;
@@ -290,6 +298,13 @@ function alertStatus(item,soldOut){
 }
 function stockSummary(item){
  const stock=item.stock,cached=itemCache.get(item.id),alertOn=Boolean(item.alerts_enabled&&cached?.price_alert?.active);
+ const low=alertOn?cached.price_alert.low_stock:null;
+ if(!stock&&low){
+  const box=node('div',null,'stock-summary'),line=node('p',null,'stock-line');
+  if(low.fresh)line.append(stockTag(lowLeft(low)),node('span',lowWhere(low)),node('span',' · checked '+shortDate(low.checked_at),'stock-when'));
+  else line.append(node('span',`${lowLeft(low)} in ${low.size} at ${low.store} when we checked on ${shortDate(low.checked_at)}. It may have changed since then.`));
+  box.append(line,alertStatus(cached,false));return [box];
+ }
  if(!stock)return alertOn?[alertStatus(cached,false)]:[];
  const box=node('div',null,'stock-summary'),line=node('p',null,'stock-line');
  if(stock.fresh)line.append(stockTag('Sold out'),node('span',stock.stores>1?`At all ${stock.stores} stores we checked`:'At the store we checked'),node('span',' · checked '+shortDate(stock.checked_at),'stock-when'));
