@@ -285,7 +285,10 @@ async function interviewTurn(store,body,rounds){
   context:async()=>[{id:'c1',provider_id:'p-now',direction:'inbound',body,created_at:'2026-10-20T18:50:00Z'}],
   finish:async(k,status)=>{const o=store.operations.get(k);if(o)o.status=status;}});
  await receiveInInbox({space:{phone:'line'},message:{id:'p-now',sender:{id:'tester'},content:{type:'text',text:body},attachments:[]}},{AI_ENABLED:'true',OPENAI_API_KEY:'fake',...env},{store,
-  generate:(m,e,_f,memory)=>generateReply(m,e,async(_u,o)=>{requests.push(JSON.parse(o.body));return rounds[Math.min(round++,rounds.length-1)];},memory),
+  generate:(m,e,_f,memory)=>generateReply(m,e,async(_u,o)=>{const body=JSON.parse(o.body);
+   // The shadow skill router's call (lib/skills/router.js) is not one of the agent's rounds.
+   if(body.text?.format?.name==='route')return {ok:false,status:500,json:async()=>({})};
+   requests.push(body);return rounds[Math.min(round++,rounds.length-1)];},memory),
   send:async(_d,text)=>{delivered.push(text);return {id:'sent-'+delivered.length};},progress:async()=>async()=>{}});
  // The interview's own sends go through the ledger (store.send); the turn's reply through send.
  return {delivered:[...delivered,...store.sent],requests};
@@ -330,7 +333,7 @@ test('the joined question is reworded to fit the conversation, after the lead-in
   Object.assign(store,{receive:async()=>'conversation',claimAI:async()=>true,prepareAI:async()=>{},searchResult:async()=>{},replyDiagnostics:async()=>{},recordDelivery:async()=>{},
    context:async()=>[{id:'c1',provider_id:'p-now',direction:'inbound',body:'ask me about my style',created_at:'2026-10-20T18:50:00Z'}],finish:async(k,st)=>{const o=store.operations.get(k);if(o)o.status=st;}});
   await receiveInInbox({space:{phone:'line'},message:{id:'p-now',sender:{id:'tester'},content:{type:'text',text:'ask me about my style'},attachments:[]}},{AI_ENABLED:'true',OPENAI_API_KEY:'fake',...env},{store,compose,
-   generate:(m,e,_f,memory)=>generateReply(m,e,async()=>rounds[Math.min(round++,1)],memory),send:async(_d,text)=>{delivered.push(text);return {id:'s'};},progress:async()=>async()=>{}});
+   generate:(m,e,_f,memory)=>generateReply(m,e,async(_u,o)=>JSON.parse(o.body).text?.format?.name==='route'?{ok:false,status:500,json:async()=>({})}:rounds[Math.min(round++,1)],memory),send:async(_d,text)=>{delivered.push(text);return {id:'s'};},progress:async()=>async()=>{}});
   assert.equal(delivered.length,1);
   if(expected)assert.equal(delivered[0],expected);else{assert.ok(delivered[0].startsWith('sure.\n\n'));assert.match(delivered[0],/3 things you wear all the time/);}
   assert.equal(store.state.asked[0].text.includes('3 things you wear'),true,'the written question is what is recorded as asked');
