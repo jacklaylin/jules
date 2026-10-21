@@ -65,6 +65,7 @@
   --shadow-gel: 0 3px 6px #17120F40, inset 0 1px 0 #fffc, inset 0 -2px 3px #0002;
   --shadow-dialog: 0 12px 80px #17120F26;
   --shadow-panel: 0 6px 30px #17120F26;  /* activity panel and toasts */
+  --shadow-photo-control: 0 2px 8px #17120F2E;  /* round buttons over product photos, so they hold on a white photo */
 }
 
 body { margin: 0; font-family: var(--font-sans); color: var(--ink); background: var(--white); }
@@ -239,6 +240,11 @@ dialog{height:fit-content;border:1px solid var(--line);border-radius:var(--r-car
 dialog::backdrop{background:var(--backdrop)}dialog[open]{animation:detail-enter .28s var(--ease-out-expo) both}dialog[open]::backdrop{animation:enter .22s ease both}
 @keyframes enter{from{opacity:0}to{opacity:1}}@keyframes detail-enter{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
 .dialog-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+/* Close: one 44px round × with a 1px line border, top-right of a dialog, sheet, panel or menu. Never a text button or a row. */
+.dialog-heading{display:flex;justify-content:space-between;gap:20px;align-items:center;margin-bottom:16px}.dialog-heading h2{margin:0}
+.close-button{flex:none;display:inline-grid;place-items:center;width:44px;height:44px;min-height:44px;padding:0;border:1px solid var(--line);border-radius:50%;background:var(--white);color:var(--ink);box-shadow:none;cursor:pointer}
+.close-button::after{display:none}.close-button svg{width:16px;height:16px}
+@media(hover:hover) and (pointer:fine){.close-button:not(:disabled):hover{transform:none;border-color:var(--ink)}}
 @media(max-width:700px){:root{--header-height:84px;--page-top:30px}.app-header{gap:10px}.app-header.compact{height:64px}.wordmark{font-size:42px}.app-header.compact .wordmark{font-size:36px}h1{font-size:38px}.app-heading{margin-bottom:28px;gap:16px}#login h1{font-size:48px}:where(button:not(.tile)){padding:10px 16px}}
 @media(max-width:380px){.app-header{padding:0 12px}.app-header::after{left:12px;right:12px}.wordmark{font-size:36px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
@@ -439,14 +445,17 @@ button.quiet{border-color:transparent;box-shadow:none;background:transparent;col
 .skeleton-card-title{height:14px;width:75%;margin:16px 0 10px}.skeleton-price{height:14px;width:30%;margin:12px 0}
 @media(hover:hover) and (pointer:fine){button.tile{transition:transform .22s ease}button.tile:hover{transform:translateY(-3px)}button.tile:active{transform:translateY(-1px)}}
 @media(max-width:800px){.product-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 14px}.tile{padding:8px 8px 20px}.tile .photo{aspect-ratio:3/4}.tile strong{font-size:14px;margin-inline:4px}.card-price{font-size:10px;margin-inline:4px}.photo-pending .orb{--s:34px}.photo-pending .photo-status{font-size:9px}}
-/* Round icon buttons on product photos: remove at the upper-left, price alert at the upper-right. */
-.icon-button{position:absolute;top:24px;width:44px;height:44px;display:grid;place-items:center;padding:0;border-radius:50%;background:var(--photo-overlay);color:var(--ink);overflow:visible}
+/* Round icon buttons on product photos: price alert at the upper-left, remove at the upper-right (× top-right always gets rid of something).
+   Same flat circle as .close-button, plus a soft shadow so it holds on a white photo. */
+.icon-button{position:absolute;top:24px;width:44px;height:44px;display:grid;place-items:center;padding:0;border:1px solid var(--line);border-radius:50%;background:var(--photo-overlay);color:var(--ink);box-shadow:var(--shadow-photo-control);overflow:visible}
+.icon-button::after{display:none}
+@media(hover:hover) and (pointer:fine){.icon-button:not(:disabled):hover{transform:none;border-color:var(--ink)}}
 .icon-button:disabled{opacity:.5;cursor:wait}
-.remove-item{left:24px;font-size:24px;line-height:1}
-.alert-toggle{right:24px}.alert-toggle .alert-on{display:none}
+.remove-item{right:24px}
+.alert-toggle{left:24px}.alert-toggle .alert-on{display:none}
 .alert-toggle[aria-pressed=true]{background:var(--butter)}.alert-toggle[aria-pressed=true]::after{display:none}.alert-toggle[aria-pressed=true] .bell-shape{fill:currentColor}
 .alert-toggle[aria-pressed=true] .alert-on{display:block;position:absolute;right:-3px;bottom:0;padding:2px 4px;border-radius:var(--r-pill);background:var(--ink);color:var(--white);font-size:8px;line-height:1.2;font-weight:700;letter-spacing:.5px}
-@media(max-width:800px){.icon-button{top:18px}.remove-item{left:18px}.alert-toggle{right:18px}}
+@media(max-width:800px){.icon-button{top:18px}.remove-item{right:18px}.alert-toggle{left:18px}}
 
 /* Toast: one notice at a time, bottom centre, with an optional Undo. */
 .toast{position:fixed;z-index:20;bottom:24px;left:50%;transform:translateX(-50%);width:max-content;max-width:calc(100vw - 32px);background:var(--ink);color:var(--white);padding:16px 20px;border-radius:var(--r-card);box-shadow:var(--shadow-panel);font-size:13px;line-height:1.5;animation:enter .2s ease}

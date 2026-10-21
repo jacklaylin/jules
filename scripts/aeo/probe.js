@@ -16,21 +16,24 @@ const date = option('--date') ?? new Date().toISOString().slice(0, 10);
 const outDir = new URL('../../docs/aeo/', import.meta.url).pathname;
 const maxCost = Number(process.env.AEO_MAX_COST_USD) || 5;
 
+// AEO_INJECTED_KEYS lists engines whose key the cloud environment adds to requests (network secrets).
+const injected = (process.env.AEO_INJECTED_KEYS ?? '').split(',').map(s => s.trim());
 const engines = ENGINES.filter(e => !only || only.includes(e.id)).map(e => {
-  const model = process.env[e.modelEnv] || e.defaultModel, key = process.env[e.keyEnv];
-  return { ...e, model, key, status: key ? 'ran' : 'skipped', note: key ? null : `${e.keyEnv} is not set` };
+  const model = process.env[e.modelEnv] || e.defaultModel, key = process.env[e.keyEnv] || null;
+  const usable = Boolean(key) || injected.includes(e.id);
+  return { ...e, model, key, usable, status: usable ? 'ran' : 'skipped', note: usable ? null : `${e.keyEnv} is not set` };
 });
-for (const e of engines) console.log(`${e.id.padEnd(11)} ${e.model.padEnd(18)} ${e.status === 'ran' ? 'will run' : `skipped: ${e.note}`}`);
+for (const e of engines) console.log(`${e.id.padEnd(11)} ${e.model.padEnd(18)} ${e.status === 'ran' ? (e.key ? 'will run' : 'will run (key added by the environment)') : `skipped: ${e.note}`}`);
 console.log(`${questions.length} questions, cost cap $${maxCost}`);
 if (args.includes('--dry')) { for (const q of questions) console.log(`  ${q.id.padEnd(28)} ${q.text}`); process.exit(0); }
-if (!engines.some(e => e.key)) { console.error('No engine has a key set; nothing to run.'); process.exit(1); }
+if (!engines.some(e => e.usable)) { console.error('No engine has a key set; nothing to run.'); process.exit(1); }
 
 const results = [];
 let spent = 0;
 for (const q of questions) {
   if (spent >= maxCost) { console.log(`Cost cap reached ($${spent.toFixed(2)}); stopping before ${q.id}.`); break; }
   // One call per question per engine; engines run side by side.
-  const round = await Promise.all(engines.filter(e => e.key).map(async e => {
+  const round = await Promise.all(engines.filter(e => e.usable).map(async e => {
     const base = { question_id: q.id, question: q.text, job: q.job, engine: e.id, model: e.model, date };
     try {
       const data = await e.request(fetch, e.key, e.model, q.text);

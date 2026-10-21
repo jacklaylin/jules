@@ -209,7 +209,7 @@ function toast(text,undo,extra){
  const wasHidden=notification.hidden;notification.hidden=false;if(wasHidden)riseIn(notification);if(!undo)toastTimer=setTimeout(()=>{notification.hidden=true;},6000);
 }
 function removeButton(item,card){
- const button=node('button','×','icon-button remove-item');button.type='button';button.setAttribute('aria-label',`Remove ${item.name} from wishlist`);button.title='Remove from wishlist';
+ const button=node('button',null,'icon-button remove-item');button.innerHTML='<svg aria-hidden="true" width="16" height="16" viewBox="0 0 18 18"><path d="M3 3 L15 15 M15 3 L3 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';button.type='button';button.setAttribute('aria-label',`Remove ${item.name} from wishlist`);button.title='Remove from wishlist';
  button.onclick=async()=>{button.disabled=true;try{await removeItem(item,card);}catch(e){message(e.message);button.disabled=false;}};
  return button;
 }
