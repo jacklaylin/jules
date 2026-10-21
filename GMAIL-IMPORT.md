@@ -311,3 +311,15 @@ Google can refuse to renew the stored Gmail sign-in: it answers `400 invalid_gra
 - **Shown as not connected.** `gmailLinked(row)` (token stored and no mark) replaces "a token is stored" everywhere connection status is decided. Account page: "Reconnect needed" with the date and a Connect Gmail button. Onboarding: "Your Gmail sign-in expired. Connect Gmail again". Admin person page, Purchases tab: "Gmail needs reconnecting (Google refused the sign-in <date>; daily purchase check paused)". The style report's end card offers Gmail again.
 - **Never retried.** The background worker, the restart sweep and the daily check skip a marked person without calling Google. The daily check's run record (Costs → Recurring jobs) counts them as `reconnect`, and now counts other per-person check failures as `failed` (before, they were counted as neither).
 - **Cleared by reconnecting.** A successful Google sign-in on the account or onboarding page removes the mark and stores the new sign-in. Disconnect also removes it. Everything already found stays.
+
+## October 21 update: the "goes with" offer and shared nudge rules (step 1)
+
+The daily purchase text is now one offer: "saw your new <item> from <store> in your email. want me to find a couple of things that go with it?" It replaces the October 18 angles (styling, new direction, pattern, just added). The rules are in PRD "Proactive nudges" and `lib/nudges.js`.
+
+- **Which purchases.** As before (own, new since the first import, last 7 days, no gifts/returns/duplicates), now only clothing, shoes, bags and accessories (`GOES_WITH_CATEGORIES`; an untagged item is left to the model). The model picks one lead item and may decide none suits an offer (`not_worth_a_text`). A failed pick offers about the first new item.
+- **Shared rules.** One unprompted text a day (local day) and three a week across the offer and fit checks. None on a day a price alert went out. Only 9am–8pm local (noon–8pm Eastern when the time zone is unknown). STOP or purchase texts turned off settle the purchases without a text. Quiet hours, the limits and a price alert hold the purchases for the next day's check. The ledger query is `store.unpromptedSince`; test texts (`nudge-test:`, `price-alert-test:`) never count.
+- **Fit checks** use the same rules. Their old `texted_today` reason is now `daily_cap`.
+- **Log.** `nudge` events (kind, status, reason, item count, test, delivery) and `data.nudges.log` on the row. `gmail_refresh` reports `text_item` instead of `angle`.
+- **Admin test.** Person page › **Purchase nudges…**. It needs `PRICE_ALERT_TEST_CONVERSATION_ID` (already set for price alerts) to be the person's conversation.
+
+No setup and no database migration are needed.
