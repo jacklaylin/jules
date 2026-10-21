@@ -65,6 +65,7 @@
   --shadow-gel: 0 3px 6px #17120F40, inset 0 1px 0 #fffc, inset 0 -2px 3px #0002;
   --shadow-dialog: 0 12px 80px #17120F26;
   --shadow-panel: 0 6px 30px #17120F26;  /* activity panel and toasts */
+  --shadow-photo-control: 0 2px 8px #17120F2E;  /* round buttons over product photos, so they hold on a white photo */
 }
 
 body { margin: 0; font-family: var(--font-sans); color: var(--ink); background: var(--white); }
@@ -444,8 +445,11 @@ button.quiet{border-color:transparent;box-shadow:none;background:transparent;col
 .skeleton-card-title{height:14px;width:75%;margin:16px 0 10px}.skeleton-price{height:14px;width:30%;margin:12px 0}
 @media(hover:hover) and (pointer:fine){button.tile{transition:transform .22s ease}button.tile:hover{transform:translateY(-3px)}button.tile:active{transform:translateY(-1px)}}
 @media(max-width:800px){.product-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 14px}.tile{padding:8px 8px 20px}.tile .photo{aspect-ratio:3/4}.tile strong{font-size:14px;margin-inline:4px}.card-price{font-size:10px;margin-inline:4px}.photo-pending .orb{--s:34px}.photo-pending .photo-status{font-size:9px}}
-/* Round icon buttons on product photos: price alert at the upper-left, remove at the upper-right (× top-right always gets rid of something). */
-.icon-button{position:absolute;top:24px;width:44px;height:44px;display:grid;place-items:center;padding:0;border-radius:50%;background:var(--photo-overlay);color:var(--ink);overflow:visible}
+/* Round icon buttons on product photos: price alert at the upper-left, remove at the upper-right (× top-right always gets rid of something).
+   Same flat circle as .close-button, plus a soft shadow so it holds on a white photo. */
+.icon-button{position:absolute;top:24px;width:44px;height:44px;display:grid;place-items:center;padding:0;border:1px solid var(--line);border-radius:50%;background:var(--photo-overlay);color:var(--ink);box-shadow:var(--shadow-photo-control);overflow:visible}
+.icon-button::after{display:none}
+@media(hover:hover) and (pointer:fine){.icon-button:not(:disabled):hover{transform:none;border-color:var(--ink)}}
 .icon-button:disabled{opacity:.5;cursor:wait}
 .remove-item{right:24px}
 .alert-toggle{left:24px}.alert-toggle .alert-on{display:none}
