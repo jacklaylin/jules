@@ -53,3 +53,9 @@ body.landing-page{padding-top:0}.scroll-story{height:100dvh}.landing-stage{posit
 /* Tapback: a centered heart in a round grey badge (iMessage reactions have no tail). */
 .demo-photo>.demo-tapback{padding:0;top:-16px;left:-20px;width:34px;height:34px;display:grid;place-items:center;box-shadow:0 0 0 2.5px var(--white)}
 .demo-tapback svg{width:17px;height:17px;margin:1px 0 0}
+/* Get early access hands off to signup (signup.css): the headline holds still and the button becomes its compose box */
+@view-transition{navigation:auto}
+.headline-line{view-transition-name:headline}
+.landing-actions .btn--butter{view-transition-name:signup-cta}
+::view-transition-old(headline),::view-transition-new(headline){width:auto;height:100%;left:0;right:auto}
+@media(prefers-reduced-motion:reduce){::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none!important}}
