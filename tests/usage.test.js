@@ -101,3 +101,26 @@ test('a role pointed at OpenRouter is sent there and metered at the reported or 
   // Haiku from the table: (1000*0.10 + 100*0.50)/1e6; gpt-oss from OpenRouter's reported cost.
   assert.deepEqual(recorded.map(r=>[r.provider,r.model,r.cost_usd,'reported_cost' in r]),[['openrouter','anthropic/claude-haiku-5.5',0.00015,false],['openrouter','openai/gpt-oss-120b',0.0042,false]]);
 });
+test('an unattributed call names the feature code that made it, not the shared model transport',async()=>{
+  const {callSite}=await import('../lib/usage.js');
+  const stack=['Error','    at globalThis.fetch (file:///var/task/lib/usage.js:118:17)','    at modelResponse (file:///var/task/lib/model-call.js:44:26)',
+    '    at callModel (file:///var/task/lib/model-call.js:71:26)','    at continuesReport (file:///var/task/lib/developer-feedback.js:54:24)','    at continueDeveloperReport (file:///var/task/lib/inbox.js:152:16)'].join('\n');
+  assert.equal(callSite(stack),'lib/developer-feedback.js:54');
+  // A real call through the transport never reports it either (this test file itself is outside lib/api/scripts).
+  const {modelResponse}=await import('../lib/model-call.js');
+  let site;
+  await modelResponse({env:{OPENAI_API_KEY:'test'},fetcher:async()=>{site=callSite();return new Response('{}');}});
+  assert.ok(!/model-call\.js/.test(site),site);
+});
+test('the #dev follow-up check is metered to the tester as developer feedback',async()=>{
+  const {receiveInInbox}=await import('../lib/inbox.js');
+  const rows=[],now=Date.parse('2026-10-21T00:28:30Z');
+  const store={receive:async()=>'conversation-1',claimAI:async()=>true,recordUsage:async r=>{rows.push(...r);},
+    inboundBefore:async()=>[{provider_id:'report-1',developer_feedback:'the third store looks fake:',created_at:new Date(now-5000).toISOString()}],
+    saveFeedback:async()=>{},reserve:async()=>true,prepareAI:async()=>{},finish:async()=>{}};
+  const delivery={space:{phone:'test-line'},message:{id:'follow-1',sender:{id:'test-sender'},content:{type:'text',text:'https://store.example/'},attachments:[]}};
+  const event=await receiveInInbox(delivery,{AI_ENABLED:'true',OPENAI_API_KEY:'test'},{store,now:()=>now,send:async()=>{},
+    continuationCheck:async()=>{await (await fetch('https://api.openai.com/v1/responses',{method:'POST'})).json();return true;}});
+  assert.equal(event,'developer_feedback_continued');
+  assert.deepEqual(rows.map(r=>[r.feature,r.conversation_id,r.operation,r.provider]),[['developer_feedback','conversation-1','feedback-check:follow-1','openai']]);
+});
