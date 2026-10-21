@@ -28,6 +28,19 @@ The configured Supabase Auth redirect allowlist must permit `SITE_ORIGIN/onboard
 
 The existing public-launch/provider-review notes in LANDING-PAGE.md remain relevant for broad public outreach. This change does not implement universal messaging unsubscribe or general public account enrollment. Declining this demo cancels its onboarding progression, not existing shopping alerts.
 
+## New-signup text to the owner
+
+On Photon's Free plan each tester needs their own line, so a signup can't start until you enroll them in Photon, add their conversation row and click **Approve** in Admin › People. Jules texts you when someone signs up at `/signup`, so you don't have to wait to be told:
+
+> new signup: Sam R., •••-0123, from podcast. set them up: https://textjules.com/admin
+
+- It goes to your own Jules conversation, set by the Vercel variable `OWNER_ALERT_CONVERSATION_ID`. Find your id in **Admin › People**: open yourself; the id is the last part of the page address (`/admin/people/<id>`). Add the variable in Vercel **Settings → Environment Variables** (Production), then redeploy. No phone number is stored anywhere new.
+- Only the first name, last initial and last four digits are shown. "from" is the signup link's `ref`, else how they arrived (utm source or referring site), and is left out when unknown.
+- Once per signup: a retried submit never texts again (ledger operation `signup-alert:<request id>`). No text when the number already has an approved conversation, or when the onboarding welcome went because you had already invited them. Your STOP status applies like any other Jules text.
+- The text is sent after the signup is answered; a failed text never fails or slows a signup.
+- It is shown in Admin as a "System message (alert or test)" and kept out of the chat context Jules reads, so it never looks like something Jules said to you.
+- Vercel logs: `signup_alert` (status `sent`, `uncertain` or `blocked`; `duplicate`), `signup_alert_skipped` (reason `not_configured`, `invalid_setting`, `invited`, `approved` or `owner_conversation_missing`), `signup_alert_failed`.
+
 ## Jules's contact card
 
 Right after the welcome is delivered, Jules sends “save me so you know it’s me:” and a contact card, `jules.vcf`: name **Jules**, note **Personal shopper**, the Jules number, the site link and the still-orb photo (`public/brand/contact-photo-512.jpg`). Tapping it on iPhone opens **Create New Contact** with everything filled in. The card is built at send time by `lib/contact-card.js` from two Vercel settings, so no phone number lives in the repository:
