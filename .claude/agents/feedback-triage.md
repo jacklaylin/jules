@@ -92,7 +92,9 @@ The chat agent's rules live in `lib/skills/`, one file per job (`CHAT-SKILLS.md`
 (October 21, 2026): a fix lands, in order of preference, as code (a validation or a result field) > a
 structured field or enum > a rule in one skill, always with a new eval case. A migrated skill stays
 within 150 words, so adding a rule over budget means merging or removing one; and a rule appears in one
-place only (if a tool or field description says it, the prompt doesn't).
+place only (if a tool or field description says it, the prompt doesn't). The budget never drops a needed
+rule: before deleting one, check what feedback added it and cover that with an eval case; if a skill truly
+needs more, raise its cap in its file with a reason (`word_cap: {words, reason}`) or split the skill.
 
 Respect `AGENTS.md`: keep it boring, avoid new infrastructure unless the pattern requires it, state the
 tradeoff when a recommendation materially adds complexity, and never recommend phrase-based routing.

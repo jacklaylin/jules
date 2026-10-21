@@ -160,7 +160,7 @@ Every PR from PR 3 on has to pass this before merge:
 1. **Frozen feedback eval set** (built by the [frozen eval set session](#local_d59c36ea-dca2-496d-b520-397b504186b2)): 3 runs. The mean pass rate must not drop below the baseline mean. No category may lose more than one case across the 3 runs. The baseline is re-measured whenever the chat model changes.
 2. **The existing routing evals** (`lib/agent-eval-cases.js`, 132 cases) and the 16 replay cases: same rule.
 3. **Router recall** (from PR 2 on): the share of turns where the router's skills cover every tool the full-prompt agent called. It is measured on the frozen set and on production shadow logs. Selective loading is turned on (PR 12) only at **≥98% recall**.
-4. **Ablation inside each skill PR.** Remove each "keep" rule one at a time and rerun that skill's cases. A rule stays only if removing it fails a case. That is how the plan cuts rules rather than moves them.
+4. **Ablation inside each skill PR.** Remove each "keep" rule one at a time and rerun that skill's cases. A rule stays if removing it fails a case. A rule that passes is deleted only after checking why it was added: if it guards a past failure the evals don't cover, it gets an eval case first and is tested again.
 
 ## 5. Migration order (one PR each, stop after each for your live check)
 
@@ -189,6 +189,7 @@ The prompt grew because a fix was usually "add a sentence". From now on:
 
 - A triage fix lands as, in order of preference: **code** (a validation or a result field) > **a structured field or enum** > **a rule in one skill**, always with a new frozen eval case.
 - Each skill has a **150-word budget**. Adding a rule over budget means removing or merging one, and ablation shows which.
+- **The budget never drops a needed rule** (founder, October 21). Before a rule is deleted, check the commit and feedback that added it (the inventory lists them). If it guards a real past failure that no eval case covers, add the case first. If a skill still needs more than 150 words, raise that skill's cap in its file (`word_cap: {words, reason}`) or split the skill; the raise shows in the PR for the founder to see. A test checks that every raise has a reason.
 - No rule appears in more than one place. If a field description says it, the prompt doesn't.
 
 The `feedback-triage` agent instructions would get these three lines when PR 1 lands.
