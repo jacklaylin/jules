@@ -131,7 +131,12 @@ function answer(values){
  render(true);
 }
 
+// Arriving from the landing page, the compose box is mid-morph (signup.css): replacing it now would cancel the view transition, so the dock waits for it to land.
+const morphing=()=>CSS.supports('selector(:active-view-transition)')&&document.documentElement.matches(':active-view-transition');
+let dockWaiting=false,dockFocus=false;
+function afterMorph(){const running=document.getAnimations().filter(a=>a.effect?.pseudoElement?.startsWith('::view-transition'));return running.length?Promise.allSettled(running.map(a=>a.finished)):new Promise(done=>requestAnimationFrame(done));}
 function renderDock(focus){
+ if(morphing()){dockFocus||=focus;if(!dockWaiting){dockWaiting=true;afterMorph().then(()=>{dockWaiting=false;const f=dockFocus;dockFocus=false;renderDock(f);});}return;}
  const step=currentStep();
  dock.replaceChildren();
  // While signup availability loads, the first question's box is shown but not usable yet.

@@ -3,6 +3,10 @@ import {demoState,bubbleProgress,pickDemo,PLAYBACK_RATE} from './landing-timelin
 import {carryRef,rememberArrival} from './signup-ref.js';
 carryRef(document.querySelectorAll('a[href="/signup"]'),location.search);
 rememberArrival(()=>sessionStorage,{referrer:document.referrer,search:location.search,host:location.hostname});
+// Leaving for signup: hand the view transition only the label, so the signup page draws one pill that grows into the compose box
+const cta=document.querySelector('.landing-actions .btn--butter');
+addEventListener('pageswap',e=>{if(e.viewTransition)cta.classList.add('vt-bare');});
+addEventListener('pageshow',()=>cta.classList.remove('vt-bare'));
 const logo=document.getElementById('headline-logo');logo.replaceChildren(createLogo());initBrandActivity();
 const motion=matchMedia('(prefers-reduced-motion: reduce)'),chat=document.getElementById('demo-chat'),scenes=[...chat.querySelectorAll('.demo-scene')],typing=document.getElementById('demo-typing'),controls=document.getElementById('demo-controls'),replay=document.getElementById('demo-replay'),shuffle=document.getElementById('demo-shuffle');
 for(const bubble of chat.querySelectorAll('.received')){const avatar=document.createElement('span');avatar.className='message-avatar';avatar.innerHTML='<span class="orb"></span>';bubble.append(avatar);}
