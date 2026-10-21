@@ -28,7 +28,7 @@ import { approveAccess, approvalPreview, waitlistAgain, WAITLIST_REPLIES } from 
 import { profileFirstName, displayName } from '../lib/memory.js';
 import { signupsWaiting } from '../lib/new-signups.js';
 import { goesWithCandidates, sendTestNudge, nudgeTestConversation, purchaseTextsOn } from '../lib/purchase-texts.js';
-import { nudgeTimezone } from '../lib/nudges.js';
+import { nudgeTimezone, nudgeSummary } from '../lib/nudges.js';
 
 export const config = { api: { bodyParser: false }, maxDuration: 30 };
 // Owner view. Conversations are read-only (Jules replies automatically); the owner can review and
@@ -151,6 +151,8 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
       // New signups who haven't texted Jules yet (lib/new-signups.js). Phones are masked to the last four digits.
       if (query.get('view') === 'signups') return json(res, 200, { signups: await signupsWaiting(store) });
       if (query.get('view') === 'adoption') return json(res, 200, await adoptionReport(store));
+      // Unprompted texts across testers (lib/nudges.js): sends, holds, replies. Loaded on its own so a failure leaves Adoption as it is.
+      if (query.get('view') === 'nudges-summary') return json(res, 200, nudgeSummary(await store.nudgeLogs()));
       if (query.get('view') === 'metrics') return json(res, 200, await metricsTrend(store, { days: 7 }));
       // Per sourcing turn outcomes (lib/turn-outcomes.js): ids, counts and labels only, no message text.
       if (query.get('view') === 'scorecard') return json(res, 200, await loadScorecard(store));

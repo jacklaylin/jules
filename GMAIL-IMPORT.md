@@ -332,3 +332,10 @@ No setup and no database migration are needed.
 - **Evals.** There are 8 multi-turn cases in the `goes_with` agent category: yes, yes with their own brief, "what would go with them", no, not now, an unrelated request, a gift correction and stop. All passed 3 of 3 against the real model (24/24), and the purchase_texts cases still pass (21/21). The reader classified 7 of 7 sample replies correctly.
 
 No setup and no database migration are needed.
+
+## October 21 update: back-off and the nudge overview (step 3)
+
+- **Back-off.** `lib/nudges.js` `backoffUntil`: take the nudges (offers and fit checks; not price alerts, not test texts, not failed sends) sent since the person's last message. With 2 or more, and the newest at least 2 days old, nudges pause until 16 days after the newest (2 days to reply plus 14). Any message from the person ends it. The check reads the last inbound message (`store.lastInbound`) and 20 days of the ledger. Held offers keep their purchases pending, as with the other holds, so a purchase still within 7 days can go out once the pause ends. Logged as `held` / `ignored_backoff`.
+- **Overview.** Admin › Adoption › Purchase nudges reads every row's `data.nudges` (`store.nudgeLogs`, `view=nudges-summary`, `nudgeSummary`). It shows totals (offers, answered %, yes %, no reply), a row per tester, and recent decisions. It loads on its own, so a failure only hides that section.
+
+No setup and no database migration are needed.
