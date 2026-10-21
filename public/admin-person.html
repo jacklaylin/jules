@@ -28,6 +28,7 @@
       <hr>
       <span class="mono-label">Person</span>
       <button id="approve-person" type="button" aria-haspopup="dialog" hidden>Approve from waitlist…</button>
+      <button id="resend-welcome" type="button" aria-haspopup="dialog" hidden>Resend the welcome…</button>
       <button id="contact-card" type="button" aria-haspopup="dialog">Text them Jules’s contact card…</button>
       <button id="ask-style" type="button" aria-haspopup="dialog">Ask them style questions…</button>
       <button id="nudges" type="button" aria-haspopup="dialog">Purchase nudges…</button>
@@ -108,6 +109,14 @@
     <div id="approve-text-note"></div>
     <p id="approve-error" class="error" role="alert" hidden></p>
     <div class="dialog-actions"><button id="approve-confirm" class="btn--butter" type="button">Approve</button><button id="approve-cancel" type="button">Cancel</button></div>
+  </dialog>
+  <dialog id="welcome-dialog" class="confirm-dialog" aria-labelledby="welcome-title">
+    <h2 id="welcome-title">Resend the welcome?</h2>
+    <p>Jules texts <strong id="welcome-person">this person</strong> the welcome again, with a fresh sign-in link:</p>
+    <p id="welcome-text"></p>
+    <p><span id="welcome-card">If it goes through, the contact card follows. </span>Check their phone first: if the earlier welcome did arrive, they get it twice. Nothing is sent if they texted STOP.</p>
+    <p id="welcome-error" class="error" role="alert" hidden></p>
+    <div class="dialog-actions"><button id="welcome-confirm" class="btn--butter" type="button">Resend</button><button id="welcome-cancel" type="button">Cancel</button></div>
   </dialog>
   <dialog id="card-dialog" class="confirm-dialog" aria-labelledby="card-title">
     <h2 id="card-title">Text the contact card?</h2>

@@ -21,7 +21,7 @@ Open `/onboarding-preview` to walk through the flow with a demo tester. It uses 
 This is deliberately invite-only, using the existing private wishlist sign-in. Phone signup alone does not grant account access. Provision each tester once (maximum ten for this experiment):
 
 1. In Supabase **SQL Editor**, run `db/016_onboarding.sql` after the existing migrations, including `014_public_signup.sql`. It creates the private onboarding state table. No credential is produced.
-2. In Supabase **Table Editor → conversations**, find the tester’s conversation. (Since October 21, **Set up** in Admin › People › New signups does this step and the next; see [Setting up a new tester from Admin](#setting-up-a-new-tester-from-admin-october-21).) For a tester who has never texted Jules, create a row with `sender_id` set to their phone in international format and `line` set to the Photon line assigned to them. Leave generated fields at their defaults. Copy the resulting conversation `id`. Confirm the assigned line in Photon; do not guess a pooled line.
+2. In Supabase **Table Editor → conversations**, find the tester’s conversation. (Since October 21, **Set up** in Admin › People › New signups does this step and the next; see [Setting up a new tester from Admin](#setting-up-a-new-tester-from-admin-october-21).) For a tester who has never texted Jules, create a row with `sender_id` set to their phone in international format and `line` set to `shared` (the value every inbound message uses with this project's shared Photon token; any other value makes their first text open a second, waitlisted conversation). Leave generated fields at their defaults. Copy the resulting conversation `id`.
 3. In **wishlist_members**, add the tester’s invited email and that `conversation_id`, using the existing companion-access setup. In **onboarding_sessions**, add that same `conversation_id`; leave `state` as `invited`. Keep phone numbers and emails in Supabase, never in SQL committed to the repository. Only one invited conversation may match a signup phone; ambiguous matches send no text.
 4. In Vercel **Settings → Environment Variables**, enable `ONBOARDING_ENABLED=true`, `PUBLIC_SIGNUP_ENABLED=true`, and `WISHLIST_ENABLED=true`. Keep the existing AI, memory, image and search configuration enabled for the shopping portion. `SITE_ORIGIN` must be the actual site URL. Photon, Supabase and OpenAI credentials stay in Vercel’s secret settings. No new API key is needed.
 5. Deploy the code and settings. Have the tester open `/signup` and submit their own number and consent. Jules sends the first message only for a provisioned onboarding invitation. Uninvited numbers remain early-access signups.
@@ -34,18 +34,24 @@ The existing public-launch/provider-review notes in LANDING-PAGE.md remain relev
 
 You no longer add a `conversations` row in Supabase by hand. For each new signup:
 
-1. **Photon:** in the [Photon Dashboard](https://app.photon.codes/), enroll the tester's number and note the line Photon assigns them. This stays manual: Photon's SDK (`@spectrum-ts`) has no call to enroll a number or assign a line, so Jules can't do it for you.
+1. **Photon:** in the [Photon Dashboard](https://app.photon.codes/), enroll the tester's number. This stays manual: Photon's SDK (`@spectrum-ts`) has no call to enroll a number or assign a line, so Jules can't do it for you. Do this first, or the welcome can't reach them.
 2. **Admin › People › New signups** (the link in your new-signup text opens it). It lists signups whose number has no conversation yet, with their name, the last four digits of their number and when they signed up. The full number is never shown.
-3. Click **Set up** on their row, type the Photon line (for example `+1 415 555 0100`), read the confirmation, which quotes the exact text Jules will send, and click **Set up and text them**.
+3. Click **Set up** on their row, read the confirmation, which quotes the exact text Jules will send, and click **Set up and text them**. There is no line to type.
 
-That one click saves their conversation on that line, approves them, sets up their account and invite (as **Approve** does), and texts the welcome and then the contact card from their line. Their gender from the signup form is added to their profile, as it would be if they had texted first. They then move from New signups to Testers.
+That one click saves their conversation, approves them, sets up their account and invite (as **Approve** does), and texts the welcome (the contact card is paused for now; see below). Their gender from the signup form is added to their profile, as it would be if they had texted first. They then move from New signups to Testers.
 
-It is safe to click again. A number that already has a conversation on that line reuses it, a second one is never created, and someone already approved gets no second text. Nothing is changed or sent when:
-- the line isn't a phone number (the dialog says so before anything is sent);
+**Why there's no line to type (fixed October 21).** This project uses one shared Photon token, so every message that reaches Jules arrives on the line `shared`, whichever Photon number the tester texted, and their conversation is found by their number plus `shared`. The first version of Set up saved the number you typed instead, so the tester's first text opened a second, waitlisted conversation without their account. Set up now saves `shared`, the same as every tester who texted first.
+
+**The contact card is paused (October 21).** With the shared line, the card could only carry `JULES_PUBLIC_LINE`, and that may not be the number a tester actually texts, so they could save the wrong number. No card goes after the welcome (or after **Resend the welcome**) unless the Vercel setting `CONTACT_CARD_ENABLED` is `true`. Once Photon is on one number for everyone, set `JULES_PUBLIC_LINE` to it, add `CONTACT_CARD_ENABLED=true` in Vercel **Settings → Environment Variables** (Production), and redeploy.
+
+It is safe to click again. A number that already has a conversation (for example because they texted Jules before you set them up) reuses it, a second one is never created, and someone already approved gets no second text. Nothing is changed or sent when:
 - the number texted STOP to Jules;
-- the number already has a conversation on a different line, or on several lines. The message gives the last four digits of the existing line so you can check Photon. To keep that line, use **Approve** in Testers instead.
+- the number already has a conversation on a line other than `shared`, or on several lines. Use **Approve** in Testers instead;
+- Jules's newest conversation isn't on `shared` (Photon was switched to dedicated lines). Set up would guess the line, so it refuses; tell Claude so Set up can be changed.
 
-Vercel logs: `admin_tester_set_up` (`created`, `changed`, `text`, `account`). No migration is needed.
+**If the welcome "may not have been delivered".** Jules never resends an uncertain text by itself, because it can't tell whether the first one arrived. Ask the tester; if they didn't get it, open them in **Admin › People** and click **Resend the welcome…** (shown only while their onboarding is offered or accepted). The dialog quotes the exact text: the first welcome's wording, with a fresh sign-in link. If it goes through and the card isn't paused, the contact card follows. Each click sends once more as its own entry in the message ledger; the earlier entry stays as it was. Someone who texted STOP gets nothing. Vercel logs: `admin_welcome_resent` (`welcome`, `contact_card`).
+
+Vercel logs: `admin_tester_set_up` (`created`, `changed`, `text`, `account`). If the welcome ends **may not have been delivered**, look for `imessage_send_failed` just before it: `name`, `code` and `status` say what Photon's send threw (for example an expired token or an unknown recipient). The message text, numbers and the error's own wording are never logged. No migration is needed.
 
 ## New-signup text to the owner
 
@@ -62,7 +68,7 @@ On Photon's Free plan each tester needs their own line, so a signup can't start 
 
 ## Jules's contact card
 
-Right after the welcome is delivered, Jules sends “save me so you know it’s me:” and a contact card, `jules.vcf`: name **Jules**, note **Personal shopper**, the Jules number, the site link and the still-orb photo (`public/brand/contact-photo-512.jpg`). Tapping it on iPhone opens **Create New Contact** with everything filled in. The card is built at send time by `lib/contact-card.js` from two Vercel settings, so no phone number lives in the repository:
+**Paused unless `CONTACT_CARD_ENABLED=true`** (see [Setting up a new tester from Admin](#setting-up-a-new-tester-from-admin-october-21)). When on: right after the welcome is delivered, Jules sends “save me so you know it’s me:” and a contact card, `jules.vcf`: name **Jules**, note **Personal shopper**, the Jules number, the site link and the still-orb photo (`public/brand/contact-photo-512.jpg`). Tapping it on iPhone opens **Create New Contact** with everything filled in. The card is built at send time by `lib/contact-card.js` from two Vercel settings, so no phone number lives in the repository:
 
 - The number is the line this person texts (stored on their conversation). On Photon's Free plan each tester has their own line, so each card carries that tester's number.
 - `JULES_PUBLIC_LINE`: the Photon line in international format, e.g. `+14155550100`. Used only when the person's line isn't a phone number. With neither, the welcome goes alone and no card is sent.
@@ -70,7 +76,7 @@ Right after the welcome is delivered, Jules sends “save me so you know it’s 
 
 The card is its own ledger entry (`onboarding:<conversation>:contact_card`), so it goes once, only after a welcome Photon accepted, never after an uncertain one. A failed card never changes the welcome's outcome; Vercel logs show `imessage_file_sent` or `imessage_file_failed`.
 
-**Check it once (one phone is enough):** with both settings in Vercel, open **Admin › People**, pick yourself and click **Text them Jules’s contact card…**. You should get the lead-in and a contact bubble showing the orb; tap it and confirm the name, number and photo. This resets nothing (onboarding, Gmail and history stay as they are), and it is also how to send the card to testers who signed up before it existed. Each click sends it again.
+**Check it once (one phone is enough):** with both settings in Vercel, open **Admin › People**, pick yourself and click **Text them Jules’s contact card…**. You should get the lead-in and a contact bubble showing the orb; tap it and confirm the name, number and photo. This resets nothing (onboarding, Gmail and history stay as they are), and it is also how to send the card to testers who signed up before it existed. Each click sends it again. This button works even while the card after the welcome is paused, because you choose who gets it; avoid it for testers until Photon is on one number.
 
 ### Set the same photo as the line's iMessage Name and Photo
 
