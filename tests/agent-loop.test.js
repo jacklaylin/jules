@@ -355,7 +355,16 @@ test('the writer is told what request the options were found for, so a new reque
   assert.equal(requestFacts(null), null);
   assert.equal(requestFacts({ options:[] }), null);
   assert.deepEqual(requestFacts({ search_plan:{ continuation:false, occasion:null, hard_constraints:['casual shirts', 'appropriate for fall'] } }),
-    { new_request:true, occasion:null, constraints:['casual shirts', 'appropriate for fall'] });
+    { new_request:true, occasion:null, constraints:['casual shirts', 'appropriate for fall'], size_needed:false });
   assert.deepEqual(requestFacts({ search_plan:{ continuation:true, occasion:{ name:'Basement', dress:'club', reading:'place' } } }),
-    { new_request:false, occasion:'Basement', constraints:[] });
+    { new_request:false, occasion:'Basement', constraints:[], size_needed:false });
+});
+
+test('a size is asked for only when the shown options are sized and none has a saved size of the user', () => {
+  const plan = { continuation:false, occasion:null, hard_constraints:[] };
+  const sized = { listing_check:{ size_options:[{ size:'44', available:true }] } };
+  assert.equal(requestFacts({ search_plan:plan, options:[sized, sized] }).size_needed, true);
+  assert.equal(requestFacts({ search_plan:plan, options:[sized, { ...sized, your_size:{ sizes:['L'], status:'not_listed' } }] }).size_needed, false);
+  assert.equal(requestFacts({ search_plan:plan, options:[{ listing_check:{ size_options:[] } }] }).size_needed, false);
+  assert.equal(requestFacts({ search_plan:plan, options:[sized], for_someone_else:true }).size_needed, false);
 });
