@@ -7,7 +7,7 @@
 <link rel="icon" href="/brand/icon.svg" type="image/svg+xml"></head>
 <body class="admin-console">
   <main>
-    <div class="dv-heading"><h1 class="dv-title">Costs</h1><span id="total" class="dv-title">—</span><span id="total-label" class="dv-heading-note"></span></div>
+    <div class="dv-heading"><h1 class="dv-title">Costs</h1><span id="period-label" class="dv-heading-note"></span></div>
     <div class="dv-toolbar">
       <div id="cost-views" class="dv-views" role="group" aria-label="Cost views">
         <button type="button" data-view="">By service</button>
@@ -26,7 +26,23 @@
     <div id="costs-more" class="dv-pop dv-menu" popover aria-label="More actions">
       <button id="refresh" type="button">Refresh <span class="hint">re-reads connected billing</span></button>
     </div>
-    <div class="dv-status"><span id="loader" hidden>Refreshing…</span><span id="refreshed"></span><span id="lifetime"></span><span id="coverage"></span><span id="budget-status"></span><span id="jobs-status"></span><span id="reconcile-status"></span><span id="caps-status"></span><span id="view-summary"></span><span id="notice" role="status" aria-live="polite"></span></div>
+    <div class="dv-status"><span id="loader" hidden>Refreshing…</span><span id="refreshed"></span><span id="coverage"></span><span id="jobs-status"></span><span id="reconcile-status"></span><span id="caps-status"></span><span id="view-summary"></span><span id="notice" role="status" aria-live="polite"></span></div>
+
+    <div id="summary" class="dv-metrics" role="group" aria-label="Cost figures" aria-busy="true"></div>
+    <details class="fold metrics-help"><summary>What these numbers mean</summary><dl>
+      <dt>Month to date</dt><dd>Every service’s dollars from the 1st through the picked day (UTC). Plan fees are spread evenly over the month. Missing entries are unknown, not free, so an incomplete service makes it the known part only.</dd>
+      <dt>Projected month end</dt><dd>Calculated, not reported by any provider: the month’s fees plus the average daily usage so far, times the days in the month. It is a forecast, not a bill. It is compared with last month’s whole total; lower is better.</dd>
+      <dt>Today / Day</dt><dd>That day’s known spend against the daily warning budget (set with Update an amount). This page warns; it cannot enforce a cap. Set a provider spending limit wherever available.</dd>
+      <dt>Lifetime</dt><dd>Every whole month since the build started plus this month to date. A month missing a service counts only what is known, and the status line names it.</dd>
+      <dt>Billed</dt><dd>The provider’s own reported dollars.</dd>
+      <dt>Estimate</dt><dd>Jules’ own count of its calls at list prices, used only where billing isn’t available yet. OpenAI calls are priced from token counts; SerpApi searches as a share of the plan price.</dd>
+      <dt>Manual</dt><dd>Entered with Update an amount.</dd>
+      <dt>Billed vs recorded</dt><dd>The status line compares OpenAI’s billed dollars with Jules’ own recorded calls for the days OpenAI has finished reporting; a gap means some calls are made outside the cost meter. Provider reporting can lag by a day or two.</dd>
+      <dt>By feature</dt><dd>Estimates from every OpenAI and SerpApi call Jules makes, split by what it was for. Eval test runs are under Evals. Billed totals (By service) are the source of truth.</dd>
+      <dt>By person</dt><dd>Each person’s metered OpenAI and SerpApi spend for today and this month (UTC), at today’s list prices, against their spending cap. It always shows the current day and month, whatever date is picked. Caps are set in Vercel (COST-CAPS.md); with none set, nobody is limited. Photon, Vercel and Supabase fees are shared and not split per person.</dd>
+      <dt>Recurring jobs</dt><dd>Every scheduled job from <code>lib/jobs.js</code>; a test fails if one is scheduled without being listed, and Supabase jobs not listed show as untracked. Costs are estimates of each job’s OpenAI and SerpApi calls (also counted By feature); compute time is in the Vercel and Supabase rows. Projected is the month so far averaged per day, times the days in the month. A job is flagged when it is over or projected over its monthly budget, when a day costs more than double its daily average, or when it stops running.</dd>
+      <dt>Evals</dt><dd>Owner test runs from the replay gate and the Replays &amp; evals page, estimated the same way. They are not user activity.</dd>
+    </dl></details>
 
     <section id="tool-entry" class="dv-tool" aria-labelledby="tool-entry-title" hidden>
       <div class="dv-tool-head"><h2 id="tool-entry-title">Update an amount</h2><button id="entry-close" class="close-button" type="button" aria-label="Close update an amount"><svg aria-hidden="true" viewBox="0 0 18 18"><path d="M3 3 L15 15 M15 3 L3 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></div>
@@ -43,26 +59,28 @@
       <details class="entry-help"><summary>How to avoid counting costs twice</summary><p>Record variable charges in daily usage. Record fixed plan fees (Photon lines, Supabase, ChatGPT, Claude) once as a monthly subscription: it carries forward to later months until you enter a new amount, or 0 when a plan stops. Where a connected provider reports its own plan fee (SerpApi, Vercel), the page uses that and ignores a manual subscription; where OpenAI reports a day, its billed figure replaces any manual or estimated amount. Don’t record a credit top-up and the consumption of those same credits as two expenses. Include credit consumption in daily usage only when it is not already covered by your subscription; otherwise record $0 and put the credit count in the note. Credit notes are informational and are not converted to dollars.</p><p>Subscriptions here are an allocation of the monthly fee, not the cash payment date. Taxes, refunds, annual plans, and shared accounts need manual adjustments to the monthly amount. Include only the portion you want assigned to Jules. Set a provider spending limit wherever available; this dashboard cannot enforce one.</p><p>ChatGPT / Codex and Claude are development expenses. The OpenAI API is recorded separately. GitHub includes any paid repository tools. </p></details>
     </section>
 
-    <section data-view-panel="" aria-label="By service">
-      <div class="dv-table-wrap"><table class="dv-table costs-table"><thead><tr id="service-head"></tr></thead><tbody id="rows"></tbody></table></div>
-      <p class="dv-note"><strong>Billed</strong> = the provider’s own reported dollars. <strong>Estimate</strong> = Jules’ own count of its calls at list prices, used only where billing isn’t available yet. <strong>Manual</strong> = entered with Update an amount. The status line compares OpenAI’s billed dollars with Jules’ own recorded calls for the days OpenAI has finished reporting; a gap means some calls are made outside the cost meter. Plan fees are spread evenly over the month. <strong>Projected month end</strong> is calculated, not reported by any provider: the month’s fees plus the average daily usage so far, times the days in the month. It is a forecast, not a bill. Missing entries are unknown, not free. Provider reporting can lag by a day or two; this page cannot enforce spending caps.</p>
-    </section>
-    <section data-view-panel="features" aria-label="By feature" hidden>
-      <div class="dv-table-wrap"><table class="dv-table costs-table costs-narrow"><thead><tr id="feature-head"></tr></thead><tbody id="feature-rows"></tbody></table></div>
-      <p class="dv-note">Estimates from every OpenAI and SerpApi call Jules makes. OpenAI calls are priced from their token counts at list prices; SerpApi searches as a share of the plan price. Eval test runs are under Evals. Billed totals (By service) are the source of truth.</p>
-    </section>
-    <section data-view-panel="people" aria-label="By person" hidden>
-      <div class="dv-table-wrap"><table class="dv-table costs-table costs-narrow"><thead><tr><th>Person</th><th class="end">Today</th><th class="end">This month</th><th>Cap</th></tr></thead><tbody id="people-rows"></tbody></table></div>
-      <p class="dv-note">Each person’s metered OpenAI and SerpApi spend for today and this month (UTC), priced at today’s list prices, against their spending cap. It always shows the current day and month, whatever date is picked. Caps are set in Vercel (COST-CAPS.md); with none set, nobody is limited. Photon, Vercel and Supabase fees are shared and not split per person.</p>
-    </section>
-    <section data-view-panel="jobs" aria-label="Recurring jobs" hidden>
-      <div class="dv-table-wrap"><table class="dv-table costs-table"><thead><tr id="jobs-head"></tr></thead><tbody id="jobs-rows"></tbody></table></div>
-      <p class="dv-note">Every scheduled job Jules runs, from <code>lib/jobs.js</code>. A test fails if one is scheduled without being listed, and Supabase jobs not listed show here as untracked. Costs are estimates of the OpenAI and SerpApi calls each job makes (also counted By feature); compute time is in the Vercel and Supabase rows, which their billing does not split per job. <strong>Projected</strong> is the month so far averaged per day, times the days in the month. Set a job’s monthly budget with Update an amount; a job is flagged when it is over or projected over budget, when a day costs more than double its daily average, or when it stops running.</p>
-    </section>
-    <section data-view-panel="evals" aria-label="Evals" hidden>
-      <div class="dv-table-wrap"><table class="dv-table costs-table costs-narrow"><thead><tr id="eval-head"></tr></thead><tbody id="eval-rows"></tbody></table></div>
-      <p class="dv-note">Owner test runs from the replay gate and the Replays &amp; evals page, estimated the same way. They are not user activity.</p>
-    </section>
+    <div class="dv-cards">
+      <section data-view-panel="" class="dv-card" aria-labelledby="service-title">
+        <div class="dv-card-head"><h2 id="service-title">By service</h2><span class="dv-card-note">billed where connected, otherwise estimated or entered</span></div>
+        <div class="dv-table-wrap"><table class="dv-table costs-table"><thead><tr id="service-head"></tr></thead><tbody id="rows"></tbody></table></div>
+      </section>
+      <section data-view-panel="features" class="dv-card" aria-labelledby="features-title" hidden>
+        <div class="dv-card-head"><h2 id="features-title">By feature</h2><span class="dv-card-note">estimated from Jules’ own calls</span></div>
+        <div class="dv-table-wrap"><table class="dv-table costs-table"><thead><tr id="feature-head"></tr></thead><tbody id="feature-rows"></tbody></table></div>
+      </section>
+      <section data-view-panel="people" class="dv-card" aria-labelledby="people-title" hidden>
+        <div class="dv-card-head"><h2 id="people-title">By person</h2><span class="dv-card-note">today and this month (UTC), whatever date is picked</span></div>
+        <div class="dv-table-wrap"><table class="dv-table costs-table"><thead><tr><th>Person</th><th class="end">Today</th><th class="end">This month</th><th>Cap</th></tr></thead><tbody id="people-rows"></tbody></table></div>
+      </section>
+      <section data-view-panel="jobs" class="dv-card" aria-labelledby="jobs-title" hidden>
+        <div class="dv-card-head"><h2 id="jobs-title">Recurring jobs</h2><span class="dv-card-note">every scheduled job, with its estimated calls and budget</span></div>
+        <div class="dv-table-wrap"><table class="dv-table costs-table"><thead><tr id="jobs-head"></tr></thead><tbody id="jobs-rows"></tbody></table></div>
+      </section>
+      <section data-view-panel="evals" class="dv-card" aria-labelledby="evals-title" hidden>
+        <div class="dv-card-head"><h2 id="evals-title">Evals</h2><span class="dv-card-note">owner test runs, not user activity</span></div>
+        <div class="dv-table-wrap"><table class="dv-table costs-table"><thead><tr id="eval-head"></tr></thead><tbody id="eval-rows"></tbody></table></div>
+      </section>
+    </div>
   </main>
 </body>
 </html>
