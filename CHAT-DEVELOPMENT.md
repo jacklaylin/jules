@@ -34,29 +34,60 @@ iMessage ─► INBOX ─► CONTEXT ─► ROUTER ─► AGENT LOOP ─► TOOL
    - **Example conversations are exempt** from word budgets (an `examples` prompt block, from `docs/example-conversations.md`). Examples shape tone and judgment better than rules. When an example can replace a rule, prefer the example.
    - Before deleting a rule, check which feedback added it (`docs/chat-skills-inventory.md`, `git log -S`), and cover that case with an eval first.
 6. **Fewer, clearer tools.** The model is offered 21 tools today, which is a lot. The tool count may not grow (enforced by the same budget test). A new capability extends an existing tool or replaces one. Merging tools that overlap, such as the status tools or the purchase-history tools, counts as progress.
-7. **Write the reply from what happened.** The reply should be written from a structured record of what this turn actually did (searched, found, saved, alerted, refused), not from the model's memory of its own tool calls (CHAT-SKILLS step 4). Prefer this over adding more after-the-fact checks.
+7. **Write the reply from what happened.** The reply should be written from a structured record of what this turn actually did (searched, found, saved, alerted, refused), not from the model's memory of its own tool calls (CHAT-SKILLS step 4). Prefer this over adding more after-the-fact checks. `CHAT_NARRATE=on` does this (`lib/narrate.js`, off by default; see CHAT-SKILLS.md, "Writing the reply from what happened").
 8. **One job per PR.** A skill migration touches one skill. A triage PR fixes one root cause. Stop after each for the founder's live check.
 9. **The gate runs on the production chat model.** Read `MODEL_CHAT` in Vercel. Since October 22 it is `gpt-5.6-luna`. When the model changes, re-measure the baseline before comparing anything.
 10. **Evals spend real money.** Run them with the local evals key (its own OpenAI project and budget), never production's. Check the balance with one tiny call before a large run, and cap it with `--max-cost`.
 
 ## The gate (every PR that touches `lib/skills/`, `lib/ai.js` prompts or tool schemas, or `lib/compose.js` checks)
 
-| Check | Command | Pass |
+The gate is **never skipped for cost**. It costs $0.60–4 for most areas (see "What it costs"), against about $25 for the old full ×3 gate on the production model. Three tiers:
+
+| When | Command | Runs |
 |---|---|---|
-| Unit tests, including word and tool budgets | `npm test` (also run by CI) | green |
-| Frozen failure set, **compared case by case** | `node --env-file=.env.local scripts/frozen-evals.js run --runs 3` on main and on the PR's final commit, same model | See below |
-| Routing evals, compared case by case | `node --env-file=.env.local scripts/replay-gate.js --suite agent --runs 3` on main and the PR | See below |
+| **Every chat PR (mandatory)** | `node --env-file=.env.local scripts/chat-gate.js --area <area>` on the PR's final commit | the frozen cases and routing evals in the PR's area, ×3 on main and ×3 on the PR, compared case by case |
+| **Every night, on main** | `node --env-file=.env.local scripts/chat-gate.js --nightly` (the founder schedules it) | the full frozen set ×1 on `origin/main`, compared with the night before, with the merges in between |
+| **Model change or skill migration** | `scripts/frozen-evals.js run --runs 3` and `scripts/replay-gate.js --suite agent --runs 3`, on main and the PR | everything ×3 |
+| Every PR | `npm test` (also run by CI) | unit tests, word and tool budgets |
 | Router recall (only if selective loading is still planned) | `scripts/router-recall.js --days 2` | ≥98% |
 
-**How to read the results.** One run of the frozen set moves about ±7 points by chance, so the overall pass rate alone can't decide a merge. Compare the same cases on both versions instead:
-- List every case that **flipped**: passed on main in most runs but fails on the PR in most runs, and the reverse. The PR should fix the cases it targets and flip none the other way.
-- **A flip to failing in a trust area blocks the merge** until it's explained and fixed. Trust areas are saves, alerts, consent, prices, and claims about what happened.
+**Areas.** `saves, alerts, consent, search, brand, price, options, profile, history, onboarding, conversation` (`lib/eval-areas.js`). A frozen case is in the areas of what its turn did (its tools, the shopping state it started from); a routing case by its category. Without `--area`, the gate reads the branch's changed files: a skill or module maps to its areas, but a file every turn reads (`lib/ai.js`, `lib/compose.js`, the core skill) can't be narrowed, so the gate asks you to name the area your change is about. Name every area the change could move; the nightly run catches what a narrow area missed. The gate uses the production chat model (`--model`, default `gpt-5.6-luna`) and stops at `--max-cost` (default $5; $3 nightly). main runs in its own checkout at `origin/main` (`~/.jules/eval-base`, outside the repository) with this branch's eval harness copied in, so both sides are judged the same way.
+
+**How to read the results.** One run of the frozen set moves about ±7 points by chance, so the overall pass rate alone can't decide a merge. `chat-gate.js` compares the same cases on both versions instead:
+- It lists every case that **flipped**: passed on main in most runs but fails on the PR in most runs (✗), and the reverse (✓). The PR should fix the cases it targets and flip none the other way.
+- **A flip to failing in a trust area blocks the merge** (exit code 1, marked TRUST) until it's explained and fixed. Trust areas are saves, alerts, consent and prices; claims about what happened are the "one coherent message" criterion, checked in every case.
 - A flip elsewhere needs a one-line explanation in the PR.
 - The overall pass rate is reported, but it doesn't decide anything on its own.
-- **Check results in code where possible.** Did the save or alert actually happen? Was the link or price in the results? The model judge decides only what code can't check, such as tone or whether the reply answered the question.
-- **Keep some cases back.** Conversation tests with held-out cases (proposed separately) are never used for tuning, only for reporting, so we can tell whether fixes generalize or just fit the 76 known failures.
+- **Check results in code where possible.** Code decides before the judge: no reply, a link or price nothing in the turn gave, an earlier message repeated word for word. The routing evals are scored entirely in code (the tools that ran, their arguments). The model judge decides only what code can't check, such as whether the reply answered the question or respected the report.
+- **The nightly run** lists cases that flipped since the night before with their last nights (✓✓✓✗ points at that day's merges; ✓✗✓✗ is noise) and the commits merged in between. Read it the next morning; a trust-area flip that holds a second night gets a fix PR.
+- **Keep some cases back.** Conversation tests with held-out cases (proposed separately) are never used for tuning, only for reporting, so we can tell whether fixes generalize or just fit the known failures.
 
-Put the before/after table and the flipped cases in the PR description. If you skip a check, say so and why.
+### Scheduling the nightly run
+
+The nightly run is a command, not a schedule: set it up wherever the founder's computer runs jobs (a Claude scheduled task or cron), after the day's merges, for example 23:30 local:
+
+```bash
+cd /Users/jacklaylin/code/jules && node --env-file=.env.local scripts/chat-gate.js --nightly
+```
+
+It fetches `origin/main` itself, so the main checkout's own branch doesn't matter. It freezes new reports first (needs the Supabase keys in `.env.local`), then runs every case once and prints flipped cases with their recent nights and the commits merged since the previous night. Results stay in `~/.jules/frozen-evals/runs/nightly/`. The first night has nothing to compare with. Exit code 2 means it didn't run (for example the OpenAI key was refused or the spend limit was reached); 3 means it stopped at the cap.
+
+### What it costs
+
+Measured October 22 on gpt-5.6-luna (FROZEN-EVALS.md "What a run costs" has the parts). A frozen run costs about $0.020 (the gpt-5.5 judge is $0.016 of it, on Flex), a routing run about $0.003.
+
+| Gate | Cost |
+| --- | --- |
+| Old gate: full frozen set ×3 + all routing evals ×3, on main and the PR | about $25 (frozen ×3 was $10.05 a side on October 22) |
+| `--area alerts` (9 frozen + 13 routing cases), main and PR ×3 | **$1.29 measured**; $0.62 when main's results for that commit are reused |
+| `--area history` / `onboarding` / `price` | about $1.10 / $0.60 / $1.55 |
+| `--area options` / `brand` / `consent` / `saves` / `profile` | about $2.40 / $2.90 / $3.30 / $3.45 / $3.50 |
+| `--area conversation` / `search` | about $4.25 / $9.40 (search covers most cases; prefer a narrower area plus the nightly run) |
+| Nightly, full frozen set ×1 | about $1.80 (estimated from the parts; not yet measured end to end) |
+
+Main's side is kept per main commit, area and model (`runs/gate/` in `FROZEN_EVALS_DIR`), so a second PR on the same main pays only its own half. The target of under $0.50 per PR and $1 a night is **not met** with gpt-5.5 judging. The screening judge (`FROZEN_JUDGE_SCREEN=gpt-6-luna`, FROZEN-EVALS.md "The judge") would cut a frozen run to about $0.012 (alerts with main reused about $0.40, nightly about $1.05), but it finds fewer of the failures gpt-5.5 finds. That is a founder decision, and it is off until then.
+
+Put the gate's output (pass rates and flipped cases) in the PR description. If you skip a check, say so and why; cost is not a reason.
 
 ## Decided later: the router and loading only the needed skills
 
@@ -85,4 +116,4 @@ The frozen set and routing evals stand in for these during development. They don
 | **One rule, one place** | **Partly broken.** Tool and field descriptions (6,466 words, the largest part; `find_products` 1,469 and `ask_shopping_question` 1,380) still repeat prompt rules. The 10 feature guides (`*_GUIDE`) sit outside `lib/skills/`, so the skill test can't see them. |
 | **Gate on the final commit, case by case** | **Loosely followed.** #337 merged with its frozen-set run measured before its last commit, and one routing case (dupe of a linked item) fell from 100% to 33% without an explanation in the PR. Under the case-by-case rule, that drop would have needed one. |
 | **Gate on the production model** | **Stale.** The frozen baseline (46–56%) was measured on gpt-4.1-mini. Production moved to gpt-5.6-luna on Oct 22. |
-| **Eval spend** | **Broke production twice** (Oct 20 and 21). Evals and production share one OpenAI budget. |
+| **Eval spend** | **Broke production twice** (Oct 20 and 21). Evals and production share one OpenAI budget. The gate now runs only the PR's area: $0.60–4 for most areas, against about $25 for the old full gate, so no PR skips it for cost. Run evals with a separate OpenAI project once it exists: on October 22 the organization's spend limit was reached again during eval work. |
