@@ -46,10 +46,10 @@ test('clarification and corrections preserve context and cannot perform unoffere
  const corrected=await act({decision:'interest',option_indices:[1]},oldOffer);assert.deepEqual(corrected.next.offered_urls,[options[1].url]);
 });
 test('feedback acknowledgements do not hide pending choices, and explicit cleared state is not revived',async()=>{
- let cleared=false;const store=createStore({SUPABASE_URL:'https://db.example',SUPABASE_SERVICE_ROLE_KEY:'fake'},async url=>{
+ let cleared=false;const sent=new Date().toISOString();const store=createStore({SUPABASE_URL:'https://db.example',SUPABASE_SERVICE_ROLE_KEY:'fake'},async url=>{
   assert.ok(url.includes('search_result=not.is.null'));assert.ok(url.includes('conversation_id=eq.example'));assert.ok(url.includes('status=eq.sent'));
-  return {ok:true,text:async()=>JSON.stringify([{created_at:new Date().toISOString(),search_result:{identification_policy:'text_wishlist',text_wishlist_state:cleared?null:state}}])};
- });assert.deepEqual(await store.textWishlistState('example'),state);cleared=true;assert.equal(await store.textWishlistState('example'),null);
+  return {ok:true,text:async()=>JSON.stringify([{created_at:sent,search_result:{identification_policy:'text_wishlist',text_wishlist_state:cleared?null:state}}])};
+ });assert.deepEqual(await store.textWishlistState('example'),{...state,set_at:sent});cleared=true;assert.equal(await store.textWishlistState('example'),null);
 });
 test('multi-variant completion attaches reminders to their corresponding saved wishlist items',async()=>{
  const result=(await act({decision:'confirm',option_indices:[0,1],consent:'wishlist_alerts'},(await act({option_indices:[0,1]})).next)).result;
