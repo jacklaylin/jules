@@ -366,6 +366,8 @@ button.small{min-height:32px;padding:0 14px;font-size:13px}
 .dv-card-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 12px}.dv-card-head h2{font-size:30px;margin:0}.dv-card-head .spacer{flex:1}.dv-card-head a{font-size:13px;font-weight:600}
 .dv-card--quiet .dv-card-head h2{font-size:24px}
 .dv-card-note{font-size:12px;color:var(--text-2)}
+/* AdminPage stack: a page's AdminCards, one under another. */
+.dv-cards{display:flex;flex-direction:column;gap:24px;margin-top:20px}.dv-cards>.dv-cards{margin-top:0}.dv-cards[hidden]{display:none}
 .dv-card-foot{margin:0;font-size:12px;color:var(--text-2);border-top:1px solid var(--line);padding-top:12px}.dv-card-foot strong{color:var(--ink)}
 /* SplitBar: how a total splits into parts, with counts beside it. Part widths are set through the style object
    (flex-grow), never a style attribute. Full size above a table with a legend; compact (8px) inside a table cell. */
