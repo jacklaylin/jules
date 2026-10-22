@@ -44,6 +44,25 @@ test('fallbacks and replies that were never delivered count as failures; opted-o
   assert.equal(recent[0].stuck, false, 'a search still running is not stuck yet');
 });
 
+test('turns the OpenAI account refused (no credit, over the spend limit) are counted apart, not as failed replies', () => {
+  const outage = code => ({ source: 'ai_fallback', sent_at: at(30), reply_diagnostics: { outcome: 'fallback', model_status: 429, model_error_code: code } });
+  const rows = [
+    inbound('o1', 0), reply('ai', 'o1', 0, outage('organization_spend_limit_exceeded')),
+    inbound('o2', 10), reply('ai', 'o2', 10, outage('credit_balance_exhausted')),
+    inbound('r1', 20), reply('ai', 'r1', 20, outage('rate_limit_exceeded')), // a short rate limit is a real failure
+    inbound('ok', 30), reply('ai', 'ok', 30, { sent_at: at(40) }),
+  ];
+  const s = chatMetrics(rows, { now: Date.parse(at(0)) + 3600000 }).summary;
+  assert.equal(s.turns, 4);
+  assert.equal(s.billing_outages, 2);
+  assert.equal(s.failure_turns, 2);
+  assert.equal(s.fallbacks, 1);
+  assert.equal(s.failure_rate, 0.5);
+  assert.equal(s.composed_by.template, 1, 'outage replies are left out of who wrote the reply too');
+  const moved = Object.fromEntries(compareMetrics(s, s).map(m => [m.metric, m]));
+  assert.equal(moved.failure_rate.after_n, 2);
+});
+
 test('composition comes from the recorded field, else the chosen tool; saves and fallbacks are template text', () => {
   const actions = new Map([['ai:a', 'conversation_reply'], ['ai:b', 'find_products']]);
   assert.equal(composedBy({ operation_id: 'ai:a' }, actions), 'model');
