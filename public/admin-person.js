@@ -175,7 +175,7 @@ const malformedSize = fact => { const parts = String(fact.key ?? '').split('/');
 // Date-only values (2026-10-06) are calendar days: read at local noon so no time zone moves them a day.
 const onDay = value => value ? (/^\d{4}-\d{2}-\d{2}$/.test(value) ? day(value + 'T12:00:00') : day(value)) : '';
 const FIELD = { shopping_range: 'Clothing range', gender: 'Gender', name: 'First name', country: 'Country', currency: 'Currency', size: 'Size', brand: 'Brand', avoid: 'Avoid',
-  style: 'Style', fit: 'Fit', inspiration: 'Inspiration', occasion: 'Occasion', category: 'Category', owned: 'Owns', budget: 'Budget', spending: 'Spending', store: 'Store', retailer: 'Store' };
+  style: 'Style', fit: 'Fit', material: 'Material', inspiration: 'Inspiration', occasion: 'Occasion', category: 'Category', owned: 'Owns', budget: 'Budget', spending: 'Spending', store: 'Store', retailer: 'Store' };
 const TOPICS = ['Person', 'Sizes', 'Brands', 'Style', 'Budget and stores', 'Saved and liked', 'Other'];
 const KIND_ORDER = { said: 0, inferred: 1, seen: 2 };
 const label = text => String(text ?? '').replace(/_/g, ' ');
