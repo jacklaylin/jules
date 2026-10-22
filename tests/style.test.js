@@ -176,7 +176,8 @@ test('saved shopping preferences are supplemental context after independent file
 test('analysis reads only this owner’s live shopping memory and excludes old report feedback',async()=>{
  const store=db();store.profile=async id=>{assert.equal(id,owner);return {facts:[{field:'brand',key:'Label',value:'Likes Label',source:'chat'},{field:'brand',key:'old',value:'Old',deleted:true},{field:'style',key:'old-read',value:'Old report',source:'style_report'},{field:'address',key:'home',value:'Not sent'}]};};
  let received;const h=handler(store,{env:{...env,MEMORY_ENABLED:'true'},analyze:async(_sources,_notes,_env,_fetcher,facts)=>{received=facts;return report();}});
- const r=res();await h(req({revision:0,action:'analyze',consent:true}),r);assert.equal(r.statusCode,200);assert.deepEqual(received,[{field:'brand',key:'Label',value:'Likes Label'}]);
+ const r=res();await h(req({revision:0,action:'analyze',consent:true}),r);assert.equal(r.statusCode,200);// Brands arrive as one line from the user context layer's brand reading (USER-CONTEXT.md step 3).
+ assert.deepEqual(received,[{field:'brand',key:'taste',value:'Label (said Likes Label)'}]);
 });
 
 test('generated cards cannot include explicit body commentary',()=>{assert.throws(()=>validateCards({cards:[{...rawCard,title:'Muscular precision',variants:{nice:'Your gym gains define the look.',balanced:'Your body type defines the look.',roast:'Your physique defines the look.'}}]},analysis(),[source]),/appearance comments/);});

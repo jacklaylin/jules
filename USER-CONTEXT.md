@@ -51,5 +51,10 @@ corrections stated elsewhere still win.
 
 1. ~~One layer and one taste view for chat, search, the stylist and ranking.~~
 2. ~~Wishlist saves as a source.~~ (October 22, with brand taste)
-3. Style report and proactive texts read the same layer.
+3. ~~Style report and proactive texts read the same layer.~~ (October 22) The style reading (`api/style.js`) reads
+   the layer's taste view, with brands as one `brand_taste` line. The questions Jules texts after a purchase import
+   (Gmail, Shop and other sources, and the daily purchase check) read it through `contextForImport`, which
+   skips the purchase sources because the import is the purchases. Taste coverage (the early read and the interview)
+   counts wishlist saves as a brand source. The Wrapped style report stays purchase-only on purpose: it counts what
+   was bought.
 4. An admin view of what Jules knows about a person, from the layer.

@@ -53,3 +53,15 @@ test('purchases say what each brand was bought for, without basics', () => {
   // A basics-only brand is not in the closet's brands, so it adds nothing.
   assert.equal(brands.find(b=>/bombas/i.test(b.brand)),undefined);
 });
+
+test('taste coverage counts wishlist brands, and the style reading gets one brand line', async () => {
+  const {coverage}=await import('../lib/coverage.js');
+  const {brandTasteLine}=await import('../lib/brand-taste.js');
+  const brands=d=>d.dimensions.find(x=>x.dimension==='brands');
+  assert.equal(brands(coverage({})).status,'missing');
+  assert.equal(brands(coverage({wishlist:[{item_id:'a',brand:'Lemaire'}]})).status,'weak');
+  assert.equal(brands(coverage({wishlist:[{item_id:'a',brand:'Lemaire'},{item_id:'a',brand:'Lemaire'}]})).status,'weak');
+  assert.equal(brands(coverage({wishlist:[{item_id:'a',brand:'Lemaire'},{item_id:'b',brand:'LEMAIRE'}]})).status,'known');
+  assert.equal(brandTasteLine([{brand:'Dries Van Noten',said:{value:'favorite brand',on:'2026-10-06'},bought:6,bought_as:{trousers:3,shirts:2,outerwear:1},wishlisted:2},{brand:'MAAP',bought:18,bought_as:{activewear:14}}]),
+    'Dries Van Noten (said favorite brand (2026-10-06); bought 6 as trousers, shirts; saved 2), MAAP (bought 18 as activewear)');
+});
