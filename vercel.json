@@ -208,7 +208,7 @@
   ],
   "functions": {
     "api/image.js": {
-      "includeFiles": "public/brand/previews/fallback-v1.png",
+      "includeFiles": "public/brand/previews/saved-v2.png",
       "maxDuration": 30
     },
     "api/wishlist.js": {

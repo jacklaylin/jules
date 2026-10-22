@@ -121,3 +121,23 @@ Landing, signup, login and Gmail onboarding now follow the latest supplied ident
 - **Ending:** Jules's closing lines come from what the server reports (`outcomeLines`): sent, delivery unconfirmed, already onboarding, waitlisted or saved. It never claims a text that wasn't confirmed. With a `text_url`, **Open Messages ↗** follows; "Wrong number? Start over" keeps the other answers and re-asks the number.
 
 **Avatar.** Jules's avatar is the orb, frozen and filling a circle: `public/brand/avatar-orb.svg` (web chat, 26px), `avatar-orb-1024.png` (round, transparent corners) and `contact-photo-1024.png` (full-bleed square for the contact card and the Photon line's iMessage Name and Photo; iOS crops it round). Avatars never animate, so a thread of Jules lines doesn't fill with spinning dots; only the logo's dot moves. The app-icon j is not cropped into a circle for an avatar (its hook gets cut off and it doesn't read at 26px). The design system's Orb component and Avatar asset group carry the same rules.
+
+## Rich link previews (LinkPreview) — October 22, 2026
+
+Every rich iMessage preview image is one component, LinkPreview, designed on the "iMessage link previews" Claude Design canvas. The template lives in `scripts/link-preview-template.js`; `node scripts/build-link-previews.js` renders the static images into `public/brand/previews/` (see [RICH-PREVIEWS.md](RICH-PREVIEWS.md)). New previews use it; don't draw one by hand.
+
+- **Frame:** 1200×630. Headline top-left (Instrument Serif 112px, line-height 0.9, `-0.04em`, balanced line breaks) in a 590px column that starts 72px from the left and 64px from the top. The logo (outlined wordmark, 150px wide, still orb dot) sits bottom-left, 60px from the bottom. **No eyebrow.** iMessage prints the page title and domain under the image, so the headline should not repeat the title.
+- **Right side:** what the link opens, drawn as tilted cards (rotated −11° to +9°, 24px radius, soft ink shadow), allowed to run off the right and bottom edges, kept at least about 80px clear of the headline. Use real card titles from the product ("How niche is your taste?", "What's in, what's out?", "Where do you sit on the spectrum?") with blank bars, unlabelled gauges and empty photo slots. Never invent prices, stock, scores, names or counts. The homepage chat is labelled marketing art.
+- **Haze background:** one haze per surface, so a preview is recognisable before anyone reads it. Each is a base colour plus nine blurred, irregular blobs of brand colours placed by a fixed seed. They stay mostly on the right two-thirds; two faint ones on the left keep the headline readable. Previews are images, not pages, so the haze is allowed here alongside signup.
+
+| Haze | Surface | File |
+| --- | --- | --- |
+| Butter | Style report share `/r/…` | `report-v2.png` (no name: "A style report is in") |
+| Daylight | Homepage `/` | `home-v2.png` |
+| Bubblegum | Wishlist `/wishlist` | `wishlist-v2.png` (three blank cards) |
+| Sherbet | Your style `/style` | `style-v2.png` |
+| Dusk | Saved item with no product photo | `saved-v2.png` |
+| Signup | Spare (invites) | — |
+
+- **Product cards:** 340×500 white card, 350px photo slot on `fog`, name and store bars. One card per item the link actually holds (one for a single save, up to three); a product photo only ever appears on its own white card. Product `/go/` links stay the plain product photo on white (October 20 decision).
+- **Changing art:** bump the file's version (`-v3`) and its metadata references so Apple fetches the new image; keep the canvas and this template in step.
