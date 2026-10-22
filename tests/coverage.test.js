@@ -128,7 +128,7 @@ test('coverage reads through the user context layer: one fetch of the purchase-h
 });
 
 test('a fabric note is not a silhouette, and the caption says where the silhouette came from',()=>{
- assert.equal(status(coverage({facts:[fact('style','material/silk','feels too hot')]}),'silhouettes'),'missing','a fabric dislike says nothing about shape');
+ assert.equal(status(coverage({facts:[fact('material','silk','feels too hot')]}),'silhouettes'),'missing','a fabric dislike says nothing about shape');
  const note=c=>c.dimensions.find(d=>d.dimension==='silhouettes').note;
  const outfits={kept:10,reading_photos:10,observations:3};
  assert.equal(note(coverage({facts:[fact('style','silhouette','cropped')],outfits})),'stated, and read from 10 outfit photos');
