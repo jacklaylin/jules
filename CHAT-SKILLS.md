@@ -181,6 +181,8 @@ Every PR from PR 3 on has to pass this before merge:
 
 Step 2 records each turn's route in `reply_diagnostics.skill_route` (jobs, confidence, the skills it would load, the tools the agent called and any it would have missed). Read recall with `node --env-file=.env.local scripts/router-recall.js --days 2`. `CHAT_ROUTER=off` turns the router off; `MODEL_ROUTE` changes its model. There is no admin screen for it.
 
+`CHAT_CONTEXT_ROUTING=on` (off by default, October 22) lets the router's picks also choose which derived profile sources the agent reads (USER-CONTEXT.md, Size per turn); it uses the same fail-open rule.
+
 Until PR 12, every turn still gets every skill. PRs 3–11 already help, because they remove duplicates and conflicts, but selective loading is the change that stops rules interfering across jobs. Any PR can be reverted alone.
 
 **If the bake-off picks a stronger model:** PRs 1–2 don't depend on it. Re-baseline the gate on the new model before PR 3. A stronger model will probably pass ablation with fewer rules, and skills make that easy to measure per job.

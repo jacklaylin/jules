@@ -81,7 +81,8 @@ test('the liked-items fact summarises brands, garments and details as soft evide
  assert.equal(value.items,3);assert.equal(value.sold,1);
  assert.deepEqual(value.brands,[{name:'Jean Paul Gaultier',count:1}]);
  assert.ok(value.categories.some(c=>c.name==='mesh top'&&c.count===2));
- assert.match(value.meaning,/never wishlist items/);
+ // How to read it is in the readers' instructions (lib/context-guide.js), not in the row.
+ assert.equal(value.meaning,undefined);
 });
 
 test('a shown option the user likes keeps its name, brand and store, not its price',()=>{

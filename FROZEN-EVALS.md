@@ -60,7 +60,8 @@ To keep a case set across computers, copy that folder; don't commit it.
 ## What a case contains
 
 - the reported user message, its photos, and the 20 messages before it (threaded replies resolved as the inbox does),
-- the pending shopping state at that moment (pending options, `current_search_plan`), the wishlist items saved before it, and the profile facts,
+- the pending shopping state at that moment (pending options, `current_search_plan`), the wishlist items saved before it, and the profile facts (with their dates),
+- what the user context layer (`USER-CONTEXT.md`) read besides stated facts (`context`): wishlist saves before the turn with their kind-of-item tags, liked items kept before it, the purchase summary and the closet summary (without its per-piece list),
 - the reply Jules sent and what its search found,
 - the expectation: the founder's report text, or the quality signal's summary and kind,
 - a category: the quality signal's kind, or for a report, the same kinds read from the report by a small model (`wrong_results`, `ignored_request`, `misunderstood`, `repeated`, `missed_available_item`, `reply_quality`, `praise`, `other`).
@@ -69,7 +70,7 @@ Which turn a report is about: a report threaded on a Jules reply is about that r
 
 ## How a case is run and scored
 
-Only the agent turn runs (the same loop as the routing evals, `lib/agent-eval.js`). Every tool is stubbed: a search answers with the products the original turn found; a save, alert or other action answers with a placeholder. The draft goes through the composer when the inbox would compose it, so the judge sees the message the user would get.
+Only the agent turn runs (the same loop as the routing evals, `lib/agent-eval.js`). The turn's facts go through the same `readUserContext` prod uses (`lib/context-snapshot.js`), so the agent sees the purchase summary, wardrobe, liked items, wishlist and the `brand_taste` reading rebuilt from the case's `context`. A case frozen before `context` existed replays with its stated facts only (its stated brands still read as `brand_taste`, as in prod). Every tool is stubbed: a search answers with the products the original turn found; a save, alert or other action answers with a placeholder. The draft goes through the composer when the inbox would compose it, so the judge sees the message the user would get.
 
 The judge (`gpt-5.5` by default, `FROZEN_JUDGE_MODEL` to change; it never changes with the chat model under test) scores four criteria, each pass, fail or not applicable:
 
@@ -87,5 +88,6 @@ Because searches replay their recorded results, a report that is only about *wha
 - Searches are not re-run, so a fix to search itself (a new store, a better query) does not move this number; the replay suite (`REPLAY-SUITE.md`) covers sourcing.
 - Earlier photos the agent could look up, onboarding and the style interview are not in the case.
 - Profile facts changed after the turn are left out, since their earlier value is unknown.
+- The purchase summary and closet are as of freezing, not the turn (they are totals over receipts and can't be rolled back to a date). Outfit photos are not in the case.
 - The quick acknowledgment sent before a search (“looking for…”) is not reproduced.
 - The judge is a model: read the failing reasons, and treat a change of a few points as noise unless it holds over `--runs 3`.
