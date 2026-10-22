@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {buildReport,priceMetered,validateEntry,validDate} from '../lib/costs.js';
+import {buildReport,priceMetered,validateEntry,validDate,lifetimeMonths,lifetimeTotal} from '../lib/costs.js';
 import {createCostsHandler} from '../api/costs.js';
 import {openaiCosts,serpapiAccount,githubCosts,vercelCosts,billingSnapshot} from '../lib/billing.js';
 test('reject invalid dates, amounts, services and subscription dates',()=>{
@@ -26,7 +26,7 @@ const close=(a,b)=>assert.ok(Math.abs(a-b)<1e-9,`${a} != ${b}`);
 test('empty ledger: every service unknown, never $0',()=>{
  const report=buildReport({date:'2026-10-06',entries:[],providers:noBilling,metered:[]});
  assert.equal(report.totals.today,null);assert.equal(report.totals.month,null);assert.equal(report.totals.projected,null);
- assert.equal(report.incomplete.length,7);assert.ok(report.rows.every(r=>r.basis==='unknown'));
+ assert.equal(report.incomplete.length,8);assert.ok(report.rows.every(r=>r.basis==='unknown'));
 });
 
 test('manual services: fee spread over the month, usage summed, projection from entered days',()=>{
@@ -137,7 +137,7 @@ test('costs API: report with features; a missing usage view never takes the page
  const ok=await respond({costEntries:async()=>[],meteredMonth:async date=>{assert.equal(date,'2026-10-15');return metered;}});
  assert.equal(ok.statusCode,200);close(ok.body.features.today,.4);close(ok.body.totals.today,.4);
  const broken=await respond({costEntries:async()=>[],meteredMonth:async()=>{throw Error('missing view');}});
- assert.equal(broken.statusCode,200);assert.equal(broken.body.features,null);assert.ok(broken.body.featureNotice.includes('031'));assert.equal(broken.body.rows.length,7);
+ assert.equal(broken.statusCode,200);assert.equal(broken.body.features,null);assert.ok(broken.body.featureNotice.includes('031'));assert.equal(broken.body.rows.length,8);
 });
 
 test('a monthly fee and budget carry forward until a later month replaces them',()=>{
@@ -174,4 +174,24 @@ test('OpenRouter calls get their own row, stay out of the OpenAI bill comparison
  close(row(report,'openai').today,0.1);close(row(report,'openrouter').today,0.1042);
  assert.equal(row(report,'openrouter').complete,true);
  assert.equal(buildReport({date:'2026-10-05',entries:[],providers:noBilling,metered:metered.slice(0,1)}).rows.some(r=>r.id==='openrouter'),false);
+});
+
+test('lifetime: whole earlier months from October 2026 plus this month to date, gaps named by month',async()=>{
+ assert.deepEqual(lifetimeMonths('2026-10-21'),[]);
+ assert.deepEqual(lifetimeMonths('2027-01-05'),['2026-10-31','2026-11-30','2026-12-31']);
+ const claude={service:'claude',kind:'subscription',date:'2026-10-01',amount:100,note:''};
+ const oct=buildReport({date:'2026-10-31',entries:[claude],providers:noBilling,metered:[]});
+ const nov=buildReport({date:'2026-11-15',entries:[claude],providers:noBilling,metered:[]});
+ const life=lifetimeTotal([oct,nov]);
+ close(life.total,100+50);assert.equal(life.through,'2026-11-15');
+ assert.deepEqual(life.gaps.map(g=>g.month),['2026-10','2026-11']);assert.ok(life.gaps[0].services.includes('Photon'));
+ assert.equal(lifetimeTotal([buildReport({date:'2026-10-06',entries:[],providers:noBilling,metered:[]})]).total,null);
+ // The handler adds earlier months; SerpApi's current plan is not applied to a past month.
+ const serpapi={status:'connected',monthlyPrice:75,allowance:5000,used:1,remaining:4999,planName:'Dev',checkedAt:'x',message:''};
+ const store={costEntries:async()=>[claude],meteredMonth:async()=>[],jobUsageMonth:async()=>[],jobRunsMonth:async()=>[],scheduledJobs:async()=>[],list:async()=>[]};
+ const handler=createCostsHandler({auth:async()=>200,storeFactory:()=>store,billing:async()=>({...noBilling,serpapi}),env:{}});
+ const res={setHeader(){},end(body){this.body=JSON.parse(body);}};
+ await handler({headers:{},method:'GET',url:'/api/costs?date=2026-11-15'},res);
+ assert.equal(res.statusCode,200);assert.deepEqual(res.body.lifetime.months.map(m=>m.month),['2026-10','2026-11']);
+ assert.ok(res.body.lifetime.gaps[0].services.includes('SerpApi'));assert.ok(!res.body.lifetime.gaps[1].services.includes('SerpApi'));
 });
