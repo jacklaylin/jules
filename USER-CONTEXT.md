@@ -47,6 +47,15 @@ place of the raw favourites), and the ranker sees each candidate brand's entry. 
 leaves out the raw brand statements. It is soft taste: never a filter or a loyalty claim, and avoids and
 corrections stated elsewhere still win.
 
+## Taste coverage reads the layer
+
+October 22: taste coverage and the early read (`readTasteInputs`, lib/coverage.js) kept their own copy of the
+source reads. They now call `readUserContext(..., {inputs: true})`, which returns the raw rows it read (profile,
+purchase-history row, outfit photos and reading, liked rows, wishlist) next to the facts, reads every source
+whatever the feature flags say, and logs a failed source as `coverage_source_failed` as before. Output is
+unchanged (checked on every real profile). The large purchase-history row is now fetched once per read and
+shared by the purchase summary, the closet and coverage.
+
 ## Next steps
 
 1. ~~One layer and one taste view for chat, search, the stylist and ranking.~~
