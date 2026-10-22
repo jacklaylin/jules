@@ -26,17 +26,17 @@
       <details class="fold metrics-help"><summary>What these numbers mean</summary><dl>
         <dt>Reports built</dt><dd>First reports built in the period; a rebuild doesn't count again. Higher is better.</dd>
         <dt>Opened</dt><dd>Testers who opened their own report (your admin preview doesn't count). Visits count at most once a day per report.</dd>
-        <dt>Shared</dt><dd>Testers who shared it by any method: copy link, Instagram Story, the phone's share sheet or a download. A Story or share-sheet share counts when they tap it: the phone doesn't report back once Instagram opens, so a cancelled share still counts.</dd>
-        <dt>Friends opened</dt><dd>First opens of a shared link per browser. Bots, link previews and the owner's own browser are left out.</dd>
+        <dt>Started a share</dt><dd>Testers who tapped to share by any method: copy link, Instagram Story, the phone's share sheet or a download. A tap is not a post: neither the phone nor Instagram tells a web page whether a share went out, so a cancelled or unposted share still counts.</dd>
+        <dt>Friends opened</dt><dd>First opens of a shared link per browser: the proof a share actually went out. A Story counts here only when it had the link sticker and someone tapped it. Bots, link previews and the owner's own browser are left out.</dd>
         <dt>Signups</dt><dd>People who signed up through a tester's link. The report and the style card share one link code, so this counts both.</dd>
         <dt>Votes up</dt><dd>Share of thumbs up among the latest vote per card per report, cast in the period. Changes in points.</dd>
-        <dt>Not tracked</dt><dd>Opens, shares and friends' opens are counted from October 22, 2026; cards reached, card images and the share method from that evening. Earlier periods say New, never 0.</dd>
+        <dt>Not tracked</dt><dd>Opens, share taps and friends' opens are counted from October 22, 2026; cards reached, card images and the share method from that evening. Earlier periods say New, never 0.</dd>
       </dl></details>
       <div class="report-cards">
         <section id="card-methods" class="dv-card" aria-labelledby="methods-title" aria-busy="true">
           <div class="dv-card-head"><h2 id="methods-title">How they shared</h2><span id="methods-note" class="dv-card-note"></span></div>
           <div id="methods-bar"></div>
-          <div class="dv-table-wrap"><table class="dv-table"><thead><tr><th>Method</th><th class="end">Shares</th><th class="end">Share of all</th><th class="end">Testers</th><th class="end">Friends opened</th><th class="end">Opens per share</th><th class="end">Signups</th></tr></thead><tbody id="methods-rows"></tbody></table></div>
+          <div class="dv-table-wrap"><table class="dv-table"><thead><tr><th>Method</th><th class="end">Friends opened</th><th class="end">Opens per tap</th><th class="end">Signups</th><th class="end">Share taps</th><th class="end">Share of taps</th><th class="end">Testers</th></tr></thead><tbody id="methods-rows"></tbody></table></div>
           <p id="methods-foot" class="dv-card-foot" hidden></p>
         </section>
         <section id="card-cards" class="dv-card" aria-labelledby="cards-title" aria-busy="true">
@@ -46,8 +46,8 @@
         </section>
         <section id="card-weeks" class="dv-card" aria-labelledby="weeks-title" aria-busy="true">
           <div class="dv-card-head"><h2 id="weeks-title">By week</h2><span class="dv-card-note">weeks start Monday (UTC)</span></div>
-          <div class="dv-table-wrap"><table class="dv-table"><thead><tr><th>Week of</th><th class="end">Built</th><th class="end">Opened</th><th class="end">Shared</th><th class="end">Friends opened</th><th class="end">Signups</th><th class="end">Votes</th></tr></thead><tbody id="weeks-rows"></tbody></table></div>
-          <p class="dv-card-foot">Opened and Shared count testers; visits and shares follow. Built counts first builds, not rebuilds.</p>
+          <div class="dv-table-wrap"><table class="dv-table"><thead><tr><th>Week of</th><th class="end">Built</th><th class="end">Opened</th><th class="end">Started a share</th><th class="end">Friends opened</th><th class="end">Signups</th><th class="end">Votes</th></tr></thead><tbody id="weeks-rows"></tbody></table></div>
+          <p class="dv-card-foot">Opened and Started a share count testers; visits and share taps follow. Built counts first builds, not rebuilds.</p>
         </section>
       </div>
     </section>
