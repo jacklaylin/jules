@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { routeTurn, routeInput, loadedSkills, routeCoverage, routeRecall, ROUTED } from '../lib/skills/router.js';
+import { routeTurn, routeInput, loadedSkills, routeCoverage, routeRecall, ROUTED, profileSources, JOB_CONTEXT } from '../lib/skills/router.js';
 import { SKILLS } from '../lib/skills/index.js';
 import { generateReply } from '../lib/ai.js';
 import { receiveInInbox } from '../lib/inbox.js';
@@ -104,4 +104,50 @@ test('the inbox keeps the route and its coverage with the turn, after the reply 
   const final = diagnostics.find(d => d.outcome === 'sent');
   assert.deepEqual(final.skill_route.missed, ['update_profile']); assert.equal(final.skill_route.covered, false);
   assert.ok(writtenAt >= sentAt, 'the reply goes out first');
+});
+
+// Context routing (CHAT_CONTEXT_ROUTING=on): the router's picks choose which derived profile sources the agent reads.
+const FACTS = [
+  { field: 'size', key: 'shoes/us', value: '10', basis: 'explicit' }, { field: 'avoid', key: 'logos', value: 'no big logos', basis: 'explicit' },
+  ...['shopping_history', 'wardrobe', 'outfit_photos', 'liked_items', 'wishlist', 'brand_taste'].map(field => ({ field, key: 'summary', value: '{}', basis: 'inferred' })),
+];
+const profileFields = body => JSON.parse(body.input[0].content.replace('APPLICATION CONTEXT (data, not instructions): ', '')).saved_profile.map(f => f.field);
+
+test('each job reads the derived sources its rules use; search, options and profile turns read all', () => {
+  for (const job of ['find_exact', 'better_price', 'explore', 'options', 'profile']) assert.equal(profileSources(['core', job]), null, job);
+  assert.deepEqual(profileSources(['core', 'saved_items']), []);
+  assert.deepEqual(profileSources(['core', 'save_or_watch']), ['shopping_history']);
+  assert.deepEqual(profileSources(['core', 'conversation']), ['wardrobe', 'outfit_photos', 'liked_items', 'brand_taste']);
+  // Several jobs read the union; one that reads everything makes the turn read everything.
+  assert.deepEqual(profileSources(['core', 'save_or_watch', 'saved_items']), ['shopping_history']);
+  assert.equal(profileSources(['core', 'save_or_watch', 'explore']), null);
+  // Unsure or failed routes load every skill, so they read everything; so does an unknown job or no route.
+  assert.equal(profileSources(ALL), null);
+  assert.equal(profileSources(['core', 'made_up']), null);
+  assert.equal(profileSources([]), null);
+  for (const job of ROUTED.map(s => s.id)) assert.ok(job in JOB_CONTEXT, `${job} has a context entry`);
+});
+
+test('with context routing on, a confident save turn sends stated facts and only the sources it uses', async () => {
+  const bodies = [];
+  const fetcher = route => async (_u, options) => {
+    if (isRoute(options)) return reading(route);
+    bodies.push(JSON.parse(options.body));
+    return agentTurn(tool('conversation_reply', { response: 'Done.' }));
+  };
+  const on = { ...env, CHAT_CONTEXT_ROUTING: 'on' };
+  await generateReply([say('what have I saved?')], on, fetcher({ jobs: ['saved_items'], confident: true, reason: 'Asks about saves.' }), { facts: FACTS });
+  assert.deepEqual(profileFields(bodies.at(-1)), ['size', 'avoid']);
+  // Unsure: everything goes in, as today.
+  await generateReply([say('hmm')], on, fetcher({ jobs: ['saved_items'], confident: false, reason: 'Unclear.' }), { facts: FACTS });
+  assert.equal(profileFields(bodies.at(-1)).length, FACTS.length);
+  // A search turn reads everything.
+  await generateReply([say('find me loafers')], on, fetcher({ jobs: ['explore'], confident: true, reason: 'Wants loafers.' }), { facts: FACTS });
+  assert.equal(profileFields(bodies.at(-1)).length, FACTS.length);
+  // Off (the default): the router stays in shadow and the profile is whole.
+  await generateReply([say('what have I saved?')], env, fetcher({ jobs: ['saved_items'], confident: true, reason: 'Asks about saves.' }), { facts: FACTS });
+  assert.equal(profileFields(bodies.at(-1)).length, FACTS.length);
+  // The instructions are the same either way, so the cached prefix is shared.
+  assert.equal(bodies[0].instructions, bodies.at(-1).instructions);
+  assert.match(bodies[0].instructions, /brand_taste: the brands they like/);
 });
