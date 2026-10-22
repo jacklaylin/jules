@@ -267,12 +267,12 @@ function renderReport(r) {
   const votes = r.votes.up + r.votes.down;
   const fact = (label, value, note) => [el('dt', {}, label, note ? el('small', { textContent: note }) : null), el('dd', { textContent: value })];
   $('report-facts').replaceChildren(
-    ...fact('Shared', times(r.shared), channels || null),
-    ...fact('Shared link opened', times(r.link_opened), r.share_link_at ? null : 'no share link yet'),
+    ...fact('Started a share', times(r.shared), channels || null),
+    ...fact('Friends opened', times(r.link_opened), r.share_link_at ? 'their shared link, first open per browser' : 'no share link yet'),
     ...fact('Signups from their links', String(r.signups), 'report and style card share the same link code'),
     ...fact('Votes on cards', votes ? `${r.votes.up} up · ${r.votes.down} down` : 'None yet', votes ? `${Math.round(r.votes.up / votes * 100)}% up, latest vote per card` : null));
   // Opens, shares and link opens were first recorded on October 22, 2026 (db/049); votes go back further.
-  $('report-foot').textContent = [`Built ${day(r.built_at)}`, r.share_link_at ? `share link made ${day(r.share_link_at)}` : null, 'opens and shares counted since Oct 22, 2026'].filter(Boolean).join(' · ');
+  $('report-foot').textContent = [`Built ${day(r.built_at)}`, r.share_link_at ? `share link made ${day(r.share_link_at)}` : null, 'opens and share taps counted since Oct 22, 2026'].filter(Boolean).join(' · ');
 }
 function adoptionFailed(error) {
   for (const id of ['summary-adoption', 'summary-quality']) { $(id).removeAttribute('aria-busy'); }
