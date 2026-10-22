@@ -46,11 +46,20 @@ test('a save confirmation names the items once: the wishlist link is the card, n
  const two='https://jules.example/style and https://jules.example/wishlist';assert.deepEqual((await deliver(two,false)).text,[two]);
 });
 test('public cards have correct titles and bundled, compact 1200×630 artwork',async()=>{
- for(const [page,title,art] of [['index','Have to have it? Text Jules.','fallback'],['wishlist','Your wishlist','fallback'],['style','Your style reading','style']]){
+ for(const [page,title,art] of [['index','Have to have it? Text Jules.','home'],['wishlist','Your wishlist','wishlist'],['style','Your style reading','style']]){
   const html=await readFile(new URL(`../public/${page}.html`,import.meta.url),'utf8');
   assert.ok(html.includes(`<meta property="og:title" content="${title}">`));
-  assert.ok(html.includes(`https://textjules.com/brand/previews/${art}-v1.png`));
-  const bytes=await readFile(new URL(`../public/brand/previews/${art}-v1.png`,import.meta.url));
+  assert.ok(html.includes(`https://textjules.com/brand/previews/${art}-v2.png`));
+  const bytes=await readFile(new URL(`../public/brand/previews/${art}-v2.png`,import.meta.url));
   const metadata=await sharp(bytes).metadata();assert.equal(metadata.width,1200);assert.equal(metadata.height,630);assert.ok(bytes.length<600000);
  }
+});
+test('every LinkPreview surface is built, 1200×630 and compact, and its haze redraws the same way',async()=>{
+ const {SURFACES,HAZES,haze}=await import('../scripts/link-preview-template.js');
+ for(const {file,haze:key} of SURFACES){
+  assert.ok(HAZES[key],file);
+  const bytes=await readFile(new URL(`../public/brand/previews/${file}`,import.meta.url));
+  const metadata=await sharp(bytes).metadata();assert.equal(metadata.width,1200);assert.equal(metadata.height,630);assert.ok(bytes.length<600000,file);
+ }
+ assert.deepEqual(haze('butter'),haze('butter'));
 });
