@@ -245,10 +245,38 @@ function renderAdoption(data) {
   $('quality-bar').setAttribute('aria-label', q.requests ? `${q.requests} requests: ` + endings.map(([k, n]) => `${n} ${ENDING_WORDS[k].split(':')[0]}`).join(', ') : 'No settled requests');
   $('quality-bar').hidden = !q.requests;
   $('quality-legend').replaceChildren(...endings.map(([k, n]) => el('span', {}, el('i', { className: `ending-key ${k}`, ariaHidden: 'true' }), el('strong', { textContent: String(n) }), ` ${ENDING_WORDS[k]}`)));
+  renderReport(data.report);
   for (const id of ['summary-adoption', 'summary-quality']) $(id).removeAttribute('aria-busy');
+}
+// Style report: opens, shares, friends opening the link, signups and votes (all time).
+const CHANNEL_WORDS = { story: 'Story', download: 'download', copy: 'copy link', share_sheet: 'share sheet' };
+const times = n => `${n} time${n === 1 ? '' : 's'}`;
+function renderReport(r) {
+  $('summary-report').removeAttribute('aria-busy');
+  $('report-facts').hidden = $('report-foot').hidden = !r?.built;
+  if (!r?.built) {
+    $('report-opened').textContent = r?.error ? '—' : 'No report yet';
+    $('report-opened-label').textContent = r?.error ? 'Could not load their report. Reload to try again.' : '';
+    $('report-last').textContent = '';
+    return;
+  }
+  $('report-opened').textContent = String(r.opened);
+  $('report-opened-label').textContent = r.opened === 1 ? 'time they opened it' : 'times they opened it';
+  $('report-last').textContent = r.last_opened_at ? `last ${day(r.last_opened_at)}` : '';
+  const channels = Object.entries(r.channels).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${n} ${CHANNEL_WORDS[k] ?? k}`).join(' · ');
+  const votes = r.votes.up + r.votes.down;
+  const fact = (label, value, note) => [el('dt', {}, label, note ? el('small', { textContent: note }) : null), el('dd', { textContent: value })];
+  $('report-facts').replaceChildren(
+    ...fact('Shared', times(r.shared), channels || null),
+    ...fact('Shared link opened', times(r.link_opened), r.share_link_at ? null : 'no share link yet'),
+    ...fact('Signups from their links', String(r.signups), 'report and style card share the same link code'),
+    ...fact('Votes on cards', votes ? `${r.votes.up} up · ${r.votes.down} down` : 'None yet', votes ? `${Math.round(r.votes.up / votes * 100)}% up, latest vote per card` : null));
+  // Opens, shares and link opens were first recorded on October 22, 2026 (db/049); votes go back further.
+  $('report-foot').textContent = [`Built ${day(r.built_at)}`, r.share_link_at ? `share link made ${day(r.share_link_at)}` : null, 'opens and shares counted since Oct 22, 2026'].filter(Boolean).join(' · ');
 }
 function adoptionFailed(error) {
   for (const id of ['summary-adoption', 'summary-quality']) { $(id).removeAttribute('aria-busy'); }
+  renderReport({ error: true });
   $('adoption-weeks').replaceChildren(el('p', { className: 'error', textContent: `Could not load their requests: ${error.message}` }));
   $('quality-label').textContent = 'Could not load their requests. Reload to try again.';
   $('strip-wins').textContent = '—'; $('strip-last').textContent = '—';
