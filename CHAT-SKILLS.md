@@ -1,6 +1,6 @@
 # Chat skills: splitting Jules's one big prompt into small jobs
 
-Status: **approved by the founder on October 21, 2026** (all four decisions in section 7: yes). Build follows the PR order in section 5, one PR at a time. Step 1 shipped in #319 (October 21).
+Status: **approved by the founder on October 21, 2026** (all four decisions in section 7: yes). Build follows the PR order in section 5, one PR at a time. Step 1 shipped in #319 (October 21), step 2 in #324. Step 3 (better_price + like_this): `search_plan.search_goal`, `reference_item` and `stay_within_brand` replace `mode`; code maps them in `searchPlan` (lib/text-wishlist.js).
 Written October 21, 2026. Full rule-by-rule inventory: [docs/chat-skills-inventory.md](docs/chat-skills-inventory.md).
 
 ## Summary for the founder
