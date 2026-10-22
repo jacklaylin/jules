@@ -54,6 +54,17 @@
       <h3 class="adoption-minor">Recent decisions</h3>
       <div class="dv-table-wrap"><table class="dv-table adoption-table"><thead><tr><th>When (UTC)</th><th>Tester</th><th>Kind</th><th>Outcome</th></tr></thead><tbody id="nudge-recent"></tbody></table></div>
     </section>
+    <section id="alerts" aria-labelledby="alerts-title" hidden>
+      <h2 id="alerts-title" class="dv-subhead">Alert texts</h2>
+      <div id="alerts-summary" class="dv-metrics adoption-summary"></div>
+      <p id="alerts-note" class="dv-note"></p>
+      <div class="dv-table-wrap"><table class="dv-table adoption-table"><thead><tr>
+        <th>Kind</th><th class="end">Texts</th><th class="end">Delivered</th><th class="end">Not delivered</th><th class="end">People</th><th class="end">Tapped link</th><th class="end">Replied</th><th class="end">Bought</th>
+      </tr></thead><tbody id="alert-kinds"></tbody></table></div>
+      <h3 class="adoption-minor">Recent alert texts</h3>
+      <div class="dv-table-wrap"><table class="dv-table adoption-table"><thead><tr><th>When (UTC)</th><th>Tester</th><th>Kind</th><th>Delivery</th><th>What happened</th></tr></thead><tbody id="alert-recent"></tbody></table></div>
+    </section>
+    <p id="alerts-error" class="dv-note" hidden>The Alert texts section couldn’t load. The rest of the page is unaffected; try Refresh.</p>
     <p id="nudges-error" class="dv-note" hidden>The Purchase nudges section couldn’t load. The rest of the page is unaffected; try Refresh.</p>
     <p id="quality-error" class="dv-note" hidden>The Quality section couldn’t load. The rest of the page is unaffected; try Refresh.</p>
     <details class="fold metrics-help"><summary>What these numbers mean</summary><dl id="definitions"></dl></details>
