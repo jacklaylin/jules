@@ -132,6 +132,18 @@ test('a link still left out on the last attempt is added by code; a left-out pri
   assert.equal(priced.requests.length, 3); assert.equal(plain, 'agent_plain');
 });
 
+test('an approved save that saved nothing does not replace the search results in a fallback', async () => {
+  // The commit leaves the turn's facts unchanged (nothing was saved), so the search draft stays.
+  const shop = shopping();shop.memory.commitWishlist = async () => null;
+  const { fetcher } = model([
+    [tool('find_products', { query:'Peyter pants' })],
+    [tool('save_to_wishlist', { option_indices:[0], size_choices:[{ option_index:0, size:'IT 50' }], option_sizing:[{ option_index:0, sizing:'apparel' }] })],
+    [reply('saved them!', { saved_now:true })], [reply('all saved!', { saved_now:true })],
+  ]);
+  const body = await generateReply(say('find the peyter pants and save them'), env, fetcher, shop.memory);
+  assert.ok(body.includes(url)); assert.doesNotMatch(body, /saved them|all saved/);
+});
+
 test('a statement split from a numbered list keeps the list intact', async () => {
   const { withoutStatements } = await import('../lib/compose.js');
   const text = `two options:\n\n1. Peyter Pants — $795.00 at Dover Street Market.\n${url}\n\nboth ship free. want either?`;
