@@ -1,14 +1,14 @@
 // Loads first so the cost meter wraps fetch before any handler below keeps a reference to it.
 import '../lib/usage.js';
 import { composeReply } from '../lib/compose.js';
-const TEST_LABEL='[test alert — not a real price]\n';
+const TEST_LABEL='[test alert — not a real price]\n',LOW_STOCK_TEST_LABEL='[test alert — not real stock]\n';
 import { timingSafeEqual, randomUUID } from 'node:crypto';
 import { createStore } from '../lib/store.js';
 import { inspectAlertLinks, sizeKey } from '../lib/price-alerts.js';
 import { uniqueAlertLinks } from '../lib/alert-links.js';
 import { decidePriceCheck, alertSizes } from '../lib/alert-decision.js';
 import { discoverAlertLinks, discoveryDue } from '../lib/alert-discovery.js';
-import { decideLowStock, lowStockRecord, lowStockMessage, storeName } from '../lib/low-stock.js';
+import { decideLowStock, lowStockRecord, lowStockMessage, withLowStock, storeName } from '../lib/low-stock.js';
 import { marketEnvironment } from '../lib/shopping-market.js';
 import { withUsage } from '../lib/usage.js';
 import { recordJobRun } from '../lib/jobs.js';
@@ -39,20 +39,28 @@ export async function checkAlert(alert,{store,env,inspect,discover,send,discover
       decision=decidePriceCheck({...alert,links},checks,{country});
     }
   }
-  // Low stock is read and logged only (step 1): nothing is sent from it yet.
-  const watched=links??alert.links,lowStock=lowStockRecord(decideLowStock(alert,checks,{sizes:alertSizes(alert),urls:watched.map(l=>l.url),readable:checks.some(c=>c.status==='checked')}),{event:decision.event?.kind});
-  console.log(JSON.stringify({event:'low_stock_check',alert_id:alert.id,state:lowStock.state,reason:lowStock.reason,would_send:lowStock.would_send,dry_run:true,
-    ...(lowStock.combine_with?{combine_with:lowStock.combine_with}:{}),evidence:lowStock.evidence.map(e=>({store:storeName(e.url),size:e.size,quantity:e.quantity,source:e.source})),episode_started_at:lowStock.episode?.started_at??null}));
-  let status=decision.status,baselines=decision.establish??undefined,delivery=null,duplicate=false;
-  if(decision.event&&await store.priceAlertCurrent(alert.id,alert.revision)){
+  // Low stock (lib/low-stock.js): verified 1–3 left, once per episode. It joins a price-drop or restock
+  // text from the same check, or goes out on its own as a price alert (operation prefix price-alert:).
+  const watched=links??alert.links,low=decideLowStock(alert,checks,{sizes:alertSizes(alert),urls:watched.map(l=>l.url),readable:checks.some(c=>c.status==='checked')});
+  const lowOn=alert.low_stock_alerts!==false,lowSend=low.would_send&&lowOn;
+  let status=decision.status,baselines=decision.establish??undefined,delivery=null,duplicate=false,lowDelivery=null;
+  const deliver=async(operation,body)=>{
     const conversation=await store.conversation(alert.conversation_id);
-    const operation=`price-alert:${alert.id}:${alert.revision}:${decision.event.fingerprint}`;
     const existing=await store.operation(operation);
-    const result=existing?{status:existing.status,duplicate:true}:await deliverReply({store,send,conversation,operation,body:decision.event.body,source:'operator',env,purpose:'price_alert'});
-    delivery=result.status;duplicate=Boolean(result.duplicate);
+    return existing?{status:existing.status,duplicate:true}:await deliverReply({store,send,conversation,operation,body,source:'operator',env,purpose:'price_alert'});
+  };
+  if(decision.event&&await store.priceAlertCurrent(alert.id,alert.revision)){
+    const result=await deliver(`price-alert:${alert.id}:${alert.revision}:${decision.event.fingerprint}`,lowSend?withLowStock(decision.event.body,low.lowest):decision.event.body);
+    delivery=result.status;duplicate=Boolean(result.duplicate);if(lowSend)lowDelivery=delivery;
     if(result.status==='sent'&&decision.after_send)baselines=decision.after_send;
+  }else if(lowSend&&!decision.event&&await store.priceAlertCurrent(alert.id,alert.revision)){
+    const result=await deliver(`price-alert:${alert.id}:${alert.revision}:low-stock:${low.episode.id}`,lowStockMessage(alert,low.lowest));
+    lowDelivery=delivery=result.status;duplicate=Boolean(result.duplicate);
   }
-  const result={status,event:decision.event?.kind??null,delivery,checks,...decision.record,low_stock:lowStock,
+  const lowStock=lowStockRecord(low,{event:decision.event?.kind,delivery:lowDelivery,turned_off:low.would_send&&!lowOn});
+  console.log(JSON.stringify({event:'low_stock_check',alert_id:alert.id,state:lowStock.state,reason:lowStock.reason,would_send:lowStock.would_send,sent:lowStock.sent,
+    ...(lowStock.combine_with?{combine_with:lowStock.combine_with}:{}),evidence:lowStock.evidence.map(e=>({store:storeName(e.url),size:e.size,quantity:e.quantity,source:e.source})),episode_started_at:lowStock.episode?.started_at??null}));
+  const result={status,event:decision.event?.kind??(lowStock.sent?'low_stock':null),delivery,checks,...decision.record,low_stock:lowStock,
     discovered_at:discovery?.status==='completed'?new Date().toISOString():alert.last_result?.discovered_at,
     discovery:!discovery?alert.last_result?.discovery:discovery.status==='completed'
       ?{status:'completed',attempted_at:new Date().toISOString(),candidates:discovery.candidates,added:discovery.links.length,searches:discovery.searches}
@@ -89,20 +97,22 @@ async function simulate(req,res,{env,store,send}){
   }
   const previous=['sold_out','in_stock','unknown'].includes(input.previous_stock)?{...alert,last_result:{...alert.last_result,stock:input.previous_stock}}:alert;
   const decision=decidePriceCheck(previous,[{url:'simulation',status:'checked',offers}],{country});
-  // Low stock is rehearsed for review only; step 1 sends no low-stock text, test or real.
+  // Low stock is rehearsed with the same decision: a typed count, and the episode as recorded or as chosen.
   const episode=input.low_stock_episode==='open'?{started_at:new Date().toISOString(),url:urls[0],size:alert.size,key:sizeKey(alert.size),quantity:1}:input.low_stock_episode==='none'?null:undefined;
   const lowAlert=episode===undefined?alert:{...alert,last_result:{...alert.last_result,low_stock:{...alert.last_result?.low_stock,episode}}};
   const low=decideLowStock(lowAlert,[{url:'simulation',status:'checked',offers}],{sizes:alertSizes(alert),urls,readable:true});
-  const low_stock={state:low.state,reason:low.reason,would_send:low.would_send,message:low.would_send?lowStockMessage(alert,low.lowest):null};
+  const lowSend=low.would_send&&alert.low_stock_alerts!==false;
+  const body=decision.event?(lowSend?withLowStock(decision.event.body,low.lowest):decision.event.body):lowSend?lowStockMessage(alert,low.lowest):null;
+  const low_stock={state:low.state,reason:low.would_send&&!lowSend?'turned_off':low.reason,would_send:lowSend,combined:Boolean(lowSend&&decision.event)};
   let delivery=null;
-  if(input.deliver===true&&decision.event){
+  if(input.deliver===true&&body){
     if(!env.PRICE_ALERT_TEST_CONVERSATION_ID||alert.conversation_id!==env.PRICE_ALERT_TEST_CONVERSATION_ID)return json(res,403,{error:'Test delivery is limited to the designated test conversation.'});
-    const conversation=await store.conversation(alert.conversation_id);
-    delivery=(await deliverReply({store,send,conversation,operation:`price-alert-test:${alert.id}:${randomUUID()}`,body:TEST_LABEL+decision.event.body,source:'operator',env,purpose:'price_alert',
+    const conversation=await store.conversation(alert.conversation_id),label=decision.event?TEST_LABEL:LOW_STOCK_TEST_LABEL;
+    delivery=(await deliverReply({store,send,conversation,operation:`price-alert-test:${alert.id}:${randomUUID()}`,body:label+body,source:'operator',env,purpose:'price_alert',
       // The label is re-added after composing, so the test shows the exact message a user would get.
-      compose:async args=>{const c=await composeReply({...args,draft:decision.event.body});return c.composed?{...c,body:TEST_LABEL+c.body}:{...c,body:args.draft};}})).status;
+      compose:async args=>{const c=await composeReply({...args,draft:body});return c.composed?{...c,body:label+c.body}:{...c,body:args.draft};}})).status;
   }
-  return json(res,200,{status:decision.status,event:decision.event?.kind??null,message:decision.event?.body??null,next_baselines:decision.after_send??decision.establish??null,record:decision.record,delivery,low_stock});
+  return json(res,200,{status:decision.status,event:decision.event?.kind??(lowSend?'low_stock':null),message:body,next_baselines:decision.after_send??decision.establish??null,record:decision.record,delivery,low_stock});
 }
 
 export function createPriceChecksHandler({env=process.env,storeFactory=createStore,inspect=inspectAlertLinks,discover=discoverAlertLinks,send=sendGreeting,admin=authorize}={}){
