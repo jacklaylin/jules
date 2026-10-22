@@ -289,11 +289,11 @@ async function unmarkBought(item){
  itemCache.set(item.id,cached);render([...itemCache.values()],generation,'local');
  toast(`${item.name} is back on your wishlist. Its price alert stays off.`);
 }
-// One status line for an active alert, sold out or not; the alert covers price drops and restocks.
+// One status line for an active alert, sold out or not; the alert covers price drops, restocks and low stock.
 function alertStatus(item,soldOut){
  const line=node('p',null,'alert-status');
  line.innerHTML='<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 21h4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
- line.append(node('span',`Price & stock alert on for size ${item.price_alert.size}. ${soldOut?'We’ll text you when it’s back or if the price drops.':'We’ll text you if the price drops or it sells out and comes back.'}`));
+ line.append(node('span',`Price & stock alert on for size ${item.price_alert.size}. ${soldOut?'We’ll text you when it’s back or if the price drops.':item.price_alert.low_stock_alerts===false?'We’ll text you if the price drops or it sells out and comes back.':'We’ll text you if the price drops, it’s nearly sold out, or it sells out and comes back.'}`));
  return line;
 }
 function stockSummary(item){
