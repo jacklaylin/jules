@@ -2,7 +2,7 @@ import {mountAdminShell,adminJson,adminFetch,adminToken,anchorMenus} from './adm
 import {mountPurchases,loadPurchases,syncPurchaseView} from './admin-purchases.js';
 import {browseKey} from './admin-review.js';
 import {approvalLines,accessResult,welcomeResult} from './admin-people-view.js';
-// Admin › People › one person: Personal memory, Conversation, Purchase history and Wishlist tabs.
+// Admin › People › one person: Summary, Personal memory, Conversation, Purchase history and Wishlist tabs.
 // The selected tab lives in the URL (?tab=) so every view can be linked.
 mountAdminShell('people');
 anchorMenus();
@@ -13,11 +13,11 @@ const when = at => at ? new Date(at).toLocaleString(undefined, { month: 'short',
 const day = at => at ? new Date(at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'date unknown';
 const notice = text => { $('notice').textContent = text; };
 const api = (path, options) => adminJson(path, options);
-const TABS = ['memory', 'conversation', 'purchases', 'wishlist'];
+const TABS = ['summary', 'memory', 'conversation', 'purchases', 'wishlist'];
 const person = location.pathname.split('/')[3] ?? '';
 
 function showTab(tab, push = false) {
-  if (!TABS.includes(tab)) tab = 'memory';
+  if (!TABS.includes(tab)) tab = 'summary';
   for (const link of document.querySelectorAll('.tabs a')) { if (link.dataset.tab === tab) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current'); }
   for (const panel of document.querySelectorAll('[data-panel]')) panel.hidden = panel.dataset.panel !== tab;
   // On phones the tab strip scrolls sideways; keep the selected tab in view.
@@ -100,7 +100,7 @@ async function loadMessages(earlier = false) {
   const query = new URLSearchParams({ conversation: person });
   if (earlier && cursor) query.set('before', JSON.stringify(cursor));
   const data = await api(`/api/admin?${query}`);
-  if (!earlier) { $('person-name').textContent = data.conversation.sender_id; document.title = `Jules admin · ${data.conversation.sender_id}`; showAccess(data.access?.access ?? null, data.approval_text ?? null, data.approval_account === true); showOnboarding(data.onboarding); resendText = data.resend_welcome ?? null; $('resend-welcome').hidden = !resendText; $('welcome-card').hidden = data.contact_card_enabled !== true; }
+  if (!earlier) { showName(data.name, data.conversation.sender_id); showAccess(data.access?.access ?? null, data.approval_text ?? null, data.approval_account === true); showOnboarding(data.onboarding); resendText = data.resend_welcome ?? null; $('resend-welcome').hidden = !resendText; $('welcome-card').hidden = data.contact_card_enabled !== true; }
   messages = earlier ? [...data.messages, ...messages] : data.messages; cursor = data.before;
   renderMessages();
 }
@@ -114,28 +114,54 @@ async function openMessage(id) {
   if (target) { target.classList.add('highlight'); target.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
 }
 
-// ---------- Taste coverage ----------
-// One chip per dimension from lib/coverage.js: known, weak (some evidence) or missing. Read-only.
-const COVERAGE = { categories: 'Categories', silhouettes: 'Silhouettes', palette: 'Palette', brands: 'Brands', sizes: 'Sizes', stores: 'Stores', price_band: 'Price band', channel: 'New vs resale' };
-const COVERAGE_KIND = { known: 'ok', weak: 'warn', missing: 'fail' };
-async function loadCoverage() {
-  const data = await api(`/api/admin?view=coverage&conversation=${encodeURIComponent(person)}`);
-  const chips = data.dimensions.map(d => {
-    const chip = badge(COVERAGE_KIND[d.status] ?? 'plain', `${COVERAGE[d.dimension] ?? d.dimension}: ${d.status}`);
-    chip.title = d.note ?? '';
-    return chip;
-  });
-  $('coverage').replaceChildren(el('span', { className: 'mono-label', textContent: `Coverage · ${data.level}` }), el('span', { className: 'badges' }, ...chips));
-  $('coverage').hidden = false;
-  loadEarlyRead().catch(() => {});
-  loadContext().catch(() => {});
+// ---------- Summary ----------
+// The name (signup, else told to Jules) as the title with the number beside it; the number alone when there's no name.
+function showName(name, phone) {
+  $('person-name').textContent = name || phone;
+  $('person-phone').textContent = phone; $('person-phone').hidden = !name;
+  document.title = `Jules admin · ${name || phone}`;
 }
-// The early read Jules would send this person now (thin profiles only; rich ones get the purchase summary).
-async function loadEarlyRead() {
-  const data = await api(`/api/admin?view=early-read&conversation=${encodeURIComponent(person)}`);
-  $('early-read-text').textContent = !data.used ? 'Profile is rich: Jules sends the purchase summary instead.' : data.text ?? 'Nothing to say yet: no stated answers, orders, outfit photos or saved items.';
-  $('early-read').hidden = false;
+// One row per thing Jules weighs (lib/person-summary.js): coverage, a plain summary and where it came from.
+// Said: they told Jules; Seen: counted from what they did; Inferred: Jules's own reading.
+const STATUS_KIND = { known: 'ok', weak: 'warn', missing: 'fail' };
+const KINDS = [['said', 'Said'], ['seen', 'Seen'], ['inferred', 'Inferred']];
+const kindTag = (kind, label) => el('span', { className: `kind kind-${kind}` }, el('i', { ariaHidden: 'true' }), label);
+function fromCell(row) {
+  if (row.reading) return el('td', {}, kindTag('inferred', 'Inferred'), el('span', { className: 'muted', textContent: ` from ${row.from.said} said, ${row.from.seen} seen` }));
+  const parts = KINDS.filter(([k]) => row.from[k]).map(([k, label]) => kindTag(k, `${label} ${row.from[k]}`));
+  return el('td', {}, ...(parts.length ? parts.flatMap((part, i) => i ? [' · ', part] : [part]) : [el('span', { className: 'muted', textContent: '—' })]));
 }
+function summaryRow(row) {
+  const status = row.status ? badge(STATUS_KIND[row.status], row.status[0].toUpperCase() + row.status.slice(1)) : el('span', { className: 'muted', textContent: '—' });
+  return el('tr', {}, el('th', { scope: 'row', textContent: row.label }), el('td', {}, status),
+    el('td', {}, row.summary ?? el('span', { className: 'muted', textContent: 'Nothing yet.' }), row.detail ? el('div', { className: 'muted summary-detail', textContent: row.detail }) : null),
+    fromCell(row));
+}
+const TEXT_KIND = { early_read: 'Early read · thin profile', purchases: 'Purchase summary · rich profile', none: 'Nothing to send' };
+async function loadSummary() {
+  const data = await api(`/api/admin?view=summary&conversation=${encodeURIComponent(person)}`), c = data.coverage;
+  $('summary-coverage').textContent = c.level === 'rich' ? `Rich · ${c.known} of ${c.total} known` : `${c.level === 'empty' ? 'Empty' : 'Thin'} · ${c.known} of ${c.total} known`;
+  $('summary-rows').replaceChildren(...data.rows.map(summaryRow));
+  $('summary-status').textContent = 'Profile loaded.';
+  document.querySelector('.summary-profile').removeAttribute('aria-busy');
+  const now = data.text_now;
+  $('summary-text-kind').textContent = TEXT_KIND[now.kind]; $('summary-text-kind').hidden = false;
+  $('summary-text').textContent = now.text ?? (now.kind === 'none' ? 'No import to summarise. The purchase summary goes out after a Gmail or Shop import.' : 'Nothing to say yet: no stated answers, orders, outfit photos or saved items.');
+  $('summary-text').classList.toggle('muted', !now.text);
+  $('summary-text-note').textContent = now.kind === 'early_read' && now.text ? 'Before Jules puts it in its own voice.' : now.open_questions ? `${now.open_questions} receipt question${now.open_questions === 1 ? '' : 's'} would follow it.` : '';
+}
+function summaryFailed(error) {
+  $('summary-status').textContent = '';
+  document.querySelector('.summary-profile').removeAttribute('aria-busy');
+  $('summary-rows').replaceChildren(el('tr', {}, el('td', { colSpan: 4, className: 'error', textContent: `Could not load their profile: ${error.message}` })));
+}
+$('summary-ask').onclick = () => $('ask-style').click();
+$('summary-learn').onclick = async () => {
+  $('summary-learn').disabled = true; notice('Reading existing messages…');
+  try { await changeProfile({ action: 'import' }); notice($('profile-notice').textContent); await loadSummary(); }
+  catch (error) { notice(error.message); }
+  finally { $('summary-learn').disabled = false; }
+};
 
 // What Jules knows from every source (lib/user-context.js contextReport): source counts, the brand reading
 // (said, bought and as what, saved, liked) and the summaries the stylist and search read. Read-only.
@@ -243,6 +269,7 @@ async function changeProfile(change, keyId) {
     if (!response.ok) throw new Error(data.error ?? 'Could not save.');
     if (keyId) dirty.delete(keyId);
     profileVersion = data.version; facts = data.facts;
+    loadSummary().catch(() => {});
     $('profile-notice').textContent = data.limited ? 'Learned from the latest 100 incoming messages. Earlier history was not included.' : change.action === 'remove' ? 'Removed. Add it again below to restore it.' : 'Saved.';
     if (change.action === 'set' && !keyId) { $('profile-add').reset(); showAddFact(false); }
   } catch (error) { $('profile-notice').textContent = error.message; }
@@ -411,7 +438,7 @@ $('ask-confirm').onclick = async () => {
     $('ask-dialog').close();
     notice(interview.status === 'sent' ? 'First style question sent. Their replies will show in Conversation.' : `Style question not confirmed (${interview.status}); check Conversation before sending again.`);
     loadMessages().catch(error => notice(`Conversation: ${error.message}`));
-    loadCoverage().catch(() => {});
+    loadSummary().catch(() => {});
   } catch (error) { $('ask-error').textContent = error.message; $('ask-error').hidden = false; }
   finally { buttons.forEach(b => { b.disabled = false; }); $('ask-confirm').textContent = 'Send'; }
 };
@@ -480,7 +507,7 @@ $('reset-confirm').onclick = async () => {
     $('reset-dialog').close();
     const texts = `${data.texts_removed} onboarding text${data.texts_removed === 1 ? '' : 's'} removed`;
     notice(`Onboarding reset. ${texts}; ${data.history === 'cleared' ? 'imported history deleted and Gmail and Shop disconnected' : 'there was no imported history'}. Sign up again with this number to start over.`);
-    loadMessages().catch(error => notice(`Conversation: ${error.message}`)); loadProfile().catch(() => {}); loadPurchases(person);
+    loadMessages().catch(error => notice(`Conversation: ${error.message}`)); loadProfile().catch(() => {}); loadSummary().catch(() => {}); loadPurchases(person);
   } catch (error) { $('reset-error').textContent = error.message; $('reset-error').hidden = false; }
   finally { buttons.forEach(b => { b.disabled = false; }); $('reset-confirm').textContent = 'Reset onboarding'; }
 };
@@ -495,7 +522,8 @@ else {
   const linked = new URLSearchParams(location.search).get('message');
   loadMessages().then(() => { if (/^[0-9a-f-]{36}$/i.test(linked ?? '')) return openMessage(linked); }).catch(fail('Conversation'));
   loadProfile().catch(fail('Memory'));
-  loadCoverage().catch(() => {});
+  loadSummary().catch(error => summaryFailed(error));
+  loadContext().catch(() => {});
   loadPurchases(person);
   loadWishlist().catch(error => { $('wishlist-note').textContent = error.message; });
 }

@@ -7,7 +7,7 @@
 <link rel="icon" href="/brand/icon.svg" type="image/svg+xml"></head>
 <body class="admin-console">
   <main>
-    <div class="person-title"><a class="breadcrumb" href="/admin">People /</a><h1 id="person-name">Loading…</h1><span id="person-access" hidden></span><span id="person-onboarding" class="badges" hidden></span><div id="person-badges" class="badges"></div><span class="spacer"></span>
+    <div class="person-title"><a class="breadcrumb" href="/admin">People /</a><h1 id="person-name">Loading…</h1><span id="person-phone" class="person-phone" hidden></span><span id="person-access" hidden></span><span id="person-onboarding" class="badges" hidden></span><div id="person-badges" class="badges"></div><span class="spacer"></span>
       <p class="person-stats">Active <strong id="stat-active">—</strong> · <strong id="stat-messages">—</strong> messages · <strong id="stat-facts">—</strong> facts</p>
       <button class="small quiet" type="button" popovertarget="person-more">More ⋯</button></div>
     <!-- One menu of actions for this person, the same on every tab. Memory and purchase actions open their tab first. -->
@@ -35,6 +35,7 @@
       <button id="reset-onboarding" type="button" aria-haspopup="dialog">Reset onboarding…</button>
     </div>
     <nav class="tabs" aria-label="Person sections">
+      <a href="?tab=summary" data-tab="summary">Summary</a>
       <a href="?tab=memory" data-tab="memory">Personal memory <span class="count" id="count-memory"></span></a>
       <a href="?tab=conversation" data-tab="conversation">Conversation <span class="count" id="count-conversation"></span></a>
       <a href="?tab=purchases" data-tab="purchases">Purchase history <span class="count" id="purchases-count"></span></a>
@@ -42,9 +43,27 @@
     </nav>
     <p id="notice" role="status" aria-live="polite" class="muted"></p>
 
+    <!-- Summary: what Jules knows, how much, and where it came from (lib/person-summary.js). Read-only. -->
+    <section id="tab-summary" data-panel="summary" hidden>
+      <div class="summary-layout">
+        <section class="summary-card summary-profile" aria-labelledby="summary-profile-title" aria-busy="true">
+          <div class="summary-head">
+            <h2 id="summary-profile-title">Their profile</h2><span id="summary-coverage" class="muted"></span><span class="spacer"></span>
+            <button id="summary-learn" class="small quiet" type="button">Learn from last 100 texts</button>
+            <button id="summary-ask" class="small btn--butter" type="button" aria-haspopup="dialog">Ask them about the gaps…</button>
+          </div>
+          <p id="summary-status" class="sr-only" role="status">Loading their profile…</p>
+          <div class="dv-table-wrap"><table class="dv-table summary-table"><thead><tr><th>Topic</th><th>Coverage</th><th>What Jules knows</th><th>From</th></tr></thead><tbody id="summary-rows"></tbody></table></div>
+        </section>
+        <section class="summary-card summary-text-now" aria-labelledby="summary-text-title">
+          <div class="summary-head"><h2 id="summary-text-title">What Jules would text now</h2><span id="summary-text-kind" class="badge plain" hidden></span><span class="muted">Not sent</span></div>
+          <p id="summary-text" class="summary-text"></p>
+          <p id="summary-text-note" class="muted"></p>
+        </section>
+      </div>
+    </section>
+
     <section id="tab-memory" data-panel="memory" hidden>
-      <div id="coverage" class="coverage-strip" aria-label="Taste coverage" hidden></div>
-      <details id="early-read" class="early-read" hidden><summary>Early read preview <span class="muted">not sent; what Jules would text now</span></summary><p id="early-read-text" class="early-read-text"></p></details>
       <details id="context" class="early-read context-view" hidden><summary>What Jules knows <span class="muted">every source, as chat, the stylist and ranking read it</span></summary><div id="context-body"></div></details>
       <div class="dv-toolbar">
         <div id="memory-types" class="seg" role="group" aria-label="Filter by type"></div>
@@ -127,7 +146,7 @@
   </dialog>
   <dialog id="ask-dialog" class="confirm-dialog" aria-labelledby="ask-title">
     <h2 id="ask-title">Text them style questions?</h2>
-    <p>Jules texts <strong id="ask-person">this person</strong> the first of up to three short questions about the gaps in their taste profile (the Coverage chips), then each next one after they reply, as if they had asked. Their answers show in Conversation. Nothing is sent if they said no to more questions.</p>
+    <p>Jules texts <strong id="ask-person">this person</strong> the first of up to three short questions about the gaps in their taste profile (the weak and missing rows in Summary), then each next one after they reply, as if they had asked. Their answers show in Conversation. Nothing is sent if they said no to more questions.</p>
     <p id="ask-error" class="error" role="alert" hidden></p>
     <div class="dialog-actions"><button id="ask-confirm" class="btn--butter" type="button">Send</button><button id="ask-cancel" type="button">Cancel</button></div>
   </dialog>
