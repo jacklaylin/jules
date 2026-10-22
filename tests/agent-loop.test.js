@@ -107,30 +107,36 @@ test('a message that adds a price or claims a save is rejected once with the pro
   const body = await generateReply(say('find the peyter pants'), env, fetcher, shop.memory);
   assert.equal(requests.length, 3); assert.deepEqual(requests[2].tool_choice, { type:'function', name:'conversation_reply' });
   assert.ok(problems.some(p => /Remove prices.*500/.test(p))); assert.ok(problems.some(p => /saved now/.test(p)));
-  // The left-out link is code's to add, so it is not one of the model's problems.
-  assert.ok(!problems.some(p => /Include these links/.test(p)));
+  assert.ok(problems.some(p => /Include these links/.test(p)));
   assert.match(body, /want me to save them/);
 });
 
-test('a link or price the message left out is added by code, without asking the model again', async () => {
-  const shop = shopping();
+test('a link still left out on the last attempt is added by code; a left-out price is the model\'s to fix', async () => {
+  const shop = shopping();let final;
   const { fetcher, requests } = model([
     [tool('find_products', { query:'Peyter pants' })],
-    [reply('found the Peyter pants at Dover Street Market. want me to save them?')],
+    [reply('found the Peyter pants at Dover Street Market, $795.00. want me to save them?')],
+    [reply('the Peyter pants are at Dover Street Market for $795.00. want me to save them?')],
   ]);
-  const noLink = await generateReply(say('find the peyter pants'), env, fetcher, shop.memory);
-  assert.equal(requests.length, 2);
-  assert.ok(noLink.includes(url)); assert.match(noLink, /\$795/); assert.match(noLink, /want me to save them/);
-  const again = shopping();
+  const body = await generateReply(say('find the peyter pants'), env, fetcher, { ...shop.memory, onReply:name => { final = name; } });
+  // The model was asked once to include the link; its second message is sent with the link added.
+  assert.equal(requests.length, 3); assert.equal(final, 'agent_reply');
+  assert.ok(body.includes(url)); assert.match(body, /want me to save them/);
   const priced = model([
     [tool('find_products', { query:'Peyter pants' })],
-    [reply(`found the Peyter pants at Dover Street Market.\n${url}\nwant me to save them?`)],
+    [reply(`found the Peyter pants at Dover Street Market.\n${url}`)],
+    [reply(`the Peyter pants are at Dover Street Market.\n${url}`)],
   ]);
-  const body = await generateReply(say('find the peyter pants'), env, priced.fetcher, again.memory);
-  assert.equal(priced.requests.length, 2);
-  // The price goes with its own product, ahead of that product's link.
-  const lines = body.split('\n'), at = lines.findIndex(l => l.includes(url));
-  assert.match(lines[at - 1], /\$795\.00/);
+  let plain;
+  await generateReply(say('find the peyter pants'), env, priced.fetcher, { ...shopping().memory, onReply:name => { plain = name; } });
+  assert.equal(priced.requests.length, 3); assert.equal(plain, 'agent_plain');
+});
+
+test('a statement split from a numbered list keeps the list intact', async () => {
+  const { withoutStatements } = await import('../lib/compose.js');
+  const text = `two options:\n\n1. Peyter Pants — $795.00 at Dover Street Market.\n${url}\n\nboth ship free. want either?`;
+  assert.equal(withoutStatements(text, ['both ship free']), `two options:\n\n1. Peyter Pants — $795.00 at Dover Street Market.\n${url}\n\nwant either?`);
+  assert.equal(withoutStatements(text, ['ships tomorrow']), null);
 });
 
 test('the independent reading decides the claims: a wrong declaration on a right message is sent', async () => {

@@ -44,9 +44,9 @@ test('a rejected reply is retried once with the problems, then the factual draft
     return calls === 1 ? written(`Here you go, $900.\n${url}`) : written(`Here you go, $1,295.\n${url}`); } });
   assert.equal(calls, 2); assert.match(retry, /Remove prices.*900/); assert.equal(fixed.body, `Here you go, $1,295.\n${url}`);
   calls = 0;
-  // A link or price the message left out is added by code, not sent back to the model.
-  const repaired = await composeReply({ draft, facts:none, env, fetcher:async () => { calls++; return written('Here you go.'); } });
-  assert.equal(calls, 1); assert.ok(repaired.body.includes(url)); assert.match(repaired.body, /1,295/); assert.equal(repaired.composed, true);
+  // A link still left out on the last attempt is added by code instead of sending the draft.
+  const repaired = await composeReply({ draft, facts:none, env, fetcher:async () => { calls++; return written('Here you go, $1,295.'); } });
+  assert.equal(calls, 2); assert.ok(repaired.body.includes(url)); assert.equal(repaired.composed, true);
   calls = 0;
   const stuck = await composeReply({ draft, facts:none, env, fetcher:async () => { calls++; return written(`Saved it!\n${url}`, { saved_now:true }); } });
   assert.equal(calls, 2); assert.equal(stuck.body, draft); assert.equal(stuck.composed, false);
