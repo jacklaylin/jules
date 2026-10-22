@@ -7,6 +7,7 @@ import { knowledgeView } from '../lib/person-knowledge.js';
 import { tagWishlist } from '../lib/wishlist-tags.js';
 import { adminStartInterview } from '../lib/interview.js';
 import { personSummary } from '../lib/person-summary.js';
+import { personAdoption } from '../lib/person-adoption.js';
 import { authorize } from '../lib/auth.js';
 import { createStore } from '../lib/store.js';
 import { json, readJson, uuid } from '../lib/http.js';
@@ -205,6 +206,9 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
       // The Summary tab (lib/person-summary.js): coverage, one row per thing Jules weighs and what Jules would text
       // now. Read-only, computed fresh; nothing is sent.
       if (query.get('view') === 'summary') return json(res, 200, await personSummary(store, id));
+      // The Summary's Adoption and Chat quality cards (lib/person-adoption.js): this person's shopping-request outcomes
+      // over the last four weeks and lifetime cost. Read-only; no message text.
+      if (query.get('view') === 'person-adoption') return json(res, 200, await personAdoption(store, id));
       let before;
       if (query.has('before')) {
         try { before = JSON.parse(query.get('before')); } catch { return json(res, 400, { error: 'Invalid history cursor.' }); }
