@@ -36,7 +36,7 @@ p{line-height:1.65}
 .purchase-table .dv-row.removed .dv-item>span:first-child,.purchase-table .dv-row.duplicate .dv-item>span:first-child{color:var(--text-2);text-decoration:line-through}
 .purchase-table.dv-compact .dv-row .end{max-width:120px}
 .purchase-status{font-size:13px;color:var(--text-2);white-space:nowrap}
-.data-table .quote{font-size:13px;color:var(--text-2);min-width:240px}.badges{display:flex;flex-wrap:wrap;gap:6px}.badges .tag{padding:4px 8px;font-size:10px}
+.unlinked-table .quote{font-size:13px;color:var(--text-2);min-width:240px}.badges{display:flex;flex-wrap:wrap;gap:6px}.badges .tag{padding:4px 8px;font-size:10px}
 #tab-purchases .meta{font-size:12px;line-height:1.6;color:var(--text-2);overflow-wrap:anywhere}
 .evidence blockquote{margin:4px 0 10px;padding:0;font-size:14px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}.evidence blockquote::before{content:"“"}.evidence blockquote::after{content:"”"}
 .review-form fieldset{border:0;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:8px}.review-form legend{font-weight:600;font-size:14px;margin-bottom:10px}.review-form .chip{gap:8px;font-size:13px}.review-form .chip:has(input:checked){background:var(--ink);color:#fff}
@@ -65,10 +65,12 @@ p{line-height:1.65}
 .review-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:14px}.review-actions .btn--butter{order:-1}.review-actions .muted{font-size:12px;margin-left:auto}
 
 /* Wishlist */
-.wishlist-list{display:grid;gap:12px}
-.wish-item{border:1px solid var(--line);border-radius:16px;padding:14px 16px}.wish-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}.wish-head p{margin:2px 0 0}
-.store-links{list-style:none;padding:0;margin:10px 0 0;display:flex;flex-wrap:wrap;gap:6px 18px;font-size:14px}.store-links li{display:flex;gap:6px;align-items:center}
-.alert-panel{margin-top:12px;padding:14px;border-radius:14px;background:var(--grape-tint)}.alert-test .check{margin:10px 0}
+.wishlist-table td{vertical-align:top}.wishlist-table .wish-name{font-weight:600;color:var(--ink)}.wishlist-table small{display:block;font-size:12px;color:var(--text-2)}
+.store-links{list-style:none;padding:0;margin:0;display:grid;gap:4px}.store-links li{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.store-links .num{font:400 12px var(--font-mono);color:var(--text-2)}
+.wishlist-table tr.alert-row>td{padding:0 0 14px;border-top:0}
+/* The rehearsal form sits inside the table, so its fields get the normal form shell back (not the inline table-edit style). */
+.wishlist-table .alert-panel input:not([type=checkbox]):not([type=radio]),.wishlist-table .alert-panel select{min-height:44px;margin:7px 0 0;padding:12px 18px;border-color:var(--line-strong);border-radius:var(--r-card);background-color:var(--white);font-size:inherit}.wishlist-table .alert-panel select{padding-right:52px}
+.alert-panel{padding:14px;border-radius:14px;background:var(--grape-tint)}.alert-test .check{margin:10px 0}
 .alert-result{white-space:pre-wrap;overflow-wrap:anywhere;font:400 13px/1.5 var(--font-mono);margin:0}
 
 @media(max-width:800px){

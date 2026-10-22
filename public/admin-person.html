@@ -42,7 +42,7 @@
       <a href="?tab=wishlist" data-tab="wishlist">Wishlist <span class="count" id="count-wishlist"></span></a>
     </nav>
     <p id="notice" role="status" aria-live="polite" class="muted"></p>
-    <p id="person-updated" class="dv-note person-updated"></p>
+    <p id="person-updated" class="dv-status person-updated"></p>
 
     <!-- Summary: what Jules knows, how much, and where it came from (lib/person-summary.js). Read-only. -->
     <section id="tab-summary" data-panel="summary" hidden>
@@ -107,7 +107,7 @@
       </div>
       <p class="knowledge-key"><span class="kind kind-said"><i aria-hidden="true"></i>Said</span> they told Jules, in chat or at signup; click a value to edit it. <span class="kind kind-seen"><i aria-hidden="true"></i>Seen</span> counted from what they did. <span class="kind kind-inferred"><i aria-hidden="true"></i>Inferred</span> Jules’s own reading; correct it by adding what they said. Weight: how strongly a brand or store features in Jules’s brand or store reading.</p>
       <div class="dv-status"><span id="profile-notice" role="status" aria-live="polite"></span></div>
-      <div id="memory-conflict" class="notice-bar" hidden><span>This profile changed since you loaded it. Reload to see the latest; your unsaved values stay in their rows.</span><button id="conflict-reload" class="small" type="button">Reload profile</button></div>
+      <div id="memory-conflict" class="dv-status" role="alert" hidden><span class="badge warn">Changed since you loaded it</span><span>Reload to see the latest; your unsaved values stay in their rows.</span><button id="conflict-reload" class="small quiet" type="button">Reload profile</button></div>
       <section id="tool-add-fact" class="dv-tool" aria-labelledby="tool-add-fact-title" hidden><div class="dv-tool-head"><h2 id="tool-add-fact-title">Add what they said</h2><button id="memory-add-close" class="close-button" type="button" aria-label="Close add what they said"><svg aria-hidden="true" viewBox="0 0 18 18"><path d="M3 3 L15 15 M15 3 L3 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></div>
         <form id="profile-add" class="add-fact-fields"><label>Type<select id="fact-field" required></select></label><label>Key<input id="fact-key" maxlength="100" required list="fact-keys" autocomplete="off"><datalist id="fact-keys"></datalist></label><label>Value<input id="fact-value" maxlength="500" required list="fact-values" autocomplete="off"><datalist id="fact-values"></datalist></label><button type="submit" class="btn--butter">Add</button><p id="fact-hint" class="add-fact-hint"></p></form></section>
       <div class="dv-table-wrap"><table class="dv-table knowledge-table"><thead><tr>
@@ -117,7 +117,8 @@
     </section>
 
     <section id="tab-conversation" data-panel="conversation" hidden>
-      <div class="toolbar"><label class="sr-only" for="convo-filter">Show</label><select id="convo-filter"><option value="all">All messages</option><option value="problems">Problems only</option></select><button id="older" class="small" type="button" hidden>Load earlier messages</button><span class="spacer"></span><span id="convo-count" class="muted"></span></div>
+      <div class="dv-toolbar"><div id="convo-filter" class="seg" role="group" aria-label="Show"><button type="button" data-filter="all" aria-pressed="true">All <span class="count" id="convo-all"></span></button><button type="button" data-filter="problems" aria-pressed="false">Problems <span class="count" id="convo-problems"></span></button></div><span class="spacer"></span><button id="older" class="small quiet" type="button" hidden>Load earlier messages</button></div>
+      <div class="dv-status"><span id="convo-count"></span></div>
       <div id="messages" class="bubbles" aria-label="Conversation history"></div>
     </section>
 
@@ -150,14 +151,17 @@
         <div id="purchases-list" class="dv-list purchase-table" aria-label="Purchases"></div>
         <div id="purchase-review" class="purchase-review dv-detail" hidden></div>
       </div>
-      <div data-view-panel="unlinked" hidden><p class="muted">Shipping, return or refund emails Jules could not safely link to a purchase.</p><div class="table-scroll"><table class="data-table"><thead><tr><th>Kind</th><th>Store</th><th>Order</th><th>Date</th><th>Quote</th></tr></thead><tbody id="purchases-pending-list"></tbody></table></div></div>
+      <div data-view-panel="unlinked" hidden><p class="dv-status">Shipping, return or refund emails Jules could not safely link to a purchase.</p><div class="dv-table-wrap"><table class="dv-table unlinked-table"><thead><tr><th>Kind</th><th>Store</th><th>Order</th><th>Date</th><th>Quote</th></tr></thead><tbody id="purchases-pending-list"></tbody></table></div></div>
       <div data-view-panel="skipped" id="skipped-panel" hidden><p class="muted">A sample of emails the import judged irrelevant: every skipped email from a store they've bought from, plus a random sample of the rest. Mark any that were real orders. Subjects come from Gmail when you load the sample and aren't stored. Only available for your own mailbox.</p><button id="skipped-load" class="small" type="button">Load sample</button><p id="skipped-status" role="status" aria-live="polite" class="muted"></p><div id="skipped-list"></div></div>
       <div data-view-panel="sources" hidden><p class="muted">What each connected service returned, page by page, and what Jules found in each record. Record text isn't kept; summaries leave out addresses and contact details.</p><div id="purchases-sources-list"></div></div>
     </section>
 
     <section id="tab-wishlist" data-panel="wishlist" hidden>
-      <p id="wishlist-note" class="muted"></p>
-      <div id="wishlist-list" class="wishlist-list"></div>
+      <section class="dv-card" aria-labelledby="wishlist-title">
+        <div class="dv-card-head"><h2 id="wishlist-title">Wishlist</h2><span id="wishlist-count" class="dv-card-note"></span></div>
+        <div class="dv-table-wrap"><table class="dv-table wishlist-table"><thead><tr><th>Item</th><th>Stores</th><th>Price alert</th><th class="end"><span class="sr-only">Test</span></th></tr></thead><tbody id="wishlist-list"></tbody></table></div>
+        <p id="wishlist-note" class="dv-card-foot"></p>
+      </section>
     </section>
   </main>
   <dialog id="approve-dialog" class="confirm-dialog" aria-labelledby="approve-title">
@@ -197,7 +201,7 @@
       <p id="nudge-draft" class="muted"></p>
     </div>
     <p id="nudge-no-test" class="muted" hidden>Test nudges go only to the designated test conversation (PRICE_ALERT_TEST_CONVERSATION_ID in Vercel).</p>
-    <h3 class="mono-label">Decisions, newest first</h3>
+    <h3>Decisions, newest first</h3>
     <ul id="nudge-log" class="nudge-log"></ul>
     <p id="nudge-error" class="error" role="alert" hidden></p>
     <div class="dialog-actions"><button id="nudge-confirm" class="btn--butter" type="button" hidden>Send test nudge</button><button id="nudge-cancel" type="button">Close</button></div>
