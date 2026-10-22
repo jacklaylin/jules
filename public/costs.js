@@ -93,7 +93,7 @@ function render() {
 }
 
 // A return visit draws the last report for this period and date at once (list-cache.js), with its time, while the
-// loader shows the refresh; a fresh report that matches is not drawn again.
+// status line says "Refreshing…"; a fresh report that matches is not drawn again.
 async function load() {
   const request = ++version, key = `${period()}:${reportDate()}`;
   $('loader').hidden = false; $('notice').textContent = ''; $('notice').className = '';
