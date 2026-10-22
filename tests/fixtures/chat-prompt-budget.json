@@ -6,5 +6,11 @@
     "feature_guides": 1198,
     "tool_descriptions": 6466
   },
-  "raises": []
+  "raises": [
+    {
+      "part": "tool_descriptions",
+      "words": 139,
+      "reason": "CHAT_NARRATE's conversation_reply variant (NOTE_TOOL, lib/ai.js) is counted beside the current one while the flag is tried. Only one is offered per turn; when the flag is settled the other is deleted and this raise dropped."
+    }
+  ]
 }
