@@ -3,7 +3,8 @@
 // turn rows in, figures out. No message text: rows carry ids, counts, labels and the judge's paraphrased reasons.
 const DAY = 86400000, WEEKS = 8, MIN_SAMPLE = 5;
 export const TYPES = [{ key: 'all', label: 'All' }, { key: 'text', label: 'Text' }, { key: 'photo', label: 'Photo' }, { key: 'link', label: 'Link' }];
-const FAILED = new Set(['failed', 'unreadable', 'nothing_found']);
+// Failed searches worth reading: something broke, or nothing was found. BROKE is the first part alone.
+const FAILED = new Set(['failed', 'unreadable', 'nothing_found']), BROKE = new Set(['failed', 'unreadable']);
 const ms = at => Date.parse(at);
 const quantile = (values, q) => { const s = values.filter(Number.isFinite).sort((a, b) => a - b); return s.length ? s[Math.min(s.length - 1, Math.floor(q * s.length))] : null; };
 const rate = (n, d) => d ? n / d : null;
@@ -37,13 +38,20 @@ export const METRICS = [
   { key: 'result_p90', label: 'Results (slowest 10%)', format: sec, higher: false, minRatio: 0.1, noun: ['search', 'searches'],
     compute: ts => { const v = ts.map(t => t.result_ms).filter(Number.isFinite); return { value: quantile(v, 0.9), n: v.length }; },
     explain: '1 in 10 searches took at least this long.' },
-  { key: 'failed_rate', label: 'Failed or nothing found', format: pct, higher: false, minChange: 0.05, noun: ['search', 'searches'],
-    compute: ts => ({ value: rate(ts.filter(t => FAILED.has(t.result)).length, ts.length), n: ts.length }),
-    explain: 'Searches that fell back, stalled, couldn’t read the photo, or showed no products at all.' },
+  { key: 'failed_rate', label: 'Failed', format: pct, higher: false, minChange: 0.05, noun: ['search', 'searches'],
+    compute: ts => ({ value: rate(ts.filter(t => BROKE.has(t.result)).length, ts.length), n: ts.length }),
+    explain: 'Searches where something broke: the reply fell back to the plain message, stalled, or couldn’t read the photo.' },
+  { key: 'nothing_found_rate', label: 'Nothing found', format: pct, higher: false, minChange: 0.05, noun: ['search', 'searches'],
+    compute: ts => ({ value: rate(ts.filter(t => t.result === 'nothing_found').length, ts.length), n: ts.length }),
+    explain: 'Searches that worked but showed no products: Jules said it couldn’t find the item rather than sending a guess.' },
   { key: 'cost_per_search', label: 'Cost per search', format: usd, higher: false, minRatio: 0.1, noun: ['search', 'searches'],
     compute: ts => { const v = ts.map(t => Number(t.cost_usd)).filter(Number.isFinite); return { value: v.length ? v.reduce((a, b) => a + b, 0) / v.length : null, n: v.length }; },
     explain: 'Estimated OpenAI and SerpApi spend for the search and its acknowledgment and follow-up texts, at list prices. The judge’s own cost is not included.' },
 ];
+
+// Who the figures cover: testers only (the founder's own conversation left out) or everyone.
+export const WHO = [{ key: 'testers', label: 'Testers only' }, { key: 'all', label: 'Include mine' }];
+export function forWho(turns, who, own = []) { const mine = new Set(own); return who === 'all' ? turns : turns.filter(t => !mine.has(t.conversation_id)); }
 
 const ofType = (turns, type) => type === 'all' ? turns : turns.filter(t => t.request_type === type);
 export function figures(turns) { return Object.fromEntries(METRICS.map(m => [m.key, m.compute(turns)])); }

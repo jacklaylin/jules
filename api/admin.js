@@ -164,7 +164,7 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
       if (query.get('view') === 'alerts-summary') return json(res, 200, alertSummary(await store.alertMetricRows(new Date(Date.now() - 30 * 86400000).toISOString()), { tracking: env.LINK_CLICK_TRACKING === 'true' }));
       if (query.get('view') === 'metrics') return json(res, 200, await metricsTrend(store, { days: 7 }));
       // Per sourcing turn outcomes (lib/turn-outcomes.js): ids, counts and labels only, no message text.
-      if (query.get('view') === 'scorecard') return json(res, 200, await loadScorecard(store));
+      if (query.get('view') === 'scorecard') return json(res, 200, await loadScorecard(store, { env }));
       if (query.get('view') === 'turn-outcomes') return json(res, 200, await loadTurnOutcomes(store, { days: Math.min(56, Math.max(1, Number(query.get('days')) || 7)) }));
       const id = query.get('conversation');
       if (!id) {
