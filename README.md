@@ -6,8 +6,6 @@ Roadmap update, October 7, 2026: **Milestone 7 (human fallback) is deprioritized
 
 Personal style / starter pack: `/style` adds private uploads, adaptive style cards, confirmation into taste memory, three tones, and story-image export. See [STYLE-MVP.md](STYLE-MVP.md) for the implementation, exact setup, verification, and pending live acceptance. Live at https://textjules.com/style for invited testers. Production migration, sign-in redirect, and `STYLE_ENABLED` are configured.
 
-Owner identification testing without texting: open **Photo identification** (`/admin/identify`) in the admin console. Upload one JPEG/PNG/WebP under 3 MB and enter the original request. Explicit provider-sharing approval is required; OpenAI and SerpApi credits are used. The endpoint runs the existing visual identification code and imports returned findings only into the owner email's existing wishlist membership. It does not send messages or mark replies as sent. Imported source records say “Identification test import”; they are excluded from AI conversation and taste-memory context. Refresh `/wishlist` to inspect results. Missing pieces are reported in the test result rather than populated with invented matches. Repeating the same completed operation repairs imports without rerunning search. An interrupted search stays visibly incomplete and requires a deliberate new test operation to search again. No new keys or migration are needed.
-
 ## Before every deploy: migrations to run
 
 Migrations in `db/` are run by hand in the Supabase SQL editor, and the code fails if one is missing (on October 15, 2026 an unrun `db/025_sms_opt_out.sql` stopped every reply for hours). For every PR:
@@ -42,9 +40,7 @@ with Summary, Knowledge, Conversation, Purchase history and Wishlist tabs
 (`?tab=` keeps the tab linkable). Manual replies were retired on October 13,
 2026; developer feedback is triaged in Claude, not in admin. The Wishlist tab
 shows each saved item's price alert and previews a test alert; test texts only
-go to `PRICE_ALERT_TEST_CONVERSATION_ID`. Test chat, Replays &
-evals, Search check, Photo identification and Costs live at
-`/admin/test-chat`, `/admin/replays`, `/admin/search`, `/admin/identify` and
+go to `PRICE_ALERT_TEST_CONVERSATION_ID`. Test chat and Costs live at `/admin/test-chat` and
 `/admin/costs`; the old page URLs redirect there. The owner's wishlist and
 style headers show an **Admin** link. Server endpoints `/api/admin`
 and `/api/session` handle private data and sign-in. Supabase sends an email

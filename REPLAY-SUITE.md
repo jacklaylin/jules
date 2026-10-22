@@ -20,7 +20,7 @@ It runs every routing eval (`lib/agent-eval-cases.js`) and every replay case (`l
 
 When `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are in `.env.local`, the gate first checks that every migration the code needs has been run (`scripts/schema-check.js`) and stops with the missing `db/` filenames if not. Run them in the Supabase SQL editor, then rerun the gate.
 
-If it stops at once with `OpenAI rejected the request (invalid_api_key)`, the `OPENAI_API_KEY` in `.env.local` is out of date. Copy the current value from Vercel (Project → Settings → Environment Variables) into `.env.local`; never into a file Git tracks. The same cases also appear on `/admin/replays`, which runs them with the deployed key.
+If it stops at once with `OpenAI rejected the request (invalid_api_key)`, the `OPENAI_API_KEY` in `.env.local` is out of date. Copy the current value from Vercel (Project → Settings → Environment Variables) into `.env.local`; never into a file Git tracks.
 
 Useful options:
 
@@ -40,13 +40,10 @@ Follow the conversation operating principle in `AGENTS.md` and PRD Section 4.1. 
 
 Wishlist selection now uses model-resolved option references, selected sets, and scoped consent. Feedback acknowledgements do not erase pending product state. The live suite includes subset, exclusion, all, and none turns; grading checks the resulting set and next action rather than reply wording. Phrase-based reaction handling and some older clarification grading still need refactoring to meet this principle.
 
-1. Open **Replays & evals** (`/admin/replays`) in the admin console.
-2. Replay the latest reported turn with the expected brand/model, and download its private snapshot. The snapshot uses the current profile: it cannot reconstruct the profile at the time of an older failure. Keep these reports outside Git.
-3. Run all synthetic sourcing and selection cases, across Nike, ASICS, New Balance, Salomon, and Prada; include correction, explicit recipient, misspelling/spacing, ambiguous versions, unknown models, subsets, exclusions, all, and none.
-4. Run the affected case three times and repeat the suite after deployment. Each run reports pass/fail, reasons, returned reply, checked products, elapsed time, request count, and token usage. Dollar cost is explicitly unknown; billing may include search tool fees not inferable from tokens alone.
-5. Report observed successes/failures. Passing unit tests or one unrelated live success is not evidence that a reported bug is fixed. Do not ask the founder to keep texting for sourcing validation.
+1. Run all synthetic sourcing and selection cases, across Nike, ASICS, New Balance, Salomon, and Prada; include correction, explicit recipient, misspelling/spacing, ambiguous versions, unknown models, subsets, exclusions, all, and none.
+2. Run the affected case three times and repeat the suite after deployment. Each run reports pass/fail, reasons, returned reply, checked products, elapsed time, request count, and token usage. Dollar cost is explicitly unknown; billing may include search tool fees not inferable from tokens alone.
+3. Report observed successes/failures. Passing unit tests or one unrelated live success is not evidence that a reported bug is fixed. Do not ask the founder to keep texting for sourcing validation.
 
-The owner-only existing identification-test endpoint runs one case per request, bounded by the existing 120-second limit. The browser queues cases sequentially. Stop ends the queue after the current request. Runs use the deployment's actual conversation/search models and live providers. No new services, credentials, or database tables.
 
 The runner calls the real reply dispatcher and text-wishlist state machine. Its record callbacks keep results only in memory. It does not call Photon, write memory, store a wishlist item, or enable an alert. This tests reply preparation, not inbound webhook handling or actual delivery. Those transport checks remain separate. Private snapshots preserve a reported turn, prior text context, current facts, and pending state and can be imported for repeat runs.
 
