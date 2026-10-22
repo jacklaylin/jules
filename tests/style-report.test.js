@@ -656,7 +656,7 @@ test('a share link serves the page with a preview built only from what was share
  assert.equal(res.statusCode,200);
  assert.match(res.body,/<title>Jack’s style report · Jules<\/title>/);
  assert.match(res.body,/property="og:title" content="Jack’s style report · Jules"/);
- assert.match(res.body,/property="og:image" content="https:\/\/jules\.test\/brand\/previews\/report-v1\.png"/);
+ assert.match(res.body,/property="og:image" content="https:\/\/jules\.test\/brand\/previews\/report-v2\.png"/);
  assert.ok(!res.body.includes('Your style report · Jules'),'the generic title is replaced, not repeated');
  assert.ok(res.body.includes('<body>page</body>'),'the page itself is unchanged');
  // Nothing private reaches the preview: a hidden returns line or feedback never appears.
