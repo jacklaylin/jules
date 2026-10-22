@@ -145,3 +145,8 @@ With the stylist working again, the founder's retry returned Dries Van Noten and
 - **Kiribati link.** Store markets were read only for 34 listed countries, so `KI` counted as no market and the page's own US version (hreflang `en-US`) was never checked. Any ISO country a page declares now counts (a bare `/xx/` URL segment still needs the common list). The US page was $695; the founder was shown the Kiribati $670. The page's chosen variant now carries over to the US version.
 
 Replays of the cropped-shirts request (nothing sent or saved): three men's options each time (mnml, SONDÉR, mnml; Everlane, 3sixteen, mnml), with the ranker considering six.
+
+
+## Speed (October 22)
+
+Directions now share a 25 s cap (was 40 s), and each store page rendered in the browser gets at most 12 s, including its wait for a free tab. A page not read in time is a failed check: it falls back to the index lookup or is left out, never shown as verified. A cut-off render logs `page_render_time_limit`. Why and what to watch: `SPEED.md` change 1.
