@@ -35,3 +35,18 @@ test('a discovery search hands its plan to the ranker',async()=>{
   search:async()=>({status:'found',products:[crew,zip]}),rank:async(list,o)=>{seen=o.requested;return list;},owned:async()=>[]});
  assert.deepEqual([seen.hard_constraints,seen.guidance],[plan.hard_constraints,plan.guidance]);
 });
+
+// October 21 again: the same pool was ranked twice with the colour and garment type only in guidance; the
+// second time a cream Aran crewneck was kept. The ranker now reads without sampling, and a fallback is recorded.
+test('the ranker reads without sampling on the default model, and a fallback is recorded',async()=>{
+ let body;const record={};
+ await rankDiscoveryProducts([crew,zip],{query:'chunky bright red half zip sweater',requested:{hard_constraints:[],guidance:['chunky knit','bright red half zip sweater']},env:{OPENAI_API_KEY:'test'},record,
+  fetcher:async(u,o)=>{body=JSON.parse(o.body);return reply({indices:[1],rejected_indices:[0],unlike_references_indices:[]})(u,o);}});
+ assert.equal(body.temperature,0);
+ assert.deepEqual([record.rejected,record.fallback],[1,undefined]);
+ await rankDiscoveryProducts([crew,zip],{query:'knit',env:{OPENAI_API_KEY:'test',MODEL_EXTRACT:'gpt-5-mini'},fetcher:async(u,o)=>{body=JSON.parse(o.body);return reply({indices:[0,1],rejected_indices:[],unlike_references_indices:[]})(u,o);}});
+ assert.equal(body.temperature,undefined,'a reasoning model takes no temperature');
+ const failed={};
+ const out=await rankDiscoveryProducts([crew,zip],{query:'knit',env:{OPENAI_API_KEY:'test'},record:failed,fetcher:reply({indices:[0],rejected_indices:[],unlike_references_indices:[]})});
+ assert.equal(failed.fallback,true);assert.equal(out.length,2);
+});

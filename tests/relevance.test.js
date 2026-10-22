@@ -39,6 +39,20 @@ test('range evidence comes from product-bound breadcrumbs, not global men/women 
   assert.equal(productShoppingRange('',url,{sku:'1E490O'}),null);
   assert.equal(productShoppingRange('',url,{audience:{suggestedGender:'unisex'}}),'unisex');
 });
+test('a breadcrumb whose item is the crumb URL counts, with its name on the list item',()=>{
+  // October 21: rag & bone's women's half-zip passed a men's search; its "Women" crumb was a URL string.
+  const url='https://www.rag-bone.com/p/jada-brushed-cashmere-half-zip-RG0R26H6MCA_600.html?gc=CA';
+  const crumbs=list=>'<script type="application/ld+json">'+JSON.stringify({'@context':'https://schema.org','@type':'BreadcrumbList',itemListElement:list})+'</script>';
+  const page=(dept,last=url)=>crumbs([{'@type':'ListItem',item:'https://www.rag-bone.com/',name:'Home',position:1},{'@type':'ListItem',item:`https://www.rag-bone.com/${dept}/`,name:dept==='womens'?'Women':'Men',position:2},
+    {'@type':'ListItem',item:`https://www.rag-bone.com/${dept}/sweaters/`,name:'Sweaters',position:3},{'@type':'ListItem',item:last.split('?')[0],name:'Jada Brushed Cashmere Half-Zip',position:4}]);
+  assert.equal(productShoppingRange(page('womens'),url,{name:'Jada Brushed Cashmere Half-Zip'}),'women');
+  assert.equal(productShoppingRange(page('mens'),url,{name:'Jada Brushed Cashmere Half-Zip'}),'men');
+  // Breadcrumbs for another page, or crumbs on another site, still say nothing.
+  assert.equal(productShoppingRange(page('womens','https://www.rag-bone.com/p/other.html'),url,{}),null);
+  assert.equal(productShoppingRange(page('womens').replaceAll('https://www.rag-bone.com/womens','https://elsewhere.example/womens'),url,{}),null);
+  const women={url,name:'Jada Brushed Cashmere Half-Zip',sourcing_status:'store_found',listing_check:{status:'verified',shopping_range:productShoppingRange(page('womens'),url,{})}};
+  assert.equal(relevantProducts({products:[women]},{range:'men',allow_unknown_range:true}).products.length,0);
+});
 test('text queries receive profile constraints and color expansion independently rejects women’s variants',async()=>{
   let recorded,searchConstraints;
   const primary={...men,listing_check:{...men.listing_check,color_options:[{url:'https://www.prada.com/us/en/p/other-model',color:'White'}]}};
