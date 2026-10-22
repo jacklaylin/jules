@@ -124,3 +124,24 @@ test('the #dev follow-up check is metered to the tester as developer feedback',a
   assert.equal(event,'developer_feedback_continued');
   assert.deepEqual(rows.map(r=>[r.feature,r.conversation_id,r.operation,r.provider]),[['developer_feedback','conversation-1','feedback-check:follow-1','openai']]);
 });
+
+// usage_events rejects a whole batch when one row's provider fails its check, so every provider the
+// meter writes must be allowed by the latest migration that sets that check.
+test('the database accepts every provider the meter records',async()=>{
+  const {readdirSync,readFileSync}=await import('node:fs');
+  const dir=new URL('../db/',import.meta.url);
+  let allowed=null;
+  for(const file of readdirSync(dir).filter(f=>f.endsWith('.sql')).sort()){
+    const sql=readFileSync(new URL(file,dir),'utf8').replace(/--.*$/gm,'');
+    if(!/usage_events/.test(sql))continue;
+    for(const m of sql.matchAll(/provider\s+in\s*\(([^)]*)\)/gi))allowed=[...m[1].matchAll(/'([^']+)'/g)].map(x=>x[1]);
+  }
+  const recorded=[];const store={recordUsage:async rows=>recorded.push(...rows)};
+  await withUsage({store,env:{},conversation:'c1',operation:'ai:m9',feature:'chat'},async()=>{
+    await (await fetch('https://api.openai.com/v1/responses',{method:'POST'})).json();
+    await fetch('https://serpapi.com/search?engine=google&q=x');
+    await (await fetch('https://openrouter.ai/api/v1/responses',{method:'POST',body:JSON.stringify({model:'anthropic/claude-haiku-5.5'})})).json();
+  });
+  assert.deepEqual([...new Set(recorded.map(r=>r.provider))].sort(),['openai','openrouter','serpapi']);
+  for(const r of recorded)assert.ok(allowed?.includes(r.provider),`usage_events check does not allow ${r.provider}`);
+});

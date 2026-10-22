@@ -2,14 +2,14 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {textWishlistAction} from '../lib/text-wishlist.js';
 import {updateProfile,MEMORY_PROMPT,PROFILE_TOOL} from '../lib/memory.js';
-import {priceBand,priceFit,parseBudget,savedBudgets} from '../lib/price-stance.js';
+import {priceBand,priceFit,parseBudget,savedBudgets,supportedPrice} from '../lib/price-stance.js';
 import {rankDiscoveryProducts,fallbackOrder} from '../lib/discovery-ranking.js';
 import {stylistConcepts} from '../lib/stylist.js';
 
 // A tester said (October 17): "My budget for special pieces is up to 400-500, but I always prefer
 // something cheaper. I like nice things." The model reads that statement; these tests check what code
 // does with its reading across later turns.
-const plan={continuation:false,mode:'discover',hard_constraints:[],guidance:[],keep_option_indices:[],exclude_option_indices:[],price:{min:null,max:null,currency:null,budget_key:null}};
+const plan={continuation:false,mode:'discover',hard_constraints:[],guidance:[],keep_option_indices:[],exclude_option_indices:[],price:{min:null,max:null,stance:null,currency:null,budget_key:null}};
 const usd=amount=>({amount,currency:'USD'});
 const item=(id,amount,extra={})=>({brand:'Label '+id,name:'Top '+id,url:'https://www.example-store.com/products/'+id,match:'likely_match',sourcing_status:'store_found',price_snapshot:amount===null?null:usd(amount),listing_check:{status:'verified',product_name:'Top '+id},...extra});
 const statement={id:'7a1f5c2e-7d2b-4b8e-9a51-1c3f0f4b2d10',direction:'inbound',created_at:'2026-10-17T15:00:00Z',body:'My budget for special pieces is up to 400-500, but I always prefer something cheaper. I like nice things.'};
@@ -94,6 +94,60 @@ test('"prefer cheaper" orders in-band options cheapest first; without it the sea
   // The ranker's fallback order applies the same preference.
   const band=priceBand({facts});
   assert.deepEqual(fallbackOrder(products,{facts,band}).map(p=>p.url.split('/').at(-1)),['e','b','d','a','c']);
+});
+
+// October 21 (Michael): "cool shirts... that aren't expensive". No amount was stated, so the plan carries
+// the stance, not a ceiling: results lean cheaper, nothing is left out, and the reply never names a budget.
+test('wanting inexpensive pieces without an amount leans cheaper with no ceiling and no budget wording',async()=>{
+  const lower={...plan,price:{...plan.price,stance:'prefers_lower'}};
+  const band=priceBand({plan:lower});
+  assert.deepEqual({min:band.min,max:band.max,source:band.source,prefers_lower:band.prefers_lower,quality:band.quality},{min:null,max:null,source:'stance',prefers_lower:true,quality:false});
+  const products=[item('a',120),item('b',45),item('c',300),item('d',80),item('e',220)];
+  for(const p of products)assert.equal(priceFit(p,band),'in_band');
+  const {reply,result,queries,shown}=await search(products,{searchPlan:lower});
+  assert.deepEqual(shown,['b','d','a']);
+  assert.ok(!/budget|left out/.test(reply),reply);
+  assert.equal(result.text_wishlist_diagnostics.over_budget.length,0);
+  assert.equal(result.text_wishlist_diagnostics.price_band.max,null);
+  assert.match(queries[0],/prefers lower prices/);assert.ok(!/left out/.test(queries[0]));
+  // Without the stance the search order stands and nothing about price is said.
+  const plain=await search(products);
+  assert.deepEqual(plain.shown,['a','b','c']);assert.ok(!/budget|left out|prefers lower/.test(plain.reply+plain.queries[0]));
+  // A gift can be asked for cheaply too; the stance belongs to the request, not her profile.
+  assert.equal(priceBand({plan:lower,forSomeoneElse:true}).prefers_lower,true);
+  assert.equal(priceBand({plan,forSomeoneElse:true}),null);
+  // A saved ceiling still applies and is still hers to name; the request stance adds the lean.
+  const facts=[{field:'budget',key:'general/usd',value:'-250',format:'range',evidence_ids:['e1']}];
+  const saved=await search(products,{facts,searchPlan:lower});
+  assert.deepEqual(saved.shown,['b','d','a']);assert.match(saved.reply,/left out one over your \$250 budget/);
+  // Only an amount the user stated is a ceiling.
+  const stated=await search(products,{searchPlan:{...plan,price:{...plan.price,max:100,currency:'USD'}}});
+  assert.match(stated.reply,/over your \$100 budget/);
+});
+
+test('an amount on the plan must be quoted from the user, or kept from the plan being continued',()=>{
+  const msg=body=>({direction:'inbound',body}),said=[msg('can you find me some cool shirts that aren’t expensive')];
+  const withPrice=(price,extra={})=>({...plan,...extra,price:{...plan.price,...price}});
+  // The model picked $50 for "aren't expensive": the amount is dropped, the stance stays, nothing is filtered.
+  const invented=supportedPrice(withPrice({max:50,currency:'USD',stance:'prefers_lower',amount_quote:'that aren\'t expensive'}),[...said,{direction:'outbound',body:'under $50?'}]);
+  assert.deepEqual({min:invented.price.min,max:invented.price.max,stance:invented.price.stance},{min:null,max:null,stance:'prefers_lower'});
+  assert.deepEqual(invented.price.unsupported_amount,{min:null,max:50,quote:'that aren\'t expensive'});
+  assert.equal(priceBand({plan:invented}).max,null);
+  assert.equal(supportedPrice(withPrice({max:50,amount_quote:null}),said).price.max,null);
+  // Jules's own words are not the user's.
+  assert.equal(supportedPrice(withPrice({max:50,amount_quote:'under $50'}),[...said,{direction:'outbound',body:'want them under $50?'}]).price.max,null);
+  // A stated amount stands, whatever its spelling or quote marks.
+  assert.equal(supportedPrice(withPrice({max:50,amount_quote:'under 50'}),[msg('cool shirts under 50')]).price.max,50);
+  assert.equal(supportedPrice(withPrice({max:100,amount_quote:'nothing over a hundred'}),[msg('linen shorts, Nothing over a  hundred bucks')]).price.max,100);
+  assert.equal(supportedPrice(withPrice({min:200,max:300,amount_quote:'200-300'}),[msg('somewhere around 200-300')]).price.max,300);
+  assert.equal(supportedPrice(withPrice({max:1500,amount_quote:'under 1.5k'}),[msg('a coat under 1.5k')]).price.max,1500);
+  // A quoted amount that isn't the plan's amount is not support for it.
+  assert.equal(supportedPrice(withPrice({max:50,amount_quote:'under 80'}),[msg('shirts under 80')]).price.max,null);
+  // Continuing a request keeps its amount even when the message that stated it is out of view.
+  assert.equal(supportedPrice(withPrice({max:800,amount_quote:null},{continuation:true}),[msg('go chunkier')],{max:800,min:null}).price.max,800);
+  assert.equal(supportedPrice(withPrice({max:500,amount_quote:null},{continuation:true}),[msg('go chunkier')],{max:800,min:null}).price.max,null);
+  // No amount: nothing to check.
+  const none=withPrice({stance:'prefers_lower'});assert.equal(supportedPrice(none,said),none);
 });
 
 test('everyday and special-piece budgets apply by the scope the plan names',async()=>{
