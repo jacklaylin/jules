@@ -1,64 +1,44 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {rankDiscoveryProducts} from '../lib/discovery-ranking.js';
 import {textWishlistAction,searchPlan} from '../lib/text-wishlist.js';
 import {auditProblems,auditClaims} from '../lib/compose.js';
 
 // Founder decision, October 20: when the user names brands as the look, Jules shows fewer results
-// rather than padding with brands far from them, and says so. The ranker marks candidates clearly
-// unlike every named brand; code checks the marks and never leaves out a named brand's own candidate.
+// rather than padding with brands far from them, and says so. The look check marks candidates clearly
+// unlike every named brand (lib/look-check.js); a named brand's own candidate is never checked.
 const p=(id,brand)=>({brand,name:'Flannel '+id,url:`https://${id}.example/products/flannel`,match:'similar',sourcing_status:'store_found',
  listing_check:{status:'verified',product_name:'Flannel '+id,product_brand:brand},price_snapshot:{amount:200,currency:'USD'}});
-const designer=p('designer','Auralee'),close=p('close','Studio Nicholson'),mass=p('mass','Mass Label'),fast=p('fast','Fast Fashion Co');
-const reply=answer=>async(_url,options)=>({ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(answer)}]}]}),body:options.body});
+const designer=p('designer','Auralee'),mass=p('mass','Mass Label'),fast=p('fast','Fast Fashion Co');
 const env={OPENAI_API_KEY:'test'};
 
-test('candidates marked unlike the named brands are left out and counted; the named brand never is',async()=>{
- let body;const fetcher=async(u,o)=>{body=JSON.parse(o.body);return reply({indices:[0,1,2,3],rejected_indices:[],unlike_references_indices:[0,2,3]})(u,o);};
- const record={};
- const out=await rankDiscoveryProducts([designer,close,mass,fast],{query:'cropped flannels like auralee or dries',referenceBrands:['Auralee','Dries Van Noten'],env,fetcher,record});
- assert.deepEqual(out.map(x=>x.brand),['Auralee','Studio Nicholson'],'the Auralee listing stays even though it was marked');
- assert.equal(record.unlike_references,2);
- assert.deepEqual(JSON.parse(body.input[0].content).reference_brands,['Auralee','Dries Van Noten']);
- assert.match(body.instructions,/unlike_references_indices/);
-});
-
-test('without named brands, or with marks that name no ranked candidate, nothing is left out',async()=>{
- for(const [referenceBrands,unlike] of [[[],[2,3]],[['Auralee'],[9,-1]],[['Auralee'],[]]]){
-  const record={};
-  const out=await rankDiscoveryProducts([designer,close,mass,fast],{query:'flannels',referenceBrands,env,fetcher:reply({indices:[0,1,2,3],rejected_indices:[],unlike_references_indices:unlike}),record});
-  assert.equal(out.length,4,JSON.stringify(unlike));assert.equal(record.unlike_references,0);
- }
- // A rejected candidate is already out; marking it as well counts nothing extra.
- const record={};
- const out=await rankDiscoveryProducts([designer,close,mass],{query:'flannels',referenceBrands:['Auralee'],env,fetcher:reply({indices:[0,1],rejected_indices:[2],unlike_references_indices:[2]}),record});
- assert.equal(out.length,2);assert.equal(record.unlike_references,0);
-});
+// The check itself (one listing per call) is tested in tests/look-check.test.js; here, the turn.
+const unlikeOf=brands=>async(list,{record})=>{const out=new Map(list.filter(x=>brands.includes(x.brand)).map(x=>[x.url,{brand:x.brand,nearest:''}]));record.look_check={unlike:[...out.keys()]};return out;};
 
 const plan={continuation:false,mode:'discover',hard_constraints:[],guidance:[],reference_brands:['Auralee','Dries Van Noten'],required_brands:[],keep_option_indices:[],exclude_option_indices:[]};
-const turn=async rank=>{
- let result;
+const turn=async(look,products=[designer,mass,fast])=>{
+ let result,asked;
  const reply=await textWishlistAction({action:'start',query:'more flannels, auralee or dries or similar',search_plan:plan},{env:{},facts:[],record:async r=>{result=r;},
-  stylist:async()=>[],search:async()=>({status:'found',products:[designer,mass,fast]}),rank,owned:async()=>[]});
- return {reply,result};
+  stylist:async()=>[],search:async()=>({status:'found',products}),rank:async list=>list,look:async(list,input)=>{asked=input.look;return look(list,input);},owned:async()=>[]});
+ return {reply,result,asked};
 };
 
 test('the reply says how many it left out for not being close to the named brands',async()=>{
- const {reply,result}=await turn(async(list,{record})=>{record.unlike_references=2;return list.filter(x=>x.brand==='Auralee');});
+ const {reply,result,asked}=await turn(unlikeOf(['Mass Label','Fast Fashion Co']));
+ assert.deepEqual(asked,{brands:['Auralee','Dries Van Noten'],level:null,basis:'request'});
  assert.match(reply,/left out 2 that weren’t close to Auralee and Dries Van Noten/);
  assert.deepEqual(result.text_wishlist_state.options.map(o=>o.brand),['Auralee']);
  assert.equal(result.text_wishlist_diagnostics.rank.unlike_references,2);
- const one=await turn(async(list,{record})=>{record.unlike_references=1;return list.filter(x=>x.brand!=='Fast Fashion Co');});
+ const one=await turn(unlikeOf(['Fast Fashion Co']));
  assert.match(one.reply,/left out one that wasn’t close to/);
 });
 
 test('when nothing found is close to the named brands, Jules says so instead of showing filler',async()=>{
- const {reply,result}=await turn(async(_list,{record})=>{record.unlike_references=3;return [];});
+ const {reply,result}=await turn(unlikeOf(['Auralee','Mass Label','Fast Fashion Co']));
  assert.match(reply,/nothing i found is close enough to Auralee and Dries Van Noten yet/);
  assert.ok(!/https?:\/\//.test(reply),'no links to filler');
  assert.equal(result.text_wishlist_diagnostics.status,'unlike_references');
  // Plain ranking with nothing left out: no note.
- const plain=await turn(async list=>list);
+ const plain=await turn(async()=>new Map());
  assert.ok(!/left out/.test(plain.reply));
 });
 
@@ -85,17 +65,14 @@ test('the audit reads already-saved items as the items to compare with',async()=
 // October 21: "look at luxury brands" was stored as a brand called "luxury brands", so the filter above had
 // no real brand to hold results to and a small novelty label's store was shown. A level is its own field.
 test('a level asked for holds results to it, with no brands named',async()=>{
- let body;const fetcher=async(u,o)=>{body=JSON.parse(o.body);return reply({indices:[0,1,2],rejected_indices:[],unlike_references_indices:[1,2]})(u,o);};
- const record={};
- const out=await rankDiscoveryProducts([designer,mass,fast],{query:'tiger stripe sherpa fleece',level:'luxury',env,fetcher,record});
- assert.deepEqual(out.map(x=>x.brand),['Auralee']);assert.equal(record.unlike_references,2);
- assert.equal(JSON.parse(body.input[0].content).level,'luxury');assert.match(body.instructions,/requested level/);
  const levelPlan={...plan,reference_brands:[],level:'luxury'};
+ let asked;
  const kept=await textWishlistAction({action:'start',query:'tiger stripe sherpa fleece',search_plan:levelPlan},{env:{},facts:[],record:async()=>{},stylist:async()=>[],search:async()=>({status:'found',products:[designer,mass]}),
-  rank:async(list,{record,level})=>{assert.equal(level,'luxury');record.unlike_references=1;return list.slice(0,1);},owned:async()=>[]});
+  rank:async list=>list,look:async(list,input)=>{asked=input.look;return unlikeOf(['Mass Label'])(list,input);},owned:async()=>[]});
+ assert.deepEqual(asked,{brands:[],level:'luxury',basis:'request'});
  assert.match(kept,/left out one that wasn’t close to the luxury level you asked for/);
  const none=await textWishlistAction({action:'start',query:'tiger stripe sherpa fleece',search_plan:levelPlan},{env:{},facts:[],record:async()=>{},stylist:async()=>[],search:async()=>({status:'found',products:[mass]}),
-  rank:async(_l,{record})=>{record.unlike_references=1;return [];},owned:async()=>[]});
+  rank:async list=>list,look:unlikeOf(['Mass Label']),owned:async()=>[]});
  assert.match(none,/nothing i found is close enough to the luxury level you asked for yet/);assert.match(none,/curated stores/);
 });
 
