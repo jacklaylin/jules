@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { linksCheck, consentCheckFor, scoreTurn, judgeInput, runJudge, handleJudge, dailyLimit, judgeEnv, CRITERIA } from '../lib/judge.js';
+import { linksCheck, consentCheckFor, scoreTurn, judgeInput, runJudge, handleJudge, runStatus, dailyLimit, judgeEnv, CRITERIA } from '../lib/judge.js';
 import { triagePackets } from '../lib/feedback-triage.js';
 import { JOBS } from '../lib/jobs.js';
 
@@ -124,6 +124,40 @@ test('the scheduler endpoint needs the secret and records the run', async () => 
   const ok = res(); await handleJudge({}, ok, env, { store, authorized: async () => true, json });
   assert.equal(ok.status, 200); assert.equal(runs[0].job, 'judge'); assert.equal(runs[0].status, 'ok');
   assert.ok(JOBS.some(j => j.id === 'judge' && j.cron === 'jules-nightly-judge'));
+});
+
+test('an OpenAI billing refusal stops the run at once and is recorded as a failed run', async () => {
+  let calls = 0;
+  const fetcher = async () => { calls++; return new Response(JSON.stringify({ error: { code: 'organization_spend_limit_exceeded' } }), { status: 429, headers: { 'retry-after-ms': '500' } }); };
+  const turns = [{ id: 'in1' }, { id: 'in2', offset: 600000 }];
+  const summary = await runJudge(fakeStore({ turns }), env, { now: NOW, fetcher });
+  assert.equal(calls, 1, 'no retry and no second turn once the account is refused');
+  assert.equal(summary.skipped, 'billing'); assert.equal(summary.judged, 0); assert.equal(summary.errors, 1);
+  assert.equal(summary.error, 'organization_spend_limit_exceeded');
+  assert.equal(runStatus(summary), 'failed');
+  const runs = [], store = { ...fakeStore({ turns }), recordJobRun: async row => runs.push(row) };
+  await handleJudge({}, { }, env, { store, authorized: async () => true, json: () => {}, fetcher });
+  assert.equal(runs[0].status, 'failed'); assert.equal(runs[0].summary.skipped, 'billing');
+});
+
+test('a run that runs out of time or errors on every turn with none judged is a failure, not a skip', async () => {
+  assert.equal(runStatus({ due: 22, judged: 0, skipped: 'time' }), 'failed');
+  assert.equal(runStatus({ due: 3, judged: 0, errors: 3, skipped: null }), 'failed');
+  // Chosen skips and runs with nothing due stay skips or ok; a partly judged run is ok.
+  for (const skipped of ['daily_limit', 'not_configured', 'cost_cap']) assert.equal(runStatus({ due: 5, judged: 0, skipped }), 'skipped');
+  assert.equal(runStatus({ due: 0, judged: 0, skipped: null }), 'ok');
+  assert.equal(runStatus({ due: 22, judged: 4, skipped: 'time' }), 'ok');
+  // Every call failing (a hung or erroring model) is counted as errors, never silently dropped.
+  const broken = async () => { throw new Error('socket hang up'); };
+  const summary = await runJudge(fakeStore({ turns: [{ id: 'in1' }, { id: 'in2', offset: 600000 }] }), env, { now: NOW, fetcher: broken });
+  assert.equal(summary.errors, 2); assert.equal(summary.error, 'socket hang up'); assert.equal(runStatus(summary), 'failed');
+});
+
+test('turns older than three days are still judged, oldest first', async () => {
+  const { fetcher } = fakeModel(modelSays());
+  const store = fakeStore({ turns: [{ id: 'in2', offset: 600000 }, { id: 'in1' }] });
+  const summary = await runJudge(store, env, { now: NOW + 4 * 86400000, fetcher, limit: 1 });
+  assert.equal(summary.due, 2); assert.deepEqual([...store.judgements.keys()], ['ai:in1']);
 });
 
 test('judge failures reach feedback triage with their reasons and the conversation around the turn', async () => {

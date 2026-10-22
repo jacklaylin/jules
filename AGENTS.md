@@ -106,6 +106,15 @@ When there are multiple reasonable technical options, recommend one rather than 
 
 Before changing anything the chat model reads or does (a prompt rule, a skill in `lib/skills/`, a tool or field description, a reply check, or its context), read `CHAT-DEVELOPMENT.md` and follow its rules, word budgets and eval gate. This includes feedback-triage fixes.
 
+## Load speed
+
+Founder decision (October 22, 2026): every page or tab gets a load-speed check before it ships (`DESIGN-SYSTEM.md` › Load speed).
+
+- A return visit draws the last content at once and refreshes behind it (`public/list-cache.js`, kept for the signed-in person, forgotten on sign-out), with a quiet line saying how old it is; fresh data that matches is not redrawn.
+- A page requests only what its open tab shows; other tabs load when opened.
+- Requests fired together do not repeat the same heavy server read (one read serves two views, or they share it).
+- Every admin read reports its time (`timeView` in `lib/http.js`: a `Server-Timing` header and an `admin_view_timing` log line). The PR lists measured load times before and after.
+
 ## Shared web design system
 
 For companion web-app UI work, read `DESIGN-SYSTEM.md` and reuse `public/design-system.css` and `public/design-system.js`. Extend shared primitives/components when UI repeats; do not copy headers or redefine global layout, typography, logo, or controls in page stylesheets. Keep page content aligned to the shared full-width layout and gutters. Verify both wishlist and style pages on desktop and phone, including logo rest/hover, compact header, forms, dialogs, and browser errors, before deploying shared changes.

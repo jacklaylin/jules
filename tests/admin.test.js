@@ -116,3 +116,27 @@ test('owner wishlist view joins each item to its price alert and only allows tes
   const reads = alertReads, off = await get({});
   assert.equal(off.body.alerts_enabled, false); assert.equal(off.body.items[0].price_alert, null); assert.equal(alertReads, reads);
 });
+test('one Summary request reads the purchase history once and carries Knowledge, with its time in a header and a log line', async () => {
+  let historyReads = 0; const logged = [], log = console.log;
+  const store = { async conversation(v) { return v === id ? conversation : null; }, async profile() { return { facts: [{ field: 'size', key: 'shoes/us_men', value: '10', basis: 'stated' }] }; },
+    async gmailImport() { historyReads++; return null; }, async evidence() { return []; }, async styleSources() { return []; }, async styleSession() { return { data: {} }; }, async wishlistEntries() { return []; } };
+  const res = response();
+  console.log = line => logged.push(line);
+  try { await createAdminHandler({ auth: async () => 200, storeFactory: () => store, env: {} })({ method: 'GET', url: `/api/admin?view=summary&conversation=${id}`, headers: {} }, res); }
+  finally { console.log = log; }
+  assert.equal(res.statusCode, 200); assert.equal(historyReads, 1);
+  assert.equal(res.body.coverage.level, 'thin'); assert.ok(Array.isArray(res.body.rows));
+  assert.ok(Array.isArray(res.body.knowledge.rows)); assert.equal(res.body.knowledge.notes['size|shoes/us_men'].topic, 'Sizes');
+  assert.match(res.headers['Server-Timing'], /^auth;dur=[\d.]+, summary;dur=\d+$/);
+  const timing = logged.map(l => JSON.parse(l)).find(l => l.event === 'admin_view_timing');
+  assert.deepEqual(Object.keys(timing), ['event', 'view', 'status', 'ms', 'auth_ms']); assert.equal(timing.view, 'summary'); assert.equal(timing.status, 200);
+});
+test('a person’s outcome rows read only their own usage; the Scorecard still reads everyone’s', async () => {
+  const urls = [], store = createStore({ SUPABASE_URL: 'https://example.invalid', SUPABASE_SERVICE_ROLE_KEY: 'fake' }, async url => { urls.push(url); return { ok: true, text: async () => '[]' }; });
+  await store.outcomeRows('2026-10-01T00:00:00.000Z', { conversation: id });
+  assert.ok(urls.filter(u => u.includes('/usage_events?')).every(u => u.includes(`conversation_id=eq.${id}`)));
+  urls.length = 0; await store.outcomeRows('2026-10-01T00:00:00.000Z');
+  assert.ok(urls.some(u => u.includes('/usage_events?') && !u.includes('conversation_id')));
+  // Usage that never belongs to a chat turn (imports, photo jobs, evals, unattributed calls) is never read.
+  for (const job of ['gmail', 'wardrobe-photos', 'photo-tags', 'eval', 'unmetered']) assert.ok(urls.filter(u => u.includes('/usage_events?')).every(u => u.includes(`operation=not.like.${encodeURIComponent(job + ':*')}`)));
+});

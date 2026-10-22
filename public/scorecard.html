@@ -9,12 +9,14 @@
   <main>
     <h1 class="dv-title">Scorecard</h1>
     <div class="dv-toolbar">
+      <div id="who" class="seg" role="group" aria-label="Whose searches to count" hidden></div>
       <div id="types" class="seg" role="group" aria-label="Filter by request type"></div>
       <span id="refreshed" class="dv-toolbar-note"></span>
       <span class="spacer"></span>
       <button id="refresh" class="small quiet" type="button">Refresh</button>
     </div>
     <div class="dv-status"><span id="loader" class="dv-loader" aria-hidden="true" hidden></span><span id="notice" role="status" aria-live="polite"></span></div>
+    <p id="own-missing" class="notice" hidden>Your own testing is counted with testers’ searches. To leave it out, set <code>OWNER_ALERT_CONVERSATION_ID</code> in Vercel to your conversation id (Admin › People, open yourself, the last part of the address), then redeploy.</p>
     <h2 class="dv-subhead">This week, against last week</h2>
     <div id="metrics" class="dv-metrics adoption-summary scorecard-metrics" hidden></div>
     <p id="judge-missing" class="notice" hidden>The nightly judge isn’t set up yet, so judge figures are blank. Run <code>db/038_nightly_judge.sql</code> in Supabase.</p>
@@ -31,7 +33,7 @@
       <div class="dv-table-wrap"><table class="dv-table adoption-table scorecard-turns"><thead><tr>
         <th>Date</th><th>Tester</th><th>Type</th><th>Result</th><th>What happened next</th><th>Judge</th><th>Judge right?</th><th></th>
       </tr></thead><tbody id="worst"></tbody></table></div>
-      <p class="dv-note">Judge failures first, then searches the tester turned down, flagged or that missed, then failed searches. Marking the judge right or wrong builds the agreement figure above. <strong>Copy replay draft</strong> copies the turn as a draft test case with emails and phone numbers masked; anonymise it before it goes in the repo.</p>
+      <p class="dv-note">Judge failures first, then searches the tester turned down, flagged or that missed, then failed searches and searches that found nothing. Marking the judge right or wrong builds the agreement figure above. <strong>Copy replay draft</strong> copies the turn as a draft test case with emails and phone numbers masked; anonymise it before it goes in the repo.</p>
     </section>
     <details class="fold metrics-help"><summary>What these numbers mean</summary><dl id="definitions"></dl></details>
   </main>
