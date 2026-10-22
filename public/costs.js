@@ -1,8 +1,9 @@
-import {mountAdminShell,adminJson,adminToken,anchorMenus,skeletonRows} from './admin-console.js';
+import {mountAdminShell,adminJson,adminToken,anchorMenus,skeletonRows,metricCell} from './admin-console.js';
 import {readPage,savePage,sameData} from './list-cache.js';
-import {viewOf,periodOf,apiDate,pickerValue,totalLine,coverageText,budgetText,serviceColumns,featureColumn,serviceRow,featureRows,meteredText,entryBody,jobColumns,jobRows,jobsAlert,jobsText,reconcileText,capsText,personRows,lifetimeText} from './costs-view.js';
-// Admin › Costs as a data view: a month by default (Day is an option, ?period=day), its total beside the title,
-// views By service · By feature · Evals, the period and its picker in the toolbar, coverage/budget in the status line. Update an amount opens its form above the table.
+import {viewOf,periodOf,apiDate,pickerValue,periodLabel,metricCells,coverageText,serviceColumns,featureColumn,serviceRow,featureRows,meteredText,entryBody,jobColumns,jobRows,jobsAlert,jobsText,reconcileText,capsText,personRows} from './costs-view.js';
+// Admin › Costs (design system › Admin components): a month by default (Day is an option, ?period=day), the figures in a
+// MetricStrip with What these numbers mean under it, views By service · By feature · By person · Recurring jobs · Evals
+// as AdminCards, coverage and alerts in the status line. Update an amount opens its form above the strip.
 mountAdminShell('costs');
 anchorMenus();
 const $ = id => document.getElementById(id);
@@ -49,13 +50,10 @@ function render() {
   const th = (text, end) => el('th', { textContent: text, className: end ? 'end' : '' });
   $('service-head').replaceChildren(th('Service'), ...columns.map(([, heading]) => th(heading, true)), th('How it’s known'), th('Last updated'));
   for (const [id, first] of [['feature-head', 'Feature'], ['eval-head', 'Eval']]) $(id).replaceChildren(th(first), th('AI calls (month)', true), th('Searches (month)', true), th(featureHeading, true));
-  const { amount, label } = totalLine(data, p);
-  $('total').textContent = amount; $('total-label').textContent = label;
+  $('period-label').textContent = data ? periodLabel(data, p) : '';
+  $('summary').replaceChildren(...metricCells(data, p).map(metricCell)); if (data) $('summary').removeAttribute('aria-busy');
   $('refreshed').textContent = refreshedAt ? `Refreshed ${new Date(refreshedAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}` : '';
-  $('lifetime').textContent = lifetimeText(data);
   $('coverage').textContent = data ? coverageText(data) : '';
-  const budget = data ? budgetText(data, p) : { text: '', over: false };
-  $('budget-status').textContent = budget.text; $('budget-status').className = budget.over ? 'error' : '';
   const reconcile = data ? reconcileText(data) : { text: '', over: false }; $('reconcile-status').textContent = reconcile.text; $('reconcile-status').className = reconcile.over ? 'error' : '';
   const caps = capsText(data); $('caps-status').textContent = caps.text; $('caps-status').className = caps.over ? 'error' : '';
   const jobsStatus = jobsAlert(data); $('jobs-status').textContent = jobsStatus.text; $('jobs-status').className = jobsStatus.over ? 'error' : '';

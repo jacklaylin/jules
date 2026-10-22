@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {viewOf,periodOf,apiDate,pickerValue,serviceColumns,featureColumn,money,totalLine,coverageText,budgetText,basisLabel,serviceRow,featureRows,meteredText,entryBody,lifetimeText} from '../public/costs-view.js';
+import {viewOf,periodOf,apiDate,pickerValue,serviceColumns,featureColumn,money,periodLabel,metricCells,spendChange,lastMonthTotal,coverageText,basisLabel,serviceRow,featureRows,meteredText,entryBody} from '../public/costs-view.js';
 
 const rows=[{id:'openai',name:'OpenAI API',url:'u',today:1.25,month:3,projected:31,basis:'billed+estimate',source:'OpenAI Costs API',updated:'2026-10-15T12:00:00Z',notes:['Other projects left out.'],complete:true},
  {id:'vercel',name:'Vercel',url:'u',today:null,month:null,projected:null,basis:'unknown',source:'Manual ledger',updated:null,notes:[],complete:false}];
@@ -38,28 +38,52 @@ test('columns follow the period: a running month projects, a finished month does
  assert.deepEqual(featureColumn('day',report()),['today','Day']);
 });
 
-test('the title shows the month by default, the day as an option; unknown is never $0',()=>{
- const line=totalLine(report());
- assert.equal(line.amount,'$3.00');
- assert.match(line.label,/^October 2026 to date, through 2026-10-15 \(UTC\) · projected month end \$31\.00 \(calculated\) · known part only$/);
- assert.match(totalLine(report({date:'2026-09-30'})).label,/^September 2026 \(UTC\), whole month/);
- const day=totalLine(report(),'day');
- assert.equal(day.amount,'$1.25');assert.match(day.label,/^2026-10-15 \(UTC\) · month to date \$3\.00 · known part only$/);
- assert.equal(totalLine(report({totals:{today:null,month:null,projected:null}})).amount,'Unknown');
- assert.doesNotMatch(totalLine(report({incomplete:[]})).label,/known part/);
- assert.equal(totalLine(null).amount,'—');
+test('the title names the month by default, the day as an option',()=>{
+ assert.equal(periodLabel(report()),'October 2026 (UTC) to date');
+ assert.equal(periodLabel(report({date:'2026-09-30'})),'September 2026 (UTC)');
+ assert.equal(periodLabel(report(),'day'),'2026-10-15 (UTC)');
  assert.equal(money(null),'Unknown');assert.equal(money(0),'$0.00');assert.equal(money(0.01234),'$0.0123');assert.equal(money(31),'$31.00');
 });
 
-test('coverage names incomplete services; the budget is compared with the day',()=>{
+const lifetime={since:'2026-10',through:'2026-11-15',total:150,months:[{month:'2026-10',total:120},{month:'2026-11',total:30}],gaps:[{month:'2026-10',services:['SerpApi']}]};
+const cells=(over,period)=>Object.fromEntries(metricCells(report(over),period).map(c=>[c.label,c]));
+test('a running month: to date, projected against last month, today against the budget, lifetime',()=>{
+ const c=cells({date:'2026-11-15',lifetime,totals:{today:1.25,month:30,projected:60}});
+ assert.deepEqual(Object.keys(c),['Month to date','Projected month end','Today','Lifetime']);
+ assert.equal(c['Month to date'].value,'$30.00');assert.equal(c['Month to date'].detail,'through Nov 15 · known part only');
+ // Less spend is better: projecting above last month is red.
+ assert.deepEqual([c['Projected month end'].change,c['Projected month end'].tone,c['Projected month end'].was],['↓ 50%','ok','October $120.00']);
+ assert.equal(c.Today.detail,'no daily warning budget set');
+ assert.equal(c.Lifetime.value,'$150.00');assert.equal(c.Lifetime.detail,'since October 2026 · known part only (missing SerpApi in October)');
+ // The first tracked month has nothing to compare with, never 0.
+ const first=cells({lifetime:{...lifetime,months:[{month:'2026-10',total:3}]}})['Projected month end'];
+ assert.equal(first.change,undefined);assert.equal(first.was,'no earlier month tracked');
+ assert.equal(cells({lifetime:null}).Lifetime.detail,'earlier months unavailable');
+ assert.equal(cells({totals:{today:null,month:null,projected:null}})['Month to date'].value,'Unknown');
+ assert.deepEqual(metricCells(null),[]);
+});
+
+test('the daily warning budget: over is red, within says what is left, incomplete coverage is the known part only',()=>{
+ assert.deepEqual([cells({budget:1,incomplete:[]}).Today.change,cells({budget:1,incomplete:[]}).Today.tone],['Over budget','fail']);
+ const within=cells({budget:5,incomplete:[]}).Today;
+ assert.deepEqual([within.change,within.tone,within.was],['Within budget','ok','$3.75 of $5.00 left']);
+ const partial=cells({budget:5}).Today;
+ assert.deepEqual([partial.tone,partial.was],['plain','$3.75 of $5.00 left · known part only']);
+ assert.equal(cells({budget:5,totals:{today:null,month:null,projected:null}}).Today.change,null);
+});
+
+test('a finished month compares its whole total with the month before; a day leads with the budget',()=>{
+ const done=cells({date:'2026-11-30',lifetime,totals:{today:1,month:144,projected:144},incomplete:[]});
+ assert.deepEqual(Object.keys(done),['November 2026','Lifetime']);
+ assert.deepEqual([done['November 2026'].detail,done['November 2026'].change,done['November 2026'].tone],['whole month','↑ 20%','fail']);
+ assert.deepEqual(Object.keys(cells({},'day')),['Day · Oct 15','Month to date','Lifetime']);
+ assert.equal(lastMonthTotal({date:'2026-10-15',lifetime}),null);
+ assert.deepEqual([spendChange(5,5).change,spendChange(5,0).change,spendChange(null,5).change],['No change','New',null]);
+});
+
+test('coverage names incomplete services',()=>{
  assert.equal(coverageText(report()),'Incomplete: Vercel, so totals include only what is known');
  assert.equal(coverageText(report({incomplete:[]})),'Every service is covered');
- assert.deepEqual(budgetText(report()),{text:'No daily warning budget set',over:false});
- assert.deepEqual(budgetText(report({budget:1}),'month'),{text:'',over:false});
- assert.deepEqual(budgetText(report({budget:1,incomplete:[]})),{text:'Daily warning budget $1.00: over budget',over:true});
- assert.equal(budgetText(report({budget:5})).text,'Daily warning budget $5.00: coverage incomplete, actual costs may exceed it');
- assert.equal(budgetText(report({budget:5,incomplete:[]})).text,'Daily warning budget $5.00: within budget');
- assert.equal(budgetText(report({budget:5,totals:{today:null,month:null,projected:null}})).over,false);
 });
 
 test('service rows say how each number is known and when it was updated',()=>{
@@ -91,10 +115,4 @@ test('saving an amount: usage is for the day, subscriptions and the budget for t
  assert.deepEqual(entryBody({kind:'usage',service:'vercel',date:'2026-10-15',amount:'1.5',note:''}),{service:'vercel',kind:'usage',date:'2026-10-15',amount:1.5,note:''});
  assert.equal(entryBody({kind:'subscription',service:'vercel',date:'2026-10-15',amount:'20',note:''}).date,'2026-10-01');
  assert.deepEqual(entryBody({kind:'budget',service:'vercel',date:'2026-10-15',amount:'10',note:''}),{service:'openai',kind:'budget',date:'2026-10-01',amount:10,note:''});
-});
-
-test('lifetime line: total since the start, with missing services by month; unknown never $0',()=>{
- assert.equal(lifetimeText({lifetime:{since:'2026-10',through:'2026-11-15',total:150,gaps:[{month:'2026-10',services:['SerpApi']}]}}),'Lifetime since October 2026: $150.00 through 2026-11-15 · known part only (missing SerpApi in October 2026)');
- assert.equal(lifetimeText({lifetime:{since:'2026-10',through:'2026-10-21',total:null,gaps:[{month:'2026-10',services:['Vercel']}]}}),'Lifetime since October 2026: Unknown through 2026-10-21');
- assert.equal(lifetimeText({lifetime:null}),'');
 });
