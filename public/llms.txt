@@ -17,7 +17,7 @@ As of October 2026, Jules is in early access and free, and it works only in iMes
 
 - [Home](https://textjules.com/): what Jules is, with example conversations
 - [FAQ](https://textjules.com/faq): what Jules is, how it works, cost, phones, stores, privacy, and how it compares with Phia, Google Lens and ChatGPT
-- [Sign up](https://textjules.com/signup): request early access
+- [Sign up](https://textjules.com/signup): join the waitlist (US, 18+)
 - [Privacy Policy](https://textjules.com/privacy)
 - [Terms](https://textjules.com/terms)
 
