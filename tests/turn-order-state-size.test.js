@@ -52,6 +52,16 @@ test('a follow-up search record that used to exceed the column limit is stored w
   assert.equal(stored.text_wishlist_state.kept_options[0].url, full.text_wishlist_state.kept_options[0].url);
 });
 
+test('a trimmed record still says how the ranker ran and what the plan required', () => {
+  // October 21: a red half-zip search showed a crewneck; the stored record could not tell whether the ranker fell back.
+  const full = continuation();
+  full.text_wishlist_diagnostics = { ...full.text_wishlist_diagnostics, rank: { considered: 6, kept: 3, fallback: true }, hard_constraints: ['half-zip sweater', 'bright red'] };
+  const stored = boundedSearchResult(full);
+  assert.equal(stored.text_wishlist_diagnostics.trimmed, true);
+  assert.deepEqual(stored.text_wishlist_diagnostics.rank, { considered: 6, kept: 3, fallback: true });
+  assert.deepEqual(stored.text_wishlist_diagnostics.hard_constraints, ['half-zip sweater', 'bright red']);
+});
+
 test('a small record is stored as it is apart from the standard trims', () => {
   const small = { identification_policy: 'text_wishlist', products: [], text_wishlist_state: { stage: 'search_clarification', options: [], constraints: { range: 'women', taste } } };
   const stored = boundedSearchResult(small);
