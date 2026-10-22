@@ -36,8 +36,8 @@ test('saved favorite brands reach the stylist as taste, not as brands named in t
  assert.deepEqual(savedBrands(facts),[{name:'st laurent',saved_as:'favorite brand'},{name:'prada',saved_as:'favorite brand'}]);
  await stylistConcepts({query:'ribbed base layers',plan:copied,facts,env:{OPENAI_API_KEY:'k'},fetcher:model({concepts})});
  const input=JSON.parse(model.last.input);
- assert.deepEqual(input.brands_named_in_request,['Our Legacy']);assert.deepEqual(input.saved_brands.map(b=>b.name),['st laurent','prada']);
- assert.ok(model.last.instructions.includes('Saved brands')&&model.last.instructions.includes('discover something new'));
+ assert.deepEqual(input.brands_named_in_request,['Our Legacy']);assert.deepEqual(input.brand_taste.map(b=>b.brand),['st laurent','prada']);
+ assert.ok(model.last.instructions.includes('brand_taste')&&model.last.instructions.includes('discover something new'));
  // The search brief no longer says the user named their favorites.
  const queries=[];
  await textWishlistAction({action:'start',query:'ribbed base layers',search_plan:copied},{env:{},facts,record:async()=>{},stylist:async()=>[],search:async q=>{queries.push(q);return {products:[p('x')]};},rank:async x=>x});
