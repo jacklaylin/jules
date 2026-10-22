@@ -177,7 +177,7 @@ Every PR from PR 3 on has to pass this before merge:
 | 9 | **profile** + style questions | Small | Full gate |
 | 10 | **history** (context-field notes, existing guides) | Small | Full gate |
 | 11 | **conversation + core trim** | Small | Full gate |
-| 12 | **Selective loading on**, plus the `load_skill` escape hatch | Yes | Full gate + recall ≥98% |
+| 12 | **Selective loading on**, plus the `load_skill` escape hatch. *Under review (October 22, CHAT-DEVELOPMENT.md "Decided later"):* first compare against all skills loaded after conflicts, duplicates and extra tools are removed. Skip this step if that scores as well. | Yes | Full gate + recall ≥98% |
 
 Step 2 records each turn's route in `reply_diagnostics.skill_route` (jobs, confidence, the skills it would load, the tools the agent called and any it would have missed). Read recall with `node --env-file=.env.local scripts/router-recall.js --days 2`. `CHAT_ROUTER=off` turns the router off; `MODEL_ROUTE` changes its model. There is no admin screen for it.
 
@@ -196,7 +196,7 @@ The prompt grew because a fix was usually "add a sentence". From now on:
 - **The budget never drops a needed rule** (founder, October 21). Before a rule is deleted, check the commit and feedback that added it (the inventory lists them). If it guards a real past failure that no eval case covers, add the case first. If a skill still needs more than 150 words, raise that skill's cap in its file (`word_cap: {words, reason}`) or split the skill; the raise shows in the PR for the founder to see. A test checks that every raise has a reason.
 - No rule appears in more than one place. If a field description says it, the prompt doesn't.
 
-The `feedback-triage` agent instructions would get these three lines when PR 1 lands.
+These rules, the eval gate and a word-budget ratchet on all chat instructions now live in [CHAT-DEVELOPMENT.md](CHAT-DEVELOPMENT.md) (October 22), which the `feedback-triage` agent follows.
 
 ## 7. Founder decisions (October 21, 2026)
 

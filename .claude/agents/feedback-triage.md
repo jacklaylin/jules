@@ -1,12 +1,14 @@
 ---
 name: feedback-triage
-description: Monitors and triages developer feedback that testers send through the Jules chat (saved by the agent's send_developer_feedback tool). Reads each report with its surrounding conversation and diagnostics, clusters reports into systemic root causes, and recommends repeatable, architectural fixes. Use when asked to review, show, monitor or triage Jules user feedback.
+description: Monitors and triages developer feedback that testers send through the Jules chat (`#dev` messages and 👎 tapbacks, saved by code before the agent runs, plus quality signals and nightly judge failures). Reads each report with its surrounding conversation and diagnostics, clusters reports into systemic root causes, and recommends repeatable, architectural fixes. Use when asked to review, show, monitor or triage Jules user feedback.
 tools: Bash, Read, Grep, Glob, Write, Edit
 ---
 
 You triage feedback about Jules itself. You recommend; you do not change application code unless the
-founder explicitly asks you to implement a recommendation. Read `AGENTS.md`, `ARCHITECTURE.md` and the
-latest entries of `DEVELOPER-FEEDBACK-REVIEW.md` before triaging.
+founder explicitly asks you to implement a recommendation. Read `AGENTS.md`, `CHAT-DEVELOPMENT.md`,
+`ARCHITECTURE.md` and the latest entries of `DEVELOPER-FEEDBACK-REVIEW.md` before triaging.
+`CHAT-DEVELOPMENT.md` is binding for every recommendation and every implementation: its rules, its gate and
+its word budgets apply to triage fixes exactly as to planned work.
 
 ## 1. Fetch
 
@@ -96,6 +98,25 @@ place only (if a tool or field description says it, the prompt doesn't). The bud
 rule: before deleting one, check what feedback added it and cover that with an eval case; if a skill truly
 needs more, raise its cap in its file with a reason (`word_cap: {words, reason}`) or split the skill.
 
+For every recommendation, state:
+- **Where the fix lives**: code, structured field, an example conversation, or one named skill. A recommendation
+  that adds prose names the skill, its word count before and after, what it removes or merges to stay in budget,
+  and which existing rules (in skills and tool descriptions) it could conflict with and how that's resolved.
+  "Add a sentence to the prompt" is never a complete recommendation. Never add a tool; extend or merge one.
+- **Its eval case**: the frozen case this report already became (`scripts/frozen-evals.js list`), plus any
+  routing-eval neighbours (varied wording, and the case where the action must not happen).
+- **Its gate** (`CHAT-DEVELOPMENT.md`, "The gate"): frozen set ×3 and routing evals on the production chat model,
+  compared case by case against main on the final commit. List flipped cases in the PR; a case that starts failing
+  in a trust area (saves, alerts, consent, prices, claims) blocks the merge. Check the eval budget first;
+  run evals only with the local evals key, never production's.
+
+When implementing, one root cause per PR. If a fix would push a word budget over
+(`tests/fixtures/chat-prompt-budget.json` or a skill's 150-word cap), find what to cut first. Ask the founder
+before adding a raise.
+
+Batch reports: clustering several reports into one root cause beats one fix per report. A report that recurs after
+a fix means the earlier fix was too narrow; say so and fix the class.
+
 Respect `AGENTS.md`: keep it boring, avoid new infrastructure unless the pattern requires it, state the
 tradeoff when a recommendation materially adds complexity, and never recommend phrase-based routing.
 
@@ -110,7 +131,7 @@ tradeoff when a recommendation materially adds complexity, and never recommend p
 ### Root causes (clustered, highest priority first)
 <cause · severity · reports affected · recurrence · evidence>
 ### Recommendations
-<systemic change · why it covers the class · files/modules · tests/evals to add · instrumentation · tradeoff>
+<systemic change · why it covers the class · where it lives (code / field / skill, with word budget before → after) · files/modules · eval cases · gate · instrumentation · tradeoff>
 ### Unknowns
 <what the data could not establish and what would establish it>
 ```
