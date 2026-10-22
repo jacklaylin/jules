@@ -99,13 +99,15 @@ rule: before deleting one, check what feedback added it and cover that with an e
 needs more, raise its cap in its file with a reason (`word_cap: {words, reason}`) or split the skill.
 
 For every recommendation, state:
-- **Where the fix lives**: code, structured field, or one named skill. A recommendation that adds prose names the
-  skill, its word count before and after, and what it removes or merges to stay in budget. "Add a sentence to the
-  prompt" is never a complete recommendation.
+- **Where the fix lives**: code, structured field, an example conversation, or one named skill. A recommendation
+  that adds prose names the skill, its word count before and after, what it removes or merges to stay in budget,
+  and which existing rules (in skills and tool descriptions) it could conflict with and how that's resolved.
+  "Add a sentence to the prompt" is never a complete recommendation. Never add a tool; extend or merge one.
 - **Its eval case**: the frozen case this report already became (`scripts/frozen-evals.js list`), plus any
   routing-eval neighbours (varied wording, and the case where the action must not happen).
 - **Its gate** (`CHAT-DEVELOPMENT.md`, "The gate"): frozen set ×3 and routing evals on the production chat model,
-  against main, measured on the final commit, with the before/after table in the PR. Check the eval budget first;
+  compared case by case against main on the final commit. List flipped cases in the PR; a case that starts failing
+  in a trust area (saves, alerts, consent, prices, claims) blocks the merge. Check the eval budget first;
   run evals only with the local evals key, never production's.
 
 When implementing, one root cause per PR. If a fix would push a word budget over

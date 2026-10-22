@@ -1,5 +1,6 @@
 {
-  "_about": "Word budget for everything the chat model reads as instructions (CHAT-DEVELOPMENT.md). A part may not grow past its budget plus its raises. When a PR shrinks a part, lower its budget in the same PR so the space can't quietly refill. A raise needs a reason the founder can read in the PR.",
+  "_about": "Word budget for everything the chat model reads as instructions, and the most tools it may be offered (CHAT-DEVELOPMENT.md rules 5 and 6). A brake, not a goal: a part may not grow past its budget plus its raises, and a clearer longer rewrite is a fine reason for a raise. When a PR shrinks a part or merges tools, lower the number in the same PR so the space can't quietly refill. Example conversations are exempt.",
+  "max_tools": 21,
   "budget": {
     "prompt_blocks": 2972,
     "feature_guides": 1198,
