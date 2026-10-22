@@ -11,6 +11,7 @@ import { discoverAlertLinks, discoveryDue } from '../lib/alert-discovery.js';
 import { decideLowStock, lowStockRecord, lowStockMessage, withLowStock, storeName } from '../lib/low-stock.js';
 import { marketEnvironment } from '../lib/shopping-market.js';
 import { withUsage } from '../lib/usage.js';
+import { tagWishlist } from '../lib/wishlist-tags.js';
 import { recordJobRun } from '../lib/jobs.js';
 import { checkCaps, logCapReached } from '../lib/cost-caps.js';
 import { deliverReply } from '../lib/replies.js';
@@ -148,7 +149,14 @@ export function createPriceChecksHandler({env=process.env,storeFactory=createSto
         if(result.delivery==='sent'&&!result.duplicate)sent++;
       }catch{failed++;console.log(JSON.stringify({event:'price_alert_check_failed',alert_id:alert.id}));}}));
       console.log(JSON.stringify({event:'price_alert_checks',checked:alerts.length-capped,sent,failed,capped,statuses,discoveries:DISCOVERIES_PER_RUN-discoveries.remaining}));
-      await recordJobRun(store,'price_checks',started,failed?'failed':'ok',{checked:alerts.length-capped,sent,failed,capped,discoveries:DISCOVERIES_PER_RUN-discoveries.remaining});
+      // Once a day, tag wishlist saves not tagged yet (lib/wishlist-tags.js), so brand taste knows what kind of
+      // item each was. Best effort and capped per person; it never fails the job.
+      let tagged=0;
+      if(store.untaggedWishlistOwners)for(const owner of await store.untaggedWishlistOwners().catch(()=>[])){
+        if((await checkCaps(store,owner,env).catch(()=>({capped:true}))).capped)continue;
+        tagged+=(await tagWishlist(store,owner,env)).tagged;
+      }
+      await recordJobRun(store,'price_checks',started,failed?'failed':'ok',{checked:alerts.length-capped,sent,failed,capped,discoveries:DISCOVERIES_PER_RUN-discoveries.remaining,wishlist_tagged:tagged});
       return json(res,failed?503:200,{checked:alerts.length-capped,sent,failed,capped});
     }catch{await recordJobRun(store,'price_checks',started,'failed');return json(res,503,{error:'Price checks failed.'});}
   };

@@ -28,6 +28,8 @@ test('size keys must be category/system or category/system/brand', () => {
   assert.throws(() => validateChanges([set('example retail aps')], [said]), /size key/);
   // Other fields keep their own key rules.
   assert.equal(validateChanges([{ ...set('example retail aps'), field:'brand', value:'likes' }], [said]).length, 1);
+  // A brand key is the brand's name, never a source prefix like the old style-pack copies.
+  assert.throws(() => validateChanges([{ ...set('style-pack/example'), field:'brand', value:'likes' }], [said]), /brand key/);
 });
 
 test('a size the model filed under a store name is not saved; valid changes beside it are', async () => {

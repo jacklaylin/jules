@@ -1,5 +1,6 @@
 // Loads first so the cost meter wraps fetch before any handler below keeps a reference to it.
 import '../lib/usage.js';
+import {tagWishlist} from '../lib/wishlist-tags.js';
 import { lowStockSummary } from '../lib/low-stock.js';
 import { wishlistEvidence } from '../lib/evidence.js';
 import {scheduleGmail,handleGmailWork,handleGmailSweep} from '../lib/gmail-worker.js';
@@ -62,8 +63,11 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
         const input = await readJson(req, 16384);
         if(input.action==='recover-photos'){
           const access=await auth(req.headers,env,store,fetcher);if(access.status!==200)return json(res,access.status,{error:'Please sign in with your invited email.'});
+          // Opening the wishlist also tags new saves by kind of item (lib/wishlist-tags.js), alongside photo recovery.
+          const tagging=tagWishlist(store,access.conversation,env).catch(()=>null);
           const marketEnv=marketEnvironment((await store.profile?.(access.conversation))?.facts??[],env);
           const rows=await withUsage({store,env,conversation:access.conversation,operation:'wishlist-recovery:'+new Date().toISOString().slice(0,13),feature:'wishlist_recovery',quiet:true},async()=>repairWishlistPhotos(await store.wishlistEntries(access.conversation),{conversation:access.conversation,store,env:marketEnv,verify:(url,name)=>verify(url,name,live,undefined,marketEnv,{recoveryOnly:true}),photos:(url,name)=>photos(url,name,live),assets:(urls,url)=>fetchProductAssets(urls,url,live),indexed:(url,name)=>lookupIndexedProduct(url,name,{env:marketEnv,siteSearch:true,photos:true})}));
+          await tagging;
           return json(res,200,{items:groupWishlist(rows,{currency:marketEnv.SHOPPING_CURRENCY,country:marketEnv.SHOPPING_COUNTRY}).map(({links,entries,...group})=>group)});
         }
         if(input.action==='recover-alerts'){
