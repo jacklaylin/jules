@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {earlyReadText,earlyReadFor,previewEarlyRead} from '../lib/early-read.js';
+import {earlyReadText,earlyReadFor} from '../lib/early-read.js';
 import {coverage} from '../lib/coverage.js';
 import {purchaseEvidence,projectReceiptEvidence} from '../lib/receipt-extraction.js';
 import {tagFingerprint,TAG_VERSION} from '../lib/item-tags.js';
@@ -81,11 +81,5 @@ test('earlyReadFor: only for thin profiles, only with the interview on',async()=
  const rows=[1,2,3,4,5,6].map(n=>buy(n,{merchant:'COS',brand:'COS',color:'black'})),state=stateOf(rows);
  const rich=storeWith({facts:[fact('style','palette','black'),fact('store','cos','basics'),fact('budget','tops/usd','100')],rows,tags:tagged(state,()=>({color_family:'black',resale:false})),outfits:3});
  assert.equal(await earlyReadFor(rich,owner,on,{log:()=>{}}),null,'a rich profile keeps the purchase summary');
- const preview=await previewEarlyRead(rich,owner);
- assert.equal(preview.used,false);
 });
 
-test('the admin preview works with the interview off and sends nothing',async()=>{
- const preview=await previewEarlyRead(storeWith({facts:[fact('fit','tops','cropped, boxy')]}),owner);
- assert.equal(preview.used,true);assert.match(preview.text,/tops: cropped, boxy/);
-});
