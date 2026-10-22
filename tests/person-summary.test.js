@@ -62,12 +62,14 @@ test('the brand row reads the brand reading, marked as Jules’s interpretation'
 });
 
 test('fabric likes and dislikes get their own row, apart from silhouettes',()=>{
- const rows=rowsFor({facts:[fact('style','material/silk','too hot, harder to wear'),fact('style','material/linen','loves it in summer'),fact('avoid','material/polyester','never breathes'),fact('style','silhouette','ideally cropped')]});
+ const rows=rowsFor({facts:[fact('material','silk','too hot, harder to wear'),fact('material','linen','loves it in summer'),fact('avoid','material/polyester','never breathes'),fact('style','silhouette','ideally cropped')]});
  const materials=rowOf(rows,'materials');
  assert.equal(materials.status,'known');
  assert.equal(materials.summary,'silk: too hot, harder to wear · linen: loves it in summer · polyester: never breathes','one fact per fabric, so a new fabric never replaces another');
  assert.deepEqual(materials.from,{said:3,seen:0,inferred:0});
  assert.doesNotMatch(rowOf(rows,'brands').detail??'',/polyester/,'a fabric dislike is not a brand to avoid');
+ assert.equal(rowOf(rowsFor({facts:[fact('fit','material/silk','sweaty')]}),'silhouettes').status,'missing','a fabric saved under fit before the field existed is still not a shape');
+ assert.equal(rowOf(rowsFor({facts:[fact('style','material','linen is my thing in summer')]}),'materials').summary,'linen is my thing in summer','a bare material key under style');
  assert.doesNotMatch(rowOf(rows,'silhouettes').summary,/silk/);
  assert.equal(rowOf(rowsFor({}),'materials'),undefined,'no row until a fabric preference is stated');
 });

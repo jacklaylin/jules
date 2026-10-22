@@ -218,3 +218,31 @@ test('a failed search-state write never loses the results shown in the reply', a
   assert.deepEqual(sent, ['any colour preference?']);
   assert.deepEqual(db.diagnostics.at(-1).state_write_failures, [{ error_class: 'database', error_name: 'Error', database_status: 400, database_code: '23514', database_table: 'messages', step: 'search_result' }]);
 });
+
+// October 22: "save to my wishlist please" was set aside mid-save when "show me more like this" arrived
+// 6 s later, and the item was never saved. Once the consent check approves a save or alert, the turn
+// finishes it and sends its reply, whatever arrives meanwhile; before that, newest message still wins.
+test('a save or alert approved by the consent check is finished and sent even when a newer message arrives', async () => {
+  for (const tool of ['save_to_wishlist', 'manage_price_alerts']) {
+    let arrived = false;
+    const db = memoryStore({ newer: () => arrived }), sent = [];
+    const outcome = await receiveInInbox(delivery('save'), inboxEnv, { ...quiet, store: db, supersedePollMs: 5,
+      send: async (_d, body) => { sent.push(body); return { id: 's' + sent.length }; },
+      generate: async (_m, _e, _f, memory) => { memory.onConsent({ tool, allowed: true }); arrived = true; await tick(60); return 'saved the Filling Pieces knit to your wishlist.'; } });
+    assert.equal(outcome, 'imessage_ai_reply_sent', tool);
+    assert.deepEqual(sent, ['saved the Filling Pieces knit to your wishlist.']);
+    assert.ok(db.diagnostics.at(-1).steps.some(s => s.step === 'newer_message:finishing_save'), tool);
+  }
+});
+
+test('a save the consent check refused, or none at all, is still set aside for the newer message', async () => {
+  for (const reading of [{ tool: 'save_to_wishlist', allowed: false }, null]) {
+    let arrived = false;
+    const db = memoryStore({ newer: () => arrived }), sent = [];
+    const outcome = await receiveInInbox(delivery('first'), inboxEnv, { ...quiet, store: db, supersedePollMs: 5,
+      send: async (_d, body) => { sent.push(body); return { id: 's' + sent.length }; },
+      generate: async (_m, _e, _f, memory) => { if (reading) memory.onConsent(reading); await tick(20); arrived = true; await tick(200); return 'nothing was saved.'; } });
+    assert.equal(outcome, 'imessage_ai_superseded');
+    assert.deepEqual(sent, []);
+  }
+});
