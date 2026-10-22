@@ -193,7 +193,7 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
         const groups = groupWishlist(rows,{currency:marketEnv.SHOPPING_CURRENCY,country:marketEnv.SHOPPING_COUNTRY});
         res.setHeader('Server-Timing',`${authTiming}, wishlist;dur=${(performance.now()-started).toFixed(1)}`);
         if(env.PRICE_ALERTS_ENABLED==='true'){
-          for(const group of groups){const alert=alerts.find(a=>a.group_id===group.id);group.price_alert=alert?{active:alert.active,size:alert.size,last_checked_at:alert.last_checked_at,notified:alert.notified,low_stock:lowStockSummary(alert),baseline_pending:Array.isArray(alert.baselines)&&alert.baselines.length===0}:null;group.alerts_enabled=true;}
+          for(const group of groups){const alert=alerts.find(a=>a.group_id===group.id);group.price_alert=alert?{active:alert.active,size:alert.size,last_checked_at:alert.last_checked_at,notified:alert.notified,low_stock:lowStockSummary(alert),low_stock_alerts:alert.low_stock_alerts!==false,baseline_pending:Array.isArray(alert.baselines)&&alert.baselines.length===0}:null;group.alerts_enabled=true;}
         }
         if (groupId) {
           const item = groups.find(g=>g.id===groupId);
