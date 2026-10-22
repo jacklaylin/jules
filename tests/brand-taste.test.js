@@ -81,3 +81,15 @@ test('the agent reads each brand once: the purchase summary drops its top brands
   const bare=await readUserContext({...store,profile:async()=>({facts:[]}),purchaseHistory:async()=>({items:3,summary:{...summary,top_brands:[]},detail:async()=>[]})},'me',env,{log:()=>{}});
   assert.deepEqual(JSON.parse(bare.facts.find(f=>f.field==='shopping_history').value).top_brands,[]);
 });
+
+test('the Admin view reports every source, the brand reading and the summaries', async () => {
+  const {contextReport}=await import('../lib/user-context.js');
+  const stated=[{field:'brand',key:'example label',value:'favorite brand'},{field:'style',key:'aesthetic',value:'casual'},{field:'size',key:'old',value:'x',deleted:true}];
+  const facts=[...stated,wishlistFact(wishlist),brandTasteFact({facts:stated,wishlist}),{field:'wardrobe',key:'summary',value:JSON.stringify({items:9,groups:[{group:'tops',items:5,types:'tee 3'}]})}];
+  const r=contextReport({facts,purchases:12});
+  assert.deepEqual(r.sources,{stated:2,purchases:12,wardrobe:9,wishlist:2,liked:0,outfit_photos:false});
+  assert.deepEqual(r.brands.map(b=>b.brand),['Our Legacy','Satisfy','example label']);
+  assert.deepEqual(r.wardrobe,[{group:'tops',items:5,types:'tee 3'}]);
+  assert.equal(r.wishlist.length,2);
+  assert.deepEqual(contextReport({}),{sources:{stated:0,purchases:0,wardrobe:0,wishlist:0,liked:0,outfit_photos:false},brands:[],wardrobe:[],wishlist:[],liked:[]});
+});

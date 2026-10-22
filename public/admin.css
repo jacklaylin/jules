@@ -129,7 +129,7 @@ p{line-height:1.65}.login-card{max-width:490px;margin:7vh auto}.login-card>p{col
 /* Admin › People › person: taste coverage chips above Personal memory (lib/coverage.js). */
 .coverage-strip{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin:0 0 12px}
 /* The early read preview under the coverage chips: the text as Jules would send it, line breaks kept. */
-.early-read{margin:0 0 12px}.early-read .muted{color:var(--text-2);font-size:12px}.early-read-text{white-space:pre-line;margin:8px 0 0}
+.early-read{margin:0 0 12px}.context-view h3{font:600 14px/1.3 var(--font-sans);margin:16px 0 6px}.context-view .context-list ul{margin:0;padding-left:18px;font-size:13px}.context-view .context-list li{margin:2px 0}.context-brands td{vertical-align:top}.early-read .muted{color:var(--text-2);font-size:12px}.early-read-text{white-space:pre-line;margin:8px 0 0}
 
 /* Purchase nudges dialog (admin-person.js) */
 .nudge-log{max-height:240px;overflow:auto;padding-left:18px;font-size:14px}
