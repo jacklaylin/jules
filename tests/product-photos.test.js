@@ -3,7 +3,7 @@ import {listingProduct} from '../lib/product-photos.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import sharp from 'sharp';
-import { fetchProductPhoto, productPhotoURL, listingPhotos, fetchListingPhotos } from '../lib/product-photos.js';
+import { fetchProductPhoto, productPhotoURL, listingPhotos, fetchListingPhotos, ynapPhotoURLs } from '../lib/product-photos.js';
 import { sendGreeting, withoutLinks } from '../lib/photon.js';
 import { receiveInInbox } from '../lib/inbox.js';
 
@@ -18,6 +18,24 @@ test('SSENSE photo sourcing uses observed Open Graph images instead of unresolve
   const bytes=await sharp({create:{width:8,height:8,channels:3,background:'white'}}).jpeg().toBuffer();
   const images=await fetchListingPhotos(url,product.name,async target=>target===url?new Response(html,{headers:{'content-type':'text/html'}}):new Response(bytes,{headers:{'content-type':'image/jpeg'}}));
   assert.equal(images.length,1);assert.equal(images[0].asset_url,image);assert.equal(images[0].source_url,url);
+});
+test('Mr Porter photos come from the product number in the link when the store blocks its page',async()=>{
+  const url='https://www.mrporter.com/en-us/mens/product/maison-margiela/clothing/lightweight-waterproof-jackets/mesh-trimmed-shell-jacket/46376663163148077';
+  assert.deepEqual(ynapPhotoURLs(url),['in','fr','bk'].map(v=>`https://www.mrporter.com/variants/images/46376663163148077/${v}/w2000_q60.jpg`));
+  assert.equal(ynapPhotoURLs('https://www.net-a-porter.com/en-us/shop/product/khaite/clothing/jeans/danielle-jeans/1647597312345678')[0],'https://www.net-a-porter.com/variants/images/1647597312345678/in/w2000_q60.jpg');
+  assert.deepEqual(ynapPhotoURLs('https://www.mrporter.com/en-us/mens/designer/maison-margiela'),[]);
+  assert.deepEqual(ynapPhotoURLs('https://www.ssense.com/en-us/men/product/satisfy/shirt/19506071'),[]);
+  const bytes=await sharp({create:{width:8,height:8,channels:3,background:'white'}}).jpeg().toBuffer();
+  const requested=[];
+  const images=await fetchListingPhotos(url,'Mesh-Trimmed Shell Jacket',async target=>{requested.push(target);return target===url?new Response('Forbidden',{status:403}):new Response(bytes,{headers:{'content-type':'image/jpeg'}});},()=>assert.fail('no render needed'));
+  assert.equal(images.length,3);assert.equal(images[0].source_url,url);assert.match(images[0].asset_url,/\/46376663163148077\/in\//);
+  assert.ok(!requested.includes(url));
+});
+test('a wrong Mr Porter product number falls back to reading the page',async()=>{
+  const url='https://www.mrporter.com/en-us/mens/product/a/b/c/123456789';
+  let rendered=0;
+  await assert.rejects(fetchListingPhotos(url,'Jacket',async target=>target===url?new Response('Forbidden',{status:403}):new Response('Not found',{status:404}),async()=>{rendered++;throw Error('blocked');}));
+  assert.equal(rendered,1);
 });
 test('a successful HTTP response without product metadata recovers photos through rendering',async()=>{
   const url='https://www.ssense.com/en-us/men/product/satisfy/gray-mothtech-waffle-long-t-shirt/19506071';
