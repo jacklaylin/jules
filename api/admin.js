@@ -2,7 +2,8 @@
 import '../lib/usage.js';
 import { lowStockSummary } from '../lib/low-stock.js';
 import { readCoverage } from '../lib/coverage.js';
-import { readUserContext, contextReport } from '../lib/user-context.js';
+import { readUserContext } from '../lib/user-context.js';
+import { knowledgeView } from '../lib/person-knowledge.js';
 import { tagWishlist } from '../lib/wishlist-tags.js';
 import { adminStartInterview } from '../lib/interview.js';
 import { personSummary } from '../lib/person-summary.js';
@@ -198,9 +199,9 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
       if (query.get('view') === 'nudges') return json(res, 200, await nudgeView(store, id, env));
       // How much of the taste profile is known, per dimension (lib/coverage.js). Read-only, computed fresh.
       if (query.get('view') === 'coverage') return json(res, 200, await readCoverage(store, id));
-      // What Jules knows about this person from every source (lib/user-context.js): the same picture chat,
-      // the stylist and ranking read. Read-only, computed fresh.
-      if (query.get('view') === 'context') return json(res, 200, contextReport(await readUserContext(store, id, env, { log: () => {} })));
+      // The Knowledge tab's derived rows and per-fact notes (lib/person-knowledge.js), from the same user context
+      // chat, the stylist and ranking read. Read-only, computed fresh; the person's own facts come from /api/profile.
+      if (query.get('view') === 'knowledge') return json(res, 200, knowledgeView((await readUserContext(store, id, env, { log: () => {} })).facts));
       // The Summary tab (lib/person-summary.js): coverage, one row per thing Jules weighs and what Jules would text
       // now. Read-only, computed fresh; nothing is sent.
       if (query.get('view') === 'summary') return json(res, 200, await personSummary(store, id));

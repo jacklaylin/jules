@@ -10,10 +10,10 @@
     <div class="person-title"><a class="breadcrumb" href="/admin">People /</a><h1 id="person-name">Loading…</h1><span id="person-phone" class="person-phone" hidden></span><span id="person-access" hidden></span><span id="person-onboarding" class="badges" hidden></span><div id="person-badges" class="badges"></div><span class="spacer"></span>
       <p class="person-stats">Active <strong id="stat-active">—</strong> · <strong id="stat-messages">—</strong> messages · <strong id="stat-facts">—</strong> facts</p>
       <button class="small quiet" type="button" popovertarget="person-more">More ⋯</button></div>
-    <!-- One menu of actions for this person, the same on every tab. Memory and purchase actions open their tab first. -->
+    <!-- One menu of actions for this person, the same on every tab. Knowledge and purchase actions open their tab first. -->
     <div id="person-more" class="dv-pop dv-menu" popover aria-label="More actions">
-      <span class="mono-label">Personal memory</span>
-      <button id="profile-import" type="button" data-opens-tab="memory">Learn from existing messages <span class="hint">last 100 texts</span></button>
+      <span class="mono-label">Knowledge</span>
+      <button id="profile-import" type="button" data-opens-tab="knowledge">Learn from existing messages <span class="hint">last 100 texts</span></button>
       <hr>
       <span class="mono-label">Purchase history</span>
       <button id="purchases-reload" type="button" data-opens-tab="purchases">Reload purchases</button>
@@ -36,7 +36,7 @@
     </div>
     <nav class="tabs" aria-label="Person sections">
       <a href="?tab=summary" data-tab="summary">Summary</a>
-      <a href="?tab=memory" data-tab="memory">Personal memory <span class="count" id="count-memory"></span></a>
+      <a href="?tab=knowledge" data-tab="knowledge">Knowledge <span class="count" id="count-memory"></span></a>
       <a href="?tab=conversation" data-tab="conversation">Conversation <span class="count" id="count-conversation"></span></a>
       <a href="?tab=purchases" data-tab="purchases">Purchase history <span class="count" id="purchases-count"></span></a>
       <a href="?tab=wishlist" data-tab="wishlist">Wishlist <span class="count" id="count-wishlist"></span></a>
@@ -63,20 +63,27 @@
       </div>
     </section>
 
-    <section id="tab-memory" data-panel="memory" hidden>
-      <details id="context" class="early-read context-view" hidden><summary>What Jules knows <span class="muted">every source, as chat, the stylist and ranking read it</span></summary><div id="context-body"></div></details>
+    <!-- Knowledge: everything Jules knows in one table (their own facts from /api/profile, editable; derived rows
+         from lib/person-knowledge.js, read-only). -->
+    <section id="tab-knowledge" data-panel="knowledge" hidden>
       <div class="dv-toolbar">
-        <div id="memory-types" class="seg" role="group" aria-label="Filter by type"></div>
-        <label class="dv-search"><span class="sr-only">Search memory</span><input id="memory-search" type="search" maxlength="100" placeholder="Key, value or evidence"><span class="kbd" aria-hidden="true">/</span></label>
+        <div id="knowledge-kinds" class="seg" role="group" aria-label="Filter by kind"></div>
+        <label><span class="sr-only">Topic</span><select id="knowledge-topic" class="dv-select"><option value="">All topics</option></select></label>
+        <label><span class="sr-only">Source</span><select id="knowledge-source" class="dv-select"><option value="">All sources</option></select></label>
+        <label class="dv-search"><span class="sr-only">Search what Jules knows</span><input id="knowledge-search" type="search" maxlength="100" placeholder="Search what Jules knows"><span class="kbd" aria-hidden="true">/</span></label>
         <span class="spacer"></span>
         <span id="memory-dirty" class="badge warn" hidden></span>
-        <button id="memory-add-open" class="btn--butter small" type="button" aria-expanded="false" aria-controls="tool-add-fact">+ Add preference</button>
+        <button id="memory-add-open" class="btn--butter small" type="button" aria-expanded="false" aria-controls="tool-add-fact">+ Add what they said</button>
       </div>
+      <p class="knowledge-key"><span class="kind kind-said"><i aria-hidden="true"></i>Said</span> they told Jules, in chat or at signup; click a value to edit it. <span class="kind kind-seen"><i aria-hidden="true"></i>Seen</span> counted from what they did. <span class="kind kind-inferred"><i aria-hidden="true"></i>Inferred</span> Jules’s own reading; correct it by adding what they said. Weight: how strongly a brand features in the brand reading.</p>
       <div class="dv-status"><span id="profile-notice" role="status" aria-live="polite"></span></div>
       <div id="memory-conflict" class="notice-bar" hidden><span>This profile changed since you loaded it. Reload to see the latest; your unsaved values stay in their rows.</span><button id="conflict-reload" class="small" type="button">Reload profile</button></div>
-      <section id="tool-add-fact" class="dv-tool" aria-labelledby="tool-add-fact-title" hidden><div class="dv-tool-head"><h2 id="tool-add-fact-title">Add a preference</h2><button id="memory-add-close" class="close-button" type="button" aria-label="Close add a preference"><svg aria-hidden="true" viewBox="0 0 18 18"><path d="M3 3 L15 15 M15 3 L3 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></div>
+      <section id="tool-add-fact" class="dv-tool" aria-labelledby="tool-add-fact-title" hidden><div class="dv-tool-head"><h2 id="tool-add-fact-title">Add what they said</h2><button id="memory-add-close" class="close-button" type="button" aria-label="Close add what they said"><svg aria-hidden="true" viewBox="0 0 18 18"><path d="M3 3 L15 15 M15 3 L3 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></div>
         <form id="profile-add" class="add-fact-fields"><label>Type<select id="fact-field"><option value="gender">Gender identity</option><option value="shopping_range">Clothing range</option><option value="size">Size</option><option value="brand">Brand</option><option value="category">Category</option><option value="style">Style attribute</option><option value="budget">Usual budget</option></select></label><label>Key<input id="fact-key" maxlength="100" required placeholder="e.g. shoes/us_men or lemaire"></label><label>Value<input id="fact-value" maxlength="500" required placeholder="e.g. 10 or prefers relaxed tailoring"></label><button type="submit" class="btn--butter">Add preference</button></form></section>
-      <div class="dv-table-wrap"><table class="dv-table memory-table"><thead><tr><th>Type</th><th>Key</th><th>Value</th><th>Evidence</th><th class="end">Actions</th></tr></thead><tbody id="profile-facts"></tbody></table></div>
+      <div class="dv-table-wrap"><table class="dv-table knowledge-table"><thead><tr>
+        <th aria-sort="ascending"><button type="button" data-sort="topic">Topic</button></th><th><button type="button" data-sort="about">About</button></th><th><button type="button" data-sort="value">What Jules knows</button></th>
+        <th><button type="button" data-sort="weight">Weight</button></th><th><button type="button" data-sort="kind">Kind</button></th><th><button type="button" data-sort="source">Source</button></th><th><button type="button" data-sort="when">When</button></th><th class="end"><span class="sr-only">Actions</span></th>
+      </tr></thead><tbody id="profile-facts"></tbody></table></div>
     </section>
 
     <section id="tab-conversation" data-panel="conversation" hidden>

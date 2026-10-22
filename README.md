@@ -38,7 +38,7 @@ remain outside this milestone.
 `/admin` is the owner console: static HTML/CSS/JavaScript pages sharing one
 sign-in and a persistent tool menu (`public/admin-console.js`). People
 (`/admin`) lists testers; each opens a person page at `/admin/people/<id>`
-with Personal memory, Conversation, Purchase history and Wishlist tabs
+with Summary, Knowledge, Conversation, Purchase history and Wishlist tabs
 (`?tab=` keeps the tab linkable). Manual replies were retired on October 13,
 2026; developer feedback is triaged in Claude, not in admin. The Wishlist tab
 shows each saved item's price alert and previews a test alert; test texts only
@@ -239,7 +239,7 @@ The extractor uses strict structured output and server validation of message IDs
 
 New text is extracted before the shopper generates its reply. The persistent profile is loaded independently of the latest 20-message context. Atomic version checks merge concurrent updates without losing unrelated facts. Newer evidence replaces older values; deletions retain tombstones so importing old history does not resurrect removed preferences. Owner edits use a version check and reject stale edits. A later explicit user correction can update an owner edit.
 
-In `/admin`, expand **Personal memory** to inspect facts, edit/add/remove preferences, jump to source messages, or **Learn from existing messages**. Import reads the latest 100 inbound texts; the UI reports if older history was excluded. Re-import preserves newer changes and edits. Profiles are keyed by the existing conversation (person + Photon line), so a changed line creates a separate profile in this small prototype.
+In `/admin`, open a person's **Knowledge** tab (formerly Personal memory) to inspect facts, edit/add/remove preferences, jump to source messages, or **Learn from existing messages**. Import reads the latest 100 inbound texts; the UI reports if older history was excluded. Re-import preserves newer changes and edits. Profiles are keyed by the existing conversation (person + Photon line), so a changed line creates a separate profile in this small prototype.
 
 Extraction failure leaves existing memory intact, marks the inbound message “Memory update failed,” and logs only a fixed event and provider ID. Jules may still reply using existing facts but is instructed not to claim that new information was remembered. Process interruptions can leave an in-progress reply as documented for Milestone 3. The extra extraction call adds latency and API usage; there is no background worker or queue.
 
@@ -251,7 +251,7 @@ Import the founder's existing messages and verify gender/clothing range, sizes, 
 
 Apply `db/004_images.sql` in the existing Supabase SQL Editor, then set `IMAGES_ENABLED=true` in Vercel Production and redeploy. The existing Photon and OpenAI credentials are sufficient. Images sent through Photon are fetched by authenticated attachment ID, stored privately in the existing database, and sent to OpenAI as inline image inputs with `store:false`. Only the authenticated inbox owner can retrieve them; no public storage or signed image URLs are created.
 
-Send JPG, PNG, WebP, or HEIC/HEIF images, up to three per message and 3 MB per image. HEIC/HEIF images are converted to JPEG on the server before storage and OpenAI processing; both input and converted output must fit the 3 MB limit. Unsupported formats or failed downloads produce a visible fallback. Jules describes visible silhouettes, colors, textures, and styling, then asks which details the tester likes. Images alone never update taste memory. Reply with an explicit preference such as “I like relaxed tailoring and muted colors” to confirm it. A bare “yes” is insufficient. Images and AI interpretations appear together in the inbox; preferences remain editable and removable using Personal memory.
+Send JPG, PNG, WebP, or HEIC/HEIF images, up to three per message and 3 MB per image. HEIC/HEIF images are converted to JPEG on the server before storage and OpenAI processing; both input and converted output must fit the 3 MB limit. Unsupported formats or failed downloads produce a visible fallback. Jules describes visible silhouettes, colors, textures, and styling, then asks which details the tester likes. Images alone never update taste memory. Reply with an explicit preference such as “I like relaxed tailoring and muted colors” to confirm it. A bare “yes” is insufficient. Images and AI interpretations appear together in the inbox; preferences remain editable and removable on the Knowledge tab.
 
 For this small experiment image bytes live in a private Postgres table rather than adding separate storage infrastructure. They remain until their conversation/message is deleted; there is no automatic expiry. This is deliberately bounded, not a general photo library. No face identification, inferred gender or body size, product identification guarantees, or verified commerce facts.
 
