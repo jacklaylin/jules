@@ -1,31 +1,34 @@
-import {mountAdminShell,adminJson,adminToken,skeletonRows,metricCell,shortVerdict} from './admin-console.js';
+import {mountAdminShell,adminJson,adminToken,skeletonRows,metricCell,shortVerdict,anchorMenus} from './admin-console.js';
 import {readPage,savePage,sameData} from './list-cache.js';
 import {ago} from './admin-people-view.js';
-import {TYPES,WHO,forWho,METRICS,metricCells,weekRows,worstTurns,agreement,turnRow} from './scorecard-view.js';
+import {TYPES,WHO,PERIODS,forWho,METRICS,metricCells,weekRows,worstTurns,agreement,turnRow} from './scorecard-view.js';
 // Admin › Scorecard: weekly search and recommendation quality, and the turns most worth reading.
 mountAdminShell('quality');
+anchorMenus();
 const $ = id => document.getElementById(id);
 const el = (tag, props = {}, ...children) => { const node = Object.assign(document.createElement(tag), props); node.append(...children.filter(c => c !== null && c !== undefined)); return node; };
 const cell = (label, content, className = '') => { const td = el('td', { className }, content); td.dataset.label = label; return td; };
-let data = null, refreshedAt = null, type = 'all', who = 'testers';
-try { const q = new URLSearchParams(location.search); type = q.get('type') ?? 'all'; who = q.get('who') ?? 'testers'; } catch {}
+let data = null, refreshedAt = null, type = 'all', who = 'testers', period = 'week';
+try { const q = new URLSearchParams(location.search); type = q.get('type') ?? 'all'; who = q.get('who') ?? 'testers'; period = q.get('compare') ?? 'week'; } catch {}
+if (!PERIODS.some(p => p.key === period)) period = 'week';
 if (!TYPES.some(t => t.key === type)) type = 'all';
 if (!WHO.some(w => w.key === who)) who = 'testers';
 // The filters live in the address, so a reload or a shared link keeps them.
-const remember = () => { const q = new URLSearchParams(); if (type !== 'all') q.set('type', type); if (who !== 'testers') q.set('who', who); history.replaceState(null, '', q.size ? `?${q}` : location.pathname); };
+const remember = () => { const q = new URLSearchParams(); if (type !== 'all') q.set('type', type); if (who !== 'testers') q.set('who', who); if (period !== 'week') q.set('compare', period); history.replaceState(null, '', q.size ? `?${q}` : location.pathname); };
 
 function render() {
   if (!data) return;
   const own = data.own_conversations ?? [], turns = forWho(data.turns, who, own), now = Date.now();
-  $('who').replaceChildren(...WHO.map(w => el('button', { type: 'button', ariaPressed: String(w.key === who), onclick: () => { who = w.key; remember(); render(); } },
-    w.label, el('span', { className: 'count', textContent: String(forWho(data.turns, w.key, own).length) }))));
-  $('who').hidden = !own.length;
+  // Whose searches sits in Filters (one filter group in the toolbar); it shows only once your own conversation is known.
+  $('who').replaceChildren(...WHO.map(w => el('option', { value: w.key, textContent: `${w.label} (${forWho(data.turns, w.key, own).length})` })));
+  $('who').value = who;
+  $('filters-open').hidden = !own.length; $('filter-count').hidden = who === 'testers'; $('filter-count').textContent = '1';
   $('own-missing').hidden = Boolean(data.own_configured);
   $('types').replaceChildren(...TYPES.map(t => el('button', { type: 'button', ariaPressed: String(t.key === type), onclick: () => { type = t.key; remember(); render(); } },
     t.label, el('span', { className: 'count', textContent: String(t.key === 'all' ? turns.length : turns.filter(x => x.request_type === t.key).length) }))));
-  const cells = metricCells(turns, { type, now });
-  $('metrics').replaceChildren(...cells.map(c => metricCell({ label: c.label, value: c.value, change: shortVerdict(c.verdict), tone: c.tone, was: `${c.was} · ${c.sample}` })));
-  $('metrics').hidden = false;
+  const cells = metricCells(turns, { type, now, period });
+  $('metrics').replaceChildren(...cells.map(c => metricCell({ label: c.label, value: c.value, detail: c.sample, change: shortVerdict(c.verdict), tone: c.tone, was: c.was })));
+  $('metrics').removeAttribute('aria-busy');
   $('judge-missing').hidden = data.judge_available;
   $('weeks-head').replaceChildren(...['Week of', 'Searches', ...METRICS.map(m => m.label)].map(h => el('th', { textContent: h })));
   const weeks = weekRows(turns, { type, now });
@@ -78,6 +81,9 @@ async function load() {
   finally { $('loader').hidden = true; }
 }
 $('refresh').onclick = load;
+$('compare').value = period;
+$('compare').onchange = () => { period = $('compare').value; remember(); render(); };
+$('who').onchange = () => { who = $('who').value; remember(); render(); };
 setInterval(() => { if (refreshedAt) $('refreshed').textContent = `Refreshed ${ago(refreshedAt)}`; }, 30000);
 $('weeks').replaceChildren(...skeletonRows(6, 8));
 load();
