@@ -69,13 +69,21 @@ export function verdict(metric, now, before) {
 const TONE = { better: 'ok', worse: 'fail' };
 const count = (n, [one, many]) => `${n} ${n === 1 ? one : many}`;
 
-export function metricCells(turns, { type = 'all', now = Date.now() } = {}) {
-  const from = weekStart(now), scoped = ofType(turns, type);
-  const thisWeek = figures(scoped.filter(t => ms(t.at) >= from)), lastWeek = figures(scoped.filter(t => ms(t.at) >= from - 7 * DAY && ms(t.at) < from));
+// The Compare choices (the same windows as lib/compare.js): this week (Monday, UTC) against last week, or the
+// last 28 days against the 28 before.
+export const PERIODS = [{ key: 'week', label: 'This week vs last week', before: 'last week' }, { key: 'month', label: 'Last 4 weeks vs the 4 before', before: 'the 4 weeks before' }];
+export function periodRanges(period, now = Date.now()) {
+  if (period === 'month') return { current: [now - 28 * DAY, now + 1], previous: [now - 56 * DAY, now - 28 * DAY] };
+  const from = weekStart(now); return { current: [from, now + 1], previous: [from - 7 * DAY, from] };
+}
+export function metricCells(turns, { type = 'all', now = Date.now(), period = 'week' } = {}) {
+  const scoped = ofType(turns, type), { current, previous } = periodRanges(period, now), before = (PERIODS.find(p => p.key === period) ?? PERIODS[0]).before;
+  const within = ([from, to]) => scoped.filter(t => ms(t.at) >= from && ms(t.at) < to);
+  const thisPeriod = figures(within(current)), lastPeriod = figures(within(previous));
   return METRICS.map(m => {
-    const a = thisWeek[m.key], b = lastWeek[m.key], v = verdict(m, a, b);
+    const a = thisPeriod[m.key], b = lastPeriod[m.key], v = verdict(m, a, b);
     return { key: m.key, label: m.label, value: a.value === null ? '—' : m.format(a.value), verdict: v[0].toUpperCase() + v.slice(1), tone: TONE[v] ?? 'plain',
-      was: b.value === null ? 'nothing last week' : `vs ${m.format(b.value)}`, sample: a.value === null ? `no ${m.noun[1]}` : count(a.n, m.noun), explain: m.explain, better: m.higher ? 'Higher is better.' : 'Lower is better.' };
+      was: b.value === null ? `nothing ${before}` : `vs ${m.format(b.value)}`, sample: a.value === null ? `no ${m.noun[1]}` : count(a.n, m.noun), explain: m.explain, better: m.higher ? 'Higher is better.' : 'Lower is better.' };
   });
 }
 
