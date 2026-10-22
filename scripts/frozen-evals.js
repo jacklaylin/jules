@@ -140,6 +140,8 @@ const report = frozenReport(results, cases);
 const chat = model ?? chatModel(env);
 console.log(`Frozen eval set · ${report.cases} cases${areas ? ` in ${areas.join(', ')}` : ''} × ${runs} run${runs === 1 ? '' : 's'} · chat ${chat} · judge ${judgeModels(env).join(' + ')} · ${Math.round((Date.now() - started) / 1000)}s\n`);
 console.log(`PASS RATE  ${pct(report.pass_rate)}  (${results.filter(r => r.passed).length}/${report.runs} runs)\n`);
+const rr = report.replies;
+console.log(`Replies: stitched ${pct(rr.stitched_share)} · false save/alert claims caught ${rr.false_claims} (${pct(rr.false_claim_share)} of runs) · any check rejection ${pct(rr.rejected_share)} · written by the writer ${pct(rr.writer_share)}${env.CHAT_NARRATE === 'on' ? ' (CHAT_NARRATE on)' : ''} · mean turn ${rr.mean_seconds?.toFixed(1)}s\n`);
 for (const c of report.categories) console.log(`  ${pct(c.pass_rate)}  ${c.category.padEnd(30)} ${c.passes}/${c.runs}`);
 console.log('\nBy criterion:');
 for (const c of report.criteria) console.log(`  ${pct(c.pass_rate)}  ${c.label.padEnd(30)} ${c.scored} scored`);
