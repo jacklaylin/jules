@@ -124,6 +124,18 @@ test('the re-offer is recorded once, only while offered, never after a decline o
  const failing={recordOnboardingReoffer:async()=>{throw Error('column missing');}};
  assert.equal(await reoffer(failing,{state:'offered',reoffered_at:null}),null);
 });
+test('no re-offer once Gmail or Shop is connected, though the state still says offered',async()=>{
+ const session={state:'offered',reoffered_at:null};
+ for(const row of [{token_ciphertext:'sealed',data:{}},{token_ciphertext:null,data:{job:{status:'ready'}}},{data:{connections:{shop:{status:'ready',imported_at:'2026-10-21T00:00:00Z'}}}}]){
+  const store={...reofferStore(),gmailImport:async()=>row};
+  assert.equal(await reoffer(store,session),null);
+  assert.deepEqual(store.marks,[]);
+  assert.equal((await onboardingContext(session,gmail,store,conversation.id)).reoffer_available,false);
+ }
+ // An unreadable import row never re-offers; no row (never connected) still can.
+ assert.equal(await reoffer({...reofferStore(),gmailImport:async()=>{throw Error('down');}},session),null);
+ assert.match(await reoffer({...reofferStore(),gmailImport:async()=>null},session),/onboarding/);
+});
 test('the agent sees whether the re-offer is open, with clicks only while it is',async()=>{
  const store=reofferStore();
  assert.deepEqual(await onboardingContext({state:'offered',reoffered_at:null},gmail,store,conversation.id),{state:'offered',style_reading_available:false,gmail_import:true,reoffer_available:true,product_link_clicks:2});
