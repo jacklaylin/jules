@@ -1,7 +1,7 @@
 import {mountAdminShell,adminJson,adminToken,skeletonRows,metricCell} from './admin-console.js';
 import {readPage,savePage,sameData} from './list-cache.js';
 import {ago} from './admin-people-view.js';
-import {testerCells,weekCells,summaryCells,qualitySummaryCells,qualityTesterCells,qualityWeekCells,usedKinds,missRow} from './adoption-view.js';
+import {testerCells,weekCells,summaryCells,qualitySummaryCells,qualityTesterCells,qualityWeekCells,usedKinds} from './adoption-view.js';
 // Admin › Adoption: each tester's furthest step on the delegation ladder, and the ladder week by week.
 mountAdminShell('adoption');
 const $ = id => document.getElementById(id);
@@ -82,13 +82,6 @@ function renderQuality(q, testers) {
   if (!q.weeks.length) $('quality-weeks').append(el('tr', {}, el('td', { colSpan: 5, className: 'dv-empty', textContent: 'Nothing recorded yet.' })));
   $('quality-photos').replaceChildren(...q.photo_outcomes.map(o => el('tr', {}, cell('Outcome', el('strong', { textContent: o.label })), cell('Photos', String(q.photos.outcomes[o.key] ?? 0), 'end num'), cell('Meaning', o.explain, 'muted'))));
   $('quality-photo-note').textContent = `${q.photos.total} photo messages in all. ${q.photos.saved} led to a wishlist save${q.photos.corrected ? `, ${q.photos.corrected} of them later corrected` : ''}. Owner test photos are left out.`;
-  $('quality-misses').replaceChildren(...q.misses.map(m => {
-    const c = missRow(m, q.kinds);
-    return el('tr', {}, cell('Date', c.date), cell('Tester', el('a', { className: 'tester-link', href: c.href, textContent: c.tester, title: 'Open this message in the conversation' })),
-      cell('Kind', el('span', { className: 'badge warn', textContent: c.kind })),
-      cell('What happened', el('span', { className: 'miss-summary' }, c.summary, c.about ? el('small', { textContent: c.about }) : null)));
-  }));
-  if (!q.misses.length) $('quality-misses').append(el('tr', {}, el('td', { colSpan: 4, className: 'dv-empty', textContent: 'No misses recorded.' })));
 }
 
 // Purchase nudges (lib/nudges.js nudgeSummary). Loaded on its own; a failed read only hides this section.

@@ -56,7 +56,6 @@ export function summaryCells(summary){
 }
 
 // ---------- Quality (lib/adoption-quality.js) ----------
-const ABOUT={previous_reply:'the reply just before',earlier_reply:'an earlier reply',overall:'the conversation overall'};
 const n=(count,[one,many])=>`${count} ${count===1?one:many}`;
 export const shortDate=at=>new Date(at).toLocaleDateString(undefined,{month:'short',day:'numeric',timeZone:'UTC'});
 // Photos Jules searched for: everything except unreadable photos, no reply, and photos that weren't a product search.
@@ -95,13 +94,3 @@ export function qualityWeekCells(week,kinds,outcomes){
 // Kinds that occur at least once, so the weekly table only has the columns it needs.
 export const usedKinds=q=>q.kinds.filter(k=>q.weeks.some(w=>w.by_kind[k.key]));
 
-// One miss to read, linking to its message in the tester's conversation.
-export function missRow(miss,kinds){
- return {
-  date:shortDate(miss.at),tester:miss.sender_id??'Unknown tester',
-  href:`/admin/people/${miss.conversation_id}?tab=conversation&message=${miss.id}`,
-  kind:kinds.find(k=>k.key===miss.kind)?.label??miss.kind,
-  about:ABOUT[miss.about]?`About ${ABOUT[miss.about]}`:'',
-  summary:miss.summary??'No summary recorded.',
- };
-}

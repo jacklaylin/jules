@@ -41,7 +41,7 @@
       <dt>By feature</dt><dd>Estimates from every OpenAI and SerpApi call Jules makes, split by what it was for. Eval test runs are under Evals. Billed totals (By service) are the source of truth.</dd>
       <dt>By person</dt><dd>Each person’s metered OpenAI and SerpApi spend for today and this month (UTC), at today’s list prices, against their spending cap. It always shows the current day and month, whatever date is picked. Caps are set in Vercel (COST-CAPS.md); with none set, nobody is limited. Photon, Vercel and Supabase fees are shared and not split per person.</dd>
       <dt>Recurring jobs</dt><dd>Every scheduled job from <code>lib/jobs.js</code>; a test fails if one is scheduled without being listed, and Supabase jobs not listed show as untracked. Costs are estimates of each job’s OpenAI and SerpApi calls (also counted By feature); compute time is in the Vercel and Supabase rows. Projected is the month so far averaged per day, times the days in the month. A job is flagged when it is over or projected over its monthly budget, when a day costs more than double its daily average, or when it stops running.</dd>
-      <dt>Evals</dt><dd>Owner test runs from the replay gate and the Replays &amp; evals page, estimated the same way. They are not user activity.</dd>
+      <dt>Evals</dt><dd>Owner test runs from the replay gate, estimated the same way. They are not user activity.</dd>
     </dl></details>
 
     <section id="tool-entry" class="dv-tool" aria-labelledby="tool-entry-title" hidden>

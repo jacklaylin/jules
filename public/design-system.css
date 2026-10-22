@@ -369,20 +369,6 @@ button.small{min-height:32px;padding:0 14px;font-size:13px}
 /* AdminPage stack: a page's AdminCards, one under another. */
 .dv-cards{display:flex;flex-direction:column;gap:24px;margin-top:20px}.dv-cards>.dv-cards{margin-top:0}.dv-cards[hidden]{display:none}
 .dv-card-foot{margin:0;font-size:12px;color:var(--text-2);border-top:1px solid var(--line);padding-top:12px}.dv-card-foot strong{color:var(--ink)}
-/* AdminForm: fields in a responsive grid inside an AdminCard (label text above its control), consent checkboxes on
-   their own line, one actions row (one butter at most, the rest quiet), a status line in words, and raw output in a
-   scrolling mono block. */
-.dv-form{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px 16px;margin:0;align-items:end}
-.dv-form label{display:grid;gap:6px;min-width:0;font-size:13px;font-weight:600;color:var(--ink)}
-.dv-form label>input:not([type=checkbox]):not([type=radio]),.dv-form label>select,.dv-form label>textarea{margin:0;font-weight:400}
-.dv-form .dv-form-wide{grid-column:1/-1}
-.dv-form .dv-form-check{grid-column:1/-1;display:flex;align-items:flex-start;gap:10px;font-weight:400;color:var(--text-2);line-height:1.5}
-.dv-form-actions{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center}.dv-form-actions .spacer{flex:1}
-.dv-form-status{margin:0;font-size:13px;color:var(--text-2);overflow-wrap:anywhere}.dv-form-status:empty{display:none}
-.dv-output{margin:0;max-height:480px;overflow:auto;padding:14px 16px;background:var(--fog);border-radius:12px;font:400 12px/1.5 var(--font-mono);white-space:pre-wrap;overflow-wrap:anywhere}.dv-output:empty{display:none}
-.dv-results{display:flex;flex-direction:column}.dv-results:empty{display:none}
-.dv-results article{display:grid;gap:6px;padding:14px 0;border-top:1px solid var(--line)}.dv-results article:first-child{border-top:0;padding-top:0}
-.dv-results h3{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0;font:600 14px var(--font-sans)}.dv-results p{margin:0;font-size:12px;color:var(--text-2);overflow-wrap:anywhere}
 /* SplitBar: how a total splits into parts, with counts beside it. Part widths are set through the style object
    (flex-grow), never a style attribute. Full size above a table with a legend; compact (8px) inside a table cell. */
 .split-bar{display:flex;flex-direction:column;gap:8px}
