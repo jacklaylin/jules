@@ -3,8 +3,7 @@ import '../lib/usage.js';
 import { randomUUID } from 'node:crypto';
 import { authorize } from '../lib/auth.js';
 import { createStore } from '../lib/store.js';
-import { FIELDS, remember, tasteSummary } from '../lib/memory.js';
-import { sizeKeyShape } from '../lib/relevance.js';
+import { FIELDS, FIELD_FORMS, factFormatError, remember, tasteSummary } from '../lib/memory.js';
 import { json, readJson, uuid } from '../lib/http.js';
 export const config = { api: { bodyParser: false }, maxDuration: 60 };
 export function createProfileHandler({ auth = authorize, storeFactory = createStore, extract, env = process.env } = {}) {
@@ -27,7 +26,9 @@ export function createProfileHandler({ auth = authorize, storeFactory = createSt
       } else if (['set','remove'].includes(input.action)) {
         if (!FIELDS.includes(input.field) || typeof input.key !== 'string' || !input.key.trim() || input.key.length > 100 ||
           typeof input.value !== 'string' || input.value.length > 500 || (input.action === 'set' && !input.value.trim()) || !Number.isInteger(input.version)) return json(res,400,{error:'Enter a valid preference.'});
-        if (input.action === 'set' && input.field === 'size' && !sizeKeyShape(input.key)) return json(res,400,{error:'Size keys are category/system or category/system/brand, for example trousers/waist or shoes/eu/acme.'});
+        // The same format rules as facts learned in chat (lib/memory.js factFormatError).
+        const formatError = input.action === 'set' ? factFormatError(input) : null;
+        if (formatError) return json(res,400,{error:formatError});
         const existing = await store.profile(input.conversation);
         if (existing.version !== input.version) return json(res,409,{error:'The profile changed. Reload it before editing.'});
         const entry = { id:'operator:'+randomUUID(),kind:'operator_entry',origin:'operator',source:{type:'operator'},
@@ -41,7 +42,8 @@ export function createProfileHandler({ auth = authorize, storeFactory = createSt
         if (!await store.saveProfile(input.conversation,existing.version,facts)) return json(res,409,{error:'The profile changed. Reload it before editing.'});
         profile = {facts,version:existing.version+1};
       } else return json(res,400,{error:'Unknown profile action.'});
-      return json(res,200,{...profile,summary:tasteSummary(profile.facts),limited});
+      // fields: every field a fact can have, with how to enter it, so Admin's add form and table follow lib/memory.js.
+      return json(res,200,{...profile,summary:tasteSummary(profile.facts),limited,fields:Object.entries(FIELD_FORMS).map(([field,form])=>({field,...form}))});
     } catch {
       console.error(JSON.stringify({event:'profile_request_failed'}));
       return json(res,503,{error:'Could not update memory. Existing saved preferences are intact; reload before trying again.'});

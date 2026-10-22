@@ -59,3 +59,15 @@ test('brandCounts reads as plain words',()=>{
  assert.equal(brandCounts({bought:2,bought_recently:2,wishlisted:1}),'bought 2, 2 recent · saved 1');
  assert.equal(brandCounts({}),'');
 });
+
+test('store taste works like brands: weight on a store they named, a Seen row for one they never named, topics from the field list',()=>{
+ const said=[fact('store','ssense','prefers when stock matches'),fact('material','linen','loves it')];
+ const taste=derived('store_taste',{stores:[{store:'SSENSE',said:{value:'x'},ordered:20,returned:2,weight:10},{store:'Grailed',ordered:12,last_order:'2026-10-01',weight:10},{store:'Depop',liked:2,weight:6}]});
+ const {rows,notes}=knowledgeView([...said,taste]);
+ assert.deepEqual(notes['store|ssense'],{topic:'Budget and stores',weight:10,seen:'ordered 20, 2 returned'});
+ assert.equal(notes['material|linen'].topic,'Style','a field’s topic comes from lib/memory.js FIELD_FORMS');
+ const grailed=rows.find(r=>r.about==='Grailed');
+ assert.deepEqual([grailed.kind,grailed.weight,grailed.value,grailed.source,grailed.when],['seen',10,'ordered 12','Purchases','2026-10-01']);
+ assert.equal(rows.find(r=>r.about==='Depop').source,'Likes');
+ assert.equal(rows.some(r=>r.about==='SSENSE'),false,'a store they named is their own row');
+});
