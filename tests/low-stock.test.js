@@ -221,3 +221,39 @@ test('chat status reports the last verified low reading and whether it was alrea
 test('stock counts accept only watched stores and sizes',()=>{
  assert.deepEqual(stockCounts(checksOf(row(1),row(1,{size:'31'})),['32'],[ssense]).map(c=>c.size),['32']);
 });
+
+// Step 3 (October 22): stores that state a count in their own size picker. Markup as the live pages publish it.
+const slamjam='https://slamjam.com/products/nike-footwear-air-max-90-sp-black-j373334';
+const slamjamPage=({sizes=[['6',1,'48844520161485'],['9',4,'48844520358093']],form='-9145172951245',colors=null,color}={})=>ld({'@type':'Product',name:'Air Max 90 SP Sneakers Black',...(color?{color}:{}),offers:{price:'160.00',priceCurrency:'EUR',availability:'https://schema.org/InStock'}})
+ +(colors?`<script>var v=${JSON.stringify(colors.map(([id,options])=>({id:Number(id),public_title:options.join(' / '),options,available:true})))};</script>`:'')
+ +sizes.map(([size,q,id,f=form])=>`<input type="radio" autocomplete='off' data-quantity='${q}' id="9145172951245-${id}-desktop" name="${size}" value="${id}" form="${f}" price-value="€160,00" >`).join('');
+const dries='https://driesvannoten.com/products/262-010906-4046';
+const driesPage=(qty={34:3,36:1,44:2},{colorPickers=1,sizeLists=1}={})=>ld({'@type':'Product',name:'Overdyed cotton pants',offers:{price:'690.00',priceCurrency:'USD',availability:'https://schema.org/InStock'}})
+ +'<div class="select-option-color"></div>'.repeat(colorPickers)+'<div class="select--lists select-list-size">'.repeat(sizeLists)
+ +Object.entries(qty).map(([size,q])=>`<div class="product__select-option select-option-size " data-size="${size}" data-qty="${q}" > ${size} </div>`).join('')+'</div>';
+const read=async(url,name,html,sizes,extra={})=>(await readSizeOffers({url,name,watched_sizes:sizes,...extra},async()=>new Response(html,{status:200,headers:{'content-type':'text/html'}}))).counts??[];
+
+test('Slam Jam’s and Dries Van Noten’s own per-size counts are read for the watched sizes',async()=>{
+ assert.deepEqual((await read(slamjam,'Air Max 90 SP Sneakers Black',slamjamPage(),['6','9','10'])).map(c=>[c.size,c.quantity,c.quantity_source]),[['6',1,'slamjam_size_quantity'],['9',4,'slamjam_size_quantity']],'a size the picker doesn’t list stays unknown');
+ assert.deepEqual((await read(dries,'Overdyed cotton pants',driesPage(),['36','44','48'])).map(c=>[c.size,c.quantity,c.available]),[['36',1,true],['44',2,true]]);
+ assert.deepEqual((await read(dries,'Overdyed cotton pants',driesPage({36:0}),['36'])).map(c=>[c.quantity,c.available]),[[0,false]],'0 is the store saying it’s gone');
+});
+
+test('a store picker that isn’t clearly this product and color is unknown',async()=>{
+ assert.deepEqual(await read(slamjam,'Air Max 90 SP Sneakers Black',slamjamPage({sizes:[['6',1,'48844520161485'],['9',4,'48844520358093','-111']]}),['6']),[],'two product forms');
+ assert.deepEqual(await read(dries,'Overdyed cotton pants',driesPage(undefined,{colorPickers:2}),['36']),[],'several colors in one picker');
+ assert.deepEqual(await read(dries,'Overdyed cotton pants',driesPage(undefined,{sizeLists:2}),['36']),[],'two size pickers');
+ assert.deepEqual(await read(dries,'Another product entirely',driesPage(),['36']),[],'the page isn’t the watched product');
+ // Two colors' variants in one Slam Jam picker: the watched color decides; without one it's ambiguous.
+ const twoColors=slamjamPage({sizes:[['6',1,'48844520161485'],['6',3,'48844520161999']],colors:[['48844520161485',['6','Black']],['48844520161999',['6','White']]]});
+ assert.deepEqual(await read(slamjam,'Air Max 90 SP Sneakers Black',twoColors,['6']),[]);
+ const whitePage=slamjamPage({sizes:[['6',1,'48844520161485'],['6',3,'48844520161999']],colors:[['48844520161485',['6','Black']],['48844520161999',['6','White']]],color:'White'});
+ assert.deepEqual((await read(slamjam,'Air Max 90 SP Sneakers Black',whitePage,['6'],{color:'White'})).map(c=>c.quantity),[3]);
+});
+
+test('Dries and Slam Jam counts feed the same once-per-episode decision',()=>{
+ const alert={...alertWith({links:[{url:dries}]}),size:'36'};
+ const decision=decideLowStock(alert,[{url:dries,status:'checked',offers:[],counts:[{size:'36',key:'36',url:dries,quantity:1,available:true,quantity_source:'dries_size_quantity'}]}],{sizes:['36'],urls:[dries],readable:true});
+ assert.deepEqual([decision.would_send,decision.lowest.quantity],[true,1]);
+ assert.equal(lowStockMessage({name:'Overdyed cotton pants'},decision.lowest),`heads up: Dries Van Noten shows only 1 left of your saved Overdyed cotton pants, size 36.\n${dries}`);
+});

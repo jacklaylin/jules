@@ -38,6 +38,16 @@ test('scoring checks tool, nested arguments, set-valued indices, forbidden tools
   assert.match(scoreAgentEval(quiet,[{name:'respond_to_options',args:{}},{name:'record_quality_signal',args:{kind:'other'}}]).failures[0],/unexpected record_quality_signal/);
   assert.equal(scoreAgentEval(quiet,[{name:'respond_to_options',args:{}}]).passed,true);
 });
+test('a constraint list is graded on what it names, not its wording',()=>{
+  const more=AGENT_EVAL_CASES.find(x=>x.id==='more-keeps-colour-garment'),navy=AGENT_EVAL_CASES.find(x=>x.id==='refine-colour-change');
+  const plan=hard_constraints=>[{name:'find_products',args:{search_plan:{continuation:'same_request',hard_constraints}}}];
+  assert.equal(scoreAgentEval(more,plan(['Half-zip sweater','bright red'])).passed,true);
+  assert.equal(scoreAgentEval(more,plan(['red chunky knit quarter zip'])).passed,true);
+  assert.equal(scoreAgentEval(more,plan([])).passed,false);
+  assert.equal(scoreAgentEval(more,plan(['bright red'])).passed,false);
+  assert.equal(scoreAgentEval(navy,plan(['half zip','navy'])).passed,true);
+  assert.equal(scoreAgentEval(navy,plan(['half zip','navy','bright red'])).passed,false);
+});
 test('eval scoring follows the loop: refused calls and the closing message do not count; multi-step cases need every step',async()=>{
   const call=(name,args,call_id)=>({type:'function_call',name,arguments:JSON.stringify(args),call_id});
   const output=(call_id,status)=>({type:'function_call_output',call_id,output:JSON.stringify({status})});
