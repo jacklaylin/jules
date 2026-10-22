@@ -39,7 +39,9 @@ test('only items in the wardrobe count: no gifts, returns, removed or never-boug
  for(const gone of ['scarf','coat','sweater','boots','accessories','outerwear','shoes','boxer','other'])assert.ok(!all.includes(gone),gone);
  // Grouped by item type: shirts apart from t-shirts, trousers apart from denim.
  assert.deepEqual(s.groups.map(c=>[c.group,c.items]),[['shirts',3],['denim',1],['tops',1],['trousers',1]]);
- assert.equal(s.about.includes('not wearing or liking'),true);
+ assert.equal(s.about,undefined);
+ // A summary cached with its old about text: the fact the readers see leaves it out.
+ assert.equal(JSON.parse(closetFact({...s,about:'old text'}).value).about,undefined);
  // Each brand's owned items by group, for brand_taste; basics (the boxer briefs) are left out, and the
  // per-brand list stays off the fact the stylist and search read.
  // The fixtures' purchase dates are in 2023, so none is recent. The returned coat is not counted.

@@ -47,6 +47,22 @@ place of the raw favourites), and the ranker sees each candidate brand's entry. 
 leaves out the raw brand statements. It is soft taste: never a filter or a loyalty claim, and avoids and
 corrections stated elsewhere still win.
 
+## Size per turn
+
+October 22: a well-known person's profile was about 4,600 tokens, sent on every agent round of every turn, and each
+derived row carried its own explanation (`meaning`, `about`). Rows now carry data only. How to read each derived
+source is written once in `lib/context-guide.js` and added to the instructions of every model that reads the rows
+(the chat agent, discovery ranking, the stylist and the purchase-import questions), where the prompt cache keeps it.
+The chat agent's shopping rules already explain `shopping_history`, `wardrobe` and `outfit_photos`, so its guide
+covers only the rest. Summaries cached before this still have the old text; it is left out when the row is built.
+
+With `CHAT_CONTEXT_ROUTING=on`, the chat router's picks (CHAT-SKILLS.md) also choose which derived sources a turn's
+agent reads (`JOB_CONTEXT` in `lib/skills/router.js`): search, alternatives, options and profile turns read all of
+them; conversation, history, save and saved-item turns read only what their rules use. Stated facts always go in.
+When the router is unsure or fails, everything goes in. It is off by default: the turn then waits for the router
+(about 0.5–1 s, alongside the link check), and the router's recall gate (98%, CHAT-SKILLS.md step 12) is not yet
+met. Measure one person with `node --env-file=.env.local scripts/profile-size.js <conversation id>`.
+
 ## Taste coverage reads the layer
 
 October 22: taste coverage and the early read (`readTasteInputs`, lib/coverage.js) kept their own copy of the

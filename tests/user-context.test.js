@@ -84,3 +84,18 @@ test('search constraints, the stylist and ranking all read the same taste view',
  await rankDiscoveryProducts(products,{query:'a coat for my dad',facts,forSomeoneElse:true,env,fetcher:rankFetch});
  assert.ok(!JSON.stringify(rankInput).includes('90s minimal'));
 });
+
+test('derived rows carry data only; how to read them is in each reader\'s instructions',async()=>{
+ // A purchase summary cached before October 22 still carries its meaning text: the row leaves it out.
+ const old={...history,summary:{...history.summary,top_brands:[{name:'The Row',count:2,recent:1}],meaning:'Receipt-derived shopping history: soft evidence.'}};
+ const context=await readUserContext({...store(),purchaseHistory:async()=>old},'owner',env,{log:quiet});
+ const row=JSON.parse(context.facts.find(f=>f.field==='shopping_history').value);
+ assert.equal(row.meaning,undefined);
+ assert.equal(row.top_brands,undefined,'brand_taste holds them');
+ assert.ok(context.facts.some(f=>f.field==='brand_taste'));
+ const {STYLIST_PROMPT}=await import('../lib/stylist.js');
+ assert.match(STYLIST_PROMPT,/liked_items: items they liked/);assert.match(STYLIST_PROMPT,/wishlist: items they saved/);
+ let instructions='';
+ await rankDiscoveryProducts([{brand:'A',name:'a'},{brand:'B',name:'b'}],{query:'shirt',facts:context.facts,env,fetcher:async(_u,o)=>{instructions=JSON.parse(o.body).instructions;return {ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:'{"indices":[0,1],"rejected_indices":[],"unlike_references_indices":[]}'}]}]})};}});
+ assert.match(instructions,/brand_taste: the brands they like/);
+});
