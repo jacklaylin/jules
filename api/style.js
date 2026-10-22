@@ -1,5 +1,7 @@
 // Loads first so the cost meter wraps fetch before any handler below keeps a reference to it.
 import '../lib/usage.js';
+import {readUserContext,tasteView} from '../lib/user-context.js';
+import {brandTasteOf,brandTasteLine} from '../lib/brand-taste.js';
 import { createStore } from '../lib/store.js';
 import { withUsage } from '../lib/usage.js';
 import { wishlistUser } from '../lib/wishlist.js';
@@ -107,8 +109,12 @@ export function createStyleHandler({env=process.env,storeFactory=createStore,aut
         const pending={...state.data,busy_until:new Date(Date.now()+150000).toISOString()};
         if(!await save(state.revision,pending))throw fail('Your inputs changed. Reload before analyzing.',409);
         reservation={revision:state.revision+1,data:state.data};
-        const profile=env.MEMORY_ENABLED==='true'&&store.profile?await store.profile(owner):{facts:[]};
-        const facts=(profile.facts??[]).filter(f=>!f.deleted&&f.source!=='style_report'&&['style','brand','category','budget','size'].includes(f.field)).map(({field,key,value})=>({field,key,value}));
+        // The user context layer's view (USER-CONTEXT.md step 3): brands as one reading across chat, purchases,
+        // wishlist and likes, not the raw statements. Earlier style-report confirmations stay out (no echo).
+        const context=env.MEMORY_ENABLED==='true'&&store.profile?(await readUserContext(store,owner,env)).facts:[];
+        const own=context.filter(f=>f.source!=='style_report'),brands=brandTasteOf(own);
+        const facts=[...tasteView(own,{person:true}).filter(f=>['style','category','budget','size',...(brands?[]:['brand'])].includes(f.field)),
+          ...(brands?.length?[{field:'brand',key:'taste',value:brandTasteLine(brands)}]:[])];
         const {report,evidence}=withObservationEvidence(await withUsage({store,env,conversation:owner,operation:'style:analyze:'+state.revision,feature:'style_reading',},()=>analyze(sources,state.data.notes,env,fetcher,facts)));
         const data={...state.data,report,busy_until:null};
         if(!await save(reservation.revision,data,{evidence}))throw fail('Your inputs changed during analysis. Reload to see the current version.',409);
