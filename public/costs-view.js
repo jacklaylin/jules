@@ -32,6 +32,14 @@ export function totalLine(data, period = 'month') {
   return { amount: money(month), label: label + (month === null ? '' : partial) };
 }
 
+// Lifetime since the build started, through the selected date. Missing services are named by month.
+export function lifetimeText(data) {
+  const l = data?.lifetime;
+  if (!l) return '';
+  const missing = l.gaps.map(g => `${g.services.join(', ')} in ${monthName(g.month + '-01')}`).join('; ');
+  return `Lifetime since ${monthName(l.since + '-01')}: ${money(l.total)} through ${l.through}${l.total !== null && missing ? ` · known part only (missing ${missing})` : ''}`;
+}
+
 // The status line: coverage, then the budget. over = the day's known spend is above the warning budget.
 export function coverageText(data) {
   return data.incomplete.length ? `Incomplete: ${data.incomplete.join(', ')}, so totals include only what is known` : 'Every service is covered';

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Readable} from 'node:stream';
-import {welcomeTester,onboardingAction,createOnboardingHandler} from '../lib/onboarding.js';
+import {welcomeTester,onboardingAction,onboardingContext,createOnboardingHandler} from '../lib/onboarding.js';
 import {generateReply} from '../lib/ai.js';
 import {agentTurn,tool,agentContext,toolNames,toolOutputs} from './helpers/agent.js';
 const env={ONBOARDING_ENABLED:'true',SITE_ORIGIN:'https://jules.example'};
@@ -104,4 +104,51 @@ test('the onboarding page greets testers by the first name they signed up with, 
  const f=fixture();f.store.signupFirstName=async id=>{assert.equal(id,conversation.id);return 'Ada';};
  let res=response();await api(f)(request(),res);assert.equal(res.data.first_name,'Ada');
  f.store.signupFirstName=async()=>{throw Error('down');};res=response();await api(f)(request(),res);assert.equal(res.statusCode,200);assert.equal(res.data.first_name,null);
+});
+// The one chat re-offer for someone who skipped the welcome and shopped (lib/onboarding.js reoffer).
+const gmail={...env,GMAIL_IMPORT_ENABLED:'true'};
+function reofferStore(){let reofferedAt=null;const marks=[];
+ return {marks,reoffered:()=>reofferedAt,linkClicks:async()=>2,recordOnboardingReoffer:async()=>{marks.push(1);if(reofferedAt)return false;reofferedAt='now';return true;}};}
+const reoffer=(store,session,e=gmail)=>onboardingAction('reoffer',{conversationId:conversation.id,session,store,env:e});
+test('the re-offer is recorded once, only while offered, never after a decline or without the real import',async()=>{
+ const store=reofferStore();
+ assert.match(await reoffer(store,{state:'offered',reoffered_at:null}),/sizes and favorite stores from your receipts: https:\/\/jules\.example\/onboarding$/);
+ assert.equal(store.reoffered(),'now');
+ // A second turn racing the first, or one after it, gets nothing: the database records one re-offer.
+ assert.equal(await reoffer(store,{state:'offered',reoffered_at:null}),null);
+ assert.equal(await reoffer(store,{state:'offered',reoffered_at:'earlier'}),null);
+ const untouched=reofferStore();
+ for(const session of [{state:'declined',reoffered_at:null},{state:'accepted',reoffered_at:null},{state:'ready',reoffered_at:null},{state:'offered'},null])assert.equal(await reoffer(untouched,session),null);
+ assert.equal(await reoffer(untouched,{state:'offered',reoffered_at:null},env),null);
+ assert.deepEqual(untouched.marks,[]);
+ const failing={recordOnboardingReoffer:async()=>{throw Error('column missing');}};
+ assert.equal(await reoffer(failing,{state:'offered',reoffered_at:null}),null);
+});
+test('the agent sees whether the re-offer is open, with clicks only while it is',async()=>{
+ const store=reofferStore();
+ assert.deepEqual(await onboardingContext({state:'offered',reoffered_at:null},gmail,store,conversation.id),{state:'offered',style_reading_available:false,gmail_import:true,reoffer_available:true,product_link_clicks:2});
+ assert.deepEqual(await onboardingContext({state:'declined',reoffered_at:null},gmail,{linkClicks:()=>assert.fail('not read')},conversation.id),{state:'declined',style_reading_available:false,gmail_import:true,reoffer_available:false});
+ assert.equal((await onboardingContext({state:'offered',reoffered_at:null},gmail,{linkClicks:async()=>{throw Error('down');}},conversation.id)).product_link_clicks,0);
+ assert.deepEqual(await onboardingContext(null,{...gmail,STYLE_ENABLED:'true'},store,conversation.id),{state:null,style_reading_available:true,gmail_import:true});
+});
+test('the agent loop re-offers once, after a positive sign, as a line after the message',async()=>{
+ const options=[{brand:'Example',name:'Satin Shirt',url:'https://shop.example/a'},{brand:'Sample',name:'Mesh Shirt',url:'https://shop.example/b'}];
+ const turn=async({decision,clicks=0,open=true,first='respond_to_options'})=>{
+  const ran=[];let calls=0;
+  const reply=await generateReply([{direction:'outbound',status:'sent',body:'1. Example Satin Shirt 2. Sample Mesh Shirt'},{direction:'inbound',body:'synthetic reaction'}],{OPENAI_API_KEY:'test',SEARCH_ENABLED:'true',WISHLIST_ENABLED:'true'},async(_url,request)=>{
+   if(!JSON.parse(request.body).tools)return {ok:true,json:async()=>({status:'completed',output:[]})};
+   calls++;
+   if(calls===2){const out=toolOutputs(request).at(-1);assert.equal(Boolean(out.onboarding_reoffer),ran.includes('reoffer'));if(out.onboarding_reoffer)assert.match(out.onboarding_reoffer,/Do not mention onboarding/);}
+   return agentTurn(calls===1?(first==='respond_to_options'?tool('respond_to_options',{decision,option_indices:[0]}):tool('find_products',{query:'long sleeve club shirts'})):tool('conversation_reply',{response:'good pick.'}));
+  },{wishlistState:{stage:'choice',options},wishlistAction:async()=>'recorded.',
+   onboarding:{state:'offered',reoffer_available:open,...(open?{product_link_clicks:clicks}:{})},onboardingAction:async action=>{ran.push(action);return 'connect here: https://jules.example/onboarding';}});
+  return {reply,ran};
+ };
+ assert.deepEqual(await turn({decision:'interest'}),{reply:'good pick.\n\nconnect here: https://jules.example/onboarding',ran:['reoffer']});
+ // A rejection is no positive sign without a recorded click; with one, the next shopping action re-offers.
+ assert.deepEqual(await turn({decision:'decline'}),{reply:'good pick.',ran:[]});
+ assert.deepEqual((await turn({first:'find_products',clicks:1})).ran,['reoffer']);
+ assert.deepEqual((await turn({first:'find_products',clicks:0})).ran,[]);
+ // Closed (declined, already re-offered, demo): never.
+ assert.deepEqual(await turn({decision:'interest',open:false}),{reply:'good pick.',ran:[]});
 });
