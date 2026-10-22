@@ -80,6 +80,7 @@ Built (PR 2): outcomes are computed from these rows on read (`scripts/turn-outco
 ### PR 3 — Nightly LLM judge
 
 - **Schedule:** Supabase `pg_cron` calls an existing function every 10 minutes between 2 and 4 am Pacific (same pattern and secret as the Gmail sweep), so no new service and no new Vercel function (Hobby allows 12; we use 12). Each call judges a small batch within the 120 s limit and stops when the day is done; re-running never double-judges.
+- **Stalls show up (October 22):** the judge looks back 7 days and judges the oldest due turns first, so a missed night is caught up within the daily limit. An OpenAI billing refusal (out of credit, over the spend limit) stops the run at once. A run with due turns that judges none, other than for the daily limit, a missing key or the cost cap, is recorded as a failed run (`job_runs`, with `errors` and the last `error`), which Admin › Costs › Recurring jobs flags.
 - **Input per turn:** the user's message (and photo), the 6 turns before, Jules's reply, the structured search result (what each page check actually found: name, variant, price, stock, sizes), and the user's next message.
 - **Rubric** — each criterion `pass` / `fail` / `not_applicable` with a one-sentence neutral reason (no quotes, names or contact details, like quality signals):
   1. correct product identity and variant

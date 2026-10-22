@@ -42,6 +42,7 @@
       <a href="?tab=wishlist" data-tab="wishlist">Wishlist <span class="count" id="count-wishlist"></span></a>
     </nav>
     <p id="notice" role="status" aria-live="polite" class="muted"></p>
+    <p id="person-updated" class="dv-note person-updated"></p>
 
     <!-- Summary: what Jules knows, how much, and where it came from (lib/person-summary.js). Read-only. -->
     <section id="tab-summary" data-panel="summary" hidden>
@@ -75,6 +76,13 @@
           <p class="summary-figure"><strong id="quality-share">—</strong> <span id="quality-label">of shopping requests got a positive reaction</span> <span id="quality-count" class="muted"></span></p>
           <div id="quality-bar" class="summary-bar" role="img" aria-label="Loading how their requests ended"></div>
           <p id="quality-legend" class="summary-legend"></p>
+        </section>
+        <!-- Style report engagement (lib/report-engagement.js), from the same read as Adoption. -->
+        <section id="summary-report" class="summary-card" aria-labelledby="summary-report-title" aria-busy="true">
+          <div class="summary-head"><h2 id="summary-report-title">Style report</h2><span class="muted">all time</span></div>
+          <p class="summary-figure"><strong id="report-opened">—</strong> <span id="report-opened-label">times they opened it</span> <span id="report-last" class="muted"></span></p>
+          <dl id="report-facts" class="summary-facts" hidden></dl>
+          <p id="report-foot" class="summary-foot muted" hidden></p>
         </section>
         <section class="summary-card summary-text-now" aria-labelledby="summary-text-title">
           <div class="summary-head"><h2 id="summary-text-title">What Jules would text now</h2><span id="summary-text-kind" class="badge plain" hidden></span><span class="muted">Not sent</span></div>
