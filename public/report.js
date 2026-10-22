@@ -48,9 +48,12 @@ function firstOpen(){
  if(exportCard)return false;
  try{if(localStorage.getItem(openedKey(sharedToken)))return false;localStorage.setItem(openedKey(sharedToken),'1');return true;}catch{return false;}
 }
+// How the link was shared (?via=, set by the share sheet), so a friend's open and signup count for that method.
+const via=sharedToken?new URLSearchParams(location.search).get('via'):null;
+const viaParam=/^(copy|story|download|share_sheet)$/.test(via??'')?via:null;
 async function api(method,body){
  if(sharedToken){
-  const response=await fetch(`/api/wishlist?shared=${sharedToken}${firstOpen()?'&first=1':''}`,{cache:'no-store'});
+  const response=await fetch(`/api/wishlist?shared=${sharedToken}${firstOpen()?'&first=1':''}${viaParam?`&via=${viaParam}`:''}`,{cache:'no-store'});
   const result=await response.json().catch(()=>({}));
   if(!response.ok)throw Object.assign(Error(result.error||'Something went wrong. Try again.'),{status:response.status});
   return result;
@@ -76,7 +79,7 @@ const Theirs=()=>{const t=theirs();return t.charAt(0).toUpperCase()+t.slice(1);}
 // the link sticker. In the page, the Get your style report button does that job instead.
 const foot=(className='story-foot')=>el('footer',{className},report.shared&&exportCard&&el('span',{className:'story-ask'},'What about you?',el('span',{className:'story-where',textContent:`Text Jules · ${location.host}`})),wordmark());
 // A friend's way in: signup credited to this share link (Admin shows whose report brought them).
-const signupHref=()=>`/signup?ref=${/^u-[0-9a-f]{12}$/.test(report?.ref??'')?report.ref:'shared-report'}`;
+const signupHref=()=>`/signup?ref=${/^u-[0-9a-f]{12}$/.test(report?.ref??'')?report.ref:'shared-report'}${viaParam?`&utm_medium=${viaParam}`:''}`;
 // The receipt proves Jules has read the person's orders: member since, their first order, exact
 // products, a few fields (items kept, last order...) and one line of fine print. Reports built before
 // October 18 still end on their TOTAL line.
@@ -375,6 +378,7 @@ function renderCard(animate=true){
  $('vote-up').hidden=$('vote-down').hidden=quiet;
  if($('controls-label'))$('controls-label').hidden=quiet;
  show('view-card');
+ seenCard(card.type);
  // Measured once the card is on screen.
  fitCard();fitChips();fitRead();
 }
@@ -420,7 +424,8 @@ $('restart').onclick=()=>go(0);
 // Sharing: the person's own choice. The first tap makes an unguessable link; the phone's share sheet
 // opens when there is one, otherwise the link is copied. The link is permanent and always shows the
 // latest report (founder, 16 Oct: no turning it off).
-const shareUrl=()=>`${location.origin}/r/${report.share.token}`;
+// The link carries how it was shared (Admin › Style report: which method brings friends back).
+const shareUrl=(how=null)=>`${location.origin}/r/${report.share.token}${how?`?via=${how}`:''}`;
 // The server returns only the report; keep what came with the first load.
 const keep=next=>({...next,name:report.name,text_url:report.text_url,missing_sources:report.missing_sources,read_photos:report.read_photos});
 async function shareLink(){
@@ -429,12 +434,18 @@ async function shareLink(){
  return shareUrl();
 }
 // Each share, copy or download is counted (Admin › Adoption); never waited on, never in the way.
-function counted(channel){
+function record(body){
  if(readOnly)return;
- session.token().then(token=>token&&fetch('/api/wishlist?report=1',{method:'POST',keepalive:true,headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({action:'report-shared',channel})})).catch(()=>{});
+ session.token().then(token=>token&&fetch('/api/wishlist?report=1',{method:'POST',keepalive:true,headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify(body)})).catch(()=>{});
 }
+// A Story share or download also names the cards whose images went with it.
+const counted=(channel,cards=[])=>record({action:'report-shared',channel,cards});
+// Each card the owner reaches is counted once per report (the server keeps the count; this just avoids repeats).
+const seenCards=new Set();
+function seenCard(type){const key=`${report.id}:${type}`;if(readOnly||type==='locked'||seenCards.has(key))return;seenCards.add(key);record({action:'report-card-viewed',card:type});}
 // Older browsers and some in-app views block the clipboard API; the selection copy still works there.
-async function copyLink(url){
+async function copyLink(){
+ const url=shareUrl('copy');
  counted('copy');
  let copied=false;
  try{await navigator.clipboard.writeText(url);copied=true;}
@@ -445,7 +456,7 @@ async function copyLink(url){
 // Each card's Story image is a 1080×1920 screenshot of exactly what a friend sees (lib/report-image.js),
 // made while the sheet is open so the tap can hand it straight to the phone's share sheet (phones only
 // allow that right after a tap). The link is copied with it for the Story's link sticker.
-const images=new Map();let shareJob=0,storyFiles=null;
+const images=new Map();let shareJob=0,storyFiles=null,storyCards=[];
 async function cardImage(type){
  const key=`${report.share.token}:${report.built_at}:${type}`;
  if(!images.has(key))images.set(key,fetch(`/api/image?report=${report.share.token}&card=${type}`).then(async r=>{
@@ -460,7 +471,7 @@ function story(state,note){
  $('share-story-note').textContent=note;
 }
 async function openShare(scope){
- const job=++shareJob;storyFiles=null;
+ const job=++shareJob;storyFiles=null;storyCards=[];
  $('share-title').textContent=scope==='end'?'Share your report':'Share this card';
  $('share-story-title').textContent='Instagram Story';
  $('share-copy-note').textContent='Making your link…';story('busy','Making your image…');
@@ -473,15 +484,15 @@ async function openShare(scope){
  const types=(scope==='end'?report.cards:[report.cards[index]]).map(c=>c.type).filter(t=>t!=='locked');
  if(!types.length){story('none','');return;}
  try{
-  const files=[];
+  const files=[],cards=[];
   for(const [n,type] of types.entries()){
    if(types.length>1)story('busy',`Making your images… ${n+1} of ${types.length}`);
    const file=await cardImage(type);if(job!==shareJob)return;
-   if(file)files.push(file);
+   if(file){files.push(file);cards.push(type);}
   }
   // A card kept out of sharing ("Wouldn't share") has no image; the link still works.
   if(!files.length){story('none','');return;}
-  storyFiles=files;
+  storyFiles=files;storyCards=cards;
   const many=files.length>1;
   if(!canShareFiles(files))$('share-story-title').textContent='Download for your Story';
   story('ready',`${many?`${files.length} cards as 9:16 images`:'This card as a 9:16 image'}, with your link copied for the sticker`);
@@ -489,29 +500,29 @@ async function openShare(scope){
 }
 $('share-story').onclick=()=>{
  if(!storyFiles)return;
- const files=storyFiles,url=shareUrl();
+ const files=storyFiles,cards=storyCards,sharing=canShareFiles(files),url=shareUrl(sharing?'story':'download');
  // Not awaited: the share sheet has to open in the same tap.
  navigator.clipboard?.writeText(url).catch(()=>{});
- if(canShareFiles(files)){
-  navigator.share({files}).then(()=>{counted('story');$('sheet-share').close();toast('Shared. Your link is copied for the link sticker.');}).catch(error=>{if(error?.name!=='AbortError')toast('Couldn’t open sharing. Try again.');});
+ if(sharing){
+  navigator.share({files}).then(()=>{counted('story',cards);$('sheet-share').close();toast('Shared. Your link is copied for the link sticker.');}).catch(error=>{if(error?.name!=='AbortError')toast('Couldn’t open sharing. Try again.');});
   return;
  }
- counted('download');
+ counted('download',cards);
  for(const file of files){const a=el('a',{href:URL.createObjectURL(file),download:file.name});a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
  $('sheet-share').close();toast(files.length>1?'Images downloaded. Your link is copied for the sticker.':'Image downloaded. Your link is copied for the sticker.');
 };
-$('share-copy').onclick=async()=>{if(!report.share)return;$('sheet-share').close();await copyLink(shareUrl());};
+$('share-copy').onclick=async()=>{if(!report.share)return;$('sheet-share').close();await copyLink();};
 $('share-more').onclick=async()=>{
  if(!report.share)return;
- const url=shareUrl();
+ const url=shareUrl('share_sheet');
  if(navigator.share){try{await navigator.share({title:'My style report',text:'Jules went through my orders. What would yours say?',url});counted('share_sheet');$('sheet-share').close();}catch(error){if(error?.name!=='AbortError')toast('Couldn’t open sharing. Copy the link instead.');}return;}
- $('sheet-share').close();await copyLink(url);
+ $('sheet-share').close();await copyLink();
 };
 $('share').onclick=()=>openShare('card');$('end-share').onclick=$('end-share-row').onclick=()=>openShare('end');
 $('sheet-share').addEventListener('close',()=>{shareJob++;});
 // Every sheet closes on a tap outside it, as well as its own buttons.
 for(const sheet of document.querySelectorAll('dialog.report-sheet'))sheet.addEventListener('click',event=>{if(event.target!==sheet)return;const r=sheet.getBoundingClientRect();if(event.clientY<r.top||event.clientY>r.bottom||event.clientX<r.left||event.clientX>r.right)sheet.close();});
-$('end-copy').onclick=async()=>{try{await copyLink(await shareLink());}catch(error){toast(error.message||'Couldn’t make a link. Try again.');}};
+$('end-copy').onclick=async()=>{try{await shareLink();await copyLink();}catch(error){toast(error.message||'Couldn’t make a link. Try again.');}};
 // A fresh read of another photo takes a few seconds; the card replays its entrance when it lands.
 $('read-shuffle').onclick=async()=>{
  const button=$('read-shuffle');button.disabled=true;button.textContent='Judging…';
