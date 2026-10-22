@@ -457,7 +457,9 @@ async function copyLink(){
  catch{const field=el('textarea',{value:url,readOnly:true,className:'report-copy-field'});document.body.append(field);field.select();try{copied=document.execCommand('copy');}catch{}field.remove();}
  toast(copied?'Link copied. Anyone with it can see your shared cards.':`Your link: ${url.replace(/^https?:\/\//,'')}`);
 }
-// One share sheet on a card and at the end (founder, 16 Oct): Instagram Story first, then the link.
+// One share sheet on a card and at the end (founder, 16 Oct): the card as an image first, then the link.
+// A web page can't open Instagram straight to a Story (only apps can), so the image row hands the
+// file to the phone's share sheet and says to pick Instagram there (founder, 22 Oct).
 // Each card's Story image is a 1080×1920 screenshot of exactly what a friend sees (lib/report-image.js),
 // made while the sheet is open so the tap can hand it straight to the phone's share sheet (phones only
 // allow that right after a tap). The link is copied with it for the Story's link sticker.
@@ -478,9 +480,9 @@ function story(state,note){
 async function openShare(scope){
  const job=++shareJob;storyFiles=null;storyCards=[];
  $('share-title').textContent=scope==='end'?'Share your report':'Share this card';
- $('share-story-title').textContent='Instagram Story';
+ $('share-story-title').textContent='Share as an image';
  $('share-copy-note').textContent='Making your link…';story('busy','Making your image…');
- $('sheet-share').showModal();
+ $('sheet-share').showModal();$('sheet-share').focus();
  let url;
  try{url=await shareLink();}catch(error){$('sheet-share').close();toast(error.message||'Couldn’t make a link. Try again.');return;}
  if(job!==shareJob)return;
@@ -499,8 +501,10 @@ async function openShare(scope){
   if(!files.length){story('none','');return;}
   storyFiles=files;storyCards=cards;
   const many=files.length>1;
-  if(!canShareFiles(files))$('share-story-title').textContent='Download for your Story';
-  story('ready',`${many?`${files.length} cards as 9:16 images`:'This card as a 9:16 image'}, with your link copied for the sticker`);
+  // Instagram never adds the link itself: the person pastes it into a Link sticker, so the note says so.
+  const sharing=canShareFiles(files);
+  if(!sharing)$('share-story-title').textContent=many?'Download the images':'Download the image';
+  story('ready',`${many?`${files.length} cards. `:''}${sharing?'For your Story, pick Instagram.':'Post it to your Story.'} Your link is copied for a Link sticker.`);
  }catch{if(job===shareJob)story('busy','Couldn’t make the image. Close and try again.');}
 }
 $('share-story').onclick=()=>{
@@ -511,12 +515,12 @@ $('share-story').onclick=()=>{
  if(sharing){
   // Counted on the tap: the phone gives no reliable "done" once Instagram takes over (a cancelled sheet still counts).
   counted('story',cards);
-  navigator.share({files}).then(()=>{$('sheet-share').close();toast('Shared. Your link is copied for the link sticker.');}).catch(error=>{if(error?.name!=='AbortError')toast('Couldn’t open sharing. Try again.');});
+  navigator.share({files}).then(()=>{$('sheet-share').close();toast('Your link is copied. Paste it in a Link sticker so friends can open it.');}).catch(error=>{if(error?.name!=='AbortError')toast('Couldn’t open sharing. Try again.');});
   return;
  }
  counted('download',cards);
  for(const file of files){const a=el('a',{href:URL.createObjectURL(file),download:file.name});a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
- $('sheet-share').close();toast(files.length>1?'Images downloaded. Your link is copied for the sticker.':'Image downloaded. Your link is copied for the sticker.');
+ $('sheet-share').close();toast(`${files.length>1?'Images':'Image'} downloaded. Your link is copied for a Link sticker.`);
 };
 $('share-copy').onclick=async()=>{if(!report.share)return;$('sheet-share').close();await copyLink();};
 $('share-more').onclick=async()=>{
@@ -550,7 +554,7 @@ $('vote-down').onclick=()=>{
   button.onclick=()=>{missed.has(line.id)?missed.delete(line.id):missed.add(line.id);button.setAttribute('aria-pressed',String(missed.has(line.id)));};
   return button;
  }));
- $('sheet-down').showModal();
+ $('sheet-down').showModal();$('sheet-down').focus();
 };
 for(const button of $('sheet-down').querySelectorAll('[data-reason]'))button.onclick=()=>{$('sheet-down').close();save({action:'report-feedback',vote:'down',reason:button.dataset.reason,...(missed.size?{lines:[...missed]}:{})},'Thanks. Jules will do better next time.');};
 for(const button of document.querySelectorAll('[data-close]'))button.onclick=()=>button.closest('dialog').close();
@@ -571,7 +575,7 @@ $('edit-lines').onclick=()=>{
  };
  draft.hidden=new Set([...draft.hidden,...(card.first?.hidden?['first']:[]),...(card.fields??[]).filter(f=>f.hidden).map(f=>f.key)]);
  $('line-toggles').replaceChildren(...[...(card.first?[card.first]:[]),...card.lines,...(card.fields??[])].map(toggle));
- $('sheet-lines').showModal();
+ $('sheet-lines').showModal();$('sheet-lines').focus();
 };
 $('lines-save').onclick=()=>{$('sheet-lines').close();save({action:'report-lines',hidden:[...draft.hidden],show_returns:draft.show_returns},'Saved.');};
 

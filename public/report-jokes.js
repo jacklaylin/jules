@@ -9,7 +9,7 @@ const el=(tag,props={},...children)=>{const node=Object.assign(document.createEl
 const CARD={receipt:'Receipt',gatekeeper:'Gatekeeper',inout:'In / Out',emoji:'Emojis',spectrum:'Spectrum',match:'Style match',read:'The Read',judges:'Judges'};
 const REASON={wrong:'Wrong',not_funny:'Not funny',wont_share:'Wouldn’t share'};
 const SOURCE={generated:'AI',prewritten:'pre-written',fact:'plain fact'};
-const METHOD={copy:['Copy link','is-ink'],story:['Instagram Story','is-grape'],share_sheet:['Share sheet','is-strong'],download:['Download','is-line']};
+const METHOD={copy:['Copy link','is-ink'],story:['Image share','is-grape'],share_sheet:['Share sheet','is-strong'],download:['Download','is-line']};
 const pct=v=>v==null?'—':`${Math.round(v*100)}%`;
 const cell=(text,className='')=>el('td',{className,textContent:text});
 const muted=text=>el('span',{className:'muted',textContent:text});
@@ -48,7 +48,7 @@ let report=null,refreshedAt=0,loading=false;
 const period=()=>$('compare').value;
 function busy(on){for(const id of ['strip','card-methods','card-cards','card-weeks'])$(id).toggleAttribute('aria-busy',on);}
 function skeletons(){
- $('strip').replaceChildren(...['Reports built','Opened','Shared','Friends opened','Signups','Votes up'].map(label=>{const bar=el('span',{className:'skeleton skeleton-bar',ariaHidden:'true'});bar.style.width='48px';return el('div',{className:'dv-metric'},el('span',{textContent:label}),bar);}));
+ $('strip').replaceChildren(...['Reports built','Opened','Started a share','Friends opened','Signups','Votes up'].map(label=>{const bar=el('span',{className:'skeleton skeleton-bar',ariaHidden:'true'});bar.style.width='48px';return el('div',{className:'dv-metric'},el('span',{textContent:label}),bar);}));
  $('methods-rows').replaceChildren(...skeletonRows(3,7));$('cards-rows').replaceChildren(...skeletonRows(3,5));$('weeks-rows').replaceChildren(...skeletonRows(3,7));
 }
 function renderEngagement(){
@@ -57,10 +57,12 @@ function renderEngagement(){
  $('strip').replaceChildren(...p.strip.map(c=>metricCell(c)));
  // How they shared.
  const m=p.methods;
- $('methods-note').textContent=m.total?`${m.total} ${m.total===1?'share':'shares'} by ${m.testers} ${m.testers===1?'tester':'testers'} · which method brings friends back`:'no shares in this period';
- $('methods-bar').replaceChildren(...(m.total?[splitBlock('Shares by method: '+m.rows.map(r=>`${METHOD[r.channel][0]} ${r.shares}`).join(', '),m.rows.map(r=>({n:r.shares,name:METHOD[r.channel][0].toLowerCase(),tone:METHOD[r.channel][1]})),`${m.total} ${m.total===1?'share':'shares'}`)]:[]));
+ $('methods-note').textContent=m.total?`${m.total} share ${m.total===1?'tap':'taps'} by ${m.testers} ${m.testers===1?'tester':'testers'} · friends opened shows which shares went out`:'no share taps in this period';
+ // The bar shows what came back: friends who opened each method's links (taps are only attempts).
+ const back=m.rows.reduce((n,r)=>n+r.friends,0);
+ $('methods-bar').replaceChildren(...(back?[splitBlock('Friends opened by method: '+m.rows.map(r=>`${METHOD[r.channel][0]} ${r.friends}`).join(', '),m.rows.map(r=>({n:r.friends,name:METHOD[r.channel][0].toLowerCase(),tone:METHOD[r.channel][1]})),`${back} ${back===1?'friend':'friends'} opened`)]:[]));
  $('methods-rows').replaceChildren(...m.rows.map(r=>el('tr',{},el('th',{scope:'row'},el('i',{className:`method-key ${METHOD[r.channel][1]}`,ariaHidden:'true'}),METHOD[r.channel][0]),
-  cell(String(r.shares),'end'),cell(pct(r.share),'end'),cell(String(r.testers),'end'),cell(String(r.friends),'end'),cell(r.per_share==null?'—':String(r.per_share),'end'),cell(String(r.signups),'end'))));
+  cell(String(r.friends),'end'),cell(r.per_share==null?'—':String(r.per_share),'end'),cell(String(r.signups),'end'),cell(String(r.shares),'end muted'),cell(pct(r.share),'end muted'),cell(String(r.testers),'end muted'))));
  const unknown=m.unknown.friends||m.unknown.signups;
  $('methods-foot').hidden=!unknown;
  $('methods-foot').textContent=unknown?`Not split by method: ${m.unknown.friends} ${m.unknown.friends===1?'friend’s open':'friends’ opens'} and ${m.unknown.signups} ${m.unknown.signups===1?'signup':'signups'} from links shared before links said how they were shared.`:'';
@@ -80,7 +82,7 @@ function renderEngagement(){
   el('th',{scope:'row',textContent:w.current?'This week':new Date(w.week_of+'T12:00:00Z').toLocaleDateString(undefined,{month:'short',day:'numeric',timeZone:'UTC'})}),
   cell(String(w.built),'end'),
   w.tracked?el('td',{className:'end'},String(w.opened),muted(` · ${w.opens} ${w.opens===1?'visit':'visits'}`)):cell(nt,'end muted'),
-  w.tracked?el('td',{className:'end'},String(w.shared),muted(` · ${w.shares} ${w.shares===1?'share':'shares'}`)):cell(nt,'end muted'),
+  w.tracked?el('td',{className:'end'},String(w.shared),muted(` · ${w.shares} ${w.shares===1?'tap':'taps'}`)):cell(nt,'end muted'),
   w.tracked?cell(String(w.friends),'end'):cell(nt,'end muted'),
   cell(String(w.signups),'end'),cell(w.up+w.down?`${w.up} up · ${w.down} down`:'—','end'))));
  $('refreshed').textContent=refreshedAt?`Updated ${clock(refreshedAt)}`:'';

@@ -19,14 +19,22 @@ const OTHER_TERMS = [
   ['First results after', 'Time from the tester’s first message to their first reply with products.'],
   ['Cost', 'Estimated OpenAI and SerpApi spend caused by this tester, at list prices.'],
   ['Not tracked yet', 'Completed purchases. Jules never buys, so a purchase is only known when a receipt arrives later.'],
+  ['Compare', 'The strip compares this week (from Monday, UTC) with last week, or the last 28 days with the 28 before. Testers, Got results, Saved an item and Purchase intent count everyone who had reached that step by the end of the period; Active, Save rate and Link clicks count what happened within it. Watching now is today only. A period from before save-rate and click tracking began says New, never 0.'],
+  ['Weekly ladder', 'How many testers had reached each step by the end of that week, as a count and a share of everyone who had joined by then. New joined that week; Active sent Jules a message that week. Weeks start Monday (UTC).'],
+  ['Misses', 'The model’s own judgement that a later message showed Jules got something wrong. They’re noisy: use them as pointers to conversations to read, not as a score.'],
+  ['Flags', 'The tester’s own 👎 tapbacks and #dev notes.'],
+  ['Purchase nudges', 'Texts Jules sends on her own: the goes-with offer after a new purchase and the fit check after delivery. Answered means they said yes, no, not now, or turned these texts off. Paused means two nudges in a row went unanswered for two days, so Jules waits 14 days (any message resets it). Admin test sends are left out of the rates.'],
+  ['Alert texts', 'Price-drop, back-in-stock and nearly-sold-out texts. A tap is counted when the person opens the store link in that text (link previews don’t count). Admin test texts are left out.'],
 ];
 let data = null, nudges = null, alerts = null, refreshedAt = null;
 
 function render() {
   if (!data) return;
   const { steps, summary, testers, weeks } = data, now = Date.now();
-  $('summary').replaceChildren(...summaryCells(summary).map(c => metricCell({ label: c.label, value: c.value, detail: c.note })));
-  $('summary').hidden = false;
+  // The strip for the chosen Compare window (lib/adoption.js periodStrips); a cached report from before it falls back to today's figures.
+  const period = data.periods?.[$('compare').value];
+  $('summary').replaceChildren(...(period ? period.cells.map(metricCell) : summaryCells(summary).map(c => metricCell({ label: c.label, value: c.value, detail: c.note }))));
+  $('summary').removeAttribute('aria-busy');
   $('testers').replaceChildren(...testers.map(t => {
     const c = testerCells(t, steps, now);
     return el('tr', {},
@@ -124,7 +132,9 @@ function renderAlerts(a, testers) {
     ['Tapped the link', a.tracking ? ratio(t.tapped, delivered, t.tap_rate) : 'Off', a.tracking ? 'within 7 days' : 'link tracking is off'],
     ['Replied', ratio(t.replied, delivered, t.reply_rate), 'within a day'], ['Bought', String(t.bought), 'marked bought within 14 days']]
     .map(([label, value, note]) => metricCell({ label, value, detail: note })));
-  $('alerts-note').textContent = `Price-drop, back-in-stock and nearly-sold-out texts from the last ${a.days} days. A tap is counted when the person opens the store link in that text (link previews don't count). Admin test texts are left out.${a.tracking ? '' : ' Link taps are not being recorded: set LINK_CLICK_TRACKING=true in Vercel to count them.'} Taps are only counted on texts sent after Oct 22, when alert links started going through Jules.`;
+  $('alerts-period').textContent = `last ${a.days} days`;
+  $('alerts-note').hidden = false;
+  $('alerts-note').textContent = `${a.tracking ? '' : 'Link taps are not being recorded: set LINK_CLICK_TRACKING=true in Vercel to count them. '}Taps are only counted on texts sent after Oct 22, when alert links started going through Jules.`;
   $('alert-kinds').replaceChildren(...a.kinds.map(k => el('tr', {}, cell('Kind', el('strong', { textContent: k.label })), cell('Texts', String(k.texts), 'end num'),
     cell('Delivered', String(k.sent + k.uncertain), 'end num'), cell('Not delivered', String(k.failed + k.blocked), 'end num'), cell('People', String(k.people), 'end num'),
     cell('Tapped link', a.tracking ? ratio(k.tapped, k.sent + k.uncertain, k.tap_rate) : '—', 'end num'), cell('Replied', ratio(k.replied, k.sent + k.uncertain, k.reply_rate), 'end num'), cell('Bought', String(k.bought), 'end num'))));
@@ -150,11 +160,13 @@ async function load() {
   finally { $('loader').hidden = true; }
 }
 $('refresh').onclick = load;
+$('compare').onchange = render;
 setInterval(() => { if (refreshedAt) $('refreshed').textContent = `Refreshed ${ago(refreshedAt)}`; }, 30000);
 $('testers').replaceChildren(...skeletonRows(6, 13));
 load();
 
-// The style report's share loop (Admin › Style report has the rest): shared → friends opened → signed up, last 4 weeks.
+// The style report's share loop (Admin › Style report has the rest): share taps → friends opened → signed up, last 4
+// weeks. A tap isn't a post; friends opening the link is the proof a share went out.
 // It reads the same cached numbers as that page, so either page warms the other; a failure only empties the card.
 async function loadReportTile() {
   const token = await adminToken().catch(() => null), saved = readPage(localStorage, 'admin_style_report', token);
@@ -171,8 +183,8 @@ function drawReportTile(report) {
     return el('li', {}, el('span', { textContent: label }), bar, el('span', { className: 'nowrap' }, el('strong', { textContent: String(n) }), note ? el('span', { className: 'muted', textContent: ` · ${note}` }) : ''));
   };
   $('report-funnel').replaceChildren(
-    row('Shared', t.shares, top, `${t.shared} ${t.shared === 1 ? 'tester' : 'testers'}`),
-    row('Friends opened', t.friends, top, t.shares ? `${Math.round(t.friends / t.shares * 10) / 10} per share` : ''),
+    row('Share taps', t.shares, top, `${t.shared} ${t.shared === 1 ? 'tester' : 'testers'}`),
+    row('Friends opened', t.friends, top, t.shares ? `${Math.round(t.friends / t.shares * 10) / 10} per tap` : ''),
     row('Signed up', t.signups, Math.max(t.friends, 1), t.friends ? `${Math.round(t.signups / t.friends * 100)}% of friends` : ''));
   $('report-tile').removeAttribute('aria-busy');
 }

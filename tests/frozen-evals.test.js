@@ -48,7 +48,8 @@ test('cases are refused inside the repository', () => {
 test('the state as of a turn reads the newest shopping result sent before it', async () => {
   const paths = [];
   const store = createStore({ SUPABASE_URL: 'https://example.invalid', SUPABASE_SERVICE_ROLE_KEY: 'fake' }, async url => { paths.push(url); return { ok: true, text: async () => JSON.stringify([{ created_at: at(10), search_result: { text_wishlist_state: { stage: 'choice', options: [] } } }]) }; });
-  assert.deepEqual(await store.textWishlistState('c1', at(20)), { stage: 'choice', options: [] });
+  // With the time it was set, so a threaded reply can be read against it (lib/shopping-context.js).
+  assert.deepEqual(await store.textWishlistState('c1', at(20)), { stage: 'choice', options: [], set_at: at(10) });
   assert.match(decodeURIComponent(paths[0]), /created_at=lt\."?2026-10-21T20:20/);
   // Older than a week before the turn: no pending state.
   assert.equal(await store.textWishlistState('c1', '2026-10-30T00:00:00.000Z'), null);

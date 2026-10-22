@@ -124,9 +124,10 @@ test('a first name the person states is remembered, checked as a name, and used 
  for(const bad of [{value:'jack@example.com'},{value:'Jack and I love Prada because it is great forever'},{key:'last'},{value:'4ever'}])
   assert.throws(()=>validateChanges([{field:'name',key:'first',value:'Jack',action:'set',source_id:id,evidence:'call me Jack',...bad}],[said]));
  assert.equal(validateChanges([{field:'name',key:'first',value:'Zoë-Ann',action:'set',source_id:id,evidence:'call me Jack'}],[said])[0].value,'Zoë-Ann');
- // Greetings prefer the signup form's name, then the chat profile's.
+ // Greetings use the name given in chat, then the signup form's (signed up as William, "call me Jack").
  assert.equal(await firstName({...store,signupFirstName:async()=>null},id),'Jack');
- assert.equal(await firstName({...store,signupFirstName:async()=>'Jacob'},id),'Jacob');
+ assert.equal(await firstName({...store,signupFirstName:async()=>'William'},id),'Jack');
+ assert.equal(await firstName({profile:async()=>({facts:[]}),signupFirstName:async()=>'william'},id),'William');
  // Forgetting the name removes it from greetings.
  const forgot=await updateProfile(store,id,{...said,id:'00000000-0000-4000-8000-000000000002',created_at:'2026-10-06T10:00:00Z',body:'forget my name'},{changes:[{action:'forget',field:'name',key:'first',value:'',quote:'forget my name'}],acknowledgment:''});
  assert.equal(profileFirstName(forgot.facts),null);
