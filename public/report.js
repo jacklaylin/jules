@@ -40,9 +40,17 @@ function message(title,body,eyebrow='Style report',action=null,{progress=null,st
 let toastTimer;
 function toast(text){$('toast').textContent=text;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>{$('toast').hidden=true;},2600);}
 
+// A share link is counted as opened once per browser (Admin › Adoption). The owner's own browser is
+// marked as already opened, and Story-image renders never count.
+const openedKey=token=>`jules-report-opened:${token}`;
+function markOpened(token){try{localStorage.setItem(openedKey(token),'1');}catch{}}
+function firstOpen(){
+ if(exportCard)return false;
+ try{if(localStorage.getItem(openedKey(sharedToken)))return false;localStorage.setItem(openedKey(sharedToken),'1');return true;}catch{return false;}
+}
 async function api(method,body){
  if(sharedToken){
-  const response=await fetch(`/api/wishlist?shared=${sharedToken}`,{cache:'no-store'});
+  const response=await fetch(`/api/wishlist?shared=${sharedToken}${firstOpen()?'&first=1':''}`,{cache:'no-store'});
   const result=await response.json().catch(()=>({}));
   if(!response.ok)throw Object.assign(Error(result.error||'Something went wrong. Try again.'),{status:response.status});
   return result;
@@ -417,10 +425,17 @@ const shareUrl=()=>`${location.origin}/r/${report.share.token}`;
 const keep=next=>({...next,name:report.name,text_url:report.text_url,missing_sources:report.missing_sources,read_photos:report.read_photos});
 async function shareLink(){
  if(!report.share){const result=await api('POST',{action:'report-share'});report=keep(result.report);}
+ markOpened(report.share.token);
  return shareUrl();
+}
+// Each share, copy or download is counted (Admin › Adoption); never waited on, never in the way.
+function counted(channel){
+ if(readOnly)return;
+ session.token().then(token=>token&&fetch('/api/wishlist?report=1',{method:'POST',keepalive:true,headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({action:'report-shared',channel})})).catch(()=>{});
 }
 // Older browsers and some in-app views block the clipboard API; the selection copy still works there.
 async function copyLink(url){
+ counted('copy');
  let copied=false;
  try{await navigator.clipboard.writeText(url);copied=true;}
  catch{const field=el('textarea',{value:url,readOnly:true,className:'report-copy-field'});document.body.append(field);field.select();try{copied=document.execCommand('copy');}catch{}field.remove();}
@@ -478,9 +493,10 @@ $('share-story').onclick=()=>{
  // Not awaited: the share sheet has to open in the same tap.
  navigator.clipboard?.writeText(url).catch(()=>{});
  if(canShareFiles(files)){
-  navigator.share({files}).then(()=>{$('sheet-share').close();toast('Shared. Your link is copied for the link sticker.');}).catch(error=>{if(error?.name!=='AbortError')toast('Couldn’t open sharing. Try again.');});
+  navigator.share({files}).then(()=>{counted('story');$('sheet-share').close();toast('Shared. Your link is copied for the link sticker.');}).catch(error=>{if(error?.name!=='AbortError')toast('Couldn’t open sharing. Try again.');});
   return;
  }
+ counted('download');
  for(const file of files){const a=el('a',{href:URL.createObjectURL(file),download:file.name});a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
  $('sheet-share').close();toast(files.length>1?'Images downloaded. Your link is copied for the sticker.':'Image downloaded. Your link is copied for the sticker.');
 };
@@ -488,7 +504,7 @@ $('share-copy').onclick=async()=>{if(!report.share)return;$('sheet-share').close
 $('share-more').onclick=async()=>{
  if(!report.share)return;
  const url=shareUrl();
- if(navigator.share){try{await navigator.share({title:'My style report',text:'Jules went through my orders. What would yours say?',url});$('sheet-share').close();}catch(error){if(error?.name!=='AbortError')toast('Couldn’t open sharing. Copy the link instead.');}return;}
+ if(navigator.share){try{await navigator.share({title:'My style report',text:'Jules went through my orders. What would yours say?',url});counted('share_sheet');$('sheet-share').close();}catch(error){if(error?.name!=='AbortError')toast('Couldn’t open sharing. Copy the link instead.');}return;}
  $('sheet-share').close();await copyLink(url);
 };
 $('share').onclick=()=>openShare('card');$('end-share').onclick=$('end-share-row').onclick=()=>openShare('end');
@@ -554,6 +570,8 @@ function opened(result){
  // The person's own time zone, so "1am checkouts" means their 1am. Saved for the next build; never in
  // an admin preview or a friend's view.
  if(!readOnly){const tz=Intl.DateTimeFormat().resolvedOptions().timeZone;if(tz&&tz!==report.timezone)api('POST',{action:'report-timezone',timezone:tz}).catch(()=>{});}
+ // The owner opening their own share link later is not a friend's open.
+ if(!readOnly&&report.share)markOpened(report.share.token);
  // A card this page doesn't draw (for example from an older report) is skipped, never shown broken.
  report={...report,cards:report.cards.filter(c=>RENDER[c.type])};
  // The end card: what Jules learns from and what to do next. With an order source still unlinked it
