@@ -267,12 +267,12 @@ function renderReport(r) {
   const votes = r.votes.up + r.votes.down;
   const fact = (label, value, note) => [el('dt', {}, label, note ? el('small', { textContent: note }) : null), el('dd', { textContent: value })];
   $('report-facts').replaceChildren(
-    ...fact('Shared', times(r.shared), channels || null),
-    ...fact('Shared link opened', times(r.link_opened), r.share_link_at ? null : 'no share link yet'),
+    ...fact('Started a share', times(r.shared), channels || null),
+    ...fact('Friends opened', times(r.link_opened), r.share_link_at ? 'their shared link, first open per browser' : 'no share link yet'),
     ...fact('Signups from their links', String(r.signups), 'report and style card share the same link code'),
     ...fact('Votes on cards', votes ? `${r.votes.up} up · ${r.votes.down} down` : 'None yet', votes ? `${Math.round(r.votes.up / votes * 100)}% up, latest vote per card` : null));
   // Opens, shares and link opens were first recorded on October 22, 2026 (db/049); votes go back further.
-  $('report-foot').textContent = [`Built ${day(r.built_at)}`, r.share_link_at ? `share link made ${day(r.share_link_at)}` : null, 'opens and shares counted since Oct 22, 2026'].filter(Boolean).join(' · ');
+  $('report-foot').textContent = [`Built ${day(r.built_at)}`, r.share_link_at ? `share link made ${day(r.share_link_at)}` : null, 'opens and share taps counted since Oct 22, 2026'].filter(Boolean).join(' · ');
 }
 function adoptionFailed(error) {
   for (const id of ['summary-adoption', 'summary-quality']) { $(id).removeAttribute('aria-busy'); }
@@ -355,7 +355,8 @@ function factRow(row, top) {
     el('th', { scope: 'row' }, row.about, row.needsLook ? el('span', { className: 'badge warn', title: 'Size keys need the item it is for: category/system[/brand]. Remove this and add the correct one.', textContent: 'Needs category' }) : null),
     el('td', {}, input, row.seen ? el('div', { className: 'muted knowledge-seen', textContent: `Seen: ${row.seen}` }) : null),
     weightCell(row.weight, top), el('td', {}, kindTag(row.kind, KIND_LABEL[row.kind])),
-    el('td', { className: 'muted knowledge-source', title: row.source + quote }, row.source + quote, fact.source_id ? el('button', { type: 'button', className: 'small quiet', textContent: 'Open ↗', ariaLabel: 'Open the message in Conversation', onclick: () => openMessage(fact.source_id) }) : null),
+    el('td', { className: 'muted knowledge-source', title: row.source + quote }, el('div', { className: 'dv-clip' },
+      fact.source_id ? el('button', { type: 'button', className: 'dv-cell-link', textContent: row.source, ariaLabel: `${row.source}: open the message in Conversation`, onclick: () => openMessage(fact.source_id) }) : row.source, quote)),
     el('td', { className: 'muted', textContent: onDay(row.when) }), el('td', { className: 'end knowledge-actions' }, save, remove));
   input.oninput = () => {
     if (input.value === fact.value) dirty.delete(keyId); else dirty.set(keyId, input.value);
@@ -368,7 +369,7 @@ function factRow(row, top) {
 const derivedRow = (row, top) => el('tr', { className: `derived kind-row-${row.kind}` },
   el('td', { className: 'muted', textContent: row.topic }), el('th', { scope: 'row', textContent: row.about }),
   el('td', {}, row.value ?? el('span', { className: 'muted', textContent: 'Not built yet' })), weightCell(row.weight, top),
-  el('td', {}, kindTag(row.kind, KIND_LABEL[row.kind])), el('td', { className: 'muted knowledge-source', textContent: row.source }),
+  el('td', {}, kindTag(row.kind, KIND_LABEL[row.kind])), el('td', { className: 'muted knowledge-source', title: row.source }, el('div', { className: 'dv-clip', textContent: row.source })),
   el('td', { className: 'muted', textContent: onDay(row.when) }), el('td'));
 const KIND_LABEL = { said: 'Said', seen: 'Seen', inferred: 'Inferred' };
 function fillSelect(select, values, all) {

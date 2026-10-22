@@ -447,6 +447,12 @@ button.small{min-height:32px;padding:0 14px;font-size:13px}
 /* Calm admin: every control except the one primary action is a quiet text button. */
 button.quiet{border-color:transparent;box-shadow:none;background:transparent;color:var(--ink)}button.quiet::after{display:none}button.quiet:hover{color:var(--grape);transform:none}
 .dv-table button.quiet{color:var(--text-2)}.dv-table button.quiet:hover{color:var(--ink)}
+/* Long text in a dense row stays on one line: .dv-clip ends it with an ellipsis (the cell's title holds the full text).
+   A row link sits on the cell's main word as .dv-cell-link, not in a trailing button. */
+.dv-clip{display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.dv-cell-link{all:unset;cursor:pointer;color:var(--ink);text-decoration:underline;text-decoration-color:var(--line-strong);text-underline-offset:3px}.dv-cell-link::after{display:none}
+@media(pointer:coarse){.dv-cell-link{padding:13px 6px;margin:-13px -6px}}
+.dv-cell-link:hover{text-decoration-color:var(--ink)}.dv-cell-link:focus-visible{outline:3px solid var(--grape);outline-offset:2px;border-radius:4px}
 .dv-tool{border:1px solid var(--line);border-radius:16px;padding:14px 16px;margin:0 0 12px}
 .dv-tool-head{display:flex;align-items:center;gap:10px;margin-bottom:6px}.dv-tool-head h2{margin:0;font-size:22px}.dv-tool-head button{margin-left:auto}
 @media(max-width:800px){
