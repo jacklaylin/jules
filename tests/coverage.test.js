@@ -116,3 +116,13 @@ test('the coverage log line carries statuses only, never purchase details',async
  assert.deepEqual(Object.keys(line).filter(k=>DIMENSIONS.includes(k)),DIMENSIONS);
  assert.ok(!/Secret/.test(logs.join('\n')));
 });
+
+test('coverage reads through the user context layer: one fetch of the purchase-history row, raw rows back',async()=>{
+ let fetches=0;
+ const store={profile:async()=>({facts:[fact('store','depop','buys vintage there')]}),gmailImport:async()=>{fetches++;return null;},purchaseHistory(){return this.gmailImport(owner).then(()=>({items:0,summary:null,detail:async()=>[]}));},
+  styleSources:async()=>[{id:'a',kind:'outfit'}],styleSession:async()=>({data:{}}),evidence:async()=>[],wishlistEntries:async()=>[{item_id:'w',brand:'Example'}]};
+ const c=await readCoverage(store,owner,{log:()=>{}});
+ assert.equal(fetches,1);
+ assert.equal(status(c,'stores'),'known');
+ assert.equal(c.dimensions.find(d=>d.dimension==='brands').sources.wishlist,1);
+});
