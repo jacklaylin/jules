@@ -46,10 +46,12 @@ test('with a brand reading, the raw brand statements stop appearing as a separat
 });
 
 test('purchases say what each brand was bought for, without basics', () => {
-  const closet=[{brand:'MAAP',items:18,groups:{activewear:18}},{brand:'Our Legacy',items:11,groups:{shirts:6,knitwear:3}}];
-  const brands=brandTaste({purchases:[{name:'MAAP',count:18,recent:18},{name:'Bombas',count:5,recent:5},{name:'OUR LEGACY',count:11,recent:6}],closet});
+  // The closet's counts are kept items: Salomon had 9 on receipts (7 recent), 7 of them returned.
+  const closet=[{brand:'MAAP',items:18,recent:18,groups:{activewear:18}},{brand:'Our Legacy',items:11,recent:6,groups:{shirts:6,knitwear:3}},{brand:'Salomon',items:2,recent:2,groups:{shoes:1,trousers:1}}];
+  const brands=brandTaste({purchases:[{name:'MAAP',count:18,recent:18},{name:'Bombas',count:5,recent:5},{name:'OUR LEGACY',count:11,recent:6},{name:'Salomon',count:9,recent:7}],closet});
   assert.deepEqual(brands.find(b=>b.brand==='MAAP').bought_as,{activewear:18});
   assert.equal(brands.find(b=>b.brand==='Our Legacy').bought_recently,6);
-  // A basics-only brand is not in the closet's brands, so it adds nothing.
+  assert.deepEqual([brands.find(b=>b.brand==='Salomon').bought,brands.find(b=>b.brand==='Salomon').bought_recently],[2,2]);
+  // Receipt counts aren't used with a closet, so a basics-only brand (only on receipts) adds nothing.
   assert.equal(brands.find(b=>/bombas/i.test(b.brand)),undefined);
 });

@@ -42,7 +42,9 @@ test('only items in the wardrobe count: no gifts, returns, removed or never-boug
  assert.equal(s.about.includes('not wearing or liking'),true);
  // Each brand's owned items by group, for brand_taste; basics (the boxer briefs) are left out, and the
  // per-brand list stays off the fact the stylist and search read.
- assert.deepEqual(s.brands,[{brand:'Brand',items:6,groups:{shirts:3,denim:1,tops:1,trousers:1}}]);
+ // The fixtures' purchase dates are in 2023, so none is recent. The returned coat is not counted.
+ assert.deepEqual(s.brands,[{brand:'Brand',items:6,recent:0,groups:{shirts:3,denim:1,tops:1,trousers:1}}]);
+ assert.equal(closetSummary(state,tags(state),photos,1700000000000).brands[0].recent,6);
  assert.ok(!closetFact(s).value.includes('"brands"'));
 });
 
@@ -116,4 +118,15 @@ test('the stylist and search get the closet summary as taste; a gift gets none o
  assert.equal(input.closet.items,11,'the stylist sees it whole, as its own field');assert.ok(!input.saved_profile.some(f=>f.field==='wardrobe'));
  await stylistConcepts({query:'a jacket for my brother',plan:{mode:'discover'},facts:context.facts,forSomeoneElse:true,env:{OPENAI_API_KEY:'test'},fetcher});
  assert.equal(input.closet,undefined);assert.ok(!input.saved_profile.some(f=>f.field==='wardrobe'));
+});
+
+test('top brands in the purchase summary leave returns out', async () => {
+  const {purchaseSummary,SUMMARY_VERSION}=await import('../lib/evidence.js');
+  const mine=()=>projectReceiptEvidence(owner,PRODUCTS.map((product,i)=>purchaseEvidence({event_id:`m${i+1}:0`,kind:'purchased',source_id:`m${i+1}`,at:1700000000000+i,evidence:`${product} M`,category:'clothing',recipient:{value:'self',quote:'for me'},
+   values:{merchant:'Shop',order_reference:'O'+(i+1),sku:null,brand:'Brand',color:null,size_label:'M',size_system:null,quantity:1,units_per_pack:null,product},item_id:'item-'+(i+1)}))).state;
+  const all=purchaseSummary(mine()),state=mine(),coat=state.items.find(i=>i.id==='item-8');
+  Object.assign(coat,{outcome:{value:'returned'},field_provenance:{...coat.field_provenance,outcome:{source:'closet_edit'}}});
+  const returned=purchaseSummary(state);
+  assert.equal(returned.top_brands[0].count,all.top_brands[0].count-1);
+  assert.equal(returned.v,SUMMARY_VERSION);
 });
