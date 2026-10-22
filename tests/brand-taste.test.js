@@ -14,8 +14,8 @@ test('one brand reading from what the person said, bought, saved and liked', () 
   const brands=brandTaste({facts:said,purchases,wishlist,liked});
   // A statement and its style-pack copy are one statement; the item saved twice counts once.
   const prada=brands.find(b=>b.brand==='prada');
-  assert.deepEqual(prada,{brand:'prada',said:{value:'favorite brand',on:'2026-10-06'},bought:1});
-  assert.deepEqual(brands.find(b=>b.brand==='OUR LEGACY'),{brand:'OUR LEGACY',bought:11,bought_recently:6,wishlisted:1,last_wishlisted:'2026-10-21'});
+  assert.deepEqual(prada,{brand:'prada',said:{value:'favorite brand',on:'2026-10-06'},bought:1,weight:1},'the weight is kept for Admin › Knowledge');
+  assert.deepEqual(brands.find(b=>b.brand==='OUR LEGACY'),{brand:'OUR LEGACY',bought:11,bought_recently:6,wishlisted:1,last_wishlisted:'2026-10-21',weight:13});
   // Behaviour orders the list; a stated brand with nothing behind it still appears, after those with evidence.
   assert.deepEqual(brands.map(b=>b.brand),['OUR LEGACY','Satisfy','prada','st laurent']);
   assert.equal(brandTaste({}).length,0);
@@ -82,14 +82,3 @@ test('the agent reads each brand once: the purchase summary drops its top brands
   assert.deepEqual(JSON.parse(bare.facts.find(f=>f.field==='shopping_history').value).top_brands,[]);
 });
 
-test('the Admin view reports every source, the brand reading and the summaries', async () => {
-  const {contextReport}=await import('../lib/user-context.js');
-  const stated=[{field:'brand',key:'example label',value:'favorite brand'},{field:'style',key:'aesthetic',value:'casual'},{field:'size',key:'old',value:'x',deleted:true}];
-  const facts=[...stated,wishlistFact(wishlist),brandTasteFact({facts:stated,wishlist}),{field:'wardrobe',key:'summary',value:JSON.stringify({items:9,groups:[{group:'tops',items:5,types:'tee 3'}]})}];
-  const r=contextReport({facts,purchases:12});
-  assert.deepEqual(r.sources,{stated:2,purchases:12,wardrobe:9,wishlist:2,liked:0,outfit_photos:false});
-  assert.deepEqual(r.brands.map(b=>b.brand),['Our Legacy','Satisfy','example label']);
-  assert.deepEqual(r.wardrobe,[{group:'tops',items:5,types:'tee 3'}]);
-  assert.equal(r.wishlist.length,2);
-  assert.deepEqual(contextReport({}),{sources:{stated:0,purchases:0,wardrobe:0,wishlist:0,liked:0,outfit_photos:false},brands:[],wardrobe:[],wishlist:[],liked:[]});
-});

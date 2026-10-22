@@ -22,10 +22,6 @@ p{line-height:1.65}.login-card{max-width:490px;margin:7vh auto}.login-card>p{col
 .person-title .breadcrumb{margin:0;font-size:13px;color:var(--text-2);text-decoration:none}
 .person-stats{margin:0;font-size:13px;color:var(--text-2)}.person-stats strong{font-weight:400;color:var(--text-2)}
 [data-panel]{padding-top:4px}
-.memory-table .fact-key{font:400 13px var(--font-mono);overflow-wrap:anywhere;min-width:130px}.memory-table .fact-evidence{font-size:13px;color:var(--text-2);min-width:220px}
-.memory-table .fact-key{font-size:12px}.memory-table .fact-type{color:var(--text-2);text-transform:capitalize}.memory-table .fact-evidence{font-size:12px;max-width:380px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.memory-table .fact-actions{white-space:nowrap;text-align:right}.memory-table .fact-actions button{margin:0 0 0 4px}
-.memory-table .source-row td{background:var(--fog);font-size:13px}.memory-table .source-row button{margin-left:12px}
 .add-fact-fields{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}.add-fact-fields label{flex:1 1 180px;min-width:0}
 .add-fact-fields button{flex:none}
 
@@ -84,9 +80,6 @@ p{line-height:1.65}.login-card{max-width:490px;margin:7vh auto}.login-card>p{col
 @media(max-width:800px){
  .stats{display:grid;grid-template-columns:1fr 1fr;gap:12px}
  /* Memory facts become record cards */
- .memory-table,.memory-table tbody,.memory-table tr,.memory-table td{display:block}.memory-table thead{display:none}
- .memory-table tr{padding:12px 0;border-bottom:1px solid var(--line)}.memory-table td{border:0;padding:2px 0;height:auto}.dv-table.memory-table input:not([type=checkbox]):not([type=radio]){border-color:var(--line-strong);min-height:44px}
- .memory-table .fact-actions{white-space:normal;text-align:left}.memory-table .fact-actions button{min-height:44px}.memory-table .fact-evidence{white-space:normal;max-width:none}
  .message{max-width:92%}
  /* Purchases: rows show the item and one facts line; the item review takes the screen */
  .purchase-table .dv-head{display:none}.purchase-table .dv-row{grid-template-columns:minmax(0,1fr) auto;min-height:56px;padding:6px 0}
@@ -126,10 +119,57 @@ p{line-height:1.65}.login-card{max-width:490px;margin:7vh auto}.login-card>p{col
 .scorecard-turns button[aria-pressed=true]{background:var(--fog);color:var(--ink)}
 @media(max-width:800px){.scorecard-turns td[data-label="Judge"]{max-width:none;display:grid;gap:4px}}
 
-/* Admin › People › person: taste coverage chips above Personal memory (lib/coverage.js). */
-.coverage-strip{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin:0 0 12px}
-/* The early read preview under the coverage chips: the text as Jules would send it, line breaks kept. */
-.early-read{margin:0 0 12px}.context-view h3{font:600 14px/1.3 var(--font-sans);margin:16px 0 6px}.context-view .context-list ul{margin:0;padding-left:18px;font-size:13px}.context-view .context-list li{margin:2px 0}.context-brands td{vertical-align:top}.early-read .muted{color:var(--text-2);font-size:12px}.early-read-text{white-space:pre-line;margin:8px 0 0}
+/* Admin › People › person › Summary (lib/person-summary.js): the profile table beside what Jules would text now.
+   The two cards stack under 1100px. */
+.person-phone{font-size:13px;color:var(--text-2)}
+.summary-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,380px);gap:24px;align-items:start}
+@media(max-width:1100px){.summary-layout{grid-template-columns:minmax(0,1fr)}}
+.summary-card{border:1px solid var(--line);border-radius:var(--r-card);padding:20px 24px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.summary-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 12px}.summary-head h2{font-size:30px;margin:0}.summary-head .spacer{flex:1}
+.summary-table th[scope=row]{font-weight:600;white-space:nowrap;color:var(--ink);font-size:13px;height:auto;border-bottom:1px solid var(--line)}
+.summary-table td,.summary-table th[scope=row]{vertical-align:top;padding-top:9px;padding-bottom:9px;height:auto}
+.summary-table tr:last-child td,.summary-table tr:last-child th{border-bottom:0}
+.summary-detail{font-size:12px;margin-top:2px}
+.summary-strip{margin:0 0 20px}.summary-strip .dv-metric{flex:1 1 200px;padding:12px 18px}.summary-strip .dv-metric>strong{font-size:20px;letter-spacing:-0.02em}
+.summary-side{display:flex;flex-direction:column;gap:24px;min-width:0}
+.summary-head a{font-size:13px;font-weight:600}
+.summary-figure{margin:0;font-size:13px}.summary-figure strong{font-size:22px;letter-spacing:-0.02em}
+.summary-weeks{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}.summary-weeks .week{display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--text-2)}
+.summary-weeks i,.week-key{display:block;height:22px;border-radius:6px;box-sizing:border-box;border:1.5px dashed var(--line-strong);background:var(--white)}
+.summary-weeks .win i,.week-key.win{background:var(--ok-text);border:1px solid var(--ok-text)}.summary-weeks .asked i,.week-key.asked{background:var(--line-strong);border:1px solid var(--line-strong)}
+.week-key{display:inline-block;width:10px;height:10px;border-radius:3px;vertical-align:-1px;margin-right:5px}
+.summary-legend{display:flex;flex-wrap:wrap;gap:4px 14px;margin:0;font-size:12px;color:var(--text-2)}.summary-legend strong{color:var(--ink)}
+.summary-stat{display:grid;gap:2px;font-size:13px;border-top:1px solid var(--line);padding-top:14px}.summary-stat .muted{font-size:12px}
+.summary-foot{margin:0;font-size:12px;border-top:1px solid var(--line);padding-top:12px}.summary-foot strong{color:var(--ink)}
+.summary-facts{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 12px;margin:0;font-size:13px;border-top:1px solid var(--line);padding-top:14px}.summary-facts[hidden]{display:none}
+.summary-facts dt{color:var(--text-2)}.summary-facts dt small{display:block;font-size:12px}.summary-facts dd{margin:0;text-align:right;font-weight:600;color:var(--ink)}
+.summary-bar{display:flex;height:10px;border-radius:var(--r-pill);overflow:hidden;background:var(--fog);gap:2px}.summary-bar[hidden]{display:none}
+.ending.positive,.ending-key.positive{background:var(--ink)}.ending.neutral,.ending-key.neutral{background:var(--line-strong)}.ending.negative,.ending-key.negative{background:var(--danger)}.ending.silent,.ending-key.silent{background:var(--line)}
+.ending-key{display:inline-block;width:10px;height:10px;border-radius:3px;vertical-align:-1px;margin-right:5px}
+.summary-text-now{background:var(--fog);border-color:var(--fog)}.summary-text-now .summary-head h2{font-size:24px}.summary-text-now .badge{background:var(--white)}
+.summary-text{margin:0;font-size:14px;white-space:pre-line}.summary-text-now p.muted{margin:0;font-size:12px}
+/* Phones: each row becomes a stacked block (topic and coverage, then what Jules knows, then where from), no sideways scroll. */
+@media(max-width:800px){.summary-card{padding:16px}.summary-table thead{display:none}.summary-table,.summary-table tbody{display:block}
+ .summary-table tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 10px;padding:12px 0;border-bottom:1px solid var(--line)}.summary-table tr:last-child{border-bottom:0}
+ .summary-table th[scope=row],.summary-table td{border:0;padding:0}.summary-table td:nth-child(3),.summary-table td:nth-child(4){grid-column:1/-1}}
+/* Admin › People › person › Knowledge: one sortable table of their own facts (editable) and derived rows (read-only).
+   Phones: each row becomes a block, the value field full width. */
+.knowledge-key{margin:4px 0 8px;font-size:12px;color:var(--text-2);display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center}.knowledge-key .kind{margin-left:8px}.knowledge-key .kind:first-child{margin-left:0}
+.knowledge-table thead button{all:unset;position:relative;cursor:pointer;color:inherit}.knowledge-table thead button::after{display:none}.knowledge-table thead button:hover{color:var(--ink)}.knowledge-table thead button:focus-visible{outline:3px solid var(--grape);outline-offset:3px;border-radius:4px}
+.knowledge-table th[aria-sort] button{color:var(--ink);font-weight:600}.knowledge-table th[aria-sort=ascending]::after{content:" ↑";color:var(--ink)}.knowledge-table th[aria-sort=descending]::after{content:" ↓";color:var(--ink)}
+.knowledge-table td:nth-child(1),.knowledge-table td:nth-child(7){white-space:nowrap}.knowledge-table td:nth-child(3){min-width:260px}
+.knowledge-table tbody th[scope=row]{font-weight:600;color:var(--ink);font-size:13px;white-space:nowrap}.knowledge-table tbody th .badge{margin-left:6px}
+.knowledge-table td,.knowledge-table tbody th{vertical-align:middle}.knowledge-table tr.derived td,.knowledge-table tr.derived th{height:40px}
+.knowledge-seen{font-size:12px;margin:2px 0 0 10px}
+.knowledge-weight .weight{display:inline-flex;align-items:center;gap:6px}.knowledge-weight strong{font-size:12px}.knowledge-weight{white-space:nowrap;font-size:12px}
+.knowledge-source{font-size:12px;max-width:320px}.knowledge-source button{margin-left:4px}
+.knowledge-actions{white-space:nowrap}.knowledge-actions button{margin:0 0 0 4px}
+@media(max-width:800px){.knowledge-table,.knowledge-table tbody,.knowledge-table tr{display:block}.knowledge-table thead{display:none}
+ .knowledge-table tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;padding:12px 0;border-bottom:1px solid var(--line)}
+ .knowledge-table td,.knowledge-table tbody th{border:0;padding:0;height:auto}.knowledge-table tr.derived td,.knowledge-table tr.derived th{height:auto}
+ .knowledge-table td:nth-child(1){grid-column:1/-1;font-size:12px}.knowledge-table td:nth-child(3),.knowledge-table td:nth-child(6),.knowledge-table td:nth-child(8){grid-column:1/-1}
+ .knowledge-table td:empty{display:none}.dv-table.knowledge-table input:not([type=checkbox]):not([type=radio]){border-color:var(--line-strong);min-height:44px}
+ .knowledge-actions button{min-height:44px}.knowledge-source{max-width:none}}
 
 /* Purchase nudges dialog (admin-person.js) */
 .nudge-log{max-height:240px;overflow:auto;padding-left:18px;font-size:14px}

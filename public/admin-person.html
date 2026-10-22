@@ -7,13 +7,13 @@
 <link rel="icon" href="/brand/icon.svg" type="image/svg+xml"></head>
 <body class="admin-console">
   <main>
-    <div class="person-title"><a class="breadcrumb" href="/admin">People /</a><h1 id="person-name">Loading…</h1><span id="person-access" hidden></span><span id="person-onboarding" class="badges" hidden></span><div id="person-badges" class="badges"></div><span class="spacer"></span>
+    <div class="person-title"><a class="breadcrumb" href="/admin">People /</a><h1 id="person-name">Loading…</h1><span id="person-phone" class="person-phone" hidden></span><span id="person-access" hidden></span><span id="person-onboarding" class="badges" hidden></span><div id="person-badges" class="badges"></div><span class="spacer"></span>
       <p class="person-stats">Active <strong id="stat-active">—</strong> · <strong id="stat-messages">—</strong> messages · <strong id="stat-facts">—</strong> facts</p>
       <button class="small quiet" type="button" popovertarget="person-more">More ⋯</button></div>
-    <!-- One menu of actions for this person, the same on every tab. Memory and purchase actions open their tab first. -->
+    <!-- One menu of actions for this person, the same on every tab. Knowledge and purchase actions open their tab first. -->
     <div id="person-more" class="dv-pop dv-menu" popover aria-label="More actions">
-      <span class="mono-label">Personal memory</span>
-      <button id="profile-import" type="button" data-opens-tab="memory">Learn from existing messages <span class="hint">last 100 texts</span></button>
+      <span class="mono-label">Knowledge</span>
+      <button id="profile-import" type="button" data-opens-tab="knowledge">Learn from existing messages <span class="hint">last 100 texts</span></button>
       <hr>
       <span class="mono-label">Purchase history</span>
       <button id="purchases-reload" type="button" data-opens-tab="purchases">Reload purchases</button>
@@ -35,29 +35,85 @@
       <button id="reset-onboarding" type="button" aria-haspopup="dialog">Reset onboarding…</button>
     </div>
     <nav class="tabs" aria-label="Person sections">
-      <a href="?tab=memory" data-tab="memory">Personal memory <span class="count" id="count-memory"></span></a>
+      <a href="?tab=summary" data-tab="summary">Summary</a>
+      <a href="?tab=knowledge" data-tab="knowledge">Knowledge <span class="count" id="count-memory"></span></a>
       <a href="?tab=conversation" data-tab="conversation">Conversation <span class="count" id="count-conversation"></span></a>
       <a href="?tab=purchases" data-tab="purchases">Purchase history <span class="count" id="purchases-count"></span></a>
       <a href="?tab=wishlist" data-tab="wishlist">Wishlist <span class="count" id="count-wishlist"></span></a>
     </nav>
     <p id="notice" role="status" aria-live="polite" class="muted"></p>
+    <p id="person-updated" class="dv-note person-updated"></p>
 
-    <section id="tab-memory" data-panel="memory" hidden>
-      <div id="coverage" class="coverage-strip" aria-label="Taste coverage" hidden></div>
-      <details id="early-read" class="early-read" hidden><summary>Early read preview <span class="muted">not sent; what Jules would text now</span></summary><p id="early-read-text" class="early-read-text"></p></details>
-      <details id="context" class="early-read context-view" hidden><summary>What Jules knows <span class="muted">every source, as chat, the stylist and ranking read it</span></summary><div id="context-body"></div></details>
+    <!-- Summary: what Jules knows, how much, and where it came from (lib/person-summary.js). Read-only. -->
+    <section id="tab-summary" data-panel="summary" hidden>
+      <div class="dv-metrics summary-strip" aria-label="At a glance">
+        <div class="dv-metric"><span>Taste coverage</span><strong id="strip-coverage">—</strong><span id="strip-coverage-note"></span></div>
+        <div class="dv-metric"><span>Weeks with a win</span><strong id="strip-wins">—</strong><span>A week they asked and liked at least one result</span></div>
+        <div class="dv-metric"><span>Last positive request</span><strong id="strip-last">—</strong><span id="strip-last-note"></span></div>
+      </div>
+      <div class="summary-layout">
+        <section class="summary-card summary-profile" aria-labelledby="summary-profile-title" aria-busy="true">
+          <div class="summary-head">
+            <h2 id="summary-profile-title">Their profile</h2><span class="spacer"></span>
+            <button id="summary-learn" class="small quiet" type="button">Learn from last 100 texts</button>
+            <button id="summary-ask" class="small btn--butter" type="button" aria-haspopup="dialog">Ask them about the gaps…</button>
+          </div>
+          <p id="summary-status" class="sr-only" role="status">Loading their profile…</p>
+          <div class="dv-table-wrap"><table class="dv-table summary-table"><thead><tr><th>Topic</th><th>Coverage</th><th>What Jules knows</th><th>From</th></tr></thead><tbody id="summary-rows"></tbody></table></div>
+        </section>
+        <div class="summary-side">
+        <!-- Adoption and Chat quality (lib/person-adoption.js): this person's shopping requests over the last four weeks. -->
+        <section id="summary-adoption" class="summary-card" aria-labelledby="summary-adoption-title" aria-busy="true">
+          <div class="summary-head"><h2 id="summary-adoption-title">Adoption</h2><span class="muted">last 4 weeks</span><span class="spacer"></span><a href="/admin/adoption">Adoption page →</a></div>
+          <p class="summary-figure"><strong id="adoption-wins">—</strong> <span>weeks with a win</span></p>
+          <div id="adoption-weeks" class="summary-weeks" role="img" aria-label="Loading the last four weeks"></div>
+          <p class="summary-legend"><span><i class="week-key win" aria-hidden="true"></i>asked and liked a result</span><span><i class="week-key asked" aria-hidden="true"></i>asked, nothing liked</span><span><i class="week-key quiet" aria-hidden="true"></i>quiet</span></p>
+          <div class="summary-stat"><span class="muted">Requests they started</span><strong id="adoption-requests">—</strong><span id="adoption-requests-note" class="muted"></span></div>
+          <p class="summary-foot muted">Lifetime cost <strong id="adoption-cost">—</strong></p>
+        </section>
+        <section id="summary-quality" class="summary-card" aria-labelledby="summary-quality-title" aria-busy="true">
+          <div class="summary-head"><h2 id="summary-quality-title">Chat quality</h2><span class="muted">last 4 weeks</span><span class="spacer"></span><a href="/admin/quality">Scorecard →</a></div>
+          <p class="summary-figure"><strong id="quality-share">—</strong> <span id="quality-label">of shopping requests got a positive reaction</span> <span id="quality-count" class="muted"></span></p>
+          <div id="quality-bar" class="summary-bar" role="img" aria-label="Loading how their requests ended"></div>
+          <p id="quality-legend" class="summary-legend"></p>
+        </section>
+        <!-- Style report engagement (lib/report-engagement.js), from the same read as Adoption. -->
+        <section id="summary-report" class="summary-card" aria-labelledby="summary-report-title" aria-busy="true">
+          <div class="summary-head"><h2 id="summary-report-title">Style report</h2><span class="muted">all time</span></div>
+          <p class="summary-figure"><strong id="report-opened">—</strong> <span id="report-opened-label">times they opened it</span> <span id="report-last" class="muted"></span></p>
+          <dl id="report-facts" class="summary-facts" hidden></dl>
+          <p id="report-foot" class="summary-foot muted" hidden></p>
+        </section>
+        <section class="summary-card summary-text-now" aria-labelledby="summary-text-title">
+          <div class="summary-head"><h2 id="summary-text-title">What Jules would text now</h2><span id="summary-text-kind" class="badge plain" hidden></span><span class="muted">Not sent</span></div>
+          <p id="summary-text" class="summary-text"></p>
+          <p id="summary-text-note" class="muted"></p>
+        </section>
+        </div>
+      </div>
+    </section>
+
+    <!-- Knowledge: everything Jules knows in one table (their own facts from /api/profile, editable; derived rows
+         from lib/person-knowledge.js, read-only). -->
+    <section id="tab-knowledge" data-panel="knowledge" hidden>
       <div class="dv-toolbar">
-        <div id="memory-types" class="seg" role="group" aria-label="Filter by type"></div>
-        <label class="dv-search"><span class="sr-only">Search memory</span><input id="memory-search" type="search" maxlength="100" placeholder="Key, value or evidence"><span class="kbd" aria-hidden="true">/</span></label>
+        <div id="knowledge-kinds" class="seg" role="group" aria-label="Filter by kind"></div>
+        <label><span class="sr-only">Topic</span><select id="knowledge-topic" class="dv-select"><option value="">All topics</option></select></label>
+        <label><span class="sr-only">Source</span><select id="knowledge-source" class="dv-select"><option value="">All sources</option></select></label>
+        <label class="dv-search"><span class="sr-only">Search what Jules knows</span><input id="knowledge-search" type="search" maxlength="100" placeholder="Search what Jules knows"><span class="kbd" aria-hidden="true">/</span></label>
         <span class="spacer"></span>
         <span id="memory-dirty" class="badge warn" hidden></span>
-        <button id="memory-add-open" class="btn--butter small" type="button" aria-expanded="false" aria-controls="tool-add-fact">+ Add preference</button>
+        <button id="memory-add-open" class="btn--butter small" type="button" aria-expanded="false" aria-controls="tool-add-fact">+ Add what they said</button>
       </div>
+      <p class="knowledge-key"><span class="kind kind-said"><i aria-hidden="true"></i>Said</span> they told Jules, in chat or at signup; click a value to edit it. <span class="kind kind-seen"><i aria-hidden="true"></i>Seen</span> counted from what they did. <span class="kind kind-inferred"><i aria-hidden="true"></i>Inferred</span> Jules’s own reading; correct it by adding what they said. Weight: how strongly a brand features in the brand reading.</p>
       <div class="dv-status"><span id="profile-notice" role="status" aria-live="polite"></span></div>
       <div id="memory-conflict" class="notice-bar" hidden><span>This profile changed since you loaded it. Reload to see the latest; your unsaved values stay in their rows.</span><button id="conflict-reload" class="small" type="button">Reload profile</button></div>
-      <section id="tool-add-fact" class="dv-tool" aria-labelledby="tool-add-fact-title" hidden><div class="dv-tool-head"><h2 id="tool-add-fact-title">Add a preference</h2><button id="memory-add-close" class="close-button" type="button" aria-label="Close add a preference"><svg aria-hidden="true" viewBox="0 0 18 18"><path d="M3 3 L15 15 M15 3 L3 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></div>
+      <section id="tool-add-fact" class="dv-tool" aria-labelledby="tool-add-fact-title" hidden><div class="dv-tool-head"><h2 id="tool-add-fact-title">Add what they said</h2><button id="memory-add-close" class="close-button" type="button" aria-label="Close add what they said"><svg aria-hidden="true" viewBox="0 0 18 18"><path d="M3 3 L15 15 M15 3 L3 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></div>
         <form id="profile-add" class="add-fact-fields"><label>Type<select id="fact-field"><option value="gender">Gender identity</option><option value="shopping_range">Clothing range</option><option value="size">Size</option><option value="brand">Brand</option><option value="category">Category</option><option value="style">Style attribute</option><option value="budget">Usual budget</option></select></label><label>Key<input id="fact-key" maxlength="100" required placeholder="e.g. shoes/us_men or lemaire"></label><label>Value<input id="fact-value" maxlength="500" required placeholder="e.g. 10 or prefers relaxed tailoring"></label><button type="submit" class="btn--butter">Add preference</button></form></section>
-      <div class="dv-table-wrap"><table class="dv-table memory-table"><thead><tr><th>Type</th><th>Key</th><th>Value</th><th>Evidence</th><th class="end">Actions</th></tr></thead><tbody id="profile-facts"></tbody></table></div>
+      <div class="dv-table-wrap"><table class="dv-table knowledge-table"><thead><tr>
+        <th aria-sort="ascending"><button type="button" data-sort="topic">Topic</button></th><th><button type="button" data-sort="about">About</button></th><th><button type="button" data-sort="value">What Jules knows</button></th>
+        <th><button type="button" data-sort="weight">Weight</button></th><th><button type="button" data-sort="kind">Kind</button></th><th><button type="button" data-sort="source">Source</button></th><th><button type="button" data-sort="when">When</button></th><th class="end"><span class="sr-only">Actions</span></th>
+      </tr></thead><tbody id="profile-facts"></tbody></table></div>
     </section>
 
     <section id="tab-conversation" data-panel="conversation" hidden>
@@ -127,7 +183,7 @@
   </dialog>
   <dialog id="ask-dialog" class="confirm-dialog" aria-labelledby="ask-title">
     <h2 id="ask-title">Text them style questions?</h2>
-    <p>Jules texts <strong id="ask-person">this person</strong> the first of up to three short questions about the gaps in their taste profile (the Coverage chips), then each next one after they reply, as if they had asked. Their answers show in Conversation. Nothing is sent if they said no to more questions.</p>
+    <p>Jules texts <strong id="ask-person">this person</strong> the first of up to three short questions about the gaps in their taste profile (the weak and missing rows in Summary), then each next one after they reply, as if they had asked. Their answers show in Conversation. Nothing is sent if they said no to more questions.</p>
     <p id="ask-error" class="error" role="alert" hidden></p>
     <div class="dialog-actions"><button id="ask-confirm" class="btn--butter" type="button">Send</button><button id="ask-cancel" type="button">Cancel</button></div>
   </dialog>

@@ -318,7 +318,11 @@ body.admin-console>.admin-nav~main,.admin-gate{padding-top:var(--page-top)}
 .badge.ok{background:var(--ok-bg);color:var(--ok-text)}.badge.ok::before{content:"✓"}
 .badge.warn{background:var(--warn-bg);color:var(--warn-text)}.badge.warn::before{content:"!"}
 .badge.fail{background:var(--fail-bg);color:var(--fail-text)}.badge.fail::before{content:"×"}
-.badge.plain::before{display:none}.badges{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.badge.plain::before{display:none}
+/* Where a piece of knowledge came from (Admin › person): said = a filled dot, seen = a ring, inferred = a dashed ring, always with the word. */
+.kind{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;white-space:nowrap;color:var(--ink)}
+.kind i{display:inline-block;width:9px;height:9px;border-radius:50%;box-sizing:border-box}
+.kind-said i{background:var(--ink)}.kind-seen i{border:2px solid var(--ink)}.kind-inferred{color:var(--info-text)}.kind-inferred i{border:1.5px dashed var(--text-2)}.badges{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;scrollbar-width:none}
 .tabs a{display:flex;align-items:center;gap:8px;min-height:44px;padding:0 16px;text-decoration:none;font-weight:600;color:var(--text-2);border-bottom:3px solid transparent;margin-bottom:-1px;white-space:nowrap}
 .tabs a:hover{color:var(--ink)}.tabs a[aria-current=page]{color:var(--ink);border-bottom-color:var(--ink)}.tabs .count{font-weight:400;color:var(--text-2)}
@@ -450,6 +454,8 @@ button.quiet{border-color:transparent;box-shadow:none;background:transparent;col
 .photo-pending .photo-status{font:500 11px/1.5 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;text-align:center;padding:0 8px}
 .skeleton{position:relative;overflow:hidden;background:var(--fog)}
 .skeleton-card-title{height:14px;width:75%;margin:16px 0 10px}.skeleton-price{height:14px;width:30%;margin:12px 0}
+/* Placeholder rows while a view's first data loads (admin-console.js skeletonRows): one bar per cell, or per block row. */
+.skeleton-bar{display:block;height:12px;border-radius:6px;margin:4px 0}div.skeleton-row{padding:14px 0;border-bottom:1px solid var(--line)}
 @media(hover:hover) and (pointer:fine){button.tile{transition:transform .22s ease}button.tile:hover{transform:translateY(-3px)}button.tile:active{transform:translateY(-1px)}}
 @media(max-width:800px){.product-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 14px}.tile{padding:8px 8px 20px}.tile .photo{aspect-ratio:3/4}.tile strong{font-size:14px;margin-inline:4px}.card-price{font-size:10px;margin-inline:4px}.photo-pending .orb{--s:34px}.photo-pending .photo-status{font-size:9px}}
 /* Round icon buttons on product photos: price alert at the upper-left, remove at the upper-right (× top-right always gets rid of something).

@@ -1,8 +1,9 @@
-import {mountAdminShell,adminJson,adminFetch,adminToken,anchorMenus} from './admin-console.js';
+import {mountAdminShell,adminJson,adminFetch,adminToken,anchorMenus,skeletonRows} from './admin-console.js';
+import {readView,saveView} from './list-cache.js';
 import {mountPurchases,loadPurchases,syncPurchaseView} from './admin-purchases.js';
 import {browseKey} from './admin-review.js';
 import {approvalLines,accessResult,welcomeResult} from './admin-people-view.js';
-// Admin › People › one person: Personal memory, Conversation, Purchase history and Wishlist tabs.
+// Admin › People › one person: Summary, Knowledge, Conversation, Purchase history and Wishlist tabs.
 // The selected tab lives in the URL (?tab=) so every view can be linked.
 mountAdminShell('people');
 anchorMenus();
@@ -13,11 +14,55 @@ const when = at => at ? new Date(at).toLocaleString(undefined, { month: 'short',
 const day = at => at ? new Date(at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'date unknown';
 const notice = text => { $('notice').textContent = text; };
 const api = (path, options) => adminJson(path, options);
-const TABS = ['memory', 'conversation', 'purchases', 'wishlist'];
+const TABS = ['summary', 'knowledge', 'conversation', 'purchases', 'wishlist'];
 const person = location.pathname.split('/')[3] ?? '';
+const valid = /^[0-9a-f-]{36}$/i.test(person);
+
+// ---------- Loading ----------
+// Each view is drawn first from what it showed on the last visit (list-cache.js: kept for the signed-in owner,
+// forgotten on sign-out), then refreshed; fresh data that matches what is drawn is not drawn again, so nothing
+// flashes. Only the open tab's views are requested; another tab's load when it is first opened. The header's
+// messages and facts load for every tab.
+const drawn = new Map(), status = new Map();
+async function load(view, path, draw) {
+  const token = await adminToken().catch(() => null);
+  if (!drawn.has(view)) {
+    const saved = readView(localStorage, person, view, token);
+    if (saved) { drawn.set(view, JSON.stringify(saved.data)); status.set(view, { at: saved.at, state: 'refreshing' }); draw(saved.data); }
+  }
+  if (drawn.has(view)) status.set(view, { ...status.get(view), state: 'refreshing' });
+  showUpdated();
+  try {
+    const data = await api(path), text = JSON.stringify(data);
+    if (drawn.get(view) !== text) draw(data);
+    drawn.set(view, text); status.set(view, { at: Date.now(), state: 'fresh' }); saveView(localStorage, person, view, token, data);
+    return data;
+  } catch (error) {
+    // With something drawn, the page keeps it and says it could not refresh; with nothing, the caller shows the failure.
+    if (!drawn.has(view)) throw error;
+    status.set(view, { ...status.get(view), state: 'failed', error: error.message });
+  } finally { showUpdated(); }
+}
+// The open tab's quiet line: when what is shown loaded, and whether it is being refreshed.
+const TAB_VIEW = { summary: 'summary', knowledge: 'summary', conversation: 'messages', purchases: 'purchases', wishlist: 'wishlist' };
+const since = at => { const m = Math.round((Date.now() - at) / 60000); return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `on ${day(at)}`; };
+function showUpdated() {
+  const s = status.get(TAB_VIEW[new URLSearchParams(location.search).get('tab')] ?? 'summary');
+  $('person-updated').textContent = !s ? '' : s.state === 'fresh' ? `Updated ${new Date(s.at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`
+    : s.state === 'failed' ? `Could not refresh (${s.error}). Showing what loaded ${since(s.at)}.` : `Showing what loaded ${since(s.at)} · refreshing…`;
+}
+// What each tab needs beyond the header; each view loads once here and again only when an action changes it.
+const TAB_DATA = { summary: ['summary', 'adoption'], knowledge: ['summary'], conversation: [], purchases: ['purchases'], wishlist: ['wishlist'] };
+const LOADERS = { summary: () => loadSummary(), adoption: () => loadAdoption(), purchases: () => loadPurchases(person), wishlist: () => loadWishlist() };
+const started = new Set();
+function loadTab(tab) {
+  if (!valid) return;
+  for (const name of TAB_DATA[tab] ?? []) if (!started.has(name)) { started.add(name); LOADERS[name](); }
+}
 
 function showTab(tab, push = false) {
-  if (!TABS.includes(tab)) tab = 'memory';
+  if (tab === 'memory') tab = 'knowledge'; // Personal memory became Knowledge (October 22); old links still work.
+  if (!TABS.includes(tab)) tab = 'summary';
   for (const link of document.querySelectorAll('.tabs a')) { if (link.dataset.tab === tab) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current'); }
   for (const panel of document.querySelectorAll('[data-panel]')) panel.hidden = panel.dataset.panel !== tab;
   // On phones the tab strip scrolls sideways; keep the selected tab in view.
@@ -27,6 +72,7 @@ function showTab(tab, push = false) {
   const url = new URL(location.href); url.searchParams.set('tab', tab); if (tab !== 'purchases' || push) { url.searchParams.delete('item'); url.searchParams.delete('view'); }
   if (push) history.pushState(null, '', url); else history.replaceState(null, '', url);
   syncPurchaseView();
+  loadTab(tab); showUpdated();
 }
 for (const link of document.querySelectorAll('.tabs a')) link.onclick = event => { event.preventDefault(); showTab(link.dataset.tab, true); };
 addEventListener('popstate', () => showTab(new URLSearchParams(location.search).get('tab')));
@@ -96,13 +142,19 @@ function renderMessages() {
   const worst = Object.entries(counts).sort(([, a], [, b]) => (a.kind === 'fail' ? 0 : 1) - (b.kind === 'fail' ? 0 : 1)).slice(0, 2);
   $('person-badges').replaceChildren(...worst.map(([text, { kind, n }]) => badge(kind, n > 1 ? `${text} ×${n}` : text)));
 }
+// The latest page (cached first, with the header) or, with earlier, the page before the oldest loaded.
 async function loadMessages(earlier = false) {
   const query = new URLSearchParams({ conversation: person });
-  if (earlier && cursor) query.set('before', JSON.stringify(cursor));
-  const data = await api(`/api/admin?${query}`);
-  if (!earlier) { $('person-name').textContent = data.conversation.sender_id; document.title = `Jules admin · ${data.conversation.sender_id}`; showAccess(data.access?.access ?? null, data.approval_text ?? null, data.approval_account === true); showOnboarding(data.onboarding); resendText = data.resend_welcome ?? null; $('resend-welcome').hidden = !resendText; $('welcome-card').hidden = data.contact_card_enabled !== true; }
-  messages = earlier ? [...data.messages, ...messages] : data.messages; cursor = data.before;
-  renderMessages();
+  if (earlier && cursor) {
+    query.set('before', JSON.stringify(cursor));
+    const data = await api(`/api/admin?${query}`);
+    messages = [...data.messages, ...messages]; cursor = data.before; renderMessages();
+    return;
+  }
+  await load('messages', `/api/admin?${query}`, data => {
+    showName(data.name, data.conversation.sender_id); showAccess(data.access?.access ?? null, data.approval_text ?? null, data.approval_account === true); showOnboarding(data.onboarding); resendText = data.resend_welcome ?? null; $('resend-welcome').hidden = !resendText; $('welcome-card').hidden = data.contact_card_enabled !== true;
+    messages = data.messages; cursor = data.before; renderMessages();
+  });
 }
 $('convo-filter').onchange = renderMessages;
 $('older').onclick = async () => { $('older').disabled = true; try { await loadMessages(true); } catch (error) { notice(error.message); } finally { $('older').disabled = false; } };
@@ -114,127 +166,260 @@ async function openMessage(id) {
   if (target) { target.classList.add('highlight'); target.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
 }
 
-// ---------- Taste coverage ----------
-// One chip per dimension from lib/coverage.js: known, weak (some evidence) or missing. Read-only.
-const COVERAGE = { categories: 'Categories', silhouettes: 'Silhouettes', palette: 'Palette', brands: 'Brands', sizes: 'Sizes', stores: 'Stores', price_band: 'Price band', channel: 'New vs resale' };
-const COVERAGE_KIND = { known: 'ok', weak: 'warn', missing: 'fail' };
-async function loadCoverage() {
-  const data = await api(`/api/admin?view=coverage&conversation=${encodeURIComponent(person)}`);
-  const chips = data.dimensions.map(d => {
-    const chip = badge(COVERAGE_KIND[d.status] ?? 'plain', `${COVERAGE[d.dimension] ?? d.dimension}: ${d.status}`);
-    chip.title = d.note ?? '';
-    return chip;
-  });
-  $('coverage').replaceChildren(el('span', { className: 'mono-label', textContent: `Coverage · ${data.level}` }), el('span', { className: 'badges' }, ...chips));
-  $('coverage').hidden = false;
-  loadEarlyRead().catch(() => {});
-  loadContext().catch(() => {});
+// ---------- Summary ----------
+// The name (signup, else told to Jules) as the title with the number beside it; the number alone when there's no name.
+function showName(name, phone) {
+  $('person-name').textContent = name || phone;
+  $('person-phone').textContent = phone; $('person-phone').hidden = !name;
+  document.title = `Jules admin · ${name || phone}`;
 }
-// The early read Jules would send this person now (thin profiles only; rich ones get the purchase summary).
-async function loadEarlyRead() {
-  const data = await api(`/api/admin?view=early-read&conversation=${encodeURIComponent(person)}`);
-  $('early-read-text').textContent = !data.used ? 'Profile is rich: Jules sends the purchase summary instead.' : data.text ?? 'Nothing to say yet: no stated answers, orders, outfit photos or saved items.';
-  $('early-read').hidden = false;
+// One row per thing Jules weighs (lib/person-summary.js): coverage, a plain summary and where it came from.
+// Said: they told Jules; Seen: counted from what they did; Inferred: Jules's own reading.
+const STATUS_KIND = { known: 'ok', weak: 'warn', missing: 'fail' };
+const KINDS = [['said', 'Said'], ['seen', 'Seen'], ['inferred', 'Inferred']];
+const kindTag = (kind, label) => el('span', { className: `kind kind-${kind}` }, el('i', { ariaHidden: 'true' }), label);
+function fromCell(row) {
+  if (row.reading) return el('td', {}, kindTag('inferred', 'Inferred'), el('span', { className: 'muted', textContent: ` from ${row.from.said} said, ${row.from.seen} seen` }));
+  const parts = KINDS.filter(([k]) => row.from[k]).map(([k, label]) => kindTag(k, `${label} ${row.from[k]}`));
+  return el('td', {}, ...(parts.length ? parts.flatMap((part, i) => i ? [' · ', part] : [part]) : [el('span', { className: 'muted', textContent: '—' })]));
 }
+function summaryRow(row) {
+  const status = row.status ? badge(STATUS_KIND[row.status], row.status[0].toUpperCase() + row.status.slice(1)) : el('span', { className: 'muted', textContent: '—' });
+  return el('tr', {}, el('th', { scope: 'row', textContent: row.label }), el('td', {}, status),
+    el('td', {}, row.summary ?? el('span', { className: 'muted', textContent: 'Nothing yet.' }), row.detail ? el('div', { className: 'muted summary-detail', textContent: row.detail }) : null),
+    fromCell(row));
+}
+const TEXT_KIND = { early_read: 'Early read · thin profile', purchases: 'Purchase summary · rich profile', none: 'Nothing to send' };
+// Summary and Knowledge come from one server read of what Jules knows (view=summary carries both). Calls made
+// while one is in flight share it. Failures show in both tabs; it never rejects.
+let summaryRead = null;
+const loadSummary = () => summaryRead ??= load('summary', `/api/admin?view=summary&conversation=${encodeURIComponent(person)}`, data => {
+  renderSummary(data); knowledge = data.knowledge; knowledgeReady = true; renderFacts();
+}).catch(error => {
+  summaryFailed(error); knowledgeReady = true; renderFacts();
+  $('profile-notice').textContent = `Could not load what Jules derived from purchases, saves and likes: ${error.message}`;
+}).finally(() => { summaryRead = null; });
+function renderSummary(data) {
+  const c = data.coverage;
+  $('strip-coverage').textContent = `${{ rich: 'Rich', empty: 'Empty' }[c.level] ?? 'Thin'} · ${c.known} of ${c.total} known`;
+  const open = data.rows.filter(r => ['silhouettes', 'palette'].includes(r.topic) && r.status !== 'known').map(r => r.label.toLowerCase());
+  $('strip-coverage-note').textContent = c.level === 'rich' ? 'Silhouettes and palette known' : open.length ? `Rich needs ${open.join(' and ')} known` : `Rich needs 5 of ${c.total} known`;
+  $('summary-rows').replaceChildren(...data.rows.map(summaryRow));
+  $('summary-status').textContent = 'Profile loaded.';
+  document.querySelector('.summary-profile').removeAttribute('aria-busy');
+  const now = data.text_now;
+  $('summary-text-kind').textContent = TEXT_KIND[now.kind]; $('summary-text-kind').hidden = false;
+  $('summary-text').textContent = now.text ?? (now.kind === 'none' ? 'No import to summarise. The purchase summary goes out after a Gmail or Shop import.' : 'Nothing to say yet: no stated answers, orders, outfit photos or saved items.');
+  $('summary-text').classList.toggle('muted', !now.text);
+  $('summary-text-note').textContent = now.kind === 'early_read' && now.text ? 'Before Jules puts it in its own voice.' : now.open_questions ? `${now.open_questions} receipt question${now.open_questions === 1 ? '' : 's'} would follow it.` : '';
+}
+function summaryFailed(error) {
+  $('summary-status').textContent = '';
+  document.querySelector('.summary-profile').removeAttribute('aria-busy');
+  $('summary-rows').replaceChildren(el('tr', {}, el('td', { colSpan: 4, className: 'error', textContent: `Could not load their profile: ${error.message}` })));
+}
+// Adoption and Chat quality (lib/person-adoption.js), loaded on their own so a failure leaves the profile as it is.
+const WEEK_WORDS = { win: 'a win', asked: 'asked, nothing liked', quiet: 'quiet' };
+const ENDING_WORDS = { positive: 'positive: saved, picked, clicked, asked to buy or reacted', neutral: 'refined or moved on', negative: 'turned down, missed or flagged', silent: 'no reply' };
+const weekLabel = w => new Date(w.week_of + 'T12:00:00Z').toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' });
+const ago = at => { const days = Math.floor((Date.now() - Date.parse(at)) / 86400000); return days < 1 ? 'Today' : days === 1 ? 'Yesterday' : `${days} days ago`; };
+const loadAdoption = () => load('adoption', `/api/admin?view=person-adoption&conversation=${encodeURIComponent(person)}`, renderAdoption).catch(adoptionFailed);
+function renderAdoption(data) {
+  $('strip-wins').textContent = `${data.wins} of the last 4`; $('adoption-wins').textContent = `${data.wins} of 4`;
+  const last = data.last_positive;
+  $('strip-last').textContent = last ? ago(last.at) : 'None yet';
+  $('strip-last-note').textContent = last ? `${last.did}${last.products_shown ? ` of ${last.products_shown} shown` : ''}` : 'No request with a positive reaction in 8 weeks';
+  $('adoption-weeks').replaceChildren(...data.weeks.map(w => el('span', { className: `week ${w.status}` }, el('i', { ariaHidden: 'true' }), w.current ? 'This week' : weekLabel(w))));
+  $('adoption-weeks').setAttribute('aria-label', 'Last four weeks: ' + data.weeks.map(w => `${w.current ? 'this week' : weekLabel(w)} ${WEEK_WORDS[w.status]}`).join(', '));
+  const r = data.requests, trend = r.started_per_week === r.before_per_week ? 'same as the 4 weeks before' : `${r.started_per_week > r.before_per_week ? 'up' : 'down'} from ${r.before_per_week}`;
+  $('adoption-requests').textContent = `${r.started_per_week} a week`;
+  $('adoption-requests-note').textContent = [trend, r.replies_to_jules ? `plus ${r.replies_to_jules} repl${r.replies_to_jules === 1 ? 'y' : 'ies'} to Jules’s texts` : null].filter(Boolean).join(' · ');
+  $('adoption-cost').textContent = `$${data.lifetime_cost_usd.toFixed(2)}`;
+  const q = data.quality;
+  $('quality-share').textContent = q.requests ? `${Math.round(q.positive / q.requests * 100)}%` : '—';
+  $('quality-label').textContent = q.requests ? 'of shopping requests got a positive reaction' : 'No settled shopping requests in the last 4 weeks';
+  $('quality-count').textContent = q.requests ? `${q.positive} of ${q.requests}${q.waiting ? ` · ${q.waiting} waiting` : ''}` : '';
+  const endings = Object.entries(q.endings).filter(([, n]) => n);
+  // Widths through the style object: the CSP blocks inline style attributes.
+  $('quality-bar').replaceChildren(...endings.map(([k, n]) => { const part = el('span', { className: `ending ${k}` }); part.style.flexGrow = String(n); return part; }));
+  $('quality-bar').setAttribute('aria-label', q.requests ? `${q.requests} requests: ` + endings.map(([k, n]) => `${n} ${ENDING_WORDS[k].split(':')[0]}`).join(', ') : 'No settled requests');
+  $('quality-bar').hidden = !q.requests;
+  $('quality-legend').replaceChildren(...endings.map(([k, n]) => el('span', {}, el('i', { className: `ending-key ${k}`, ariaHidden: 'true' }), el('strong', { textContent: String(n) }), ` ${ENDING_WORDS[k]}`)));
+  renderReport(data.report);
+  for (const id of ['summary-adoption', 'summary-quality']) $(id).removeAttribute('aria-busy');
+}
+// Style report: opens, shares, friends opening the link, signups and votes (all time).
+const CHANNEL_WORDS = { story: 'Story', download: 'download', copy: 'copy link', share_sheet: 'share sheet' };
+const times = n => `${n} time${n === 1 ? '' : 's'}`;
+function renderReport(r) {
+  $('summary-report').removeAttribute('aria-busy');
+  $('report-facts').hidden = $('report-foot').hidden = !r?.built;
+  if (!r?.built) {
+    $('report-opened').textContent = r?.error ? '—' : 'No report yet';
+    $('report-opened-label').textContent = r?.error ? 'Could not load their report. Reload to try again.' : '';
+    $('report-last').textContent = '';
+    return;
+  }
+  $('report-opened').textContent = String(r.opened);
+  $('report-opened-label').textContent = r.opened === 1 ? 'time they opened it' : 'times they opened it';
+  $('report-last').textContent = r.last_opened_at ? `last ${day(r.last_opened_at)}` : '';
+  const channels = Object.entries(r.channels).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${n} ${CHANNEL_WORDS[k] ?? k}`).join(' · ');
+  const votes = r.votes.up + r.votes.down;
+  const fact = (label, value, note) => [el('dt', {}, label, note ? el('small', { textContent: note }) : null), el('dd', { textContent: value })];
+  $('report-facts').replaceChildren(
+    ...fact('Shared', times(r.shared), channels || null),
+    ...fact('Shared link opened', times(r.link_opened), r.share_link_at ? null : 'no share link yet'),
+    ...fact('Signups from their links', String(r.signups), 'report and style card share the same link code'),
+    ...fact('Votes on cards', votes ? `${r.votes.up} up · ${r.votes.down} down` : 'None yet', votes ? `${Math.round(r.votes.up / votes * 100)}% up, latest vote per card` : null));
+  // Opens, shares and link opens were first recorded on October 22, 2026 (db/049); votes go back further.
+  $('report-foot').textContent = [`Built ${day(r.built_at)}`, r.share_link_at ? `share link made ${day(r.share_link_at)}` : null, 'opens and shares counted since Oct 22, 2026'].filter(Boolean).join(' · ');
+}
+function adoptionFailed(error) {
+  for (const id of ['summary-adoption', 'summary-quality']) { $(id).removeAttribute('aria-busy'); }
+  renderReport({ error: true });
+  $('adoption-weeks').replaceChildren(el('p', { className: 'error', textContent: `Could not load their requests: ${error.message}` }));
+  $('quality-label').textContent = 'Could not load their requests. Reload to try again.';
+  $('strip-wins').textContent = '—'; $('strip-last').textContent = '—';
+}
+$('summary-ask').onclick = () => $('ask-style').click();
+$('summary-learn').onclick = async () => {
+  $('summary-learn').disabled = true; notice('Reading existing messages…');
+  try { await changeProfile({ action: 'import' }); notice($('profile-notice').textContent); await loadSummary(); }
+  catch (error) { notice(error.message); }
+  finally { $('summary-learn').disabled = false; }
+};
 
-// What Jules knows from every source (lib/user-context.js contextReport): source counts, the brand reading
-// (said, bought and as what, saved, liked) and the summaries the stylist and search read. Read-only.
-const GROUP = group => String(group).replace(/_/g, ' ');
-// Date-only values (2026-10-06) are calendar days: read at local noon so no time zone moves them a day.
-const onDay = value => /^\d{4}-\d{2}-\d{2}$/.test(value ?? '') ? day(value + 'T12:00:00') : day(value);
-async function loadContext() {
-  const data = await api(`/api/admin?view=context&conversation=${encodeURIComponent(person)}`), s = data.sources;
-  const sources = el('p', { className: 'muted', textContent: [`${s.stated} stated facts`, `${s.purchases} purchases`, `${s.wardrobe} wardrobe items`, `${s.wishlist} wishlist items`, `${s.liked} liked items`, s.outfit_photos ? 'outfit photos' : 'no outfit photos'].join(' · ') });
-  const cell = text => el('td', { textContent: text || '—' });
-  const said = b => b.said ? `${b.said.value}${b.said.on ? ' · ' + onDay(b.said.on) : ''}${b.said.from ? ' · from ' + GROUP(b.said.from) : ''}` : '';
-  const bought = b => b.bought ? `${b.bought}${b.bought_recently ? ` (${b.bought_recently} recent)` : ''}${b.bought_as ? ' · ' + Object.entries(b.bought_as).sort((x, y) => y[1] - x[1]).map(([g, n]) => `${GROUP(g)} ${n}`).join(', ') : ''}` : '';
-  const saved = b => b.wishlisted ? `${b.wishlisted}${b.last_wishlisted ? ' · ' + onDay(b.last_wishlisted) : ''}${b.wishlisted_as ? ' · ' + Object.entries(b.wishlisted_as).sort((x, y) => y[1] - x[1]).map(([g, n]) => `${GROUP(g)} ${n}`).join(', ') : ''}` : '';
-  const brands = data.brands.length ? el('div', { className: 'dv-table-wrap' }, el('table', { className: 'dv-table context-brands' },
-    el('thead', {}, el('tr', {}, ...['Brand', 'Said', 'Bought', 'Wishlist', 'Liked'].map(h => el('th', { textContent: h })))),
-    el('tbody', {}, ...data.brands.map(b => el('tr', {}, cell(b.brand), cell(said(b)), cell(bought(b)), cell(saved(b)), cell(b.liked ? String(b.liked) : '')))))) : el('p', { className: 'muted', textContent: 'No brands from any source yet.' });
-  const list = (title, rows) => rows.length ? el('div', { className: 'context-list' }, el('h3', { textContent: title }), el('ul', {}, ...rows.map(text => el('li', { textContent: text })))) : null;
-  $('context-body').replaceChildren(sources, el('h3', { textContent: 'Brands' }), brands,
-    list('Wardrobe', data.wardrobe.map(g => `${GROUP(g.group)} · ${g.items}${g.types ? ' · ' + g.types : ''}`)),
-    list('Wishlist, newest first', data.wishlist.map(i => [i.brand, i.item, i.kind ? GROUP(i.kind) : null, i.saved ? onDay(i.saved) : null].filter(Boolean).join(' · '))),
-    list('Liked', data.liked.map(i => [i.brand, i.item].filter(Boolean).join(' · '))));
-  $('context').hidden = false;
-}
-
-// ---------- Personal memory ----------
-const TYPES = { gender: 'gender', shopping_range: 'clothing range', size: 'size', brand: 'brand', category: 'category', style: 'style', budget: 'budget', spending: 'spending' };
-let profileVersion = 0, facts = [], profileBusy = false, typeFilter = '';
+// ---------- Knowledge ----------
+// Everything Jules knows in one table: the person's own facts (from /api/profile, editable in place) and one
+// read-only row per derived source (lib/person-knowledge.js). Kind: Said (stated or confirmed), Inferred (Jules's
+// reading, including facts it picked up without being told) or Seen (counted from what they did).
+let profileVersion = 0, facts = [], profileBusy = false, knowledge = { rows: [], notes: {} }, kindFilter = '', sortBy = 'topic', sortDir = 1;
+// Until their facts load the table shows placeholder rows; until the derived rows load, placeholders follow the facts.
+let factsReady = false, knowledgeReady = false;
 const dirty = new Map(), factKey = fact => `${fact.field}|${fact.key}`;
 // Same shape check as lib/relevance.js sizeKeyShape: a size key is category/system[/brand].
 const malformedSize = fact => { const parts = String(fact.key ?? '').split('/'); return fact.field === 'size' && !(parts.length >= 2 && parts.length <= 3 && parts.every(p => p.trim())); };
-function evidenceText(fact) {
-  if (fact.source === 'operator') return `Owner edit · ${day(fact.updated_at)}`;
-  const kind = fact.source === 'message' ? 'User statement' : 'Learned';
-  return `${kind} · ${day(fact.updated_at)}${fact.evidence ? ` · “${fact.evidence}”` : ''}`;
+// Date-only values (2026-10-06) are calendar days: read at local noon so no time zone moves them a day.
+const onDay = value => value ? (/^\d{4}-\d{2}-\d{2}$/.test(value) ? day(value + 'T12:00:00') : day(value)) : '';
+const FIELD = { shopping_range: 'Clothing range', gender: 'Gender', name: 'First name', country: 'Country', currency: 'Currency', size: 'Size', brand: 'Brand', avoid: 'Avoid',
+  style: 'Style', fit: 'Fit', material: 'Material', inspiration: 'Inspiration', occasion: 'Occasion', category: 'Category', owned: 'Owns', budget: 'Budget', spending: 'Spending', store: 'Store', retailer: 'Store' };
+const TOPICS = ['Person', 'Sizes', 'Brands', 'Style', 'Budget and stores', 'Saved and liked', 'Other'];
+const KIND_ORDER = { said: 0, inferred: 1, seen: 2 };
+const label = text => String(text ?? '').replace(/_/g, ' ');
+// What a fact is about, in words: "Bottoms · levis" for a size key, "Avoid · acne studios", "Clothing range".
+function aboutOf(fact) {
+  if (fact.field === 'size') { const [category, , brand] = String(fact.key).split('/'); return [label(category), brand].filter(Boolean).join(' · ') || fact.key; }
+  if (['brand', 'store', 'retailer'].includes(fact.field)) return fact.key;
+  if (fact.field === 'budget') { const [category, currency] = String(fact.key).split('/'); return `Budget · ${label(category)}${currency && currency !== 'unknown' ? ` (${currency.toUpperCase()})` : ''}`; }
+  return ['identity', 'department', 'first', 'summary', 'code'].includes(fact.key) ? FIELD[fact.field] ?? label(fact.field) : `${FIELD[fact.field] ?? label(fact.field)} · ${label(fact.key)}`;
 }
-// Type filter (the only counts) and search narrow the table; unsaved values survive filtering.
-function renderTypes(live) {
-  const counts = live.reduce((m, f) => m.set(f.field, (m.get(f.field) ?? 0) + 1), new Map());
-  if (typeFilter && !counts.has(typeFilter)) typeFilter = '';
-  $('memory-types').replaceChildren(...[['', 'All', live.length], ...Object.keys(TYPES).filter(t => counts.has(t)).map(t => [t, TYPES[t][0].toUpperCase() + TYPES[t].slice(1), counts.get(t)])].map(([value, label, n]) => {
-    const button = el('button', { type: 'button' }, label, el('span', { className: 'count', textContent: n }));
-    button.setAttribute('aria-pressed', String(typeFilter === value));
-    button.onclick = () => { typeFilter = value; renderFacts(); };
+const sourceOf = fact => fact.source === 'signup' ? 'Signup form' : fact.source === 'operator' ? 'Owner edit' : fact.source === 'message' ? 'Chat' : 'Learned from messages';
+function allRows() {
+  const own = facts.filter(f => !f.deleted).map(f => {
+    const note = knowledge.notes[factKey(f)] ?? {};
+    return { id: 'fact:' + factKey(f), fact: f, topic: note.topic ?? 'Other', about: aboutOf(f), value: f.value, kind: f.basis === 'inferred' ? 'inferred' : 'said',
+      source: sourceOf(f), when: f.updated_at ?? null, weight: note.weight ?? null, seen: note.seen ?? null, needsLook: malformedSize(f) };
+  });
+  return [...own, ...knowledge.rows];
+}
+const weightValue = w => w === 'last' ? -1 : typeof w === 'number' ? w : -2;
+function compare(a, b) {
+  const by = { topic: () => TOPICS.indexOf(a.topic) - TOPICS.indexOf(b.topic), about: () => a.about.localeCompare(b.about), value: () => String(a.value ?? '').localeCompare(String(b.value ?? '')),
+    weight: () => weightValue(a.weight) - weightValue(b.weight), kind: () => KIND_ORDER[a.kind] - KIND_ORDER[b.kind], source: () => a.source.localeCompare(b.source),
+    when: () => (Date.parse(a.when ?? '') || 0) - (Date.parse(b.when ?? '') || 0) }[sortBy];
+  // Ties: kind (said first), then the stronger brand, then name.
+  return by() * sortDir || KIND_ORDER[a.kind] - KIND_ORDER[b.kind] || weightValue(b.weight) - weightValue(a.weight) || a.about.localeCompare(b.about);
+}
+// A brand's weight as a small ring, full for their strongest brand.
+function weightCell(weight, top) {
+  if (weight === 'last') return el('td', { className: 'muted knowledge-weight', textContent: 'Ranked last' });
+  if (typeof weight !== 'number') return el('td');
+  const ns = 'http://www.w3.org/2000/svg', svg = document.createElementNS(ns, 'svg'), ring = (stroke, dash) => {
+    const c = document.createElementNS(ns, 'circle'); for (const [k, v] of Object.entries({ cx: 10, cy: 10, r: 8, fill: 'none', stroke, 'stroke-width': 3, ...(dash ? { 'stroke-dasharray': dash, 'stroke-linecap': 'round', transform: 'rotate(-90 10 10)' } : {}) })) c.setAttribute(k, v); return c; };
+  const length = 2 * Math.PI * 8;
+  for (const [k, v] of Object.entries({ width: 20, height: 20, viewBox: '0 0 20 20', 'aria-hidden': 'true' })) svg.setAttribute(k, v);
+  svg.append(ring('var(--line)'), ring('var(--ink)', `${top ? (weight / top) * length : 0} ${length}`));
+  return el('td', { className: 'knowledge-weight' }, el('span', { className: 'weight', title: `Weight ${weight}${top ? ` (their strongest brand is ${top})` : ''}` }, svg, el('strong', { textContent: String(weight) })));
+}
+function factRow(row, top) {
+  const fact = row.fact, keyId = factKey(fact), input = el('input', { value: dirty.get(keyId) ?? fact.value, maxLength: 500 });
+  input.setAttribute('aria-label', `${row.about}: what Jules knows`);
+  const save = el('button', { type: 'button', className: 'small btn--butter', textContent: 'Save', hidden: !dirty.has(keyId) });
+  const remove = el('button', { type: 'button', className: 'small quiet', textContent: 'Remove' });
+  const quote = fact.evidence && fact.source === 'message' ? ` · “${fact.evidence}”` : '';
+  const tr = el('tr', { className: dirty.has(keyId) ? 'dirty' : '' },
+    el('td', { className: 'muted', textContent: row.topic }),
+    el('th', { scope: 'row' }, row.about, row.needsLook ? el('span', { className: 'badge warn', title: 'Size keys need the item it is for: category/system[/brand]. Remove this and add the correct one.', textContent: 'Needs category' }) : null),
+    el('td', {}, input, row.seen ? el('div', { className: 'muted knowledge-seen', textContent: `Seen: ${row.seen}` }) : null),
+    weightCell(row.weight, top), el('td', {}, kindTag(row.kind, KIND_LABEL[row.kind])),
+    el('td', { className: 'muted knowledge-source', title: row.source + quote }, row.source + quote, fact.source_id ? el('button', { type: 'button', className: 'small quiet', textContent: 'Open ↗', ariaLabel: 'Open the message in Conversation', onclick: () => openMessage(fact.source_id) }) : null),
+    el('td', { className: 'muted', textContent: onDay(row.when) }), el('td', { className: 'end knowledge-actions' }, save, remove));
+  input.oninput = () => {
+    if (input.value === fact.value) dirty.delete(keyId); else dirty.set(keyId, input.value);
+    save.hidden = !dirty.has(keyId); tr.classList.toggle('dirty', dirty.has(keyId)); renderDirty();
+  };
+  save.onclick = () => changeProfile({ action: 'set', field: fact.field, key: fact.key, value: input.value }, keyId);
+  remove.onclick = () => changeProfile({ action: 'remove', field: fact.field, key: fact.key, value: '' }, keyId);
+  return tr;
+}
+const derivedRow = (row, top) => el('tr', { className: `derived kind-row-${row.kind}` },
+  el('td', { className: 'muted', textContent: row.topic }), el('th', { scope: 'row', textContent: row.about }),
+  el('td', {}, row.value ?? el('span', { className: 'muted', textContent: 'Not built yet' })), weightCell(row.weight, top),
+  el('td', {}, kindTag(row.kind, KIND_LABEL[row.kind])), el('td', { className: 'muted knowledge-source', textContent: row.source }),
+  el('td', { className: 'muted', textContent: onDay(row.when) }), el('td'));
+const KIND_LABEL = { said: 'Said', seen: 'Seen', inferred: 'Inferred' };
+function fillSelect(select, values, all) {
+  const current = select.value;
+  select.replaceChildren(el('option', { value: '', textContent: all }), ...values.map(v => el('option', { value: v, textContent: v })));
+  select.value = values.includes(current) ? current : '';
+}
+// Kind chips (with counts), topic, source and search narrow the table; unsaved values survive filtering.
+function renderFacts() {
+  if (!factsReady) return;
+  const rows = allRows(), live = facts.filter(f => !f.deleted);
+  $('count-memory').textContent = knowledgeReady ? rows.length : ''; $('stat-facts').textContent = live.length;
+  const counts = { '': rows.length, said: 0, seen: 0, inferred: 0, look: rows.filter(r => r.needsLook).length };
+  for (const r of rows) counts[r.kind]++;
+  if (kindFilter === 'look' && !counts.look) kindFilter = '';
+  $('knowledge-kinds').replaceChildren(...[['', 'All'], ['said', 'Said'], ['seen', 'Seen'], ['inferred', 'Inferred'], ...(counts.look ? [['look', 'Needs a look']] : [])].map(([value, text]) => {
+    const button = el('button', { type: 'button' }, ['said', 'seen', 'inferred'].includes(value) ? kindTag(value, text) : text, el('span', { className: 'count', textContent: knowledgeReady ? counts[value] : '' }));
+    button.setAttribute('aria-pressed', String(kindFilter === value));
+    button.onclick = () => { kindFilter = value; renderFacts(); };
     return button;
   }));
-}
-function renderFacts() {
-  const live = facts.filter(f => !f.deleted);
-  $('count-memory').textContent = live.length; $('stat-facts').textContent = live.length;
-  renderTypes(live);
-  const q = $('memory-search').value.trim().toLowerCase();
-  const shown = live.filter(f => (!typeFilter || f.field === typeFilter) && (!q || [f.key, f.value, f.evidence, dirty.get(factKey(f))].some(v => v && v.toLowerCase().includes(q))));
-  const rows = shown.flatMap(fact => {
-    const keyId = factKey(fact), input = el('input', { value: dirty.get(keyId) ?? fact.value, maxLength: 500 });
-    input.setAttribute('aria-label', `${TYPES[fact.field] ?? fact.field} ${fact.key}`);
-    const save = el('button', { type: 'button', className: 'small btn--butter', textContent: 'Save', hidden: !dirty.has(keyId) });
-    const remove = el('button', { type: 'button', className: 'small quiet', textContent: 'Remove' });
-    const row = el('tr', { className: dirty.has(keyId) ? 'dirty' : '' },
-      el('td', { className: 'fact-type', textContent: TYPES[fact.field] ?? fact.field }), el('td', { className: 'fact-key' }, fact.key, malformedSize(fact) ? ' ' : null, malformedSize(fact) ? el('span', { className: 'badge warn', title: 'Size keys need the item it is for: category/system[/brand]. Remove this and add the correct one.', textContent: 'Needs category' }) : null),
-      el('td', {}, input), el('td', { className: 'fact-evidence', textContent: evidenceText(fact), title: evidenceText(fact) }), el('td', { className: 'fact-actions' }, save, remove));
-    input.oninput = () => {
-      if (input.value === fact.value) dirty.delete(keyId); else dirty.set(keyId, input.value);
-      save.hidden = !dirty.has(keyId); row.classList.toggle('dirty', dirty.has(keyId)); renderDirty();
-    };
-    save.onclick = () => changeProfile({ action: 'set', field: fact.field, key: fact.key, value: input.value }, keyId);
-    remove.onclick = () => changeProfile({ action: 'remove', field: fact.field, key: fact.key, value: '' }, keyId);
-    if (!fact.source_id) return [row];
-    const source = el('button', { type: 'button', className: 'small quiet', textContent: 'Source', ariaExpanded: 'false' });
-    const message = () => messages.find(m => m.id === fact.source_id);
-    const sourceRow = el('tr', { className: 'source-row', hidden: true }, el('td', { colSpan: 5 },
-      el('span', { className: 'mono-label', textContent: 'Source' }), ' ',
-      el('span', { className: 'source-text' }),
-      el('button', { type: 'button', className: 'small', textContent: 'Open in Conversation →', onclick: () => openMessage(fact.source_id) })));
-    source.onclick = () => {
-      const open = sourceRow.hidden; sourceRow.hidden = !open; source.setAttribute('aria-expanded', String(open));
-      const found = message();
-      sourceRow.querySelector('.source-text').textContent = found ? `Inbound message · ${when(found.created_at)}${found.message_images?.length ? ' · with photo' : ''} · “${found.body.slice(0, 160)}”` : 'Inbound message (older than the loaded conversation)';
-    };
-    row.lastChild.prepend(source);
-    return [row, sourceRow];
-  });
-  const empty = live.length ? 'No preferences match these filters.' : 'No saved preferences yet. Add one, or use More › Learn from existing messages.';
-  $('profile-facts').replaceChildren(...(rows.length ? rows : [el('tr', {}, el('td', { colSpan: 5, className: 'muted', textContent: empty }))]));
+  fillSelect($('knowledge-topic'), TOPICS.filter(t => rows.some(r => r.topic === t)), 'All topics');
+  fillSelect($('knowledge-source'), [...new Set(rows.map(r => r.source))].sort(), 'All sources');
+  const q = $('knowledge-search').value.trim().toLowerCase(), topic = $('knowledge-topic').value, source = $('knowledge-source').value;
+  const shown = rows.filter(r => (!kindFilter || (kindFilter === 'look' ? r.needsLook : r.kind === kindFilter)) && (!topic || r.topic === topic) && (!source || r.source === source)
+    && (!q || [r.about, r.value, r.source, r.seen, r.fact?.evidence, r.fact && dirty.get(factKey(r.fact))].some(v => v && String(v).toLowerCase().includes(q)))).sort(compare);
+  const top = Math.max(0, ...rows.map(r => typeof r.weight === 'number' ? r.weight : 0));
+  for (const th of document.querySelectorAll('.knowledge-table th[aria-sort], .knowledge-table thead th')) th.removeAttribute('aria-sort');
+  document.querySelector(`.knowledge-table [data-sort="${sortBy}"]`).parentElement.setAttribute('aria-sort', sortDir > 0 ? 'ascending' : 'descending');
+  const empty = rows.length ? 'Nothing matches these filters.' : 'Jules knows nothing about them yet. Add what they said, or use More › Learn from existing messages.';
+  const waiting = knowledgeReady ? [] : skeletonRows(3, 8);
+  $('profile-facts').replaceChildren(...(shown.length ? shown.map(r => r.fact ? factRow(r, top) : derivedRow(r, top)) : waiting.length ? [] : [el('tr', {}, el('td', { colSpan: 8, className: 'muted', textContent: empty }))]), ...waiting);
   renderDirty();
 }
+for (const button of document.querySelectorAll('.knowledge-table [data-sort]')) button.onclick = () => {
+  if (sortBy === button.dataset.sort) sortDir = -sortDir; else { sortBy = button.dataset.sort; sortDir = ['weight', 'when'].includes(sortBy) ? -1 : 1; }
+  renderFacts();
+};
+$('knowledge-topic').onchange = renderFacts; $('knowledge-source').onchange = renderFacts;
 function renderDirty() {
   const n = [...dirty.keys()].filter(k => facts.some(f => !f.deleted && factKey(f) === k)).length;
   $('memory-dirty').hidden = !n; $('memory-dirty').textContent = `${n} unsaved edit${n === 1 ? '' : 's'}`;
 }
 async function loadProfile() {
-  const data = await api(`/api/profile?conversation=${encodeURIComponent(person)}`);
-  profileVersion = data.version; facts = data.facts;
-  $('memory-conflict').hidden = true;
-  renderFacts();
+  await load('profile', `/api/profile?conversation=${encodeURIComponent(person)}`, data => {
+    profileVersion = data.version; facts = data.facts; factsReady = true;
+    $('memory-conflict').hidden = true;
+    renderFacts();
+  });
 }
 async function changeProfile(change, keyId) {
   if (profileBusy) return;
   profileBusy = true;
-  const buttons = [...$('tab-memory').querySelectorAll('button')]; buttons.forEach(b => { b.disabled = true; });
+  const buttons = [...$('tab-knowledge').querySelectorAll('button')]; buttons.forEach(b => { b.disabled = true; });
   $('profile-notice').textContent = change.action === 'import' ? 'Reading existing messages…' : 'Saving…';
   try {
     const response = await adminFetch('/api/profile', { method: 'POST', body: JSON.stringify({ conversation: person, version: profileVersion, ...change }) });
@@ -243,6 +428,7 @@ async function changeProfile(change, keyId) {
     if (!response.ok) throw new Error(data.error ?? 'Could not save.');
     if (keyId) dirty.delete(keyId);
     profileVersion = data.version; facts = data.facts;
+    loadSummary();
     $('profile-notice').textContent = data.limited ? 'Learned from the latest 100 incoming messages. Earlier history was not included.' : change.action === 'remove' ? 'Removed. Add it again below to restore it.' : 'Saved.';
     if (change.action === 'set' && !keyId) { $('profile-add').reset(); showAddFact(false); }
   } catch (error) { $('profile-notice').textContent = error.message; }
@@ -251,7 +437,7 @@ async function changeProfile(change, keyId) {
 const reloadProfile = () => loadProfile().then(() => { $('profile-notice').textContent = dirty.size ? 'Reloaded. Your unsaved values are kept; save them again.' : 'Reloaded.'; }).catch(error => { $('profile-notice').textContent = error.message; });
 $('conflict-reload').onclick = reloadProfile;
 $('profile-import').onclick = () => changeProfile({ action: 'import' });
-$('memory-search').addEventListener('input', renderFacts);
+$('knowledge-search').addEventListener('input', renderFacts);
 function showAddFact(open) {
   $('tool-add-fact').hidden = !open; $('memory-add-open').setAttribute('aria-expanded', String(open));
   if (open) $('fact-field').focus();
@@ -260,8 +446,8 @@ $('memory-add-open').onclick = () => showAddFact($('tool-add-fact').hidden);
 $('memory-add-close').onclick = () => showAddFact(false);
 // "/" searches the open tab's list (Purchase history handles its own keys).
 addEventListener('keydown', event => {
-  if ($('tab-memory').hidden || document.querySelector('dialog[open], .dv-pop:popover-open')) return;
-  if (browseKey(event, { open: false })?.type === 'search') { event.preventDefault(); $('memory-search').focus(); }
+  if ($('tab-knowledge').hidden || document.querySelector('dialog[open], .dv-pop:popover-open')) return;
+  if (browseKey(event, { open: false })?.type === 'search') { event.preventDefault(); $('knowledge-search').focus(); }
 });
 $('profile-add').onsubmit = event => { event.preventDefault(); changeProfile({ action: 'set', field: $('fact-field').value, key: $('fact-key').value, value: $('fact-value').value }); };
 
@@ -334,7 +520,8 @@ function renderWishlist() {
       item.links.length ? storeLinks(item) : el('p', { className: 'muted', textContent: 'No store links saved.' }), panel);
   }) : [el('p', { className: 'empty-state', textContent: 'Nothing saved to this wishlist yet.' })]));
 }
-async function loadWishlist() { wishlist = await api(`/api/admin?view=wishlist&conversation=${encodeURIComponent(person)}`); renderWishlist(); }
+const loadWishlist = () => load('wishlist', `/api/admin?view=wishlist&conversation=${encodeURIComponent(person)}`, data => { wishlist = data; renderWishlist(); })
+  .catch(error => { $('wishlist-list').replaceChildren(); $('wishlist-note').textContent = error.message; });
 
 // ---------- Onboarding ----------
 // Beside the name: a "Not now" tap on /onboarding and the one reminder text (db/046), when either happened.
@@ -411,7 +598,7 @@ $('ask-confirm').onclick = async () => {
     $('ask-dialog').close();
     notice(interview.status === 'sent' ? 'First style question sent. Their replies will show in Conversation.' : `Style question not confirmed (${interview.status}); check Conversation before sending again.`);
     loadMessages().catch(error => notice(`Conversation: ${error.message}`));
-    loadCoverage().catch(() => {});
+    loadSummary();
   } catch (error) { $('ask-error').textContent = error.message; $('ask-error').hidden = false; }
   finally { buttons.forEach(b => { b.disabled = false; }); $('ask-confirm').textContent = 'Send'; }
 };
@@ -480,22 +667,25 @@ $('reset-confirm').onclick = async () => {
     $('reset-dialog').close();
     const texts = `${data.texts_removed} onboarding text${data.texts_removed === 1 ? '' : 's'} removed`;
     notice(`Onboarding reset. ${texts}; ${data.history === 'cleared' ? 'imported history deleted and Gmail and Shop disconnected' : 'there was no imported history'}. Sign up again with this number to start over.`);
-    loadMessages().catch(error => notice(`Conversation: ${error.message}`)); loadProfile().catch(() => {}); loadPurchases(person);
+    // Everything the reset could change, for the tabs already loaded.
+    loadMessages().catch(error => notice(`Conversation: ${error.message}`)); loadProfile().catch(() => {});
+    for (const name of started) LOADERS[name]();
   } catch (error) { $('reset-error').textContent = error.message; $('reset-error').hidden = false; }
   finally { buttons.forEach(b => { b.disabled = false; }); $('reset-confirm').textContent = 'Reset onboarding'; }
 };
 
 // ---------- Start ----------
-showTab(new URLSearchParams(location.search).get('tab'));
-if (!/^[0-9a-f-]{36}$/i.test(person)) { $('person-name').textContent = 'Person not found'; notice('This link does not name a person. Go back to People.'); }
+if (!valid) { showTab(new URLSearchParams(location.search).get('tab')); $('person-name').textContent = 'Person not found'; notice('This link does not name a person. Go back to People.'); }
 else {
-  mountPurchases(api);
+  mountPurchases(api, load);
+  // Placeholders until the first data (or the last visit's copy) is drawn.
+  $('summary-rows').replaceChildren(...skeletonRows(8, 4)); $('profile-facts').replaceChildren(...skeletonRows(6, 8));
+  $('messages').replaceChildren(...skeletonRows(5)); $('wishlist-list').replaceChildren(...skeletonRows(3));
+  // The open tab's data (showTab), and the header's messages and facts.
+  showTab(new URLSearchParams(location.search).get('tab'));
   const fail = area => error => { notice(`${area}: ${error.message}`); };
   // ?message=<id> (linked from Admin › Adoption's misses) opens the conversation at that message.
   const linked = new URLSearchParams(location.search).get('message');
-  loadMessages().then(() => { if (/^[0-9a-f-]{36}$/i.test(linked ?? '')) return openMessage(linked); }).catch(fail('Conversation'));
-  loadProfile().catch(fail('Memory'));
-  loadCoverage().catch(() => {});
-  loadPurchases(person);
-  loadWishlist().catch(error => { $('wishlist-note').textContent = error.message; });
+  loadMessages().then(() => { if (/^[0-9a-f-]{36}$/i.test(linked ?? '')) return openMessage(linked); }).catch(error => { $('messages').replaceChildren(); fail('Conversation')(error); });
+  loadProfile().catch(error => { factsReady = true; renderFacts(); fail('Memory')(error); });
 }
