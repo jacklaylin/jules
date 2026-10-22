@@ -68,6 +68,20 @@ test('taste coverage counts wishlist brands, and the style reading gets one bran
     'Dries Van Noten (said favorite brand (2026-10-06); bought 6 as trousers, shirts; saved 2), MAAP (bought 18 as activewear)');
 });
 
+test('the agent reads each brand once: the purchase summary drops its top brands when brand_taste is there', async () => {
+  const {readUserContext}=await import('../lib/user-context.js');
+  const summary={items:3,top_brands:[{name:'Our Legacy',count:3,recent:3}],latest_items:[]};
+  const store={profile:async()=>({facts:said}),purchaseHistory:async()=>({items:3,summary,rebuilt:false,detail:async()=>[]})};
+  const env={MEMORY_ENABLED:'true',GMAIL_IMPORT_ENABLED:'true'};
+  const ctx=await readUserContext(store,'me',env,{log:()=>{}});
+  const history=JSON.parse(ctx.facts.find(f=>f.field==='shopping_history').value);
+  assert.equal(history.top_brands,undefined);
+  assert.ok(ctx.facts.some(f=>f.field==='brand_taste'));
+  // Without any brand reading (nothing to read), the summary keeps them.
+  const bare=await readUserContext({...store,profile:async()=>({facts:[]}),purchaseHistory:async()=>({items:3,summary:{...summary,top_brands:[]},detail:async()=>[]})},'me',env,{log:()=>{}});
+  assert.deepEqual(JSON.parse(bare.facts.find(f=>f.field==='shopping_history').value).top_brands,[]);
+});
+
 test('the Admin view reports every source, the brand reading and the summaries', async () => {
   const {contextReport}=await import('../lib/user-context.js');
   const stated=[{field:'brand',key:'example label',value:'favorite brand'},{field:'style',key:'aesthetic',value:'casual'},{field:'size',key:'old',value:'x',deleted:true}];
