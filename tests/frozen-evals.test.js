@@ -94,7 +94,7 @@ test('freezing a report keeps the turn as the agent saw it, the original reply a
   assert.equal(frozen.pending.stage, 'search_clarification');
   // Saved before the turn only; profile facts deleted or changed after it are left out.
   assert.deepEqual(frozen.wishlist_items.map(i => i.name), ['Older jacket']);
-  assert.deepEqual(frozen.facts, [{ field: 'size', key: 'clothing/tops', value: 'M', basis: 'stated' }]);
+  assert.deepEqual(frozen.facts, [{ field: 'size', key: 'clothing/tops', value: 'M', basis: 'stated', updated_at: at(1) }]);
   assert.match(frozen.original.body, /want me to save it\? saved it/);
   assert.deepEqual(frozen.original.actions.map(a => a.tool), ['find_products', 'save_to_wishlist']);
   assert.equal(frozen.original.search.state.options[0].url, jacket.url);
