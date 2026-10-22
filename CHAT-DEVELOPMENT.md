@@ -76,13 +76,13 @@ The frozen set and routing evals stand in for these during development. They don
 
 | Rule | Status |
 |---|---|
-| **One skill per task** (load only the skills a turn needs) | **Not yet, and now under review** (see "Decided later"). The router only runs in shadow mode. Every turn still gets all the rules: ~2,970 words of prompt blocks, ~6,370 words of tool and field descriptions, and up to ~1,200 words of feature guides. |
+| **One skill per task** (load only the skills a turn needs) | **Not yet, and now under review** (see "Decided later"). The router only runs in shadow mode. Every turn still gets all the rules: ~2,990 words of prompt blocks, ~6,470 words of tool and field descriptions, and up to ~1,200 words of feature guides. |
 | **No contradictions** | **Known conflicts remain.** For example, the brand-role rules kept for the routing evals in #337 overlap better_price and explore. No contradiction audit has been done across skills and tool descriptions. |
 | **Fewer tools** | **21 tools offered.** Several overlap (two status tools, several purchase-history tools). |
 | **Examples over rules** | **None in the prompt yet.** The founder is writing them (`docs/example-conversations.md`). |
 | **150 words per skill** | **1 of 10 skills migrated.** better_price has 83 words. Unmigrated: core 777, explore 440, find_exact 413, conversation 294, options 219, history 214, save_or_watch 207, profile 183, saved_items 144. The test only checks migrated skills. |
-| **Rules don't grow** | **Broken before this PR.** Prompt blocks grew from 2,703 to 2,972 words (+10%) in the 24 hours after the plan was approved, across 6 commits. That includes the Oct 22 triage PR #344, which added 65 words and ran no frozen gate. The new ratchet test stops this from now on. |
-| **One rule, one place** | **Partly broken.** Tool and field descriptions (6,373 words, the largest part; `find_products` 1,469 and `ask_shopping_question` 1,380) still repeat prompt rules. The 10 feature guides (`*_GUIDE`) sit outside `lib/skills/`, so the skill test can't see them. |
+| **Rules don't grow** | **Broken before this PR.** Prompt blocks grew from 2,703 to 2,988 words (+11%) in the day after the plan was approved, and tool descriptions grew by about 90 words more. That includes the Oct 22 triage PR #344, which added 65 words and ran no frozen gate. The new ratchet test stops this from now on. |
+| **One rule, one place** | **Partly broken.** Tool and field descriptions (6,466 words, the largest part; `find_products` 1,469 and `ask_shopping_question` 1,380) still repeat prompt rules. The 10 feature guides (`*_GUIDE`) sit outside `lib/skills/`, so the skill test can't see them. |
 | **Gate on the final commit, case by case** | **Loosely followed.** #337 merged with its frozen-set run measured before its last commit, and one routing case (dupe of a linked item) fell from 100% to 33% without an explanation in the PR. Under the case-by-case rule, that drop would have needed one. |
 | **Gate on the production model** | **Stale.** The frozen baseline (46–56%) was measured on gpt-4.1-mini. Production moved to gpt-5.6-luna on Oct 22. |
 | **Eval spend** | **Broke production twice** (Oct 20 and 21). Evals and production share one OpenAI budget. |
