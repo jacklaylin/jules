@@ -5,6 +5,7 @@
 //   node --env-file=.env.local scripts/frozen-evals.js run --model gpt-5.5 --runs 3
 //   node --env-file=.env.local scripts/frozen-evals.js run --cases dev-1a2b3c4d --no-sync
 //   node --env-file=.env.local scripts/frozen-evals.js list
+//   node --env-file=.env.local scripts/frozen-evals.js sync --refresh-context   # add the user context snapshot to older cases (no model calls)
 // Options: --since <ISO> (sync; default October 13), --category <name>, --concurrency 4, --max-cost 15 (USD),
 //   --judges gpt-5.5,openrouter:anthropic/claude-opus-5.5 (several judges; a case passes only when all pass it).
 // Cases and run results live in FROZEN_EVALS_DIR (default ~/.jules/frozen-evals), outside the repository:
@@ -15,7 +16,7 @@ import { createStore } from '../lib/store.js';
 import { withUsage } from '../lib/usage.js';
 import { spendTracker } from '../lib/replay-gate.js';
 import { chatModel } from '../lib/compose.js';
-import { casesDir, loadCases, syncCases, runFrozenCase, frozenReport, judgeModels, DEFAULT_SINCE } from '../lib/frozen-evals.js';
+import { casesDir, loadCases, syncCases, refreshContext, runFrozenCase, frozenReport, judgeModels, DEFAULT_SINCE } from '../lib/frozen-evals.js';
 
 const args = process.argv.slice(2), option = name => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : undefined; };
 const command = args[0] ?? 'run';
@@ -24,14 +25,22 @@ const env = { ...process.env, SEARCH_ENABLED: 'true', ...(option('--judges') ? {
 const dir = casesDir(env);
 const database = Boolean(env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY);
 const store = database ? createStore(env) : null;
+const refresh = args.includes('--refresh-context');
+if (refresh && command !== 'sync') throw Error('--refresh-context works with sync only');
 
 if (command === 'sync' || (command === 'run' && !args.includes('--no-sync'))) {
   if (!database) { if (command === 'sync') throw Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are needed to read reports; run with --env-file=.env.local'); console.log('Not synced: no database credentials. Running the cases already frozen.'); }
   else {
     const since = option('--since') ?? DEFAULT_SINCE;
     if (Number.isNaN(Date.parse(since))) throw Error('--since must be an ISO timestamp');
-    const { reports, added } = await withUsage({ store, env, conversation: null, operation: 'eval:frozen:sync', feature: 'eval_frozen', quiet: true }, () => syncCases(store, env, { dir, since, log: c => console.log(c.error ? `  could not freeze ${c.id}: ${c.error}` : `  froze ${c.id} (${c.category}${c.replayable ? '' : `, not replayable: ${c.not_replayable_reason}`})`) }));
-    console.log(`Synced ${reports} reports since ${since}: ${added.length} new case${added.length === 1 ? '' : 's'} in ${dir}\n`);
+    if (refresh) {
+      // Only adds `context` to cases frozen before it existed; new reports are not frozen (that calls a model).
+      const { missing, refreshed } = await refreshContext(store, { dir, since, log: c => console.log(c.error ? `  could not refresh ${c.id}: ${c.error}` : `  added context to ${c.id}`) });
+      console.log(`${refreshed.length} of ${missing} case${missing === 1 ? '' : 's'} without context refreshed in ${dir}\n`);
+    } else {
+      const { reports, added } = await withUsage({ store, env, conversation: null, operation: 'eval:frozen:sync', feature: 'eval_frozen', quiet: true }, () => syncCases(store, env, { dir, since, log: c => console.log(c.error ? `  could not freeze ${c.id}: ${c.error}` : `  froze ${c.id} (${c.category}${c.replayable ? '' : `, not replayable: ${c.not_replayable_reason}`})`) }));
+      console.log(`Synced ${reports} reports since ${since}: ${added.length} new case${added.length === 1 ? '' : 's'} in ${dir}\n`);
+    }
   }
 }
 const all = await loadCases(dir);

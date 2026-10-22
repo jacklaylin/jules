@@ -29,6 +29,7 @@ Useful options:
 - `--no-sync`: don't look for new reports first.
 - `node --env-file=.env.local scripts/frozen-evals.js list`: every case, its category and the report text.
 - `node --env-file=.env.local scripts/frozen-evals.js sync --since 2026-10-13T00:00:00Z`: freeze only.
+- `node --env-file=.env.local scripts/frozen-evals.js sync --refresh-context`: add the user context snapshot (`context`, below) to cases frozen before it existed (before October 22). It reads the database only: no model is called, nothing is re-frozen or re-classified, and new reports are not frozen. For each replayable case without `context`, it finds the case's report, captures the snapshot as of the reported turn (wishlist saves and liked items before it, the purchase summary and closet as they are now), re-reads the stated facts as of the turn with their dates and sources, and saves the case with every other field unchanged. A case whose report can't be found is listed and left as it is. Running it again only retries those.
 
 The chat bake-off (`scripts/model-bakeoff.js chat`, `MODEL-BAKEOFF.md`) runs these cases too and prints `frozen NN%` next to each model; add `--no-frozen` to leave them out.
 
@@ -70,7 +71,7 @@ Which turn a report is about: a report threaded on a Jules reply is about that r
 
 ## How a case is run and scored
 
-Only the agent turn runs (the same loop as the routing evals, `lib/agent-eval.js`). The turn's facts go through the same `readUserContext` prod uses (`lib/context-snapshot.js`), so the agent sees the purchase summary, wardrobe, liked items, wishlist and the `brand_taste` reading rebuilt from the case's `context`. A case frozen before `context` existed replays with its stated facts only (its stated brands still read as `brand_taste`, as in prod). Every tool is stubbed: a search answers with the products the original turn found; a save, alert or other action answers with a placeholder. The draft goes through the composer when the inbox would compose it, so the judge sees the message the user would get.
+Only the agent turn runs (the same loop as the routing evals, `lib/agent-eval.js`). The turn's facts go through the same `readUserContext` prod uses (`lib/context-snapshot.js`), so the agent sees the purchase summary, wardrobe, liked items, wishlist and the `brand_taste` reading rebuilt from the case's `context`. A case frozen before `context` existed replays with its stated facts only (its stated brands still read as `brand_taste`, as in prod) until `sync --refresh-context` adds it. Every tool is stubbed: a search answers with the products the original turn found; a save, alert or other action answers with a placeholder. The draft goes through the composer when the inbox would compose it, so the judge sees the message the user would get.
 
 The judge (`gpt-5.5` by default, `FROZEN_JUDGE_MODEL` to change; it never changes with the chat model under test) scores four criteria, each pass, fail or not applicable:
 

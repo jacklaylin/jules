@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, stat } from 'node:fs/promises';
+import { chmod, mkdtemp, readFile, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createStore } from '../lib/store.js';
-import { reportedTurn, scrub, casesDir, freezeReport, syncCases, loadCases, runFrozenCase, scoreFrozen, frozenReport, judgeInput, recordedDraft, conversationHash, combineJudges, judgeModels } from '../lib/frozen-evals.js';
+import { reportedTurn, scrub, casesDir, freezeReport, syncCases, refreshContext, saveCase, loadCases, runFrozenCase, scoreFrozen, frozenReport, judgeInput, recordedDraft, conversationHash, combineJudges, judgeModels } from '../lib/frozen-evals.js';
 import { agentTurn, tool, agentContext, isAgentRequest, toolNames } from './helpers/agent.js';
 
 const out = value => ({ ok: true, json: async () => ({ status: 'completed', output: [{ type: 'message', content: [{ type: 'output_text', text: JSON.stringify(value) }] }] }) });
@@ -121,6 +121,43 @@ test('sync freezes each report once, outside the repository with private file mo
   assert.equal(saved.id, 'dev-aaaaaaaa');
   assert.equal((await stat(join(dir, 'cases', 'dev-aaaaaaaa.json'))).mode & 0o777, 0o600);
   assert.ok(!(await readFile(join(dir, 'cases', 'dev-aaaaaaaa.json'), 'utf8')).includes('415-555'));
+});
+
+test('refreshing context adds the snapshot to a case frozen before it, with no model call and every other field kept', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'frozen-'));
+  const frozen = await freezeReport(fakeStore(), report, {}, { classify: async () => 'reply_quality', now: new Date(at(50)) });
+  // As cases were frozen before PR #356: no context, facts without their dates or sources.
+  const { context: _c, ...old } = { ...frozen, facts: [{ field: 'size', key: 'clothing/tops', value: 'M', basis: 'stated' }] };
+  const other = { ...old, id: 'dev-bbbbbbbb', report_id: 'gone' };
+  const notReplayable = { ...old, id: 'dev-cccccccc', report_id: 'x', replayable: false, turn: undefined };
+  for (const c of [old, other, notReplayable]) await saveCase(dir, c);
+  await chmod(join(dir, 'cases', 'dev-aaaaaaaa.json'), 0o644);
+  const store = { ...fakeStore(),
+    // Nothing is re-frozen or re-read besides the snapshot sources and the profile.
+    context: async () => assert.fail('not re-frozen'), feedbackContext: async () => assert.fail('not re-frozen'), textWishlistState: async () => assert.fail('not re-frozen'),
+    profile: async () => ({ facts: [{ field: 'brand', key: 'like', value: 'Acne', basis: 'stated', source: 'chat', updated_at: at(1), deleted: false },
+      { field: 'brand', key: 'avoid', value: 'X', basis: 'stated', updated_at: at(40), deleted: false }, { field: 'note', key: 'n', value: 'call 415-555-0134', basis: 'stated', updated_at: at(2) }] }),
+    evidence: async () => [{ id: 'liked:likes:m1:0', data: { signal: 'liked', at: at(10), brand: 'Acne' } }, { id: 'liked:likes:m2:0', data: { signal: 'liked', at: at(45), brand: 'Later' } }],
+  };
+  const logs = [];
+  const { missing, refreshed } = await refreshContext(store, { dir, log: c => logs.push(c) });
+  assert.equal(missing, 2, 'only replayable cases without context');
+  assert.deepEqual(refreshed.map(c => c.id), ['dev-aaaaaaaa']);
+  assert.deepEqual(logs.filter(l => l.error).map(l => l.id), ['dev-bbbbbbbb'], 'a case whose report is gone is reported, not dropped');
+  const [saved] = (await loadCases(dir)).filter(c => c.id === 'dev-aaaaaaaa');
+  // Wishlist saves before the turn only; stated facts as of the turn with dates and sources, scrubbed.
+  assert.deepEqual(saved.context.wishlist.map(e => e.name), ['Older jacket']);
+  assert.equal(saved.context.liked.length, 1);
+  assert.deepEqual(saved.facts.map(f => f.value), ['Acne', 'call [phone]']);
+  assert.equal(saved.facts[0].source, 'chat');
+  assert.equal(saved.facts[0].updated_at, at(1));
+  const { context: _a, facts: _f, ...rest } = saved, { facts: _o, ...was } = old;
+  assert.deepEqual(rest, was);
+  assert.equal((await stat(join(dir, 'cases', 'dev-aaaaaaaa.json'))).mode & 0o777, 0o600);
+  assert.ok(!(await readFile(join(dir, 'cases', 'dev-aaaaaaaa.json'), 'utf8')).includes(conversation), 'the conversation id stays hashed');
+  // A second refresh leaves the refreshed case alone; only the one whose report is gone is still missing.
+  const again = await refreshContext({ ...store, wishlistEntries: async () => assert.fail('already refreshed') }, { dir });
+  assert.deepEqual([again.missing, again.refreshed.length], [1, 0]);
 });
 
 test('running a case re-runs only the agent turn: the frozen context, a recorded search, the composer and the judge', async () => {
