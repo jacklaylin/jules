@@ -105,10 +105,13 @@ For every recommendation, state:
   "Add a sentence to the prompt" is never a complete recommendation. Never add a tool; extend or merge one.
 - **Its eval case**: the frozen case this report already became (`scripts/frozen-evals.js list`), plus any
   routing-eval neighbours (varied wording, and the case where the action must not happen).
-- **Its gate** (`CHAT-DEVELOPMENT.md`, "The gate"): frozen set ×3 and routing evals on the production chat model,
-  compared case by case against main on the final commit. List flipped cases in the PR; a case that starts failing
-  in a trust area (saves, alerts, consent, prices, claims) blocks the merge. Check the eval budget first;
-  run evals only with the local evals key, never production's.
+- **Its gate** (`CHAT-DEVELOPMENT.md`, "The gate"): `scripts/chat-gate.js --area <area>` on the PR's final
+  commit, naming every area the fix could move (a consent-check change is `consent`, plus `saves`/`alerts` when it
+  gates them). It runs that area's frozen cases and routing evals ×3 on main and the PR, on the production chat
+  model, and lists flipped cases. It is mandatory and is never skipped for cost ($0.60–4 for most areas). Put its output
+  in the PR; a case that starts failing in a trust area (saves, alerts, consent, prices) blocks the merge. The full
+  set ×3 is only for a chat-model change or a skill migration; the nightly run on main covers the rest. Run evals
+  only with the local evals key, never production's.
 
 When implementing, one root cause per PR. If a fix would push a word budget over
 (`tests/fixtures/chat-prompt-budget.json` or a skill's 150-word cap), find what to cut first. Ask the founder
