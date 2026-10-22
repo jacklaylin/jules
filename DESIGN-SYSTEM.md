@@ -82,6 +82,13 @@ The public `/` page is a single-screen layout with an autoplaying iMessage demon
 
 ## Verification before shared changes ship
 
+**Load speed** (every page and tab, October 22, 2026). Before a page ships, check and report in the PR:
+1. A return visit draws the last content at once from `public/list-cache.js` (`saveList`/`readList` for one list, `readPage`/`savePage` for an admin report, `readView`/`saveView` for a person's tabs), then refreshes behind it. The page's quiet "Refreshed …" or "Updated …" line says how old it is while the `.dv-loader` or "refreshing…" shows the refresh; fresh data that matches is not redrawn, so nothing flashes. A failed refresh keeps the content and says so.
+2. Only the open tab's data is requested; other tabs load when first opened.
+3. Requests fired together never repeat the same heavy server read.
+4. With nothing saved, `skeletonRows()` (`admin-console.js`, `.skeleton-bar`) holds the table's place; never an empty-state sentence before the data has loaded.
+5. Measured times before and after: `admin_view_timing` in Vercel logs or the `Server-Timing` header, and the browser time to first content.
+
 Check wishlist and style at desktop, 390px and 320px phone widths, including logo rest/hover/thinking/completion, compact header, signed-out forms, uploads, draft review, confirmed cards, image controls, product/alert/evidence/export dialogs, long copy, PNG output, keyboard focus and no horizontal overflow. Check reduced motion, HTTP failures, concurrent request completion, and browser errors. Also smoke-check simulator and owner screens. Use synthetic browser fixtures; do not send real messages or perform paid searches just to verify styling. Run the application suite when shared JavaScript changes.
 
 ## Entry flow refresh — October 12, 2026

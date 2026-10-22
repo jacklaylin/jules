@@ -1,4 +1,5 @@
-import {mountAdminShell,adminJson} from './admin-console.js';
+import {mountAdminShell,adminJson,adminToken,skeletonRows} from './admin-console.js';
+import {readPage,savePage,sameData} from './list-cache.js';
 import {ago} from './admin-people-view.js';
 import {TYPES,METRICS,metricCells,weekRows,worstTurns,agreement,turnRow} from './scorecard-view.js';
 // Admin › Scorecard: weekly search and recommendation quality, and the turns most worth reading.
@@ -57,12 +58,20 @@ async function post(body, done) {
   try { await done(await adminJson('/api/admin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })); }
   catch (error) { notice(`Couldn’t save that: ${error.message}`, true); }
 }
+// A return visit draws the last scorecard at once (list-cache.js), with its age, while the loader shows the refresh;
+// a fresh scorecard that matches is not drawn again.
 async function load() {
   $('loader').hidden = false; notice('');
-  try { data = await adminJson('/api/admin?view=scorecard'); refreshedAt = Date.now(); render(); }
-  catch (error) { notice(`Could not load the scorecard: ${error.message} Try Refresh.`, true); }
+  const token = await adminToken().catch(() => null);
+  if (!data) { const saved = readPage(localStorage, 'admin_scorecard', token); if (saved) { data = saved.data; refreshedAt = saved.at; render(); } }
+  try {
+    const fresh = await adminJson('/api/admin?view=scorecard'), same = sameData(fresh, data);
+    data = fresh; refreshedAt = Date.now(); savePage(localStorage, 'admin_scorecard', token, fresh);
+    if (same) $('refreshed').textContent = `Refreshed ${ago(refreshedAt)}`; else render();
+  } catch (error) { notice(data ? `Could not refresh: ${error.message} Showing the scorecard from ${ago(refreshedAt)}.` : `Could not load the scorecard: ${error.message} Try Refresh.`, true); if (!data) $('weeks').replaceChildren(); }
   finally { $('loader').hidden = true; }
 }
 $('refresh').onclick = load;
 setInterval(() => { if (refreshedAt) $('refreshed').textContent = `Refreshed ${ago(refreshedAt)}`; }, 30000);
+$('weeks').replaceChildren(...skeletonRows(6, 8));
 load();

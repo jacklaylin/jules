@@ -9,7 +9,7 @@ import { readCoverage, readTasteInputs } from '../lib/coverage.js';
 import { personAdoption } from '../lib/person-adoption.js';
 import { authorize } from '../lib/auth.js';
 import { createStore } from '../lib/store.js';
-import { json, readJson, uuid } from '../lib/http.js';
+import { json, readJson, uuid, timeView } from '../lib/http.js';
 import { purchaseReview, reviewPurchase, reportMissedPurchase } from '../lib/purchase-review.js';
 import { groupWishlist } from '../lib/wishlist.js';
 import { marketEnvironment } from '../lib/shopping-market.js';
@@ -236,17 +236,6 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
 }
 // Which read a GET is, for its timing: the view, else the People list or a conversation's messages.
 const viewName = query => (query.get('view') ?? (!query.get('conversation') ? 'people' : query.has('before') ? 'older-messages' : 'messages')).replace(/[^a-z-]/g, '').slice(0, 40) || 'unknown';
-// How long each Admin read took, once its response goes out: a Server-Timing header (the browser's Network panel
-// shows it) and an admin_view_timing log line (Vercel logs), so slow tabs show up by name. No ids or data.
-function timeView(res, view, started, authMs) {
-  const end = res.end.bind(res);
-  res.end = (...args) => {
-    const ms = Math.round(performance.now() - started);
-    if (!res.headersSent) res.setHeader('Server-Timing', `auth;dur=${authMs.toFixed(1)}, ${view};dur=${ms}`);
-    console.log(JSON.stringify({ event: 'admin_view_timing', view, status: res.statusCode, ms, auth_ms: Math.round(authMs) }));
-    return end(...args);
-  };
-}
 // A person's name for their Admin page: the latest signup's full name, else the first name told to Jules.
 async function personName(store, conversation) {
   const signup = (await Promise.resolve(store.signupNames?.([conversation.sender_id])).catch(() => null))?.get(conversation.sender_id);
