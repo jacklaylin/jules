@@ -1,19 +1,26 @@
 import {mountAdminShell,adminJson} from './admin-console.js';
 import {ago} from './admin-people-view.js';
-import {TYPES,METRICS,metricCells,weekRows,worstTurns,agreement,turnRow} from './scorecard-view.js';
+import {TYPES,WHO,forWho,METRICS,metricCells,weekRows,worstTurns,agreement,turnRow} from './scorecard-view.js';
 // Admin › Scorecard: weekly search and recommendation quality, and the turns most worth reading.
 mountAdminShell('quality');
 const $ = id => document.getElementById(id);
 const el = (tag, props = {}, ...children) => { const node = Object.assign(document.createElement(tag), props); node.append(...children.filter(c => c !== null && c !== undefined)); return node; };
 const cell = (label, content, className = '') => { const td = el('td', { className }, content); td.dataset.label = label; return td; };
-let data = null, refreshedAt = null, type = 'all';
-try { type = new URLSearchParams(location.search).get('type') ?? 'all'; } catch {}
+let data = null, refreshedAt = null, type = 'all', who = 'testers';
+try { const q = new URLSearchParams(location.search); type = q.get('type') ?? 'all'; who = q.get('who') ?? 'testers'; } catch {}
 if (!TYPES.some(t => t.key === type)) type = 'all';
+if (!WHO.some(w => w.key === who)) who = 'testers';
+// The filters live in the address, so a reload or a shared link keeps them.
+const remember = () => { const q = new URLSearchParams(); if (type !== 'all') q.set('type', type); if (who !== 'testers') q.set('who', who); history.replaceState(null, '', q.size ? `?${q}` : location.pathname); };
 
 function render() {
   if (!data) return;
-  const turns = data.turns, now = Date.now();
-  $('types').replaceChildren(...TYPES.map(t => el('button', { type: 'button', ariaPressed: String(t.key === type), onclick: () => { type = t.key; history.replaceState(null, '', t.key === 'all' ? location.pathname : `?type=${t.key}`); render(); } },
+  const own = data.own_conversations ?? [], turns = forWho(data.turns, who, own), now = Date.now();
+  $('who').replaceChildren(...WHO.map(w => el('button', { type: 'button', ariaPressed: String(w.key === who), onclick: () => { who = w.key; remember(); render(); } },
+    w.label, el('span', { className: 'count', textContent: String(forWho(data.turns, w.key, own).length) }))));
+  $('who').hidden = !own.length;
+  $('own-missing').hidden = Boolean(data.own_configured);
+  $('types').replaceChildren(...TYPES.map(t => el('button', { type: 'button', ariaPressed: String(t.key === type), onclick: () => { type = t.key; remember(); render(); } },
     t.label, el('span', { className: 'count', textContent: String(t.key === 'all' ? turns.length : turns.filter(x => x.request_type === t.key).length) }))));
   const cells = metricCells(turns, { type, now });
   $('metrics').replaceChildren(...cells.map(c => el('div', { className: 'dv-metric' }, el('span', { textContent: c.label }), el('strong', { textContent: c.value }),
