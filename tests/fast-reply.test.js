@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { receiveInInbox, searchUpdates } from '../lib/inbox.js';
+import { receiveInInbox, searchUpdates, ackDelay } from '../lib/inbox.js';
 import { generateReply, searchFollowup } from '../lib/ai.js';
 import { agentTurn, tool } from './helpers/agent.js';
 
@@ -32,7 +32,8 @@ const searchTurn = (search, acknowledgment = 'Looking for a navy waxed jacket no
   await search;
   return 'Here are the options I found.';
 };
-const quiet = { progress: async () => async () => {}, writeFollowup: async () => null };
+// acknowledgeAfterMs 0: the acknowledgment goes out as the search starts (the held acknowledgment has its own tests).
+const quiet = { progress: async () => async () => {}, writeFollowup: async () => null, acknowledgeAfterMs: 0 };
 
 test('a search turn is acknowledged before the webhook responds, and the result follows as its own message', async () => {
   const db = memoryStore(), sent = [], search = gate(), deferred = [];
@@ -72,7 +73,7 @@ test('a webhook retry during a background search sends neither a second acknowle
 
 test('an acknowledgment is sent once even when the turn starts its search again', async () => {
   const sent = [];
-  const updates = searchUpdates({ followupAfterMs: 1000, writeFollowup: async () => null, deliver: async (kind, body) => { sent.push([kind, body]); return { status: 'sent' }; } });
+  const updates = searchUpdates({ acknowledgeAfterMs: 0, followupAfterMs: 1000, writeFollowup: async () => null, deliver: async (kind, body) => { sent.push([kind, body]); return { status: 'sent' }; } });
   await updates.begin({ acknowledgment: 'On it.' }); await updates.begin({ acknowledgment: 'On it again.' });
   await updates.finish();
   assert.deepEqual(sent, [['ack', 'On it.']]); assert.equal(updates.timing.acknowledged, true);
@@ -107,7 +108,7 @@ test('the follow-up counts from the start of the turn, not from the start of the
   let clock = 0;
   const sent = [];
   // The search begins 45 s into the turn; its follow-up is due 20 ms later, not 45 s later.
-  const updates = searchUpdates({ now: () => clock, followupAfterMs: 45020, writeFollowup: async () => 'Still looking.', deliver: async (kind, body) => { sent.push(body); return { status: 'sent' }; } });
+  const updates = searchUpdates({ acknowledgeAfterMs: 0, now: () => clock, followupAfterMs: 45020, writeFollowup: async () => 'Still looking.', deliver: async (kind, body) => { sent.push(body); return { status: 'sent' }; } });
   clock = 45000;
   await updates.begin({ acknowledgment: 'On it.' });
   await tick(200);
@@ -118,7 +119,7 @@ test('the follow-up counts from the start of the turn, not from the start of the
 test('a search that begins after the follow-up time gets only its acknowledgment', async () => {
   let clock = 0, written = 0;
   const sent = [], started = [];
-  const updates = searchUpdates({ now: () => clock, followupAfterMs: 90000, onStart: () => started.push(clock),
+  const updates = searchUpdates({ acknowledgeAfterMs: 0, now: () => clock, followupAfterMs: 90000, onStart: () => started.push(clock),
     writeFollowup: async () => { written++; return 'Still looking.'; }, deliver: async (kind, body) => { sent.push(body); return { status: 'sent' }; } });
   clock = 95000;
   await updates.begin({ acknowledgment: 'On it.' });
@@ -128,7 +129,7 @@ test('a search that begins after the follow-up time gets only its acknowledgment
 
 test('a follow-up still being written when the result is ready is dropped, never sent after it', async () => {
   const sent = [], written = gate();
-  const updates = searchUpdates({ followupAfterMs: 5, writeFollowup: () => written.opened, deliver: async (kind, body) => { sent.push(body); return { status: 'sent' }; } });
+  const updates = searchUpdates({ acknowledgeAfterMs: 0, followupAfterMs: 5, writeFollowup: () => written.opened, deliver: async (kind, body) => { sent.push(body); return { status: 'sent' }; } });
   await updates.begin({ acknowledgment: 'On it.' });
   await tick(20);
   await updates.finish(); sent.push('Result');
@@ -138,7 +139,7 @@ test('a follow-up still being written when the result is ready is dropped, never
 
 test('a follow-up already being sent finishes before the result goes out', async () => {
   const order = [], delivering = gate(), sending = gate();
-  const updates = searchUpdates({ followupAfterMs: 5, writeFollowup: async () => 'Still looking.',
+  const updates = searchUpdates({ acknowledgeAfterMs: 0, followupAfterMs: 5, writeFollowup: async () => 'Still looking.',
     deliver: async (kind, body) => { if (kind === 'followup') { sending.open(); await delivering.opened; } order.push(body); return { status: 'sent' }; } });
   await updates.begin({ acknowledgment: 'On it.' });
   // Wait for the follow-up to be mid-send, not a fixed delay: a slow CI runner may not have fired its timer yet.
@@ -205,4 +206,56 @@ test('the follow-up is written by the model in Jules’s voice and rejected when
     });
     assert.equal(result, expected);
   }
+});
+
+// October 21: fewer texts per turn. The acknowledgment waits; a result ready first goes out alone.
+test('a search that finishes before the acknowledgment delay sends only its result', async () => {
+  const db = memoryStore(), sent = [], search = gate(), deferred = [];
+  const outcome = await receiveInInbox(delivery(), env, { ...quiet, acknowledgeAfterMs: 60, store: db, generate: searchTurn(search.opened),
+    send: async (_d, body) => { sent.push(body); }, defer: work => deferred.push(work) });
+  // The webhook still responds as soon as the search starts; nothing has been sent yet.
+  assert.equal(outcome, 'imessage_ai_search_acknowledged'); assert.deepEqual(sent, []);
+  search.open(); await deferred[0]; await tick(100);
+  assert.deepEqual(sent, ['Here are the options I found.']);
+  assert.equal(db.rows.find(r => r.operation_id === 'ack:fake-message'), undefined);
+  const timing = db.rows.find(r => r.operation_id === 'ai:fake-message').search_result.timing_diagnostics;
+  assert.equal(timing.acknowledged, false); assert.equal(timing.ack_held, true);
+  assert.deepEqual(db.events, [['prepare', 'ai:fake-message', false]]);
+});
+
+test('a search still running after the acknowledgment delay gets the acknowledgment first', async () => {
+  const db = memoryStore(), sent = [], search = gate(), deferred = [];
+  await receiveInInbox(delivery(), env, { ...quiet, acknowledgeAfterMs: 10, store: db, generate: searchTurn(search.opened),
+    send: async (_d, body) => { sent.push(body); }, defer: work => deferred.push(work) });
+  await tick(40); assert.deepEqual(sent, ['Looking for a navy waxed jacket now.']);
+  search.open(); await deferred[0];
+  assert.deepEqual(sent, ['Looking for a navy waxed jacket now.', 'Here are the options I found.']);
+  assert.deepEqual(db.history(), sent);
+  assert.equal(db.rows.find(r => r.operation_id === 'ai:fake-message').search_result.timing_diagnostics.ack_held, undefined);
+});
+
+test('a follow-up due no later than the held acknowledgment is skipped: the acknowledgment is the update', async () => {
+  let clock = 0, written = 0;
+  const sent = [];
+  const updates = searchUpdates({ acknowledgeAfterMs: 20, now: () => clock, followupAfterMs: 90000,
+    writeFollowup: async () => { written++; return 'Still looking.'; }, deliver: async (kind, body) => { sent.push(body); return { status: 'sent' }; } });
+  clock = 89990;
+  await updates.begin({ acknowledgment: 'On it.' });
+  await tick(60); await updates.finish();
+  assert.deepEqual(sent, ['On it.']); assert.equal(written, 0);
+});
+
+test('a slow search gets the held acknowledgment and then the follow-up, each once', async () => {
+  const sent = [];
+  const updates = searchUpdates({ acknowledgeAfterMs: 5, followupAfterMs: 40, writeFollowup: async () => 'Still looking.',
+    deliver: async (kind, body) => { sent.push([kind, body]); return { status: 'sent' }; } });
+  await updates.begin({ acknowledgment: 'On it.' }); await updates.begin({ acknowledgment: 'On it again.' });
+  await tick(100); await updates.finish();
+  assert.deepEqual(sent, [['ack', 'On it.'], ['followup', 'Still looking.']]);
+});
+
+test('the acknowledgment delay comes from SEARCH_ACK_DELAY_MS, defaulting to 8 s', () => {
+  assert.equal(ackDelay({}), 8000); assert.equal(ackDelay({ SEARCH_ACK_DELAY_MS: '' }), 8000);
+  assert.equal(ackDelay({ SEARCH_ACK_DELAY_MS: '15000' }), 15000); assert.equal(ackDelay({ SEARCH_ACK_DELAY_MS: '0' }), 0);
+  assert.equal(ackDelay({ SEARCH_ACK_DELAY_MS: 'soon' }), 8000); assert.equal(ackDelay({ SEARCH_ACK_DELAY_MS: '-5' }), 8000);
 });
