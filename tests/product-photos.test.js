@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import sharp from 'sharp';
 import { fetchProductPhoto, productPhotoURL, listingPhotos, fetchListingPhotos, ynapPhotoURLs } from '../lib/product-photos.js';
-import { sendGreeting, withoutLinks } from '../lib/photon.js';
+import { sendGreeting, withoutLinks, cardFailure } from '../lib/photon.js';
 import { receiveInInbox } from '../lib/inbox.js';
 
 const photoURL = 'https://encrypted-tbn0.gstatic.com/images?q=test';
@@ -70,13 +70,14 @@ test('product photos allow only compared Google thumbnails and reject unsafe, ov
   }
 });
 
-function transport({ failText = false, failCard = false } = {}) {
+function transport({ failText = false, failCard = false, failUrl = null, failName = 'Error' } = {}) {
   const sent = [], logs = []; let stopped = false;
   const provider = () => ({ user: async () => ({}), space: { create: async () => ({ send: async input => {
     const content = typeof input === 'string' ? { type: 'text', text: input } : await input.build();
     sent.push(content);
     if (failText) throw new Error('Ambiguous send');
     if (failCard && (content.type === 'richlink' || content.content?.type === 'richlink')) throw new Error('Card failed');
+    if (failUrl && (content.url ?? content.content?.url) === failUrl) throw Object.assign(new Error(`Card failed ${failUrl}`), { name: failName });
     return { id: `test-sent-${sent.length}`, content };
   } }) } });
   provider.config = () => ({});
@@ -202,10 +203,37 @@ test('a product with its own card is not also linked in the answer; a failed car
   const failing = transport({ failCard: true });
   await sendGreeting(delivery, `Pick:\n1. Muscle tee\n${card}`, {}, { ...failing.options, products: [{ name: 'Muscle Tee', preview_url: card }], loadPhoto: assert.fail });
   assert.equal(failing.sent[0].text, 'Pick:\n1. Muscle tee');
-  assert.equal(failing.sent.at(-1).content.text, card, 'the link goes out on its own, under the answer');
-  assert.equal(failing.sent.at(-1).target.id, 'test-sent-1');
+  assert.equal(failing.sent.at(-1).text, card, 'the link goes out on its own');
   assert.deepEqual(failing.logs.map(l => l.event), ['product_rich_preview_failed', 'product_link_sent']);
   // A product link without a card, and other links, stay in the text.
   assert.equal(withoutLinks('See https://textjules.com/wishlist', [card]), 'See https://textjules.com/wishlist');
   assert.equal(withoutLinks(card, [card]), card, 'an answer that is only the link keeps it');
+});
+test('a failed card’s link is sent loose like the other cards and still kept as a part of the answer', async () => {
+  const second = card.replace('.0.', '.1.');
+  const sdk = transport({ failUrl: second, failName: 'TimeoutError' });
+  const sent = await sendGreeting(delivery, `Two picks:\n1. Muscle tee\n${card}\n2. Ripped tee\n${second}`, {}, { ...sdk.options,
+    products: [{ name: 'Muscle Tee', preview_url: card }, { name: 'Ripped tee', preview_url: second }], loadPhoto: assert.fail });
+  const link = sdk.sent.at(-1);
+  assert.equal(link.text, second);
+  assert.equal(link.target, undefined, 'not threaded under the answer');
+  assert.equal(cardOf(sdk.sent[1]).target, undefined, 'the working card is loose too');
+  assert.deepEqual(sent.parts.map(p => [p.kind, p.option]), [['card', 1], ['link', 2]]);
+  const failed = sdk.logs.find(l => l.event === 'product_rich_preview_failed');
+  assert.deepEqual(failed, { event: 'product_rich_preview_failed', stage: 'card', reason: 'TimeoutError', product_index: 2 });
+  assert.ok(!JSON.stringify(sdk.logs).includes(second), 'no URL in the logs');
+});
+test('a card under a caption falls back to its link under that caption, not the answer', async () => {
+  const sdk = transport({ failCard: true });
+  const sent = await sendGreeting(delivery, `Pick:\n${card}`, {}, { ...sdk.options, products: [{ name: 'Muscle Tee', caption: 'Closest match.', preview_url: card }], loadPhoto: assert.fail });
+  assert.equal(sdk.sent.at(-1).content.text, card);
+  assert.equal(sdk.sent.at(-1).target.id, 'test-sent-2');
+  assert.deepEqual(sent.parts.map(p => [p.kind, p.option]), [['card', 1], ['link', 1]], 'the caption, then the link');
+  assert.equal(sdk.logs[0].reason, 'error', 'an unknown error is labelled generically');
+});
+test('a card failure reason is one of a fixed set of labels', () => {
+  assert.equal(cardFailure(Object.assign(new Error('x'), { not_returned: true })), 'not_returned');
+  assert.equal(cardFailure(Object.assign(new Error('https://a.example'), { name: 'AuthenticationError' })), 'AuthenticationError');
+  assert.equal(cardFailure(Object.assign(new Error('x'), { name: 'Weird https://a.example' })), 'error');
+  assert.equal(cardFailure(undefined), 'error');
 });
