@@ -3,7 +3,7 @@ import {mountHeader,enableAdminLink,closeDialog,removeWithMotion,popIn,riseIn} f
 import {fitFilterBar} from './filter-bar.js';
 mountHeader('wishlist');
 import {createSession} from './wishlist-session.js';
-import {rememberWishlistTarget,consumeWishlistTarget} from './wishlist-deep-link.js';
+import {rememberWishlistTarget,consumeWishlistTarget,itemURL} from './wishlist-deep-link.js';
 import {matchPhotoBackground} from './photo-background.js';
 import {readList,saveList,forgetLists} from './list-cache.js';
 import {whenNear} from './lazy-photo.js';
@@ -106,7 +106,7 @@ function previewPhoto(entry){
 }
 function links(entries){const box=node('div',null,'links');for(const entry of [...entries??[]].sort((a,b)=>soldOutLink(a)-soldOutLink(b))){try{const u=new URL(entry.url);if(u.protocol!=='https:'||u.username||u.password)continue;const a=node('a',null,'link-preview');a.href=u.href;a.target='_blank';a.rel='noopener noreferrer';const copy=node('div',null,'link-copy');copy.append(node('span',entry.retailer||u.hostname,'retailer label'),node('strong',entry.name),node('span',(entry.verification_status==='unverified'?'Saved link · price and stock unverified':entry.price?money(entry.price.amount,entry.price.currency)+(entry.price.evidence_level==='indexed'?' · sizes unconfirmed':entry.discovered?' · found by Jules · sizes unconfirmed':'')+(entry.unreviewed?' · unreviewed store':''):entry.verification_status==='indexed'?'Current price and sizes unconfirmed':'Price unavailable')+(soldOutLink(entry)&&!entry.stock_fresh?' · '+soldOutWhen(entry.stock_checked_at):'')+' ↗','link-action'));if(soldOutLink(entry)){a.classList.add('sold-out');if(entry.stock_fresh)copy.querySelector('.link-action').prepend(stockTag('Sold out'),' ');}if(entry.best_price)copy.querySelector('.link-action').prepend(node('span','Best price','stock-tag best-price'),' ');if(entry.image_item||entry.preview_image_url)a.append(previewPhoto(entry));else a.append(node('div','No preview','photo'));a.append(copy);box.append(a);}catch{}}return box;}
 async function detail(id){
- $('detail-content').dataset.group=id;
+ $('detail-content').dataset.group=id;history.replaceState(history.state,'',itemURL(location.href,id));
  const openedAt=performance.now();const version=++detailVersion;message('');$('detail-content').setAttribute('aria-busy','true');const saved=itemCache.get(id);if(saved){const summary=node('div',null,'info');summary.append(node('h2',saved.name),node('p',priceRange(saved.price_ranges),'price-range'),...storeSkeleton());$('detail-content').replaceChildren(photoCarousel(saved),summary);}else $('detail-content').replaceChildren(...detailSkeleton());$('detail').showModal();$('detail').focus();document.body.classList.add('detail-open');requestAnimationFrame(()=>{if(version===detailVersion)$('detail-content').dataset.summaryMs=(performance.now()-openedAt).toFixed(1);});
  try{const {item}=await api('?group='+encodeURIComponent(id),{quiet:true});if(version!==detailVersion||!$('detail').open)return;const info=node('div',null,'info');info.tabIndex=0;info.setAttribute('role','region');info.setAttribute('aria-label','Product details and links');info.append(node('h2',item.name));if(item.sourcing_status==='store_not_found'){info.append(node('p','Product identified · Store not found','sourcing-state'),node('p','I haven’t found a store I can recommend for this item.','sourcing-note'));}info.append(node('p',priceRange(item.price_ranges),'price-range'),...stockSummary(item),links(item.links));if(item.sourcing_status==='store_not_found'&&item.identity_sources?.length){info.append(node('h3','Identification sources'));const refs=node('div',null,'identity-sources');for(const reference of item.identity_sources){try{const u=new URL(reference.url);if(u.protocol!=='https:'||u.username||u.password)continue;const a=node('a',reference.name||u.hostname);a.href=u.href;a.target='_blank';a.rel='noopener noreferrer';refs.append(a);}catch{}}info.append(refs);}
  // Actions come before the activity line (sent, price checked), which closes the detail.
@@ -127,7 +127,7 @@ async function load(){
  if(!saved||JSON.stringify(items)!==JSON.stringify(saved))render(items,version,'server');
  void recoverPhotos(items,generation);void recoverAlertBaselines(items,generation);
  const target=consumeWishlistTarget(items,localStorage);
- if(target?.id)void detail(target.id);else if(target?.missing)message('This item is not available in your signed-in wishlist.');
+ if(target?.id)void detail(target.id);else if(target?.missing){history.replaceState(history.state,'',itemURL(location.href,null));message('This item is not available in your signed-in wishlist.');}
 }
 // Redrawing keeps the page's photo cache, so photos already shown reappear without a reload.
 function render(items,version,source){
@@ -355,7 +355,7 @@ let backdropPress=false;
 const outsideDetail=e=>{const r=$('detail').getBoundingClientRect();return e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom;};
 $('detail').addEventListener('pointerdown',e=>{backdropPress=outsideDetail(e);});
 $('detail').addEventListener('click',e=>{if(backdropPress&&outsideDetail(e))closeDetail();backdropPress=false;});
-$('detail').addEventListener('close',()=>{document.body.classList.remove('detail-open');});
+$('detail').addEventListener('close',()=>{document.body.classList.remove('detail-open');history.replaceState(history.state,'',itemURL(location.href,null));});
 // The sign-in section starts hidden so signed-in visits never flash it; show it only when signed out.
 if(token)load().catch(e=>message(e.message));else $('login').hidden=false;
 if(fragment.get('error_description'))message('This sign-in link has expired. Request a new one.');

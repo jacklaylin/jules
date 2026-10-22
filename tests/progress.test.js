@@ -44,3 +44,30 @@ test('durable duplicates do not react twice and cleanup runs when preparing a re
   assert.equal(await receiveInInbox(delivery, { AI_ENABLED: 'true' }, options), 'imessage_ai_duplicate');
   assert.equal(starts, 1); assert.equal(stops, 1);
 });
+
+// SPEED.md change 2 (October 22): the read receipt and typing dots start alongside the context read, not before it.
+test('a slow typing start does not hold the context read, and the turn still stops it', async () => {
+  const order = []; let release, stops = 0;
+  const ready = new Promise(resolve => { release = resolve; });
+  const store = { receive: async () => 'test-conversation', claimAI: async () => true,
+    context: async () => { order.push('context'); release(); return []; },
+    prepareAI: async () => {}, finish: async () => {} };
+  const progress = async () => { await ready; order.push('typing'); return async () => { stops++; }; };
+  const delivery = { space: { phone: 'test-line' }, message: { id: 'test-message', sender: { id: 'test-user' }, content: { text: 'hi' } } };
+  await receiveInInbox(delivery, { AI_ENABLED: 'true' }, { store, progress, generate: async () => 'Hello.', send: async () => ({}) });
+  assert.deepEqual(order, ['context', 'typing']);
+  assert.equal(stops, 1);
+});
+
+test('typing that starts after its time limit is stopped instead of left running', async () => {
+  let stops = 0, late;
+  const started = new Promise(resolve => { late = resolve; });
+  const store = { receive: async () => 'test-conversation', claimAI: async () => true, context: async () => [],
+    prepareAI: async () => {}, finish: async () => {} };
+  const delivery = { space: { phone: 'test-line' }, message: { id: 'test-message', sender: { id: 'test-user' }, content: { text: 'hi' } } };
+  const outcome = await receiveInInbox(delivery, { AI_ENABLED: 'true' }, { store, progressTimeoutMs: 5,
+    progress: () => started, generate: async () => 'Hello.', send: async () => ({}) });
+  assert.equal(outcome, 'imessage_ai_reply_sent');
+  late(async () => { stops++; }); await new Promise(resolve => setTimeout(resolve, 10));
+  assert.equal(stops, 1);
+});

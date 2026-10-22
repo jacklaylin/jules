@@ -5,7 +5,7 @@ import {wishlistPreviewURL,validWishlistPreview,splitWishlistPreview} from '../l
 import {createImageHandler} from '../api/image.js';
 import {createPreviewHandler} from '../lib/wishlist-preview-handler.js';
 import {sendGreeting} from '../lib/photon.js';
-import {rememberWishlistTarget,consumeWishlistTarget} from '../public/wishlist-deep-link.js';
+import {rememberWishlistTarget,consumeWishlistTarget,itemURL} from '../public/wishlist-deep-link.js';
 const item='12345678-1234-1234-1234-123456789abc';
 const env={SITE_ORIGIN:'https://jules.example',SUPABASE_SERVICE_ROLE_KEY:'test-only-key'};
 const url=wishlistPreviewURL(item,true,env);
@@ -17,6 +17,14 @@ test('preview item targets survive sign-in in another tab and cannot resolve aga
  rememberWishlistTarget('?item='+item,storage,100);assert.deepEqual(consumeWishlistTarget([],storage,200),{missing:true});
  rememberWishlistTarget('?item='+item,storage,100);assert.equal(consumeWishlistTarget([],storage,2000000),null);
  rememberWishlistTarget('?item=unsafe',storage,100);assert.equal(data.size,0);
+});
+test('an open product page puts its id in the address and closing removes it, keeping the filter',()=>{
+ const opened=itemURL('https://jules.example/wishlist?filter=alerts',item);
+ assert.equal(opened,'/wishlist?filter=alerts&item='+item);
+ assert.equal(itemURL('https://jules.example'+opened,null),'/wishlist?filter=alerts');
+ const data=new Map(),storage={getItem:key=>data.get(key),setItem:(key,value)=>data.set(key,value),removeItem:key=>data.delete(key)};
+ rememberWishlistTarget('?item='+item,storage,100);
+ assert.deepEqual(consumeWishlistTarget([{id:item,entries:[{item_id:'12345678-0000-0000-0000-000000000000'}]}],storage,200),{id:item});
 });
 const response=()=>({headers:{},setHeader(k,v){this.headers[k]=v;},end(body){this.body=body;}});
 async function request(read,path=url,method='GET'){
