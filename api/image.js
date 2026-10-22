@@ -5,6 +5,7 @@ import { authorize } from '../lib/auth.js';
 import { createStore } from '../lib/store.js';
 import { json, uuid } from '../lib/http.js';
 import { handleReportImage } from '../lib/report-image.js';
+import { handleReportPreview } from '../lib/report-preview.js';
 import { createGoHandler } from '../lib/adoption-events.js';
 export function createImageHandler({auth=authorize,storeFactory=createStore,env=process.env,previewHandler=createPreviewHandler({env})}={}) {
   return async (req,res) => {
@@ -14,6 +15,8 @@ export function createImageHandler({auth=authorize,storeFactory=createStore,env=
       if (new URL(req.url,'https://local.invalid').searchParams.has('go')) return createGoHandler({env,store:storeFactory(env)})(req,res);
       // A shared style report card as a Story image: public like the share link, no sign-in.
       if (new URL(req.url,'https://local.invalid').searchParams.has('report')) return handleReportImage(req,res,{store:storeFactory(env),env});
+      // A shared style report's iMessage preview, with the sharer's first name: public like the share link.
+      if (new URL(req.url,'https://local.invalid').searchParams.has('share_preview')) return handleReportPreview(req,res,{store:storeFactory(env)});
       const access=await auth(req.headers,env);
       if (access!==200) return json(res,access,{error:'Please sign in with the owner account.'});
       if (req.method!=='GET') { res.setHeader('Allow','GET'); return json(res,405,{error:'Method not allowed.'}); }

@@ -132,7 +132,7 @@ Every rich iMessage preview image is one component, LinkPreview, designed on the
 
 | Haze | Surface | File |
 | --- | --- | --- |
-| Butter | Style report share `/r/…` | `report-v2.png` (no name: "A style report is in") |
+| Butter | Style report share `/r/…` | `report-bg-v1.png` plus the sharer's name, drawn per link (`lib/report-preview.js`); `report-v2.png` when there is no name |
 | Daylight | Homepage `/` | `home-v2.png` |
 | Bubblegum | Wishlist `/wishlist` | `wishlist-v2.png` (three blank cards) |
 | Sherbet | Your style `/style` | `style-v2.png` |
@@ -140,4 +140,5 @@ Every rich iMessage preview image is one component, LinkPreview, designed on the
 | Signup | Spare (invites) | — |
 
 - **Product cards:** 340×500 white card, 350px photo slot on `fog`, name and store bars. One card per item the link actually holds (one for a single save, up to three); a product photo only ever appears on its own white card. Product `/go/` links stay the plain product photo on white (October 20 decision).
+- **Names and other live text:** `lib/link-preview-headline.js` draws a headline from the bundled Instrument Serif onto a headline-free background, following the same rules (112px, balanced lines, 590px column). Longer text steps down 112 → 100 → 88 → 76 → 64px until it fits in three lines. A single word wider than the column shrinks the size further. Text the font can't draw (emoji, most non-Latin scripts) uses the generic headline.
 - **Changing art:** bump the file's version (`-v3`) and its metadata references so Apple fetches the new image; keep the canvas and this template in step.
