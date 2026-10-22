@@ -2,22 +2,75 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Jules admin · Report jokes</title><meta name="robots" content="noindex"><link rel="stylesheet" href="/design-system.css"><link rel="stylesheet" href="/admin.css">
-  <script src="/report-jokes.js" type="module"></script><link rel="modulepreload" href="/admin-console.js"><link rel="modulepreload" href="/design-system.js"><link rel="modulepreload" href="/brand-ui.js"><link rel="modulepreload" href="/activity.js"><link rel="modulepreload" href="/wishlist-session.js"><link rel="modulepreload" href="/admin-session.js">
+  <title>Jules admin · Style report</title><meta name="robots" content="noindex"><link rel="stylesheet" href="/design-system.css"><link rel="stylesheet" href="/admin.css">
+  <script src="/report-jokes.js" type="module"></script><link rel="modulepreload" href="/admin-console.js"><link rel="modulepreload" href="/design-system.js"><link rel="modulepreload" href="/brand-ui.js"><link rel="modulepreload" href="/activity.js"><link rel="modulepreload" href="/wishlist-session.js"><link rel="modulepreload" href="/admin-session.js"><link rel="modulepreload" href="/list-cache.js">
 <link rel="icon" href="/brand/icon.svg" type="image/svg+xml"></head>
 <body class="admin-console">
+  <!-- Admin › Style report (design: "Style report adoption in admin" canvas). Engagement: lib/report-adoption.js.
+       Jokes: lib/report-copy.js copyWeek. Each view loads only when it is open. -->
   <main>
-    <div class="dv-heading"><h1 class="dv-title">Report jokes</h1><span class="dv-heading-note">Thumbs on style report lines, last 7 days</span></div>
-    <div class="dv-status"><span id="summary"></span><span id="notice" role="status" aria-live="polite"></span></div>
-    <h2 class="dv-subhead">Best lines</h2>
-    <p class="dv-heading-note">👍 and no 👎. A line with a 👍 and no 👎 joins its card’s examples in the writer prompt.</p>
-    <div id="best" class="dv-list jokes-list" aria-label="Best lines"></div>
-    <h2 class="dv-subhead">Worst lines</h2>
-    <p class="dv-heading-note">Any 👎. A named miss, or a 👎 on a one-line card, goes in the prompt as “don’t write like this”. An unnamed 👎 on a multi-line card counts half, spread across it.</p>
-    <div id="worst" class="dv-list jokes-list" aria-label="Worst lines"></div>
-    <h2 class="dv-subhead">Prompt versions</h2>
-    <p class="dv-heading-note">Lines shown this week per card and prompt. A prompt edit gets a new version automatically.</p>
-    <div id="prompts" class="dv-list jokes-prompts" aria-label="Prompt versions"></div>
+    <div class="dv-heading"><h1 class="dv-title">Style report</h1><span id="heading-note" class="dv-heading-note"></span></div>
+    <div class="dv-toolbar">
+      <div id="views" class="dv-views" role="group" aria-label="Style report views">
+        <button type="button" data-view="" aria-pressed="true">Engagement</button>
+        <button type="button" data-view="jokes" aria-pressed="false">Jokes</button>
+      </div>
+      <label id="compare-field" class="dv-field">Compare <select id="compare"><option value="week">This week vs last week</option><option value="month" selected>Last 4 weeks vs the 4 before</option></select></label>
+      <span class="spacer"></span>
+      <button id="refresh" class="small quiet" type="button">Refresh</button>
+    </div>
+    <div class="dv-status"><span id="refreshed"></span><span id="loader" hidden>Refreshing…</span><span id="notice" role="status" aria-live="polite"></span></div>
+
+    <section id="view-engagement" aria-label="Engagement">
+      <div id="strip" class="dv-metrics report-strip" role="group" aria-label="Style report figures" aria-busy="true"></div>
+      <details class="fold metrics-help"><summary>What these numbers mean</summary><dl>
+        <dt>Reports built</dt><dd>First reports built in the period; a rebuild doesn't count again. Higher is better.</dd>
+        <dt>Opened</dt><dd>Testers who opened their own report (your admin preview doesn't count). Visits count at most once a day per report.</dd>
+        <dt>Shared</dt><dd>Testers who shared it by any method: copy link, Instagram Story, the phone's share sheet or a download.</dd>
+        <dt>Friends opened</dt><dd>First opens of a shared link per browser. Bots, link previews and the owner's own browser are left out.</dd>
+        <dt>Signups</dt><dd>People who signed up through a tester's link. The report and the style card share one link code, so this counts both.</dd>
+        <dt>Votes up</dt><dd>Share of thumbs up among the latest vote per card per report, cast in the period. Changes in points.</dd>
+        <dt>Not tracked</dt><dd>Opens, shares and friends' opens are counted from October 22, 2026; cards reached, card images and the share method from that evening. Earlier periods say New, never 0.</dd>
+      </dl></details>
+      <div class="report-cards">
+        <section id="card-methods" class="dv-card" aria-labelledby="methods-title" aria-busy="true">
+          <div class="dv-card-head"><h2 id="methods-title">How they shared</h2><span id="methods-note" class="dv-card-note"></span></div>
+          <div id="methods-bar"></div>
+          <div class="dv-table-wrap"><table class="dv-table"><thead><tr><th>Method</th><th class="end">Shares</th><th class="end">Share of all</th><th class="end">Testers</th><th class="end">Friends opened</th><th class="end">Opens per share</th><th class="end">Signups</th></tr></thead><tbody id="methods-rows"></tbody></table></div>
+          <p id="methods-foot" class="dv-card-foot" hidden></p>
+        </section>
+        <section id="card-cards" class="dv-card" aria-labelledby="cards-title" aria-busy="true">
+          <div class="dv-card-head"><h2 id="cards-title">By card</h2><span class="dv-card-note">weakest first</span></div>
+          <div id="cards-bar"></div>
+          <div class="dv-table-wrap"><table class="dv-table report-card-table"><thead><tr><th>Card</th><th class="end">Seen by</th><th>Votes</th><th>Why down</th><th class="end">Shared as image</th></tr></thead><tbody id="cards-rows"></tbody></table></div>
+        </section>
+        <section id="card-weeks" class="dv-card" aria-labelledby="weeks-title" aria-busy="true">
+          <div class="dv-card-head"><h2 id="weeks-title">By week</h2><span class="dv-card-note">weeks start Monday (UTC)</span></div>
+          <div class="dv-table-wrap"><table class="dv-table"><thead><tr><th>Week of</th><th class="end">Built</th><th class="end">Opened</th><th class="end">Shared</th><th class="end">Friends opened</th><th class="end">Signups</th><th class="end">Votes</th></tr></thead><tbody id="weeks-rows"></tbody></table></div>
+          <p class="dv-card-foot">Opened and Shared count testers; visits and shares follow. Built counts first builds, not rebuilds.</p>
+        </section>
+      </div>
+    </section>
+
+    <section id="view-jokes" aria-label="Jokes" hidden>
+      <div class="report-cards">
+        <section class="dv-card" aria-labelledby="best-title">
+          <div class="dv-card-head"><h2 id="best-title">Best lines</h2><span class="dv-card-note">last 7 days</span></div>
+          <p class="dv-card-note">Thumbs up and no thumbs down. These join their card's examples in the writer prompt.</p>
+          <div id="best" class="dv-list jokes-list" aria-label="Best lines"></div>
+        </section>
+        <section class="dv-card" aria-labelledby="worst-title">
+          <div class="dv-card-head"><h2 id="worst-title">Worst lines</h2><span class="dv-card-note">last 7 days</span></div>
+          <p class="dv-card-note">Any thumbs down. A named miss, or a thumbs down on a one-line card, goes in the prompt as "don't write like this". An unnamed thumbs down on a card with several lines counts half, spread across it.</p>
+          <div id="worst" class="dv-list jokes-list" aria-label="Worst lines"></div>
+        </section>
+        <section class="dv-card" aria-labelledby="prompts-title">
+          <div class="dv-card-head"><h2 id="prompts-title">Prompt versions</h2><span class="dv-card-note">lines shown this week per card and prompt</span></div>
+          <p class="dv-card-note">A prompt edit gets a new version automatically.</p>
+          <div id="prompts" class="dv-list jokes-prompts" aria-label="Prompt versions"></div>
+        </section>
+      </div>
+    </section>
   </main>
 </body>
 </html>

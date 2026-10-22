@@ -33,6 +33,7 @@ import { signupsWaiting } from '../lib/new-signups.js';
 import { goesWithCandidates, sendTestNudge, nudgeTestConversation, purchaseTextsOn } from '../lib/purchase-texts.js';
 import { nudgeTimezone, nudgeSummary } from '../lib/nudges.js';
 import { alertSummary } from '../lib/alert-metrics.js';
+import { reportAdoptionData } from '../lib/report-adoption.js';
 
 export const config = { api: { bodyParser: false }, maxDuration: 30 };
 // Owner view. Conversations are read-only (Jules replies automatically); the owner can review and
@@ -155,6 +156,8 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
       if (query.get('view') === 'feedback') return json(res, 200, { feedback: await store.feedback() });
       // The style report jokes loop: this week's best and worst lines, and each prompt version's votes.
       if (query.get('view') === 'report-copy') return json(res, 200, copyWeek(await store.reportCopyRows()));
+      // Admin › Style report, Engagement view (lib/report-adoption.js): opens, shares, friends' opens, signups and votes.
+      if (query.get('view') === 'style-report') return json(res, 200, await reportAdoptionData(store, env));
       // New signups who haven't texted Jules yet (lib/new-signups.js). Phones are masked to the last four digits.
       if (query.get('view') === 'signups') return json(res, 200, { signups: await signupsWaiting(store) });
       if (query.get('view') === 'adoption') return json(res, 200, await adoptionReport(store));
