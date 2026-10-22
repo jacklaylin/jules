@@ -1,4 +1,4 @@
-import {mountAdminShell,adminJson,adminToken,skeletonRows} from './admin-console.js';
+import {mountAdminShell,adminJson,adminToken,skeletonRows,metricCell,shortVerdict} from './admin-console.js';
 import {readPage,savePage,sameData} from './list-cache.js';
 import {ago} from './admin-people-view.js';
 import {TYPES,WHO,forWho,METRICS,metricCells,weekRows,worstTurns,agreement,turnRow} from './scorecard-view.js';
@@ -24,8 +24,7 @@ function render() {
   $('types').replaceChildren(...TYPES.map(t => el('button', { type: 'button', ariaPressed: String(t.key === type), onclick: () => { type = t.key; remember(); render(); } },
     t.label, el('span', { className: 'count', textContent: String(t.key === 'all' ? turns.length : turns.filter(x => x.request_type === t.key).length) }))));
   const cells = metricCells(turns, { type, now });
-  $('metrics').replaceChildren(...cells.map(c => el('div', { className: 'dv-metric' }, el('span', { textContent: c.label }), el('strong', { textContent: c.value }),
-      el('span', { className: `badge ${c.tone}`, textContent: c.verdict }), el('span', { className: 'dv-metric-was', textContent: `${c.was} · ${c.sample}` }))));
+  $('metrics').replaceChildren(...cells.map(c => metricCell({ label: c.label, value: c.value, change: shortVerdict(c.verdict), tone: c.tone, was: `${c.was} · ${c.sample}` })));
   $('metrics').hidden = false;
   $('judge-missing').hidden = data.judge_available;
   $('weeks-head').replaceChildren(...['Week of', 'Searches', ...METRICS.map(m => m.label)].map(h => el('th', { textContent: h })));
@@ -65,7 +64,7 @@ async function post(body, done) {
   try { await done(await adminJson('/api/admin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })); }
   catch (error) { notice(`Couldn’t save that: ${error.message}`, true); }
 }
-// A return visit draws the last scorecard at once (list-cache.js), with its age, while the loader shows the refresh;
+// A return visit draws the last scorecard at once (list-cache.js), with its age, while "Refreshing…" shows in the status line;
 // a fresh scorecard that matches is not drawn again.
 async function load() {
   $('loader').hidden = false; notice('');

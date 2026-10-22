@@ -10,11 +10,6 @@ p{line-height:1.65}.login-card{max-width:490px;margin:7vh auto}.login-card>p{col
 .people-list .person-link>*,.people-list .person-phone{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.people-list .person-phone-sub{display:none;font-size:12px}
 .people-list .dv-row>a.end{color:var(--ink);text-decoration:none}
 .signups-list{--dv-cols:minmax(0,1.6fr) minmax(0,1fr) minmax(0,1fr)}.signup-name{display:flex;flex-direction:column;min-width:0;padding:6px 0}.signup-name>*{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.signup-sub{display:none;font-size:12px}
-/* Chat quality strip and its explanations (shared .dv-metrics and .fold) */
-.chat-metrics .dv-metric-was{color:var(--text-2);white-space:nowrap}
-.metrics-help{margin:8px 0 4px}.metrics-help>summary{font-size:13px;color:var(--text-2)}
-.metrics-help dl{display:grid;grid-template-columns:max-content 1fr;gap:8px 16px;margin:0;font-size:13px;line-height:1.5}.metrics-help dt{font-weight:600}.metrics-help dd{margin:0;color:var(--text-2)}
-@media(max-width:800px){.metrics-help dl{grid-template-columns:1fr;gap:2px}.metrics-help dd{margin-bottom:8px}}
 @media(max-width:800px){.signups-list{--dv-cols:minmax(0,1fr)}.signups-list :is(.dv-row,.dv-head)>:is(:nth-child(2),:nth-child(3)){display:none}.signups-list .dv-row{min-height:52px}.signup-sub{display:block}.people-list{--dv-cols:minmax(0,1fr) auto}.people-list .dv-row>:is(:nth-child(2),:nth-child(4),:nth-child(5),:nth-child(6)),.people-list .dv-head>:is(:nth-child(2),:nth-child(4),:nth-child(5),:nth-child(6)){display:none}.people-list .person-phone-sub{display:block}.people-list .dv-row{min-height:52px}}
 
 /* Person page */
@@ -98,7 +93,6 @@ p{line-height:1.65}.login-card{max-width:490px;margin:7vh auto}.login-card>p{col
 @media(max-width:800px){.jokes-list{--dv-cols:minmax(0,1fr) 92px}.jokes-list .dv-row>span:first-child,.jokes-list .dv-head>span:first-child{display:none}}
 
 /* Adoption: tester grid and weekly ladder (dense .dv-table); rows become labelled cards on phones. */
-.adoption-summary .dv-metric{flex:1 1 140px}
 .adoption-table .num{font:400 12px var(--font-mono);white-space:nowrap}
 .adoption-table td .badge{font-size:11px;padding:3px 8px 3px 5px}.adoption-table td .badge::before{width:13px;height:13px}
 .adoption-table .tester-link{font-weight:600;color:var(--ink);text-decoration:none}.adoption-table .tester-link:hover{color:var(--grape)}
@@ -106,7 +100,6 @@ p{line-height:1.65}.login-card{max-width:490px;margin:7vh auto}.login-card>p{col
 .adoption-minor{margin:20px 0 6px;font:600 14px/1.3 var(--font-sans)}.adoption-narrow{max-width:900px}
 .adoption-table .muted{color:var(--text-2)}.adoption-table .miss-summary{display:grid;gap:2px;white-space:normal;line-height:1.45}.adoption-table .miss-summary small{font-size:12px;color:var(--text-2)}
 @media(max-width:800px){
- .adoption-summary .dv-metric{flex-basis:45%;border-bottom:1px solid var(--line)}
  .adoption-table,.adoption-table tbody,.adoption-table tr,.adoption-table td{display:block}.adoption-table thead{display:none}
  .adoption-table tr{padding:10px 0;border-bottom:1px solid var(--line)}.adoption-table td{height:auto;padding:2px 0;border:0;text-align:left}
  .adoption-table td[data-label]{display:flex;justify-content:space-between;gap:12px}.adoption-table td[data-label]::before{content:attr(data-label);font:400 13px var(--font-sans);color:var(--text-2)}
@@ -114,7 +107,7 @@ p{line-height:1.65}.login-card{max-width:490px;margin:7vh auto}.login-card>p{col
  .adoption-table td[data-label="What happened"],.adoption-table td[data-label="Meaning"]{display:grid;gap:2px}
 }
 /* Admin › Scorecard: eight figures wrap rather than run off the strip; the turns table reuses the adoption table. */
-.scorecard-metrics{flex-wrap:wrap}.scorecard-metrics .dv-metric{flex:1 1 128px;min-width:0}
+
 .scorecard-turns td[data-label="Judge"]{max-width:420px}
 .scorecard-turns button[aria-pressed=true]{background:var(--fog);color:var(--ink)}
 @media(max-width:800px){.scorecard-turns td[data-label="Judge"]{max-width:none;display:grid;gap:4px}}
@@ -124,15 +117,12 @@ p{line-height:1.65}.login-card{max-width:490px;margin:7vh auto}.login-card>p{col
 .person-phone{font-size:13px;color:var(--text-2)}
 .summary-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,380px);gap:24px;align-items:start}
 @media(max-width:1100px){.summary-layout{grid-template-columns:minmax(0,1fr)}}
-.summary-card{border:1px solid var(--line);border-radius:var(--r-card);padding:20px 24px;display:flex;flex-direction:column;gap:14px;min-width:0}
-.summary-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 12px}.summary-head h2{font-size:30px;margin:0}.summary-head .spacer{flex:1}
 .summary-table th[scope=row]{font-weight:600;white-space:nowrap;color:var(--ink);font-size:13px;height:auto;border-bottom:1px solid var(--line)}
 .summary-table td,.summary-table th[scope=row]{vertical-align:top;padding-top:9px;padding-bottom:9px;height:auto}
 .summary-table tr:last-child td,.summary-table tr:last-child th{border-bottom:0}
 .summary-detail{font-size:12px;margin-top:2px}
-.summary-strip{margin:0 0 20px}.summary-strip .dv-metric{flex:1 1 200px;padding:12px 18px}.summary-strip .dv-metric>strong{font-size:20px;letter-spacing:-0.02em}
+.summary-strip{margin:0 0 20px}
 .summary-side{display:flex;flex-direction:column;gap:24px;min-width:0}
-.summary-head a{font-size:13px;font-weight:600}
 .summary-figure{margin:0;font-size:13px}.summary-figure strong{font-size:22px;letter-spacing:-0.02em}
 .summary-weeks{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}.summary-weeks .week{display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--text-2)}
 .summary-weeks i,.week-key{display:block;height:22px;border-radius:6px;box-sizing:border-box;border:1.5px dashed var(--line-strong);background:var(--white)}
@@ -140,16 +130,14 @@ p{line-height:1.65}.login-card{max-width:490px;margin:7vh auto}.login-card>p{col
 .week-key{display:inline-block;width:10px;height:10px;border-radius:3px;vertical-align:-1px;margin-right:5px}
 .summary-legend{display:flex;flex-wrap:wrap;gap:4px 14px;margin:0;font-size:12px;color:var(--text-2)}.summary-legend strong{color:var(--ink)}
 .summary-stat{display:grid;gap:2px;font-size:13px;border-top:1px solid var(--line);padding-top:14px}.summary-stat .muted{font-size:12px}
-.summary-foot{margin:0;font-size:12px;border-top:1px solid var(--line);padding-top:12px}.summary-foot strong{color:var(--ink)}
 .summary-facts{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 12px;margin:0;font-size:13px;border-top:1px solid var(--line);padding-top:14px}.summary-facts[hidden]{display:none}
 .summary-facts dt{color:var(--text-2)}.summary-facts dt small{display:block;font-size:12px}.summary-facts dd{margin:0;text-align:right;font-weight:600;color:var(--ink)}
 .summary-bar{display:flex;height:10px;border-radius:var(--r-pill);overflow:hidden;background:var(--fog);gap:2px}.summary-bar[hidden]{display:none}
 .ending.positive,.ending-key.positive{background:var(--ink)}.ending.neutral,.ending-key.neutral{background:var(--line-strong)}.ending.negative,.ending-key.negative{background:var(--danger)}.ending.silent,.ending-key.silent{background:var(--line)}
 .ending-key{display:inline-block;width:10px;height:10px;border-radius:3px;vertical-align:-1px;margin-right:5px}
-.summary-text-now{background:var(--fog);border-color:var(--fog)}.summary-text-now .summary-head h2{font-size:24px}.summary-text-now .badge{background:var(--white)}
 .summary-text{margin:0;font-size:14px;white-space:pre-line}.summary-text-now p.muted{margin:0;font-size:12px}
 /* Phones: each row becomes a stacked block (topic and coverage, then what Jules knows, then where from), no sideways scroll. */
-@media(max-width:800px){.summary-card{padding:16px}.summary-table thead{display:none}.summary-table,.summary-table tbody{display:block}
+@media(max-width:800px){.summary-table thead{display:none}.summary-table,.summary-table tbody{display:block}
  .summary-table tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 10px;padding:12px 0;border-bottom:1px solid var(--line)}.summary-table tr:last-child{border-bottom:0}
  .summary-table th[scope=row],.summary-table td{border:0;padding:0}.summary-table td:nth-child(3),.summary-table td:nth-child(4){grid-column:1/-1}}
 /* Admin › People › person › Knowledge: one sortable table of their own facts (editable) and derived rows (read-only).

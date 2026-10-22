@@ -131,7 +131,7 @@ function renderMessages() {
   imageURLs.forEach(url => URL.revokeObjectURL(url)); imageURLs = [];
   const onlyProblems = $('convo-filter').value === 'problems';
   const shown = onlyProblems ? messages.filter(m => problems(m).length) : messages;
-  $('messages').replaceChildren(...(shown.length ? shown.map(messageView) : [el('p', { className: 'empty-state', textContent: onlyProblems ? 'No problems in the loaded messages.' : 'No messages yet.' })]));
+  $('messages').replaceChildren(...(shown.length ? shown.map(messageView) : [el('p', { className: 'dv-empty', textContent: onlyProblems ? 'No problems in the loaded messages.' : 'No messages yet.' })]));
   $('older').hidden = !cursor;
   const total = `${messages.length}${cursor ? '+' : ''}`;
   $('convo-count').textContent = onlyProblems ? `${shown.length} with problems, of ${total} loaded` : `${total} messages`;
@@ -518,7 +518,7 @@ function renderWishlist() {
       el('div', { className: 'wish-head' }, el('div', {}, el('strong', { textContent: item.name ?? 'Saved item' }), el('p', { className: 'muted', textContent: `Saved ${day(item.sent_at)}` })),
         el('div', { className: 'badges' }, wishlist.alerts_enabled ? alertBadge(item.price_alert) : null, test)),
       item.links.length ? storeLinks(item) : el('p', { className: 'muted', textContent: 'No store links saved.' }), panel);
-  }) : [el('p', { className: 'empty-state', textContent: 'Nothing saved to this wishlist yet.' })]));
+  }) : [el('p', { className: 'dv-empty', textContent: 'Nothing saved to this wishlist yet.' })]));
 }
 const loadWishlist = () => load('wishlist', `/api/admin?view=wishlist&conversation=${encodeURIComponent(person)}`, data => { wishlist = data; renderWishlist(); })
   .catch(error => { $('wishlist-list').replaceChildren(); $('wishlist-note').textContent = error.message; });
@@ -624,7 +624,7 @@ function renderNudges(data) {
 $('nudge-item').onchange = () => { const item = nudgeItems.find(i => i.id === $('nudge-item').value); $('nudge-draft').textContent = item ? `Draft: ${item.draft}` : ''; };
 $('nudges').onclick = async () => {
   $('nudge-person').textContent = $('person-name').textContent; $('nudge-error').hidden = true;
-  $('nudge-log').replaceChildren(el('li', { className: 'muted', textContent: 'Loading…' })); $('nudge-test').hidden = true; $('nudge-confirm').hidden = true; $('nudge-no-test').hidden = true;
+  $('nudge-log').replaceChildren(...skeletonRows(2).map(row => el('li', {}, row))); $('nudge-test').hidden = true; $('nudge-confirm').hidden = true; $('nudge-no-test').hidden = true;
   $('nudge-dialog').showModal();
   try { renderNudges(await api(`/api/admin?conversation=${person}&view=nudges`)); }
   catch (error) { $('nudge-error').textContent = error.message; $('nudge-error').hidden = false; }
