@@ -195,3 +195,14 @@ test('lifetime: whole earlier months from October 2026 plus this month to date, 
  assert.equal(res.statusCode,200);assert.deepEqual(res.body.lifetime.months.map(m=>m.month),['2026-10','2026-11']);
  assert.ok(res.body.lifetime.gaps[0].services.includes('SerpApi'));assert.ok(!res.body.lifetime.gaps[1].services.includes('SerpApi'));
 });
+
+test('costs API: its time goes in a Server-Timing header and an admin_view_timing log line; earlier months still add up',async()=>{
+ const logged=[],log=console.log,res={headers:{},setHeader(k,v){this.headers[k]=v;},end(body){this.body=JSON.parse(body);}};
+ const handler=createCostsHandler({auth:async()=>200,storeFactory:()=>({costEntries:async()=>[],meteredMonth:async()=>[]}),billing:async()=>noBilling});
+ console.log=line=>logged.push(line);
+ try{await handler({headers:{},method:'GET',url:'/api/costs?date=2026-10-15'},res);}finally{console.log=log;}
+ assert.equal(res.statusCode,200);assert.match(res.headers['Server-Timing'],/^auth;dur=[\d.]+, costs;dur=\d+$/);
+ assert.ok(res.body.lifetime);
+ const timing=logged.map(l=>{try{return JSON.parse(l);}catch{return {};}}).find(l=>l.event==='admin_view_timing');
+ assert.equal(timing.view,'costs');assert.equal(timing.status,200);
+});

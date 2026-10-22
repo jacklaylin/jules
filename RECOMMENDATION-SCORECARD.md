@@ -105,9 +105,11 @@ New page `/admin/quality` under Conversations in the admin sub-nav, built from t
   - positive engagement rate — turns that showed products and got a positive next action
   - judge pass rate
   - time to first reply and to result, p50 / p90
-  - failed or unsupported rate — fallback, stall, nothing found, constraints rejected, unreadable photo
+  - failed rate — fallback, stall, unreadable photo
+  - nothing-found rate — the search worked but showed no products (split from failures October 22: most of the old "failed or nothing found" figure was honest "couldn't find it" replies, not breakage)
   - cost per sourcing request
-- **8-week trend** table for the same six numbers, split by request type (text / photo / link).
+- **8-week trend** table for the same numbers, split by request type (text / photo / link).
+- **Testers only** by default (October 22): the founder's own conversation is left out of every figure and the worst-turns list, because it was most of the traffic (89 of 103 searches, Oct 9–22) and its `#dev` flags and link checks read as tester behaviour. **Include mine** adds it back. The founder's conversation is `OWNER_ALERT_CONVERSATION_ID`, plus any conversation from `FOUNDER_ALERT_PHONE`; with neither set, the page says so and counts everyone.
 - **Worst turns** list: judge failures first (most criteria failed), then negative next actions and misses, then failures — each with the judge's reasons, labels and a link to the message in the person's conversation.
 - Verified on desktop and phone before deploy, per `DESIGN-SYSTEM.md`.
 - No migration.

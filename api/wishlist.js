@@ -1,6 +1,7 @@
 // Loads first so the cost meter wraps fetch before any handler below keeps a reference to it.
 import '../lib/usage.js';
 import {tagWishlist} from '../lib/wishlist-tags.js';
+import {CATEGORY_FOR} from '../lib/item-tags.js';
 import { lowStockSummary } from '../lib/low-stock.js';
 import { wishlistEvidence } from '../lib/evidence.js';
 import {scheduleGmail,handleGmailWork,handleGmailSweep} from '../lib/gmail-worker.js';
@@ -194,7 +195,8 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
         const started=performance.now();
         const [rows,alerts]=await Promise.all([store.wishlistEntries(access.conversation),env.PRICE_ALERTS_ENABLED==='true'?store.priceAlerts(access.conversation):Promise.resolve([])]);
         const marketEnv=marketEnvironment((await store.profile?.(access.conversation))?.facts??[],env);
-        const groups = groupWishlist(rows,{currency:marketEnv.SHOPPING_CURRENCY,country:marketEnv.SHOPPING_COUNTRY});
+        // Each item's wardrobe category (Tops, Shoes…), from its current tag, so the page filters like the wardrobe.
+        const groups = groupWishlist(rows,{currency:marketEnv.SHOPPING_CURRENCY,country:marketEnv.SHOPPING_COUNTRY}).map(({tag_group,...group})=>({...group,category:CATEGORY_FOR[tag_group]??null}));
         res.setHeader('Server-Timing',`${authTiming}, wishlist;dur=${(performance.now()-started).toFixed(1)}`);
         if(env.PRICE_ALERTS_ENABLED==='true'){
           for(const group of groups){const alert=alerts.find(a=>a.group_id===group.id);group.price_alert=alert?{active:alert.active,size:alert.size,last_checked_at:alert.last_checked_at,notified:alert.notified,low_stock:lowStockSummary(alert),low_stock_alerts:alert.low_stock_alerts!==false,baseline_pending:Array.isArray(alert.baselines)&&alert.baselines.length===0}:null;group.alerts_enabled=true;}

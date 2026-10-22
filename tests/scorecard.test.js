@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Readable } from 'node:stream';
-import { metricCells, weekRows, worstTurns, agreement, turnRow, verdict, METRICS, weekStart } from '../public/scorecard-view.js';
-import { loadScorecard, replayDraft } from '../lib/scorecard.js';
+import { metricCells, weekRows, worstTurns, agreement, turnRow, verdict, METRICS, weekStart, forWho } from '../public/scorecard-view.js';
+import { loadScorecard, replayDraft, ownConversations } from '../lib/scorecard.js';
 import { createAdminHandler } from '../api/admin.js';
 
 const NOW = Date.parse('2026-10-22T12:00:00Z'); // a Thursday; the week began Monday Oct 19
@@ -31,9 +31,31 @@ test('engagement leaves out turns still waiting or with no recorded follow-up; s
 
 test('the type filter scopes every figure', () => {
   const turns = [...many(5, 1, { request_type: 'photo', result: 'nothing_found', products_shown: 0 }), ...many(5, 1)];
-  assert.equal(metricCells(turns, { now: NOW, type: 'photo' }).find(c => c.key === 'failed_rate').value, '100%');
-  assert.equal(metricCells(turns, { now: NOW, type: 'text' }).find(c => c.key === 'failed_rate').value, '0%');
-  assert.equal(metricCells(turns, { now: NOW }).find(c => c.key === 'failed_rate').value, '50%');
+  assert.equal(metricCells(turns, { now: NOW, type: 'photo' }).find(c => c.key === 'nothing_found_rate').value, '100%');
+  assert.equal(metricCells(turns, { now: NOW, type: 'text' }).find(c => c.key === 'nothing_found_rate').value, '0%');
+  assert.equal(metricCells(turns, { now: NOW }).find(c => c.key === 'nothing_found_rate').value, '50%');
+});
+
+test('a search that found nothing is not a failure; a fallback or unreadable photo is', () => {
+  const turns = [...many(2, 1, { result: 'nothing_found', products_shown: 0 }), turn(1, { result: 'failed' }), turn(1, { result: 'unreadable', request_type: 'photo' }), ...many(4, 1)];
+  const cells = Object.fromEntries(metricCells(turns, { now: NOW }).map(c => [c.key, c]));
+  assert.equal(cells.failed_rate.value, '25%'); assert.equal(cells.nothing_found_rate.value, '25%');
+  // Both are still worth reading.
+  assert.equal(worstTurns(turns).length, 4);
+});
+
+test('testers only leaves out the founder’s own conversation; include mine keeps everything', () => {
+  const turns = [...many(3, 1, { conversation_id: 'mine', headline: 'negative', labels: ['flagged'] }), ...many(5, 1, { conversation_id: 'c1' })];
+  assert.equal(forWho(turns, 'testers', ['mine']).length, 5); assert.equal(forWho(turns, 'all', ['mine']).length, 8);
+  assert.equal(metricCells(forWho(turns, 'testers', ['mine']), { now: NOW }).find(c => c.key === 'positive_rate').value, '100%');
+  assert.equal(forWho(turns, 'testers', []).length, 8);
+});
+
+test('the founder’s conversation comes from the signup-alert conversation or the founder’s phone, never placeholders', () => {
+  const conversations = [{ id: 'a', sender_id: '+14155550142' }, { id: 'b', sender_id: '+1 (415) 555-0199' }, { id: 'c', sender_id: '+14155550100' }];
+  assert.deepEqual(ownConversations(conversations, { OWNER_ALERT_CONVERSATION_ID: 'a', FOUNDER_ALERT_PHONE: '+14155550199' }).ids.sort(), ['a', 'b']);
+  assert.deepEqual(ownConversations(conversations, { OWNER_ALERT_CONVERSATION_ID: 'replace-with-your-own-conversation-id', FOUNDER_ALERT_PHONE: 'replace-with-your-phone-in-international-format' }), { ids: [], configured: false });
+  assert.deepEqual(ownConversations(conversations, {}), { ids: [], configured: false });
 });
 
 test('weeks run newest first from Monday, at most eight', () => {
@@ -83,6 +105,8 @@ test('the scorecard merges stored judge fields with fresh outcome labels, and de
   const [t] = data.turns;
   assert.deepEqual(t.labels, ['reacted']); assert.equal(t.verdict, 'fail'); assert.equal(t.message_id, 'msg-p1');
   assert.equal(data.judge_available, true); assert.equal(data.senders.c1, '+14155550142');
+  assert.deepEqual(data.own_conversations, []); assert.equal(data.own_configured, false);
+  assert.deepEqual((await loadScorecard(store(), { now: NOW, env: { FOUNDER_ALERT_PHONE: '+1 415 555 0142' } })).own_conversations, ['c1']);
   const before = await loadScorecard(store({ failStored: true }), { now: NOW });
   assert.equal(before.judge_available, false); assert.equal(before.turns.length, 1);
 });

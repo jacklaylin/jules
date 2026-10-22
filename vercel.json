@@ -49,7 +49,7 @@
     },
     {
       "source": "/report-jokes.html",
-      "destination": "/admin/jokes",
+      "destination": "/admin/style-report",
       "permanent": false
     },
     {
@@ -60,6 +60,11 @@
     {
       "source": "/admin.html",
       "destination": "/admin",
+      "permanent": false
+    },
+    {
+      "source": "/admin/jokes",
+      "destination": "/admin/style-report?view=jokes",
       "permanent": false
     }
   ],
@@ -145,7 +150,7 @@
       "destination": "/scorecard.html"
     },
     {
-      "source": "/admin/jokes",
+      "source": "/admin/style-report",
       "destination": "/report-jokes.html"
     },
     {

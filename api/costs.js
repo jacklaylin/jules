@@ -3,26 +3,31 @@ import '../lib/usage.js';
 import { billingSnapshot } from '../lib/billing.js';
 import { authorize } from '../lib/auth.js';
 import { createStore } from '../lib/store.js';
-import { json, readJson } from '../lib/http.js';
+import { json, readJson, timeView } from '../lib/http.js';
 import { buildReport, lifetimeMonths, lifetimeTotal, validDate, validateEntry } from '../lib/costs.js';
 import { spendingReport } from '../lib/cost-caps.js';
 import { displayName, profileFirstName } from '../lib/memory.js';
 export const config = { api: {bodyParser:false} };
 export function createCostsHandler({auth=authorize, storeFactory=createStore, env=process.env, billing=billingSnapshot}={}) {
   return async (req,res) => {
+    const started = performance.now();
     try {
       const access = await auth(req.headers,env);
+      const authMs = performance.now() - started;
       if (access !== 200) return json(res,access,{error:'Sign in through the Jules inbox with the owner account.'});
       const store = storeFactory(env);
       if (req.method === 'GET') {
+        timeView(res,'costs',started,authMs);
         const date = new URL(req.url,'https://local.invalid').searchParams.get('date');
         if (!validDate(date)) return json(res,400,{error:'Choose a valid date.'});
         const optional=read=>Promise.resolve().then(read).catch(()=>null);
+        // Earlier months (for the lifetime total) are read beside this month's figures, not after them.
+        const past=optional(()=>Promise.all(lifetimeMonths(date).map(end=>pastMonth(store,billing,env,end,optional))));
         const [entries, providers, metered, jobUsage, jobRuns, scheduled, spending] = await Promise.all([store.costEntries(date),billing(date,env),optional(()=>store.meteredMonth(date)),
           optional(()=>store.jobUsageMonth(date)),optional(()=>store.jobRunsMonth(date)),optional(()=>store.scheduledJobs(date)),optional(()=>peopleSpending(store,env))]);
         const report=buildReport({date,entries,providers,metered,jobUsage,jobRuns,scheduled,env});
         report.spending=spending;
-        report.lifetime=await optional(async()=>lifetimeTotal([...await Promise.all(lifetimeMonths(date).map(end=>pastMonth(store,billing,env,end,optional))),report]));
+        report.lifetime=await optional(async()=>{const months=await past;if(!months)throw Error('earlier months unavailable');return lifetimeTotal([...months,report]);});
         if(!metered)report.featureNotice='Feature costs are unavailable. If db/031_cost_dashboard.sql has not been run in Supabase, run it.';
         if(!jobUsage||!jobRuns||!scheduled)report.jobsNotice='Some recurring job figures are unavailable. If db/034_recurring_jobs.sql has not been run in Supabase, run it.';
         return json(res,200,report);

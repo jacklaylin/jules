@@ -14,7 +14,12 @@
       <span class="spacer"></span>
       <button id="refresh" class="small quiet" type="button">Refresh</button>
     </div>
-    <div class="dv-status"><span id="loader" class="dv-loader" aria-hidden="true" hidden></span><span id="notice" role="status" aria-live="polite"></span></div>
+    <div class="dv-status"><span id="loader" hidden>Refreshing…</span><span id="notice" role="status" aria-live="polite"></span></div>
+    <!-- The style report's share loop, last 4 weeks (lib/report-adoption.js); the full view is Admin › Style report. -->
+    <section id="report-tile" class="dv-card adoption-report" aria-labelledby="report-tile-title" aria-busy="true">
+      <div class="dv-card-head"><h2 id="report-tile-title">Style report share loop</h2><span class="dv-card-note">last 4 weeks</span><span class="spacer"></span><a href="/admin/style-report">Style report page →</a></div>
+      <ol id="report-funnel" class="report-funnel"></ol>
+    </section>
 
     <section aria-labelledby="testers-title">
       <h2 id="testers-title" class="dv-subhead">Testers</h2>

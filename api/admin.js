@@ -9,7 +9,7 @@ import { readCoverage, readTasteInputs } from '../lib/coverage.js';
 import { personAdoption } from '../lib/person-adoption.js';
 import { authorize } from '../lib/auth.js';
 import { createStore } from '../lib/store.js';
-import { json, readJson, uuid } from '../lib/http.js';
+import { json, readJson, uuid, timeView } from '../lib/http.js';
 import { purchaseReview, reviewPurchase, reportMissedPurchase } from '../lib/purchase-review.js';
 import { groupWishlist } from '../lib/wishlist.js';
 import { marketEnvironment } from '../lib/shopping-market.js';
@@ -33,6 +33,7 @@ import { signupsWaiting } from '../lib/new-signups.js';
 import { goesWithCandidates, sendTestNudge, nudgeTestConversation, purchaseTextsOn } from '../lib/purchase-texts.js';
 import { nudgeTimezone, nudgeSummary } from '../lib/nudges.js';
 import { alertSummary } from '../lib/alert-metrics.js';
+import { reportAdoptionData } from '../lib/report-adoption.js';
 
 export const config = { api: { bodyParser: false }, maxDuration: 30 };
 // Owner view. Conversations are read-only (Jules replies automatically); the owner can review and
@@ -155,6 +156,8 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
       if (query.get('view') === 'feedback') return json(res, 200, { feedback: await store.feedback() });
       // The style report jokes loop: this week's best and worst lines, and each prompt version's votes.
       if (query.get('view') === 'report-copy') return json(res, 200, copyWeek(await store.reportCopyRows()));
+      // Admin › Style report, Engagement view (lib/report-adoption.js): opens, shares, friends' opens, signups and votes.
+      if (query.get('view') === 'style-report') return json(res, 200, await reportAdoptionData(store, env));
       // New signups who haven't texted Jules yet (lib/new-signups.js). Phones are masked to the last four digits.
       if (query.get('view') === 'signups') return json(res, 200, { signups: await signupsWaiting(store) });
       if (query.get('view') === 'adoption') return json(res, 200, await adoptionReport(store));
@@ -164,7 +167,7 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
       if (query.get('view') === 'alerts-summary') return json(res, 200, alertSummary(await store.alertMetricRows(new Date(Date.now() - 30 * 86400000).toISOString()), { tracking: env.LINK_CLICK_TRACKING === 'true' }));
       if (query.get('view') === 'metrics') return json(res, 200, await metricsTrend(store, { days: 7 }));
       // Per sourcing turn outcomes (lib/turn-outcomes.js): ids, counts and labels only, no message text.
-      if (query.get('view') === 'scorecard') return json(res, 200, await loadScorecard(store));
+      if (query.get('view') === 'scorecard') return json(res, 200, await loadScorecard(store, { env }));
       if (query.get('view') === 'turn-outcomes') return json(res, 200, await loadTurnOutcomes(store, { days: Math.min(56, Math.max(1, Number(query.get('days')) || 7)) }));
       const id = query.get('conversation');
       if (!id) {
@@ -236,17 +239,6 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
 }
 // Which read a GET is, for its timing: the view, else the People list or a conversation's messages.
 const viewName = query => (query.get('view') ?? (!query.get('conversation') ? 'people' : query.has('before') ? 'older-messages' : 'messages')).replace(/[^a-z-]/g, '').slice(0, 40) || 'unknown';
-// How long each Admin read took, once its response goes out: a Server-Timing header (the browser's Network panel
-// shows it) and an admin_view_timing log line (Vercel logs), so slow tabs show up by name. No ids or data.
-function timeView(res, view, started, authMs) {
-  const end = res.end.bind(res);
-  res.end = (...args) => {
-    const ms = Math.round(performance.now() - started);
-    if (!res.headersSent) res.setHeader('Server-Timing', `auth;dur=${authMs.toFixed(1)}, ${view};dur=${ms}`);
-    console.log(JSON.stringify({ event: 'admin_view_timing', view, status: res.statusCode, ms, auth_ms: Math.round(authMs) }));
-    return end(...args);
-  };
-}
 // A person's name for their Admin page: the latest signup's full name, else the first name told to Jules.
 async function personName(store, conversation) {
   const signup = (await Promise.resolve(store.signupNames?.([conversation.sender_id])).catch(() => null))?.get(conversation.sender_id);

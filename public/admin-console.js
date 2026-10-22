@@ -6,7 +6,7 @@ import {captureSignIn} from './admin-session.js';
 import {trackedFetch} from './activity.js';
 
 export const ADMIN_SECTIONS=[
- ['Conversations',[['people','People','/admin','Threads, memory and purchases'],['adoption','Adoption','/admin/adoption','How far each tester has got, week by week'],['quality','Scorecard','/admin/quality','Search and recommendation quality, week by week'],['jokes','Report jokes','/admin/jokes','Best and worst style report lines this week']]],
+ ['Conversations',[['people','People','/admin','Threads, memory and purchases'],['adoption','Adoption','/admin/adoption','How far each tester has got, week by week'],['quality','Scorecard','/admin/quality','Search and recommendation quality, week by week'],['style-report','Style report','/admin/style-report','How reports are opened, shared and voted on, and the week’s jokes']]],
  ['Test lab',[
   ['test-chat','Test chat','/admin/test-chat','Real Jules logic, no phone messages'],
   ['replays','Replays & evals','/admin/replays','Sourcing replays and routing eval'],
@@ -19,8 +19,11 @@ const session=createSession({storage:localStorage,lock:work=>navigator.locks?nav
 let gate,content,adminLink;
 export const adminToken=()=>session.token();
 
+// Reads load quietly: their sections show Skeletons (design system › Admin: Skeletons are admin's only loading
+// state). Only actions the owner takes (POST and the like) go through the activity panel.
 export async function adminFetch(path,options={}){
- const send=token=>trackedFetch(path,{...options,headers:{'Content-Type':'application/json',...options.headers,...(token?{Authorization:'Bearer '+token}:{})},cache:'no-store'});
+ const run=!options.method||options.method==='GET'?globalThis.fetch:trackedFetch;
+ const send=token=>run(path,{...options,headers:{'Content-Type':'application/json',...options.headers,...(token?{Authorization:'Bearer '+token}:{})},cache:'no-store'});
  let token=await session.token();
  if(!token){showGate();throw new Error('Sign in with the owner email to use admin tools.');}
  let response=await send(token);
@@ -43,6 +46,22 @@ export function skeletonRows(count,columns=0){
   const row=columns?element('tr',{className:'skeleton-row'},...Array.from({length:columns},(_,c)=>element('td',{},bar(i+c*3)))):element('div',{className:'skeleton-row'},bar(i));
   row.setAttribute('aria-hidden','true');return row;
  });
+}
+
+// MetricStrip cell (design system › Admin): label, value, an optional detail line, then the change badge and the
+// earlier value on one line. tone: ok (better), fail (worse), warn, or plain/'' for no change, New or too few.
+// The badge word stays short so it shares a line with the earlier value.
+export const shortVerdict=word=>/^too few/i.test(word??'')?'Too few':word;
+export function metricCell({label,value,detail=null,change=null,tone='',was=null}){
+ const cell=element('div',{className:'dv-metric'},element('span',{textContent:label}),element('strong',{textContent:value??'—'}));
+ if(detail)cell.append(element('span',{className:'dv-metric-detail',textContent:detail}));
+ if(change||was){
+  const line=element('span',{className:'dv-metric-change'});
+  if(change)line.append(element('span',{className:`badge ${tone}`.trim(),textContent:change}));
+  if(was)line.append(element('span',{className:'dv-metric-was',textContent:was}));
+  cell.append(line);
+ }
+ return cell;
 }
 
 function showGate(message=''){

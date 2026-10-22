@@ -7,7 +7,7 @@
 <link rel="icon" href="/brand/icon.svg" type="image/svg+xml"></head>
 <body class="admin-console">
   <main>
-    <div class="person-title"><a class="breadcrumb" href="/admin">People /</a><h1 id="person-name">Loading…</h1><span id="person-phone" class="person-phone" hidden></span><span id="person-access" hidden></span><span id="person-onboarding" class="badges" hidden></span><div id="person-badges" class="badges"></div><span class="spacer"></span>
+    <div class="person-title"><a class="breadcrumb" href="/admin">People /</a><h1 id="person-name">Person</h1><span id="person-phone" class="person-phone" hidden></span><span id="person-access" hidden></span><span id="person-onboarding" class="badges" hidden></span><div id="person-badges" class="badges"></div><span class="spacer"></span>
       <p class="person-stats">Active <strong id="stat-active">—</strong> · <strong id="stat-messages">—</strong> messages · <strong id="stat-facts">—</strong> facts</p>
       <button class="small quiet" type="button" popovertarget="person-more">More ⋯</button></div>
     <!-- One menu of actions for this person, the same on every tab. Knowledge and purchase actions open their tab first. -->
@@ -52,8 +52,8 @@
         <div class="dv-metric"><span>Last positive request</span><strong id="strip-last">—</strong><span id="strip-last-note"></span></div>
       </div>
       <div class="summary-layout">
-        <section class="summary-card summary-profile" aria-labelledby="summary-profile-title" aria-busy="true">
-          <div class="summary-head">
+        <section class="dv-card summary-profile" aria-labelledby="summary-profile-title" aria-busy="true">
+          <div class="dv-card-head">
             <h2 id="summary-profile-title">Their profile</h2><span class="spacer"></span>
             <button id="summary-learn" class="small quiet" type="button">Learn from last 100 texts</button>
             <button id="summary-ask" class="small btn--butter" type="button" aria-haspopup="dialog">Ask them about the gaps…</button>
@@ -63,29 +63,29 @@
         </section>
         <div class="summary-side">
         <!-- Adoption and Chat quality (lib/person-adoption.js): this person's shopping requests over the last four weeks. -->
-        <section id="summary-adoption" class="summary-card" aria-labelledby="summary-adoption-title" aria-busy="true">
-          <div class="summary-head"><h2 id="summary-adoption-title">Adoption</h2><span class="muted">last 4 weeks</span><span class="spacer"></span><a href="/admin/adoption">Adoption page →</a></div>
+        <section id="summary-adoption" class="dv-card" aria-labelledby="summary-adoption-title" aria-busy="true">
+          <div class="dv-card-head"><h2 id="summary-adoption-title">Adoption</h2><span class="dv-card-note">last 4 weeks</span><span class="spacer"></span><a href="/admin/adoption">Adoption page →</a></div>
           <p class="summary-figure"><strong id="adoption-wins">—</strong> <span>weeks with a win</span></p>
           <div id="adoption-weeks" class="summary-weeks" role="img" aria-label="Loading the last four weeks"></div>
           <p class="summary-legend"><span><i class="week-key win" aria-hidden="true"></i>asked and liked a result</span><span><i class="week-key asked" aria-hidden="true"></i>asked, nothing liked</span><span><i class="week-key quiet" aria-hidden="true"></i>quiet</span></p>
           <div class="summary-stat"><span class="muted">Requests they started</span><strong id="adoption-requests">—</strong><span id="adoption-requests-note" class="muted"></span></div>
-          <p class="summary-foot muted">Lifetime cost <strong id="adoption-cost">—</strong></p>
+          <p class="dv-card-foot">Lifetime cost <strong id="adoption-cost">—</strong></p>
         </section>
-        <section id="summary-quality" class="summary-card" aria-labelledby="summary-quality-title" aria-busy="true">
-          <div class="summary-head"><h2 id="summary-quality-title">Chat quality</h2><span class="muted">last 4 weeks</span><span class="spacer"></span><a href="/admin/quality">Scorecard →</a></div>
+        <section id="summary-quality" class="dv-card" aria-labelledby="summary-quality-title" aria-busy="true">
+          <div class="dv-card-head"><h2 id="summary-quality-title">Chat quality</h2><span class="dv-card-note">last 4 weeks</span><span class="spacer"></span><a href="/admin/quality">Scorecard →</a></div>
           <p class="summary-figure"><strong id="quality-share">—</strong> <span id="quality-label">of shopping requests got a positive reaction</span> <span id="quality-count" class="muted"></span></p>
           <div id="quality-bar" class="summary-bar" role="img" aria-label="Loading how their requests ended"></div>
           <p id="quality-legend" class="summary-legend"></p>
         </section>
         <!-- Style report engagement (lib/report-engagement.js), from the same read as Adoption. -->
-        <section id="summary-report" class="summary-card" aria-labelledby="summary-report-title" aria-busy="true">
-          <div class="summary-head"><h2 id="summary-report-title">Style report</h2><span class="muted">all time</span></div>
+        <section id="summary-report" class="dv-card" aria-labelledby="summary-report-title" aria-busy="true">
+          <div class="dv-card-head"><h2 id="summary-report-title">Style report</h2><span class="dv-card-note">all time</span></div>
           <p class="summary-figure"><strong id="report-opened">—</strong> <span id="report-opened-label">times they opened it</span> <span id="report-last" class="muted"></span></p>
           <dl id="report-facts" class="summary-facts" hidden></dl>
-          <p id="report-foot" class="summary-foot muted" hidden></p>
+          <p id="report-foot" class="dv-card-foot" hidden></p>
         </section>
-        <section class="summary-card summary-text-now" aria-labelledby="summary-text-title">
-          <div class="summary-head"><h2 id="summary-text-title">What Jules would text now</h2><span id="summary-text-kind" class="badge plain" hidden></span><span class="muted">Not sent</span></div>
+        <section class="dv-card dv-card--quiet summary-text-now" aria-labelledby="summary-text-title">
+          <div class="dv-card-head"><h2 id="summary-text-title">What Jules would text now</h2><span id="summary-text-kind" class="badge plain" hidden></span><span class="dv-card-note">Not sent</span></div>
           <p id="summary-text" class="summary-text"></p>
           <p id="summary-text-note" class="muted"></p>
         </section>
@@ -141,7 +141,7 @@
         <label>Found by<select id="purchases-source"><option value="">Any source</option><option value="gmail">Gmail</option><option value="shop">Shop</option><option value="screenshot">Chat screenshot</option><option value="multiple">More than one source</option></select></label>
         <div class="dv-pop-actions"><button id="purchases-clear" class="small" type="button">Clear</button><button class="small btn--butter" type="button" popovertarget="purchases-filters" popovertargetaction="hide">Done</button></div>
       </div>
-      <div class="dv-status"><span id="purchases-tokens" class="badges"></span><span id="purchases-loader" class="dv-loader" aria-hidden="true" hidden></span><span id="purchases-summary"></span><span id="tags-status"></span><span id="purchases-notice" role="status" aria-live="polite"></span></div>
+      <div class="dv-status"><span id="purchases-tokens" class="badges"></span><span id="purchases-summary"></span><span id="tags-status"></span><span id="purchases-notice" role="status" aria-live="polite"></span></div>
 
       <section id="tool-recheck" class="dv-tool" aria-labelledby="tool-recheck-title" hidden><div class="dv-tool-head"><h2 id="tool-recheck-title">Re-check labelled emails</h2><button class="close-button" type="button" data-close-tool aria-label="Close"><svg aria-hidden="true" viewBox="0 0 18 18"><path d="M3 3 L15 15 M15 3 L3 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></div><p class="muted">Re-reads the emails behind every item you labelled, using the current reading rules, and reports how many labels it now agrees with. Nothing is saved. Takes a few seconds per item.</p><button id="recheck-run" class="small" type="button">Run re-check</button><p id="recheck-status" role="status" aria-live="polite" class="muted"></p><div id="recheck-results"></div></section>
       <section id="tool-missed" class="dv-tool" aria-labelledby="tool-missed-title" hidden><div class="dv-tool-head"><h2 id="tool-missed-title">Report a missed purchase</h2><button class="close-button" type="button" data-close-tool aria-label="Close"><svg aria-hidden="true" viewBox="0 0 18 18"><path d="M3 3 L15 15 M15 3 L3 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></div><p class="muted">Something they bought that Jules did not find. This measures what Gmail reading misses.</p><form id="missed-form" class="add-fact-fields"><label>Store<input id="missed-store" maxlength="120" required placeholder="e.g. SSENSE"></label><label>Roughly when<input id="missed-when" maxlength="60" placeholder="e.g. March 2025"></label><label>What was bought<input id="missed-what" maxlength="500" required placeholder="e.g. Our Legacy Third Cut jeans, size 32"></label><button type="submit" class="btn--butter">Add report</button></form><div id="missed-list"></div></section>

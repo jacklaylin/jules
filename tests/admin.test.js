@@ -137,4 +137,6 @@ test('a person’s outcome rows read only their own usage; the Scorecard still r
   assert.ok(urls.filter(u => u.includes('/usage_events?')).every(u => u.includes(`conversation_id=eq.${id}`)));
   urls.length = 0; await store.outcomeRows('2026-10-01T00:00:00.000Z');
   assert.ok(urls.some(u => u.includes('/usage_events?') && !u.includes('conversation_id')));
+  // Usage that never belongs to a chat turn (imports, photo jobs, evals, unattributed calls) is never read.
+  for (const job of ['gmail', 'wardrobe-photos', 'photo-tags', 'eval', 'unmetered']) assert.ok(urls.filter(u => u.includes('/usage_events?')).every(u => u.includes(`operation=not.like.${encodeURIComponent(job + ':*')}`)));
 });

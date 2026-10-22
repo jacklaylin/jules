@@ -1,4 +1,4 @@
-import {mountAdminShell,adminJson,anchorMenus} from './admin-console.js';
+import {mountAdminShell,adminJson,anchorMenus,metricCell,shortVerdict,skeletonRows} from './admin-console.js';
 import {browseKey} from './admin-review.js';
 import {filterPeople,accessSegments,accessChange,accessResult,ago,countLine,metricCells,metricsNote,filterSignups} from './admin-people-view.js';
 import {closeDialog} from './design-system.js';
@@ -43,7 +43,8 @@ function render() {
       el('span', { className: 'muted', textContent: ago(person.updated_at), title: exact(person.updated_at) }),
       el('a', { className: 'end', href, tabIndex: -1, ariaHidden: 'true', textContent: 'Open →' }));
   }));
-  if (!shown.length) $('people').append(el('p', { className: 'dv-empty', textContent: loading ? 'Loading…' : failed ? '' : !people.length ? 'No testers yet.' : accessFilter ? `No ${accessFilter} testers match.` : 'No testers match this search.' }));
+  if (!shown.length && loading) $('people').append(...skeletonRows(8));
+  else if (!shown.length) $('people').append(el('p', { className: 'dv-empty', textContent: failed ? '' : !people.length ? 'No testers yet.' : accessFilter ? `No ${accessFilter} testers match.` : 'No testers match this search.' }));
   $('people-count').textContent = people.length || refreshedAt ? countLine(shown.length, people.length, refreshedAt) : '';
   $('notice').className = failed ? 'error' : '';
   $('notice').textContent = failed || done;
@@ -59,7 +60,8 @@ function renderSignups() {
       el('span', { className: 'muted signup-sub', textContent: `${signup.phone} · ${ago(signup.signed_up_at)}` })),
     el('span', { className: 'muted', textContent: signup.phone }),
     el('span', { className: 'muted', textContent: ago(signup.signed_up_at), title: exact(signup.signed_up_at) }))));
-  if (!shown.length) $('signups').append(el('p', { className: 'dv-empty', textContent: loading ? 'Loading…' : signupsFailed ? '' : !signups.length ? 'Nobody is waiting: everyone who signed up has texted Jules.' : 'No signups match this search.' }));
+  if (!shown.length && loading) $('signups').append(...skeletonRows(4));
+  else if (!shown.length) $('signups').append(el('p', { className: 'dv-empty', textContent: signupsFailed ? '' : !signups.length ? 'Nobody is waiting: everyone who signed up has texted Jules.' : 'No signups match this search.' }));
   $('people-count').textContent = signups.length || refreshedAt ? `${shown.length === signups.length ? '' : `${shown.length} of `}${signups.length} ${signups.length === 1 ? 'signup' : 'signups'}` : '';
   $('notice').className = signupsFailed ? 'error' : '';
   $('notice').textContent = signupsFailed || done;
@@ -126,9 +128,7 @@ async function loadMetrics() {
   try {
     const trend = await adminJson('/api/admin?view=metrics');
     const cells = metricCells(trend);
-    $('chat-metrics-strip').replaceChildren($('chat-metrics-strip').firstElementChild, ...cells.map(cell =>
-      el('div', { className: 'dv-metric' }, el('span', { textContent: cell.label }), el('strong', { textContent: cell.value }),
-        el('span', { className: `badge ${cell.tone}`, textContent: cell.verdict }), el('span', { className: 'dv-metric-was', textContent: `${cell.was} · ${cell.sample}` }))));
+    $('chat-metrics-strip').replaceChildren(...cells.map(cell => metricCell({ label: cell.label, value: cell.value, change: shortVerdict(cell.verdict), tone: cell.tone, was: `${cell.was} · ${cell.sample}` })));
     $('chat-metrics-help').replaceChildren(...cells.flatMap(cell => [el('dt', { textContent: cell.label }), el('dd', { textContent: `${cell.explain} ${cell.better}` })]));
     $('metrics-note').textContent = metricsNote(trend.current);
     $('chat-metrics').hidden = false;

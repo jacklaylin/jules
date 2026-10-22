@@ -67,7 +67,7 @@ export async function loadPurchases(id) {
   $('skipped-list').replaceChildren(); $('skipped-status').textContent = '';
   if (id !== conversation || !data) {
     conversation = id; data = null; shownReview = null;
-    $('purchases-count').textContent = ''; $('purchases-list').replaceChildren(...skeletonRows(8)); notice('Loading purchase history…');
+    $('purchases-count').textContent = ''; $('purchases-list').replaceChildren(...skeletonRows(8)); notice('');
     render();
   }
   try {
@@ -128,7 +128,6 @@ function render() {
   if (!data) { renderTokens(); return; }
   const items = data.items, count = s => items.filter(i => statusOf(i) === s).length;
   $('purchases-count').textContent = items.length;
-  $('purchases-loader').hidden = !['listing', 'extracting', 'questions'].includes(data.status);
   $('purchases-summary').textContent = data.status === 'not_started' && !items.length ? 'No Gmail import for this person yet.' :
     `${IMPORT_STATUS[data.status] ?? `Import ${data.status.replace('_', ' ')}`} · Imported history is partial` +
     (data.connections?.length ? ` · ${items.filter(i => i.sources.length > 1).length} found by more than one source` : '') +
@@ -149,7 +148,7 @@ function render() {
   const current = filter(), shown = items.filter(i => matches(i, current));
   $('purchases-start').hidden = !shown.length || !!open || !!view;
   const head = el('div', { className: 'dv-head', ariaHidden: 'true' }, ...['Item', 'Store', 'Size', 'Colour', 'Price', 'Date', 'Note'].map((text, n) => el('span', { className: n === 6 ? 'end' : '', textContent: text })));
-  $('purchases-list').replaceChildren(...(shown.length ? [head, ...shown.map(itemRow)] : [el('p', { className: 'empty-state', textContent: items.length ? 'No purchases match these filters.' : 'No purchases found yet.' })]));
+  $('purchases-list').replaceChildren(...(shown.length ? [head, ...shown.map(itemRow)] : [el('p', { className: 'dv-empty', textContent: items.length ? 'No purchases match these filters.' : 'No purchases found yet.' })]));
   if (open) $('purchases-list').querySelector('[aria-current="true"]')?.scrollIntoView({ block: 'nearest' });
   $('purchases-pending').hidden = !data.pending.length;
   $('purchases-pending-count').textContent = data.pending.length;
@@ -216,9 +215,9 @@ function renderReview(id) {
   const box = $('purchase-review');
   const back = el('a', { href: itemHref(null).search, className: 'review-back', textContent: 'Close', title: 'Close (Esc)' });
   back.onclick = event => { event.preventDefault(); closeItem(); };
-  if (!data) { box.replaceChildren(el('div', { className: 'review-bar' }, back), el('p', { className: 'muted', role: 'status', textContent: 'Loading purchase…' })); return; }
+  if (!data) { box.replaceChildren(el('div', { className: 'review-bar' }, back), ...skeletonRows(4)); return; }
   const item = data.items.find(i => i.id === id);
-  if (!item) { box.replaceChildren(el('div', { className: 'review-bar' }, back), el('p', { className: 'empty-state', textContent: 'This item is no longer in their purchase history. Go back to all purchases.' })); return; }
+  if (!item) { box.replaceChildren(el('div', { className: 'review-bar' }, back), el('p', { className: 'dv-empty', textContent: 'This item is no longer in their purchase history. Go back to all purchases.' })); return; }
   const current = filter(), { index, total } = position(data.items, id, current);
   const step = (label, dir, key) => { const button = el('button', { type: 'button', className: 'small quiet', textContent: label, title: `${label.replace(/[‹›]/g, '').trim()} (${key})` }); button.onclick = () => move(dir); return button; };
   const bar = el('div', { className: 'review-bar' },
