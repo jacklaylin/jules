@@ -40,8 +40,8 @@ with Summary, Knowledge, Conversation, Purchase history and Wishlist tabs
 (`?tab=` keeps the tab linkable). Manual replies were retired on October 13,
 2026; developer feedback is triaged in Claude, not in admin. The Wishlist tab
 shows each saved item's price alert and previews a test alert; test texts only
-go to `PRICE_ALERT_TEST_CONVERSATION_ID`. Test chat and Costs live at `/admin/test-chat` and
-`/admin/costs`; the old page URLs redirect there. The owner's wishlist and
+go to `PRICE_ALERT_TEST_CONVERSATION_ID`. Costs lives at
+`/admin/costs`. The owner's wishlist and
 style headers show an **Admin** link. Server endpoints `/api/admin`
 and `/api/session` handle private data and sign-in. Supabase sends an email
 sign-in link; the server verifies every bearer token with Supabase and only

@@ -27,7 +27,6 @@ test('only supported analysis/chat actions trigger agent motion, and HTTP errors
  let observed=[];globalThis.fetch=async()=>{observed.push(latest());return {ok:true};};
  await trackedFetch('/api/style');assert.equal(observed.at(-1).agentWorking,false);
  await trackedFetch('/api/style',{method:'POST',body:JSON.stringify({action:'analyze'})});assert.equal(observed.at(-1).agentWorking,true);
- await trackedFetch('/api/chat-simulator',{method:'POST',body:'{}'});assert.equal(observed.at(-1).agentWorking,true);
  await trackedFetch('/api/style',{method:'POST',body:JSON.stringify({action:'tone'})});assert.equal(observed.at(-1).agentWorking,false);
  globalThis.fetch=async()=>({ok:false,status:503});const response=await trackedFetch('/api/style',{method:'POST',body:JSON.stringify({action:'analyze'})});assert.equal(response.status,503);assert.equal(latest().success,false);assert.equal(latest().busy,false);
 });

@@ -34,7 +34,6 @@ Disallow: /report-jokes.html
 Disallow: /onboarding
 Disallow: /login$
 Disallow: /login.html
-Disallow: /simulator.html
 Disallow: /costs.html
 Disallow: /adoption.html
 Disallow: /scorecard.html
