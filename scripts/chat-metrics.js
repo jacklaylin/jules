@@ -32,6 +32,7 @@ console.log(`Time to first message: median ${sec(s.first_message_s.median)}, p90
 console.log(`Time to final result:  median ${sec(s.final_result_s.median)}, p90 ${sec(s.final_result_s.p90)}, max ${sec(s.final_result_s.max)}`);
 console.log(`Messages per turn: ${s.messages_per_turn ?? '—'} (search turns ${s.messages_per_search_turn ?? '—'}); one message only: ${pct(s.single_message_share)}`);
 console.log(`Failed replies: ${s.fallbacks} generic fallbacks + ${s.stuck} never delivered = ${pct(s.failure_rate)} of turns`);
+if (s.billing_outages) console.log(`OpenAI account outages (out of credit or over the spend limit): ${s.billing_outages} turns, left out of failed replies and reply text`);
 console.log(`Reply text: ${s.composed_by.model} model-written, ${s.composed_by.template} fixed template, ${s.composed_by.mixed} mixed, ${s.composed_by.unknown} unknown → ${pct(s.model_written_share)} model-written`);
 console.log(`Named-product searches: ${s.named_searches}; accepted ${s.named_accepted}: ${s.first_try} first try, ${s.after_retry} after a retry, ${s.user_supplied} user supplied it → first-try rate ${pct(s.first_try_rate)}\n`);
 table('day', metrics.by_day.map(d => [d.day, ...row(d)]));
