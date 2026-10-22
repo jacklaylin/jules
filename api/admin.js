@@ -2,6 +2,7 @@
 import '../lib/usage.js';
 import { lowStockSummary } from '../lib/low-stock.js';
 import { readCoverage } from '../lib/coverage.js';
+import { readUserContext, contextReport } from '../lib/user-context.js';
 import { adminStartInterview } from '../lib/interview.js';
 import { previewEarlyRead } from '../lib/early-read.js';
 import { authorize } from '../lib/auth.js';
@@ -196,6 +197,9 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
       if (query.get('view') === 'nudges') return json(res, 200, await nudgeView(store, id, env));
       // How much of the taste profile is known, per dimension (lib/coverage.js). Read-only, computed fresh.
       if (query.get('view') === 'coverage') return json(res, 200, await readCoverage(store, id));
+      // What Jules knows about this person from every source (lib/user-context.js): the same picture chat,
+      // the stylist and ranking read. Read-only, computed fresh.
+      if (query.get('view') === 'context') return json(res, 200, contextReport(await readUserContext(store, id, env, { log: () => {} })));
       // What the early read would text this person now (lib/early-read.js). Nothing is sent.
       if (query.get('view') === 'early-read') return json(res, 200, await previewEarlyRead(store, id));
       let before;

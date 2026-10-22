@@ -65,3 +65,15 @@ test('taste coverage counts wishlist brands, and the style reading gets one bran
   assert.equal(brandTasteLine([{brand:'Dries Van Noten',said:{value:'favorite brand',on:'2026-10-06'},bought:6,bought_as:{trousers:3,shirts:2,outerwear:1},wishlisted:2},{brand:'MAAP',bought:18,bought_as:{activewear:14}}]),
     'Dries Van Noten (said favorite brand (2026-10-06); bought 6 as trousers, shirts; saved 2), MAAP (bought 18 as activewear)');
 });
+
+test('the Admin view reports every source, the brand reading and the summaries', async () => {
+  const {contextReport}=await import('../lib/user-context.js');
+  const stated=[{field:'brand',key:'example label',value:'favorite brand'},{field:'style',key:'aesthetic',value:'casual'},{field:'size',key:'old',value:'x',deleted:true}];
+  const facts=[...stated,wishlistFact(wishlist),brandTasteFact({facts:stated,wishlist}),{field:'wardrobe',key:'summary',value:JSON.stringify({items:9,groups:[{group:'tops',items:5,types:'tee 3'}]})}];
+  const r=contextReport({facts,purchases:12});
+  assert.deepEqual(r.sources,{stated:2,purchases:12,wardrobe:9,wishlist:2,liked:0,outfit_photos:false});
+  assert.deepEqual(r.brands.map(b=>b.brand),['Our Legacy','Satisfy','example label']);
+  assert.deepEqual(r.wardrobe,[{group:'tops',items:5,types:'tee 3'}]);
+  assert.equal(r.wishlist.length,2);
+  assert.deepEqual(contextReport({}),{sources:{stated:0,purchases:0,wardrobe:0,wishlist:0,liked:0,outfit_photos:false},brands:[],wardrobe:[],wishlist:[],liked:[]});
+});
