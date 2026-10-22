@@ -22,36 +22,61 @@ const fullMonth = date => date === lastDay(date.slice(0, 7));
 export const money = value => value === null || value === undefined ? 'Unknown' : new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: value !== 0 && Math.abs(value) < 1 ? 4 : 2 }).format(value);
 const when = at => { const d = new Date(at); return at && Number.isFinite(d.getTime()) ? d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'Never'; };
 
-// Beside the title: the month (to date, with its projection) or the day. Unknown is never $0.
-export function totalLine(data, period = 'month') {
-  if (!data) return { amount: '—', label: '' };
-  const { today, month, projected } = data.totals;
-  const partial = data.incomplete.length ? ' · known part only' : '';
-  if (period === 'day') return { amount: money(today), label: `${data.date} (UTC) · month to date ${money(month)}${today === null ? '' : partial}` };
-  const label = fullMonth(data.date) ? `${monthName(data.date)} (UTC), whole month` : `${monthName(data.date)} to date, through ${data.date} (UTC) · projected month end ${money(projected)} (calculated)`;
-  return { amount: money(month), label: label + (month === null ? '' : partial) };
+// Beside the title: which month or day the page shows.
+export function periodLabel(data, period = 'month') {
+  if (period === 'day') return `${data.date} (UTC)`;
+  return `${monthName(data.date)} (UTC)${fullMonth(data.date) ? '' : ' to date'}`;
 }
 
-// Lifetime since the build started, through the selected date. Missing services are named by month.
-export function lifetimeText(data) {
-  const l = data?.lifetime;
-  if (!l) return '';
-  const missing = l.gaps.map(g => `${g.services.join(', ')} in ${monthName(g.month + '-01')}`).join('; ');
-  return `Lifetime since ${monthName(l.since + '-01')}: ${money(l.total)} through ${l.through}${l.total !== null && missing ? ` · known part only (missing ${missing})` : ''}`;
+// The MetricStrip (design system › Admin › MetricStrip). Month: to date (or the whole month once it is over), the
+// projection against last month's whole total, today against the daily warning budget, and lifetime. Day: that
+// day against the budget, then month to date and lifetime. Unknown stays Unknown, never $0; less spend is better.
+const shortDate = date => new Date(`${date}T00:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+// The same badge as lib/compare.js change() with lowerIsBetter (the browser can't import lib/).
+export function spendChange(now, before) {
+  if (now === null || now === undefined || before === null || before === undefined) return { change: null, tone: '' };
+  if (now === before) return { change: 'No change', tone: 'plain' };
+  if (!before) return { change: 'New', tone: 'plain' };
+  const d = Math.round((now - before) / before * 100);
+  return d ? { change: `${d > 0 ? '↑' : '↓'} ${Math.abs(d)}%`, tone: d > 0 ? 'fail' : 'ok' } : { change: 'No change', tone: 'plain' };
+}
+// The whole month before the selected one, from the lifetime months (null before Jules' first month).
+export function lastMonthTotal(data) {
+  const months = data?.lifetime?.months ?? [], i = months.findIndex(m => m.month === data.date.slice(0, 7));
+  return i > 0 ? months[i - 1] : null;
+}
+const vsLastMonth = (data, value) => {
+  const last = lastMonthTotal(data);
+  if (!last) return { was: 'no earlier month tracked' };
+  return { ...spendChange(value, last.total), was: `${monthName(last.month + '-01').split(' ')[0]} ${money(last.total)}` };
+};
+const budgetCell = (data, label) => {
+  const spent = data.totals.today, budget = data.budget;
+  if (budget === null) return { label, value: money(spent), detail: 'no daily warning budget set' };
+  const over = spent !== null && spent > budget;
+  // Within budget on an incomplete day is the known part only: actual costs may exceed it.
+  const known = !over && data.incomplete.length ? ' · known part only' : '';
+  return { label, value: money(spent), change: spent === null ? null : over ? 'Over budget' : 'Within budget', tone: over ? 'fail' : known ? 'plain' : 'ok',
+    was: (spent === null || over ? `budget ${money(budget)}` : `${money(budget - spent)} of ${money(budget)} left`) + known };
+};
+export function metricCells(data, period = 'month') {
+  if (!data) return [];
+  const partial = data.incomplete.length ? 'known part only' : '', t = data.totals, l = data.lifetime;
+  const lifetime = { label: 'Lifetime', value: l ? money(l.total) : 'Unknown', detail: l ? [`since ${monthName(l.since + '-01')}`, l.total !== null && l.gaps.length ? `known part only (missing ${l.gaps.map(g => `${g.services.join(', ')} in ${monthName(g.month + '-01').split(' ')[0]}`).join('; ')})` : ''].filter(Boolean).join(' · ') : 'earlier months unavailable' };
+  if (period === 'day') return [budgetCell(data, `Day · ${shortDate(data.date)}`), { label: 'Month to date', value: money(t.month), detail: [`through ${shortDate(data.date)}`, partial].filter(Boolean).join(' · ') }, lifetime];
+  if (fullMonth(data.date)) return [{ label: monthName(data.date), value: money(t.month), detail: ['whole month', partial].filter(Boolean).join(' · '), ...vsLastMonth(data, t.month) }, lifetime];
+  return [
+    { label: 'Month to date', value: money(t.month), detail: [`through ${shortDate(data.date)}`, partial].filter(Boolean).join(' · ') },
+    { label: 'Projected month end', value: money(t.projected), detail: 'calculated, not a bill', ...vsLastMonth(data, t.projected) },
+    budgetCell(data, 'Today'),
+    lifetime,
+  ];
 }
 
-// The status line: coverage, then the budget. over = the day's known spend is above the warning budget.
+// The status line: whether every service is covered.
 export function coverageText(data) {
   return data.incomplete.length ? `Incomplete: ${data.incomplete.join(', ')}, so totals include only what is known` : 'Every service is covered';
 }
-// The warning budget is per day, so it is compared only in Day.
-export function budgetText(data, period = 'day') {
-  if (period !== 'day') return { text: '', over: false };
-  if (data.budget === null) return { text: 'No daily warning budget set', over: false };
-  const today = data.totals.today, over = today !== null && today > data.budget;
-  return { over, text: `Daily warning budget ${money(data.budget)}: ${over ? 'over budget' : data.incomplete.length ? 'coverage incomplete, actual costs may exceed it' : 'within budget'}` };
-}
-
 // How a service's dollars are known: billed (provider's own report), estimate (Jules' metered calls at
 // list prices), manual (entered here), or not recorded.
 export const basisLabel = basis => basis === 'unknown' ? 'Not recorded' : basis.split('+').map(b => b[0].toUpperCase() + b.slice(1)).join(' + ');
