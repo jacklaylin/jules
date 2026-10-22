@@ -20,7 +20,8 @@ test('the router reads the message and app state, and keeps only known jobs', as
     async (_u, options) => { body = JSON.parse(options.body); return reading({ jobs: ['save_or_watch', 'made_up'], confident: true, reason: 'Save a shown option and watch it.' }); });
   assert.deepEqual(route.jobs, ['save_or_watch']);
   // Shown options join a shopping turn from app state, not from the router.
-  assert.deepEqual(route.loaded, ['core', 'options', 'save_or_watch']);
+  // A save of shown options also loads finding, in case the items are not among them.
+  assert.deepEqual(route.loaded, ['core', 'find_exact', 'options', 'save_or_watch']);
   assert.equal(body.model, 'gpt-4.1-mini');
   const context = JSON.parse(body.input[0].content[0].text);
   assert.equal(context.newest_message, 'love the second, save it and watch the price');
@@ -41,9 +42,13 @@ test('unsure, failed or unreachable routing loads every skill and never throws',
 });
 
 test('app state adds the skills it already calls for', () => {
-  assert.deepEqual(loadedSkills({ jobs: ['find_exact'], confident: true }, { interview: { waiting_for: 'q1' }, waitlist: { replies_left: 2 } }), ['core', 'find_exact', 'profile', 'conversation']);
+  assert.deepEqual(loadedSkills({ jobs: ['find_exact'], confident: true }, { interview: { waiting_for: 'q1' }, waitlist: { replies_left: 2 } }), ['core', 'find_exact', 'save_or_watch', 'profile', 'conversation']);
   // A non-shopping turn does not pull in the options skill just because options are pending.
   assert.deepEqual(loadedSkills({ jobs: ['profile'], confident: true }, { wishlistState: { options: [{}] } }), ['core', 'profile']);
+  // Saving follows any search, and a save needs finding (October 22 replay); other jobs pull in neither.
+  assert.deepEqual(loadedSkills({ jobs: ['explore'], confident: true }), ['core', 'find_exact', 'explore', 'save_or_watch']);
+  assert.deepEqual(loadedSkills({ jobs: ['save_or_watch'], confident: true }), ['core', 'find_exact', 'save_or_watch']);
+  assert.deepEqual(loadedSkills({ jobs: ['saved_items', 'conversation'], confident: true }), ['core', 'saved_items', 'conversation']);
 });
 
 test('a threaded reply shows the router what the user replied under', () => {
