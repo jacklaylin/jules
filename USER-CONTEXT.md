@@ -63,6 +63,15 @@ When the router is unsure or fails, everything goes in. It is off by default: th
 (about 0.5–1 s, alongside the link check), and the router's recall gate (98%, CHAT-SKILLS.md step 12) is not yet
 met. Measure one person with `node --env-file=.env.local scripts/profile-size.js <conversation id>`.
 
+## Taste coverage reads the layer
+
+October 22: taste coverage and the early read (`readTasteInputs`, lib/coverage.js) kept their own copy of the
+source reads. They now call `readUserContext(..., {inputs: true})`, which returns the raw rows it read (profile,
+purchase-history row, outfit photos and reading, liked rows, wishlist) next to the facts, reads every source
+whatever the feature flags say, and logs a failed source as `coverage_source_failed` as before. Output is
+unchanged (checked on every real profile). The large purchase-history row is now fetched once per read and
+shared by the purchase summary, the closet and coverage.
+
 ## Next steps
 
 1. ~~One layer and one taste view for chat, search, the stylist and ranking.~~
