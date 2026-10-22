@@ -36,7 +36,7 @@ if (command === 'sync' || (command === 'run' && !args.includes('--no-sync'))) {
     if (refresh) {
       // Only adds `context` to cases frozen before it existed; new reports are not frozen (that calls a model).
       const { missing, refreshed } = await refreshContext(store, { dir, since, log: c => console.log(c.error ? `  could not refresh ${c.id}: ${c.error}` : `  added context to ${c.id}`) });
-      console.log(`${refreshed.length} of ${missing.length} case${missing.length === 1 ? '' : 's'} without context refreshed in ${dir}\n`);
+      console.log(`${refreshed.length} of ${missing} case${missing === 1 ? '' : 's'} without context refreshed in ${dir}\n`);
     } else {
       const { reports, added } = await withUsage({ store, env, conversation: null, operation: 'eval:frozen:sync', feature: 'eval_frozen', quiet: true }, () => syncCases(store, env, { dir, since, log: c => console.log(c.error ? `  could not freeze ${c.id}: ${c.error}` : `  froze ${c.id} (${c.category}${c.replayable ? '' : `, not replayable: ${c.not_replayable_reason}`})`) }));
       console.log(`Synced ${reports} reports since ${since}: ${added.length} new case${added.length === 1 ? '' : 's'} in ${dir}\n`);
