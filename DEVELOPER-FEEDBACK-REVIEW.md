@@ -385,3 +385,14 @@ One developer feedback report (`#dev`, two parts) from October 21 21:36, left op
 Evals added: more-keeps-colour-garment, more-keeps-colour-garment-reworded, refine-keeps-colour-garment, new-request-colour-garment, refine-colour-change. They are graded on what the constraint list names (`covers`/`none` in `lib/agent-eval.js`), never its wording.
 
 Triage cursor unchanged (this report predates the October 22 cursor).
+
+## October 22 (follow-up 2): options that aren't what was asked for are left out before the reply
+
+Builds October 21 proposal (3), left open in the entry above. No new report.
+
+- **The reply writer knew an option was off and showed it anyway (trust).** The composer only rewords code's draft, and it read the Aran's colour ("Off-White") from its option line, so all it could do was add a disclaimer. Whether an option is shown is decided before the draft; the ranker was the only check there, and it kept the crewneck once. Fix: a request-fit check (`lib/request-fit.js`) reads each candidate in the ranker's pool on its own, alongside the ranker (no added wait), and gives a verdict for each of the plan's `hard_constraints`: fits, contradicts or unknown. A contradiction counts only when it names a requested constraint and quotes the listing's own text (code checks both); an unsure reading or a failed call keeps the candidate, and a link the user sent is never checked. Contradicting candidates are left out before the set is picked, so the next ranked option takes the slot, and their pages join `excluded_urls` so "look for more" doesn't bring them back. When a left-out option would have been shown, the draft says how many and what they missed ("i left out one that didn't match what you asked for (bright red)"); when nothing fits, Jules says it hasn't found a close enough option. Never a phrase match on the reply. The recovery search's results get the same check. `rank.request_fit` records checked, failed and each left-out URL with its constraint and quote.
+- **Not changed:** the photo search's discovery ranking (`lib/visual-search.js`) has no plan `hard_constraints` and is not checked here.
+
+Evals added: `scripts/request-fit-eval.js`, 12 labelled listings (off-white Aran, full-zip, ecru page offered in red, black leather for brown suede, cotton for linen to leave out; a shade of red, colour unstated, a women's page, snuff suede and fitting items to keep). gpt-4.1-mini at temperature 0 (the production extract model): 36 of 36 runs as expected. Deterministic tests in `tests/request-fit.test.js`.
+
+Triage cursor unchanged.
