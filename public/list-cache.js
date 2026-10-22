@@ -1,7 +1,7 @@
 // The last list each signed-in page showed, so a return visit draws it straight away and then
 // refreshes from the server. Saved per person (the sign-in token's subject): a different sign-in on
 // this browser never sees it, and signing out forgets it (wishlist-session.js clear()).
-const KEYS={wishlist:'jules_cache_wishlist',wardrobe:'jules_cache_wardrobe'};
+const KEYS={wishlist:'jules_cache_wishlist',wardrobe:'jules_cache_wardrobe',admin_adoption:'jules_cache_admin_adoption',admin_scorecard:'jules_cache_admin_scorecard',admin_costs:'jules_cache_admin_costs'};
 export function tokenSubject(token){
  try{return JSON.parse(atob(String(token).split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))).sub||null;}catch{return null;}
 }
@@ -12,6 +12,15 @@ export function readList(storage,name,token){
 export function saveList(storage,name,token,data){
  try{const sub=tokenSubject(token);if(sub)storage.setItem(KEYS[name],JSON.stringify({sub,data}));}catch{}
 }
+// Admin report pages (Adoption, Scorecard, Costs): the last report, which one it was (key: Costs' period and date)
+// and when it loaded, so a return visit draws it at once and says how old it is.
+export function readPage(storage,name,token,key=''){
+ const saved=readList(storage,name,token);return saved&&saved.key===key?{data:saved.data,at:saved.at}:null;
+}
+// Whether fresh data matches what is drawn, so it is not drawn again. A report's generated_at changes on every
+// load and is never shown, so it does not count.
+export function sameData(a,b){const text=v=>JSON.stringify(v,(k,x)=>k==='generated_at'?undefined:x);return text(a)===text(b);}
+export function savePage(storage,name,token,data,key='',at=Date.now()){saveList(storage,name,token,{key,at,data});}
 export function forgetLists(storage){
  for(const key of Object.values(KEYS))try{storage.removeItem(key);}catch{}
  for(const person of people(storage))try{storage.removeItem(PERSON+person);}catch{}
