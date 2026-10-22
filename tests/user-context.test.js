@@ -74,7 +74,7 @@ test('search constraints, the stylist and ranking all read the same taste view',
  for(const f of TASTE_VIEW_FIELDS.filter(f=>f!=='brand'&&facts.some(x=>x.field===f&&!x.deleted)))assert.ok(stylistFields.has(f),f);
  await stylistConcepts({query:'a coat for my dad',plan:{mode:'discover'},facts,forSomeoneElse:true,env,fetcher:stylistFetch});
  assert.deepEqual(stylistInput.saved_profile,[]);
- assert.deepEqual(stylistInput.saved_brands,[]);
+ assert.deepEqual(stylistInput.brand_taste,[]);
  // Ranking: the ranker is given the taste view, or nothing for a gift.
  let rankInput=null;
  const rankFetch=async(_u,o)=>{rankInput=JSON.parse(o.body).input;return reply({indices:[0],rejected_indices:[]});};
