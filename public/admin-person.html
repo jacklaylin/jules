@@ -42,24 +42,54 @@
       <a href="?tab=wishlist" data-tab="wishlist">Wishlist <span class="count" id="count-wishlist"></span></a>
     </nav>
     <p id="notice" role="status" aria-live="polite" class="muted"></p>
+    <p id="person-updated" class="dv-note person-updated"></p>
 
     <!-- Summary: what Jules knows, how much, and where it came from (lib/person-summary.js). Read-only. -->
     <section id="tab-summary" data-panel="summary" hidden>
+      <div class="dv-metrics summary-strip" aria-label="At a glance">
+        <div class="dv-metric"><span>Taste coverage</span><strong id="strip-coverage">—</strong><span id="strip-coverage-note"></span></div>
+        <div class="dv-metric"><span>Weeks with a win</span><strong id="strip-wins">—</strong><span>A week they asked and liked at least one result</span></div>
+        <div class="dv-metric"><span>Last positive request</span><strong id="strip-last">—</strong><span id="strip-last-note"></span></div>
+      </div>
       <div class="summary-layout">
         <section class="summary-card summary-profile" aria-labelledby="summary-profile-title" aria-busy="true">
           <div class="summary-head">
-            <h2 id="summary-profile-title">Their profile</h2><span id="summary-coverage" class="muted"></span><span class="spacer"></span>
+            <h2 id="summary-profile-title">Their profile</h2><span class="spacer"></span>
             <button id="summary-learn" class="small quiet" type="button">Learn from last 100 texts</button>
             <button id="summary-ask" class="small btn--butter" type="button" aria-haspopup="dialog">Ask them about the gaps…</button>
           </div>
           <p id="summary-status" class="sr-only" role="status">Loading their profile…</p>
           <div class="dv-table-wrap"><table class="dv-table summary-table"><thead><tr><th>Topic</th><th>Coverage</th><th>What Jules knows</th><th>From</th></tr></thead><tbody id="summary-rows"></tbody></table></div>
         </section>
+        <div class="summary-side">
+        <!-- Adoption and Chat quality (lib/person-adoption.js): this person's shopping requests over the last four weeks. -->
+        <section id="summary-adoption" class="summary-card" aria-labelledby="summary-adoption-title" aria-busy="true">
+          <div class="summary-head"><h2 id="summary-adoption-title">Adoption</h2><span class="muted">last 4 weeks</span><span class="spacer"></span><a href="/admin/adoption">Adoption page →</a></div>
+          <p class="summary-figure"><strong id="adoption-wins">—</strong> <span>weeks with a win</span></p>
+          <div id="adoption-weeks" class="summary-weeks" role="img" aria-label="Loading the last four weeks"></div>
+          <p class="summary-legend"><span><i class="week-key win" aria-hidden="true"></i>asked and liked a result</span><span><i class="week-key asked" aria-hidden="true"></i>asked, nothing liked</span><span><i class="week-key quiet" aria-hidden="true"></i>quiet</span></p>
+          <div class="summary-stat"><span class="muted">Requests they started</span><strong id="adoption-requests">—</strong><span id="adoption-requests-note" class="muted"></span></div>
+          <p class="summary-foot muted">Lifetime cost <strong id="adoption-cost">—</strong></p>
+        </section>
+        <section id="summary-quality" class="summary-card" aria-labelledby="summary-quality-title" aria-busy="true">
+          <div class="summary-head"><h2 id="summary-quality-title">Chat quality</h2><span class="muted">last 4 weeks</span><span class="spacer"></span><a href="/admin/quality">Scorecard →</a></div>
+          <p class="summary-figure"><strong id="quality-share">—</strong> <span id="quality-label">of shopping requests got a positive reaction</span> <span id="quality-count" class="muted"></span></p>
+          <div id="quality-bar" class="summary-bar" role="img" aria-label="Loading how their requests ended"></div>
+          <p id="quality-legend" class="summary-legend"></p>
+        </section>
+        <!-- Style report engagement (lib/report-engagement.js), from the same read as Adoption. -->
+        <section id="summary-report" class="summary-card" aria-labelledby="summary-report-title" aria-busy="true">
+          <div class="summary-head"><h2 id="summary-report-title">Style report</h2><span class="muted">all time</span></div>
+          <p class="summary-figure"><strong id="report-opened">—</strong> <span id="report-opened-label">times they opened it</span> <span id="report-last" class="muted"></span></p>
+          <dl id="report-facts" class="summary-facts" hidden></dl>
+          <p id="report-foot" class="summary-foot muted" hidden></p>
+        </section>
         <section class="summary-card summary-text-now" aria-labelledby="summary-text-title">
           <div class="summary-head"><h2 id="summary-text-title">What Jules would text now</h2><span id="summary-text-kind" class="badge plain" hidden></span><span class="muted">Not sent</span></div>
           <p id="summary-text" class="summary-text"></p>
           <p id="summary-text-note" class="muted"></p>
         </section>
+        </div>
       </div>
     </section>
 

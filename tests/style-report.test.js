@@ -889,3 +889,66 @@ test('a shared receipt shows the last order’s time in the person’s time zone
  // Reports from before the proof receipt still share their TOTAL line.
  assert.equal(sharedView({cards:[{type:'receipt',total:'NO FURTHER QUESTIONS',range:null,lines:[{key:'a',label:'TEES',n:4}]}],feedback:[],hidden:{}}).cards[0].total,'NO FURTHER QUESTIONS');
 });
+
+// Engagement events (lib/report-events.js, db/049): kept in a list like the adoption_events table.
+function withEvents(store,{migrated=true}={}){
+ // Time passing moves the recorded events back.
+ const events=[];
+ Object.assign(store,{events,tick:ms=>{for(const e of events)e.created_at=new Date(Date.parse(e.created_at)-ms).toISOString();},
+  hasAdoptionEvent:async({conversation_id,kind,ref,since})=>events.some(e=>e.conversation_id===conversation_id&&e.kind===kind&&e.ref===ref&&Date.parse(e.created_at)>=Date.parse(since)),
+  recordAdoptionEvent:async row=>{if(!migrated)throw Object.assign(Error('Database request failed'),{database_status:400});events.push({...row,created_at:new Date().toISOString()});}});
+ return store;
+}
+const postBody=body=>({method:'POST',headers:{authorization:'Bearer t','content-type':'application/json'},async *[Symbol.asyncIterator](){yield Buffer.from(JSON.stringify(body));}});
+
+test('opening your own report is counted once a day per report, and a rebuilt report counts again',async()=>{
+ const store=withEvents(fixture());await buildReport(store,owner,{},{interpret:writer});
+ const auth=async()=>({status:200,conversation:owner}),open=async()=>{const res=response();await handleReport({method:'GET',headers:{authorization:'Bearer t'}},res,{store,env:{},auth,fetcher:fetch});return res;};
+ await open();await open();
+ assert.equal(store.events.length,1,'a reload the same day is the same view');
+ assert.deepEqual(Object.keys(store.events[0]).sort(),['conversation_id','created_at','kind','quantity','ref'],'no viewer identity or text');
+ assert.equal(store.events[0].kind,'report_viewed');assert.equal(store.events[0].ref,store.row.data.style_report.id);
+ store.tick(23*3600e3);await open();assert.equal(store.events.length,1,'within a day');
+ store.tick(2*3600e3);await open();assert.equal(store.events.length,2,'the next day counts again');
+ await buildReport(store,owner,{},{interpret:writer});await open();
+ assert.equal(store.events.length,3,'a new build is a new report to open');
+ // The admin read-only preview is not the owner opening it.
+ const {createAdminHandler}=await import('../api/admin.js');store.conversation=async id=>({id});
+ await createAdminHandler({auth:async()=>200,storeFactory:()=>store})({method:'GET',url:`/api/admin?view=report&conversation=${owner}`,headers:{}},response());
+ assert.equal(store.events.length,3);
+});
+
+test('sharing is counted by channel; unknown channels are refused and change nothing',async()=>{
+ const store=withEvents(fixture());await buildReport(store,owner,{},{interpret:writer});
+ const before=structuredClone(store.row.data.style_report),auth=async()=>({status:200,conversation:owner});
+ for(const channel of ['story','copy','share_sheet','download']){const res=response();await handleReport(postBody({action:'report-shared',channel}),res,{store,env:{},auth,fetcher:fetch});assert.equal(res.statusCode,200,channel);}
+ assert.deepEqual(store.events.map(e=>[e.kind,e.detail]),[['report_shared','story'],['report_shared','copy'],['report_shared','share_sheet'],['report_shared','download']]);
+ const res=response();await handleReport(postBody({action:'report-shared',channel:'fax'}),res,{store,env:{},auth,fetcher:fetch});
+ assert.equal(res.statusCode,400);assert.equal(store.events.length,4);
+ assert.deepEqual(store.row.data.style_report,before,'recording a share never touches the report');
+});
+
+test('a friend’s first open of a share link is credited to the person who shared it; repeats and bots are not',async()=>{
+ const store=withEvents(fixture());await buildReport(store,owner,{},{interpret:sharingWriter});
+ const {share}=await updateReport(store,owner,{action:'report-share'});
+ const open=async(query,agent='Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)')=>{const res=response();await handleSharedReport({method:'GET',url:`/api/wishlist?shared=${share.token}${query}`,headers:{'user-agent':agent}},res,{store});return res;};
+ assert.equal((await open('&first=1')).statusCode,200);
+ await open('');// the same browser again: the page leaves out first=1
+ await open('&first=1','facebookexternalhit/1.1');await open('&first=1','Mozilla/5.0 HeadlessChrome/131');await open('&first=1','');
+ assert.deepEqual(store.events.map(e=>[e.conversation_id,e.kind,e.ref]),[[owner,'report_share_opened',store.row.data.style_report.id]]);
+});
+
+test('before db/049 runs, views, shares and share opens still work and only log',async()=>{
+ const store=withEvents(fixture(),{migrated:false});await buildReport(store,owner,{},{interpret:sharingWriter});
+ const auth=async()=>({status:200,conversation:owner});
+ let res=response();await handleReport({method:'GET',headers:{authorization:'Bearer t'}},res,{store,env:{},auth,fetcher:fetch});
+ assert.equal(res.statusCode,200);assert.ok(res.body.report);
+ res=response();await handleReport(postBody({action:'report-shared',channel:'copy'}),res,{store,env:{},auth,fetcher:fetch});assert.equal(res.statusCode,200);
+ const {share}=await updateReport(store,owner,{action:'report-share'});
+ res=response();await handleSharedReport({method:'GET',url:`/api/wishlist?shared=${share.token}&first=1`,headers:{'user-agent':'Mozilla/5.0'}},res,{store});
+ assert.equal(res.statusCode,200);assert.ok(res.body.report.cards.length);
+ // A store without the dedupe read (or one that fails) still serves the page.
+ const failing=fixture();failing.hasAdoptionEvent=async()=>{throw Object.assign(Error('down'),{database_status:503});};failing.recordAdoptionEvent=assert.fail;
+ await buildReport(failing,owner,{},{interpret:writer});
+ res=response();await handleReport({method:'GET',headers:{authorization:'Bearer t'}},res,{store:failing,env:{},auth,fetcher:fetch});assert.equal(res.statusCode,200);
+});

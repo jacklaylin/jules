@@ -80,6 +80,7 @@ Built (PR 2): outcomes are computed from these rows on read (`scripts/turn-outco
 ### PR 3 — Nightly LLM judge
 
 - **Schedule:** Supabase `pg_cron` calls an existing function every 10 minutes between 2 and 4 am Pacific (same pattern and secret as the Gmail sweep), so no new service and no new Vercel function (Hobby allows 12; we use 12). Each call judges a small batch within the 120 s limit and stops when the day is done; re-running never double-judges.
+- **Stalls show up (October 22):** the judge looks back 7 days and judges the oldest due turns first, so a missed night is caught up within the daily limit. An OpenAI billing refusal (out of credit, over the spend limit) stops the run at once. A run with due turns that judges none, other than for the daily limit, a missing key or the cost cap, is recorded as a failed run (`job_runs`, with `errors` and the last `error`), which Admin › Costs › Recurring jobs flags.
 - **Input per turn:** the user's message (and photo), the 6 turns before, Jules's reply, the structured search result (what each page check actually found: name, variant, price, stock, sizes), and the user's next message.
 - **Rubric** — each criterion `pass` / `fail` / `not_applicable` with a one-sentence neutral reason (no quotes, names or contact details, like quality signals):
   1. correct product identity and variant
@@ -104,9 +105,11 @@ New page `/admin/quality` under Conversations in the admin sub-nav, built from t
   - positive engagement rate — turns that showed products and got a positive next action
   - judge pass rate
   - time to first reply and to result, p50 / p90
-  - failed or unsupported rate — fallback, stall, nothing found, constraints rejected, unreadable photo
+  - failed rate — fallback, stall, unreadable photo
+  - nothing-found rate — the search worked but showed no products (split from failures October 22: most of the old "failed or nothing found" figure was honest "couldn't find it" replies, not breakage)
   - cost per sourcing request
-- **8-week trend** table for the same six numbers, split by request type (text / photo / link).
+- **8-week trend** table for the same numbers, split by request type (text / photo / link).
+- **Testers only** by default (October 22): the founder's own conversation is left out of every figure and the worst-turns list, because it was most of the traffic (89 of 103 searches, Oct 9–22) and its `#dev` flags and link checks read as tester behaviour. **Include mine** adds it back. The founder's conversation is `OWNER_ALERT_CONVERSATION_ID`, plus any conversation from `FOUNDER_ALERT_PHONE`; with neither set, the page says so and counts everyone.
 - **Worst turns** list: judge failures first (most criteria failed), then negative next actions and misses, then failures — each with the judge's reasons, labels and a link to the message in the person's conversation.
 - Verified on desktop and phone before deploy, per `DESIGN-SYSTEM.md`.
 - No migration.

@@ -454,6 +454,8 @@ button.quiet{border-color:transparent;box-shadow:none;background:transparent;col
 .photo-pending .photo-status{font:500 11px/1.5 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;text-align:center;padding:0 8px}
 .skeleton{position:relative;overflow:hidden;background:var(--fog)}
 .skeleton-card-title{height:14px;width:75%;margin:16px 0 10px}.skeleton-price{height:14px;width:30%;margin:12px 0}
+/* Placeholder rows while a view's first data loads (admin-console.js skeletonRows): one bar per cell, or per block row. */
+.skeleton-bar{display:block;height:12px;border-radius:6px;margin:4px 0}div.skeleton-row{padding:14px 0;border-bottom:1px solid var(--line)}
 @media(hover:hover) and (pointer:fine){button.tile{transition:transform .22s ease}button.tile:hover{transform:translateY(-3px)}button.tile:active{transform:translateY(-1px)}}
 @media(max-width:800px){.product-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 14px}.tile{padding:8px 8px 20px}.tile .photo{aspect-ratio:3/4}.tile strong{font-size:14px;margin-inline:4px}.card-price{font-size:10px;margin-inline:4px}.photo-pending .orb{--s:34px}.photo-pending .photo-status{font-size:9px}}
 /* Round icon buttons on product photos: price alert at the upper-left, remove at the upper-right (× top-right always gets rid of something).
