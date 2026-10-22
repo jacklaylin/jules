@@ -267,12 +267,12 @@ function renderReport(r) {
   const votes = r.votes.up + r.votes.down;
   const fact = (label, value, note) => [el('dt', {}, label, note ? el('small', { textContent: note }) : null), el('dd', { textContent: value })];
   $('report-facts').replaceChildren(
-    ...fact('Shared', times(r.shared), channels || null),
-    ...fact('Shared link opened', times(r.link_opened), r.share_link_at ? null : 'no share link yet'),
+    ...fact('Started a share', times(r.shared), channels || null),
+    ...fact('Friends opened', times(r.link_opened), r.share_link_at ? 'their shared link, first open per browser' : 'no share link yet'),
     ...fact('Signups from their links', String(r.signups), 'report and style card share the same link code'),
     ...fact('Votes on cards', votes ? `${r.votes.up} up · ${r.votes.down} down` : 'None yet', votes ? `${Math.round(r.votes.up / votes * 100)}% up, latest vote per card` : null));
   // Opens, shares and link opens were first recorded on October 22, 2026 (db/049); votes go back further.
-  $('report-foot').textContent = [`Built ${day(r.built_at)}`, r.share_link_at ? `share link made ${day(r.share_link_at)}` : null, 'opens and shares counted since Oct 22, 2026'].filter(Boolean).join(' · ');
+  $('report-foot').textContent = [`Built ${day(r.built_at)}`, r.share_link_at ? `share link made ${day(r.share_link_at)}` : null, 'opens and share taps counted since Oct 22, 2026'].filter(Boolean).join(' · ');
 }
 function adoptionFailed(error) {
   for (const id of ['summary-adoption', 'summary-quality']) { $(id).removeAttribute('aria-busy'); }
@@ -301,8 +301,11 @@ const dirty = new Map(), factKey = fact => `${fact.field}|${fact.key}`;
 const malformedSize = fact => { const parts = String(fact.key ?? '').split('/'); return fact.field === 'size' && !(parts.length >= 2 && parts.length <= 3 && parts.every(p => p.trim())); };
 // Date-only values (2026-10-06) are calendar days: read at local noon so no time zone moves them a day.
 const onDay = value => value ? (/^\d{4}-\d{2}-\d{2}$/.test(value) ? day(value + 'T12:00:00') : day(value)) : '';
-const FIELD = { shopping_range: 'Clothing range', gender: 'Gender', name: 'First name', country: 'Country', currency: 'Currency', size: 'Size', brand: 'Brand', avoid: 'Avoid',
-  style: 'Style', fit: 'Fit', material: 'Material', inspiration: 'Inspiration', occasion: 'Occasion', category: 'Category', owned: 'Owns', budget: 'Budget', spending: 'Spending', store: 'Store', retailer: 'Store' };
+// Every field a fact can have and how to enter it, from /api/profile (lib/memory.js FIELD_FORMS): the add form and
+// the table's labels follow it, so a new field needs no change here.
+let fieldForms = [];
+const formOf = field => fieldForms.find(f => f.field === field);
+const fieldLabel = field => formOf(field)?.label ?? label(field);
 const TOPICS = ['Person', 'Sizes', 'Brands', 'Style', 'Budget and stores', 'Saved and liked', 'Other'];
 const KIND_ORDER = { said: 0, inferred: 1, seen: 2 };
 const label = text => String(text ?? '').replace(/_/g, ' ');
@@ -311,13 +314,13 @@ function aboutOf(fact) {
   if (fact.field === 'size') { const [category, , brand] = String(fact.key).split('/'); return [label(category), brand].filter(Boolean).join(' · ') || fact.key; }
   if (['brand', 'store', 'retailer'].includes(fact.field)) return fact.key;
   if (fact.field === 'budget') { const [category, currency] = String(fact.key).split('/'); return `Budget · ${label(category)}${currency && currency !== 'unknown' ? ` (${currency.toUpperCase()})` : ''}`; }
-  return ['identity', 'department', 'first', 'summary', 'code'].includes(fact.key) ? FIELD[fact.field] ?? label(fact.field) : `${FIELD[fact.field] ?? label(fact.field)} · ${label(fact.key)}`;
+  return fact.key === formOf(fact.field)?.key || ['identity', 'department', 'summary'].includes(fact.key) ? fieldLabel(fact.field) : `${fieldLabel(fact.field)} · ${label(fact.key)}`;
 }
 const sourceOf = fact => fact.source === 'signup' ? 'Signup form' : fact.source === 'operator' ? 'Owner edit' : fact.source === 'message' ? 'Chat' : 'Learned from messages';
 function allRows() {
   const own = facts.filter(f => !f.deleted).map(f => {
     const note = knowledge.notes[factKey(f)] ?? {};
-    return { id: 'fact:' + factKey(f), fact: f, topic: note.topic ?? 'Other', about: aboutOf(f), value: f.value, kind: f.basis === 'inferred' ? 'inferred' : 'said',
+    return { id: 'fact:' + factKey(f), fact: f, topic: note.topic ?? formOf(f.field)?.topic ?? 'Other', about: aboutOf(f), value: f.value, kind: f.basis === 'inferred' ? 'inferred' : 'said',
       source: sourceOf(f), when: f.updated_at ?? null, weight: note.weight ?? null, seen: note.seen ?? null, needsLook: malformedSize(f) };
   });
   return [...own, ...knowledge.rows];
@@ -330,7 +333,7 @@ function compare(a, b) {
   // Ties: kind (said first), then the stronger brand, then name.
   return by() * sortDir || KIND_ORDER[a.kind] - KIND_ORDER[b.kind] || weightValue(b.weight) - weightValue(a.weight) || a.about.localeCompare(b.about);
 }
-// A brand's weight as a small ring, full for their strongest brand.
+// A brand's or store's weight as a small ring, full for their strongest in that topic (brands and stores score apart).
 function weightCell(weight, top) {
   if (weight === 'last') return el('td', { className: 'muted knowledge-weight', textContent: 'Ranked last' });
   if (typeof weight !== 'number') return el('td');
@@ -339,7 +342,7 @@ function weightCell(weight, top) {
   const length = 2 * Math.PI * 8;
   for (const [k, v] of Object.entries({ width: 20, height: 20, viewBox: '0 0 20 20', 'aria-hidden': 'true' })) svg.setAttribute(k, v);
   svg.append(ring('var(--line)'), ring('var(--ink)', `${top ? (weight / top) * length : 0} ${length}`));
-  return el('td', { className: 'knowledge-weight' }, el('span', { className: 'weight', title: `Weight ${weight}${top ? ` (their strongest brand is ${top})` : ''}` }, svg, el('strong', { textContent: String(weight) })));
+  return el('td', { className: 'knowledge-weight' }, el('span', { className: 'weight', title: `Weight ${weight}${top ? ` (their strongest is ${top})` : ''}` }, svg, el('strong', { textContent: String(weight) })));
 }
 function factRow(row, top) {
   const fact = row.fact, keyId = factKey(fact), input = el('input', { value: dirty.get(keyId) ?? fact.value, maxLength: 500 });
@@ -352,7 +355,8 @@ function factRow(row, top) {
     el('th', { scope: 'row' }, row.about, row.needsLook ? el('span', { className: 'badge warn', title: 'Size keys need the item it is for: category/system[/brand]. Remove this and add the correct one.', textContent: 'Needs category' }) : null),
     el('td', {}, input, row.seen ? el('div', { className: 'muted knowledge-seen', textContent: `Seen: ${row.seen}` }) : null),
     weightCell(row.weight, top), el('td', {}, kindTag(row.kind, KIND_LABEL[row.kind])),
-    el('td', { className: 'muted knowledge-source', title: row.source + quote }, row.source + quote, fact.source_id ? el('button', { type: 'button', className: 'small quiet', textContent: 'Open ↗', ariaLabel: 'Open the message in Conversation', onclick: () => openMessage(fact.source_id) }) : null),
+    el('td', { className: 'muted knowledge-source', title: row.source + quote }, el('div', { className: 'dv-clip' },
+      fact.source_id ? el('button', { type: 'button', className: 'dv-cell-link', textContent: row.source, ariaLabel: `${row.source}: open the message in Conversation`, onclick: () => openMessage(fact.source_id) }) : row.source, quote)),
     el('td', { className: 'muted', textContent: onDay(row.when) }), el('td', { className: 'end knowledge-actions' }, save, remove));
   input.oninput = () => {
     if (input.value === fact.value) dirty.delete(keyId); else dirty.set(keyId, input.value);
@@ -365,7 +369,7 @@ function factRow(row, top) {
 const derivedRow = (row, top) => el('tr', { className: `derived kind-row-${row.kind}` },
   el('td', { className: 'muted', textContent: row.topic }), el('th', { scope: 'row', textContent: row.about }),
   el('td', {}, row.value ?? el('span', { className: 'muted', textContent: 'Not built yet' })), weightCell(row.weight, top),
-  el('td', {}, kindTag(row.kind, KIND_LABEL[row.kind])), el('td', { className: 'muted knowledge-source', textContent: row.source }),
+  el('td', {}, kindTag(row.kind, KIND_LABEL[row.kind])), el('td', { className: 'muted knowledge-source', title: row.source }, el('div', { className: 'dv-clip', textContent: row.source })),
   el('td', { className: 'muted', textContent: onDay(row.when) }), el('td'));
 const KIND_LABEL = { said: 'Said', seen: 'Seen', inferred: 'Inferred' };
 function fillSelect(select, values, all) {
@@ -392,12 +396,13 @@ function renderFacts() {
   const q = $('knowledge-search').value.trim().toLowerCase(), topic = $('knowledge-topic').value, source = $('knowledge-source').value;
   const shown = rows.filter(r => (!kindFilter || (kindFilter === 'look' ? r.needsLook : r.kind === kindFilter)) && (!topic || r.topic === topic) && (!source || r.source === source)
     && (!q || [r.about, r.value, r.source, r.seen, r.fact?.evidence, r.fact && dirty.get(factKey(r.fact))].some(v => v && String(v).toLowerCase().includes(q)))).sort(compare);
-  const top = Math.max(0, ...rows.map(r => typeof r.weight === 'number' ? r.weight : 0));
+  const tops = {};
+  for (const r of rows) if (typeof r.weight === 'number') tops[r.topic] = Math.max(tops[r.topic] ?? 0, r.weight);
   for (const th of document.querySelectorAll('.knowledge-table th[aria-sort], .knowledge-table thead th')) th.removeAttribute('aria-sort');
   document.querySelector(`.knowledge-table [data-sort="${sortBy}"]`).parentElement.setAttribute('aria-sort', sortDir > 0 ? 'ascending' : 'descending');
   const empty = rows.length ? 'Nothing matches these filters.' : 'Jules knows nothing about them yet. Add what they said, or use More › Learn from existing messages.';
   const waiting = knowledgeReady ? [] : skeletonRows(3, 8);
-  $('profile-facts').replaceChildren(...(shown.length ? shown.map(r => r.fact ? factRow(r, top) : derivedRow(r, top)) : waiting.length ? [] : [el('tr', {}, el('td', { colSpan: 8, className: 'muted', textContent: empty }))]), ...waiting);
+  $('profile-facts').replaceChildren(...(shown.length ? shown.map(r => r.fact ? factRow(r, tops[r.topic]) : derivedRow(r, tops[r.topic])) : waiting.length ? [] : [el('tr', {}, el('td', { colSpan: 8, className: 'muted', textContent: empty }))]), ...waiting);
   renderDirty();
 }
 for (const button of document.querySelectorAll('.knowledge-table [data-sort]')) button.onclick = () => {
@@ -412,6 +417,7 @@ function renderDirty() {
 async function loadProfile() {
   await load('profile', `/api/profile?conversation=${encodeURIComponent(person)}`, data => {
     profileVersion = data.version; facts = data.facts; factsReady = true;
+    if (data.fields) { fieldForms = data.fields; renderFieldOptions(); }
     $('memory-conflict').hidden = true;
     renderFacts();
   });
@@ -430,7 +436,7 @@ async function changeProfile(change, keyId) {
     profileVersion = data.version; facts = data.facts;
     loadSummary();
     $('profile-notice').textContent = data.limited ? 'Learned from the latest 100 incoming messages. Earlier history was not included.' : change.action === 'remove' ? 'Removed. Add it again below to restore it.' : 'Saved.';
-    if (change.action === 'set' && !keyId) { $('profile-add').reset(); showAddFact(false); }
+    if (change.action === 'set' && !keyId) { $('profile-add').reset(); syncFactForm(); showAddFact(false); }
   } catch (error) { $('profile-notice').textContent = error.message; }
   finally { profileBusy = false; buttons.forEach(b => { b.disabled = false; }); renderFacts(); }
 }
@@ -438,6 +444,25 @@ const reloadProfile = () => loadProfile().then(() => { $('profile-notice').textC
 $('conflict-reload').onclick = reloadProfile;
 $('profile-import').onclick = () => changeProfile({ action: 'import' });
 $('knowledge-search').addEventListener('input', renderFacts);
+// The add form's type list, and for the chosen type its key (fixed, a short list, or a hint) and its values.
+function renderFieldOptions() {
+  const select = $('fact-field'), current = select.value;
+  select.replaceChildren(...fieldForms.map(f => el('option', { value: f.field, textContent: f.label })));
+  if (formOf(current)) select.value = current;
+  syncFactForm();
+}
+function syncFactForm() {
+  const form = formOf($('fact-field').value), key = $('fact-key'), value = $('fact-value');
+  if (!form) return;
+  if (form.key) key.value = form.key; else if (key.readOnly) key.value = '';
+  key.readOnly = Boolean(form.key);
+  key.placeholder = form.key ?? (form.keys ? form.keys.join(' or ') : form.key_hint);
+  value.placeholder = form.values ? form.values.join(', ') : form.value_hint;
+  $('fact-keys').replaceChildren(...(form.keys ?? []).map(k => el('option', { value: k })));
+  $('fact-values').replaceChildren(...(form.values ?? []).map(v => el('option', { value: v })));
+  $('fact-hint').textContent = [form.key ? null : `Key: ${form.keys ? `one of ${form.keys.join(', ')}` : form.key_hint}`, `Value: ${form.values ? `one of ${form.values.join(', ')}` : form.value_hint}`].filter(Boolean).join(' · ');
+}
+$('fact-field').onchange = syncFactForm;
 function showAddFact(open) {
   $('tool-add-fact').hidden = !open; $('memory-add-open').setAttribute('aria-expanded', String(open));
   if (open) $('fact-field').focus();

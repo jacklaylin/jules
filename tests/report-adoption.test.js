@@ -30,7 +30,7 @@ test('the strip counts unique testers, shares, friends and signups, with the cha
   const w = windows(NOW).week, cells = Object.fromEntries(stripCells(sample(), w).map(c => [c.key, c]));
   assert.equal(cells.built.value, '1'); assert.equal(cells.built.detail, '3 testers with a report');
   assert.equal(cells.opened.value, '2 testers'); assert.match(cells.opened.detail, /^unique · 67% of testers with a report · 3 visits$/);
-  assert.equal(cells.shared.value, '2 testers'); assert.match(cells.shared.detail, /100% of openers · 3 shares/);
+  assert.equal(cells.shared.value, '2 testers'); assert.equal(cells.shared.label, 'Started a share'); assert.match(cells.shared.detail, /100% of openers · 3 share taps/);
   assert.equal(cells.friends.value, '4 friends'); assert.match(cells.friends.detail, /1\.3 per share/);
   assert.equal(cells.signups.value, '2 people', 'each phone once');
   assert.equal(cells.votes.value, '50%'); assert.equal(cells.votes.detail, '1 up · 1 down', 'the latest vote per card per report, cast this week');
@@ -49,7 +49,7 @@ test('methods split shares, testers, friends and signups by how the link was sha
   assert.equal(m.total, 3); assert.equal(m.testers, 2);
   assert.deepEqual([by.copy.shares, by.copy.testers, by.copy.friends, by.copy.per_share, by.copy.signups], [2, 2, 2, 1, 1]);
   assert.deepEqual([by.story.shares, by.story.friends, by.download.shares], [1, 1, 0]);
-  assert.equal(m.rows[0].channel, 'copy', 'most shared first');
+  assert.equal(m.rows[0].channel, 'copy', 'the method that brought most friends back first');
   assert.deepEqual(m.unknown, { friends: 1, signups: 1 }, 'opens and signups from links without a method are counted apart');
 });
 

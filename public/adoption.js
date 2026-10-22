@@ -154,7 +154,8 @@ setInterval(() => { if (refreshedAt) $('refreshed').textContent = `Refreshed ${a
 $('testers').replaceChildren(...skeletonRows(6, 13));
 load();
 
-// The style report's share loop (Admin › Style report has the rest): shared → friends opened → signed up, last 4 weeks.
+// The style report's share loop (Admin › Style report has the rest): share taps → friends opened → signed up, last 4
+// weeks. A tap isn't a post; friends opening the link is the proof a share went out.
 // It reads the same cached numbers as that page, so either page warms the other; a failure only empties the card.
 async function loadReportTile() {
   const token = await adminToken().catch(() => null), saved = readPage(localStorage, 'admin_style_report', token);
@@ -171,8 +172,8 @@ function drawReportTile(report) {
     return el('li', {}, el('span', { textContent: label }), bar, el('span', { className: 'nowrap' }, el('strong', { textContent: String(n) }), note ? el('span', { className: 'muted', textContent: ` · ${note}` }) : ''));
   };
   $('report-funnel').replaceChildren(
-    row('Shared', t.shares, top, `${t.shared} ${t.shared === 1 ? 'tester' : 'testers'}`),
-    row('Friends opened', t.friends, top, t.shares ? `${Math.round(t.friends / t.shares * 10) / 10} per share` : ''),
+    row('Share taps', t.shares, top, `${t.shared} ${t.shared === 1 ? 'tester' : 'testers'}`),
+    row('Friends opened', t.friends, top, t.shares ? `${Math.round(t.friends / t.shares * 10) / 10} per tap` : ''),
     row('Signed up', t.signups, Math.max(t.friends, 1), t.friends ? `${Math.round(t.signups / t.friends * 100)}% of friends` : ''));
   $('report-tile').removeAttribute('aria-busy');
 }
