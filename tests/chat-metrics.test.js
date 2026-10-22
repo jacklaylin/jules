@@ -171,3 +171,17 @@ test('the summary counts the replies behind each figure', () => {
   const s = chatMetrics(rows, { now: Date.parse(at(60)) }).summary;
   assert.deepEqual([s.turns, s.first_timed, s.timed_turns, s.composed_known], [2, 2, 1, 1]);
 });
+
+test('messages per turn count every sent row of the turn plus the reply’s cards and photos', () => {
+  const rows = [
+    inbound('n1', 0), reply('ai', 'n1', 2),
+    inbound('n2', 10), reply('ack', 'n2', 18), reply('ai', 'n2', 40, { search_result: { timing_diagnostics: { result_ms: 30000 } }, reply_diagnostics: { sent_parts: [{ kind: 'card' }, { kind: 'card' }] } }),
+    inbound('n3', 50), reply('ai', 'n3', 60, { search_result: { timing_diagnostics: { result_ms: 10000, ack_held: true } } }),
+    inbound('n4', 70), reply('ai', 'n4', 70, { status: 'generating' }),
+  ];
+  const turns = turnsFrom(rows, { now: Date.parse(at(80)) });
+  assert.deepEqual(turns.map(t => [t.messages, t.searched]), [[1, false], [4, true], [1, true], [null, false]]);
+  const summary = chatMetrics(rows, { now: Date.parse(at(80)) }).summary;
+  assert.equal(summary.messages_per_turn, 2); assert.equal(summary.messages_per_search_turn, 2.5);
+  assert.equal(summary.search_turns, 2); assert.equal(summary.single_message_share, 0.667);
+});
