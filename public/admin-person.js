@@ -141,7 +141,9 @@ function summaryRow(row) {
 const TEXT_KIND = { early_read: 'Early read · thin profile', purchases: 'Purchase summary · rich profile', none: 'Nothing to send' };
 async function loadSummary() {
   const data = await api(`/api/admin?view=summary&conversation=${encodeURIComponent(person)}`), c = data.coverage;
-  $('summary-coverage').textContent = c.level === 'rich' ? `Rich · ${c.known} of ${c.total} known` : `${c.level === 'empty' ? 'Empty' : 'Thin'} · ${c.known} of ${c.total} known`;
+  $('strip-coverage').textContent = `${{ rich: 'Rich', empty: 'Empty' }[c.level] ?? 'Thin'} · ${c.known} of ${c.total} known`;
+  const open = data.rows.filter(r => ['silhouettes', 'palette'].includes(r.topic) && r.status !== 'known').map(r => r.label.toLowerCase());
+  $('strip-coverage-note').textContent = c.level === 'rich' ? 'Silhouettes and palette known' : open.length ? `Rich needs ${open.join(' and ')} known` : `Rich needs 5 of ${c.total} known`;
   $('summary-rows').replaceChildren(...data.rows.map(summaryRow));
   $('summary-status').textContent = 'Profile loaded.';
   document.querySelector('.summary-profile').removeAttribute('aria-busy');
@@ -155,6 +157,41 @@ function summaryFailed(error) {
   $('summary-status').textContent = '';
   document.querySelector('.summary-profile').removeAttribute('aria-busy');
   $('summary-rows').replaceChildren(el('tr', {}, el('td', { colSpan: 4, className: 'error', textContent: `Could not load their profile: ${error.message}` })));
+}
+// Adoption and Chat quality (lib/person-adoption.js), loaded on their own so a failure leaves the profile as it is.
+const WEEK_WORDS = { win: 'a win', asked: 'asked, nothing liked', quiet: 'quiet' };
+const ENDING_WORDS = { positive: 'positive: saved, picked, clicked, asked to buy or reacted', neutral: 'refined or moved on', negative: 'turned down, missed or flagged', silent: 'no reply' };
+const weekLabel = w => new Date(w.week_of + 'T12:00:00Z').toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' });
+const ago = at => { const days = Math.floor((Date.now() - Date.parse(at)) / 86400000); return days < 1 ? 'Today' : days === 1 ? 'Yesterday' : `${days} days ago`; };
+async function loadAdoption() {
+  const data = await api(`/api/admin?view=person-adoption&conversation=${encodeURIComponent(person)}`);
+  $('strip-wins').textContent = `${data.wins} of the last 4`; $('adoption-wins').textContent = `${data.wins} of 4`;
+  const last = data.last_positive;
+  $('strip-last').textContent = last ? ago(last.at) : 'None yet';
+  $('strip-last-note').textContent = last ? `${last.did}${last.products_shown ? ` of ${last.products_shown} shown` : ''}` : 'No request with a positive reaction in 8 weeks';
+  $('adoption-weeks').replaceChildren(...data.weeks.map(w => el('span', { className: `week ${w.status}` }, el('i', { ariaHidden: 'true' }), w.current ? 'This week' : weekLabel(w))));
+  $('adoption-weeks').setAttribute('aria-label', 'Last four weeks: ' + data.weeks.map(w => `${w.current ? 'this week' : weekLabel(w)} ${WEEK_WORDS[w.status]}`).join(', '));
+  const r = data.requests, trend = r.started_per_week === r.before_per_week ? 'same as the 4 weeks before' : `${r.started_per_week > r.before_per_week ? 'up' : 'down'} from ${r.before_per_week}`;
+  $('adoption-requests').textContent = `${r.started_per_week} a week`;
+  $('adoption-requests-note').textContent = [trend, r.replies_to_jules ? `plus ${r.replies_to_jules} repl${r.replies_to_jules === 1 ? 'y' : 'ies'} to Jules’s texts` : null].filter(Boolean).join(' · ');
+  $('adoption-cost').textContent = `$${data.lifetime_cost_usd.toFixed(2)}`;
+  const q = data.quality;
+  $('quality-share').textContent = q.requests ? `${Math.round(q.positive / q.requests * 100)}%` : '—';
+  $('quality-label').textContent = q.requests ? 'of shopping requests got a positive reaction' : 'No settled shopping requests in the last 4 weeks';
+  $('quality-count').textContent = q.requests ? `${q.positive} of ${q.requests}${q.waiting ? ` · ${q.waiting} waiting` : ''}` : '';
+  const endings = Object.entries(q.endings).filter(([, n]) => n);
+  // Widths through the style object: the CSP blocks inline style attributes.
+  $('quality-bar').replaceChildren(...endings.map(([k, n]) => { const part = el('span', { className: `ending ${k}` }); part.style.flexGrow = String(n); return part; }));
+  $('quality-bar').setAttribute('aria-label', q.requests ? `${q.requests} requests: ` + endings.map(([k, n]) => `${n} ${ENDING_WORDS[k].split(':')[0]}`).join(', ') : 'No settled requests');
+  $('quality-bar').hidden = !q.requests;
+  $('quality-legend').replaceChildren(...endings.map(([k, n]) => el('span', {}, el('i', { className: `ending-key ${k}`, ariaHidden: 'true' }), el('strong', { textContent: String(n) }), ` ${ENDING_WORDS[k]}`)));
+  for (const id of ['summary-adoption', 'summary-quality']) $(id).removeAttribute('aria-busy');
+}
+function adoptionFailed(error) {
+  for (const id of ['summary-adoption', 'summary-quality']) { $(id).removeAttribute('aria-busy'); }
+  $('adoption-weeks').replaceChildren(el('p', { className: 'error', textContent: `Could not load their requests: ${error.message}` }));
+  $('quality-label').textContent = 'Could not load their requests. Reload to try again.';
+  $('strip-wins').textContent = '—'; $('strip-last').textContent = '—';
 }
 $('summary-ask').onclick = () => $('ask-style').click();
 $('summary-learn').onclick = async () => {
@@ -556,6 +593,7 @@ else {
   loadMessages().then(() => { if (/^[0-9a-f-]{36}$/i.test(linked ?? '')) return openMessage(linked); }).catch(fail('Conversation'));
   loadProfile().catch(fail('Memory'));
   loadSummary().catch(error => summaryFailed(error));
+  loadAdoption().catch(adoptionFailed);
   loadKnowledge().catch(error => { $('profile-notice').textContent = `Could not load what Jules derived from purchases, saves and likes: ${error.message}`; });
   loadPurchases(person);
   loadWishlist().catch(error => { $('wishlist-note').textContent = error.message; });
