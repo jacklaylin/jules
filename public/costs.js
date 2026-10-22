@@ -1,4 +1,5 @@
-import {mountAdminShell,adminJson,anchorMenus} from './admin-console.js';
+import {mountAdminShell,adminJson,adminToken,anchorMenus,skeletonRows} from './admin-console.js';
+import {readPage,savePage,sameData} from './list-cache.js';
 import {viewOf,periodOf,apiDate,pickerValue,totalLine,coverageText,budgetText,serviceColumns,featureColumn,serviceRow,featureRows,meteredText,entryBody,jobColumns,jobRows,jobsAlert,jobsText,reconcileText,capsText,personRows,lifetimeText} from './costs-view.js';
 // Admin › Costs as a data view: a month by default (Day is an option, ?period=day), its total beside the title,
 // views By service · By feature · Evals, the period and its picker in the toolbar, coverage/budget in the status line. Update an amount opens its form above the table.
@@ -10,7 +11,7 @@ const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'UTC', year: 'n
 const period = () => periodOf(location.search);
 const reportDate = () => apiDate(period(), $('date').value || today(), today());
 const api = (options = {}) => adminJson(`/api/costs?date=${encodeURIComponent(reportDate())}`, options);
-let version = 0, data = null, refreshedAt = null;
+let version = 0, data = null, refreshedAt = null, shownKey = null;
 
 // Month or Day: switches the picker between a month and a day, keeping the same month.
 function showPeriod() {
@@ -91,17 +92,27 @@ function render() {
   serviceOptions();
 }
 
+// A return visit draws the last report for this period and date at once (list-cache.js), with its time, while the
+// loader shows the refresh; a fresh report that matches is not drawn again.
 async function load() {
-  const request = ++version;
+  const request = ++version, key = `${period()}:${reportDate()}`;
   $('loader').hidden = false; $('notice').textContent = ''; $('notice').className = '';
+  const token = await adminToken().catch(() => null); if (request !== version) return;
+  if (shownKey !== key) { const saved = readPage(localStorage, 'admin_costs', token, key); if (saved) { data = saved.data; refreshedAt = saved.at; shownKey = key; render(); } }
+  let same = false;
   try {
     const fresh = await api(); if (request !== version) return;
-    data = fresh; refreshedAt = Date.now();
+    same = shownKey === key && sameData(fresh, data);
+    data = fresh; refreshedAt = Date.now(); shownKey = key; savePage(localStorage, 'admin_costs', token, fresh, key);
   } catch (error) {
     if (request !== version) return;
-    data = null; $('rows').replaceChildren(emptyRow(5, 'Costs could not be loaded.'));
+    // A report already shown for this period and date stays; otherwise the table says it could not load.
+    if (shownKey === key) { same = true; $('notice').className = 'error'; $('notice').textContent = `Could not refresh costs: ${error.message} Showing the report from ${new Date(refreshedAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}.`; return; }
+    data = null; shownKey = null; $('rows').replaceChildren(emptyRow(5, 'Costs could not be loaded.'));
     $('notice').className = 'error'; $('notice').textContent = `Could not load costs: ${error.message} Try Refresh in More.`;
-  } finally { if (request === version) { $('loader').hidden = true; render(); } }
+  } finally {
+    if (request === version) { $('loader').hidden = true; if (same) $('refreshed').textContent = `Refreshed ${new Date(refreshedAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`; else render(); }
+  }
 }
 
 function toggleEntry(open) {
@@ -136,4 +147,5 @@ $('kind').onchange = entryKind;
 addEventListener('popstate', () => { showView(); showPeriod(); load(); });
 showPeriod();
 showView();
+$('rows').replaceChildren(...skeletonRows(6, 5));
 load();

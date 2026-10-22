@@ -1,4 +1,5 @@
-import {mountAdminShell,adminJson} from './admin-console.js';
+import {mountAdminShell,adminJson,adminToken,skeletonRows} from './admin-console.js';
+import {readPage,savePage,sameData} from './list-cache.js';
 import {ago} from './admin-people-view.js';
 import {testerCells,weekCells,summaryCells,qualitySummaryCells,qualityTesterCells,qualityWeekCells,usedKinds,missRow} from './adoption-view.js';
 // Admin › Adoption: each tester's furthest step on the delegation ladder, and the ladder week by week.
@@ -134,13 +135,21 @@ function renderAlerts(a, testers) {
   if (!a.recent.length) $('alert-recent').append(el('tr', {}, el('td', { colSpan: 5, className: 'dv-empty', textContent: 'Nothing recorded yet.' })));
 }
 
+// A return visit draws the last report at once (list-cache.js), with its age, while the loader shows the refresh;
+// a fresh report that matches is not drawn again.
 async function load() {
   $('loader').hidden = false; $('notice').textContent = ''; $('notice').className = '';
+  const token = await adminToken().catch(() => null);
+  if (!data) { const saved = readPage(localStorage, 'admin_adoption', token); if (saved) { ({ data, nudges, alerts } = saved.data); refreshedAt = saved.at; render(); } }
   const nudgesRead = adminJson('/api/admin?view=nudges-summary').catch(() => null), alertsRead = adminJson('/api/admin?view=alerts-summary').catch(() => null);
-  try { data = await adminJson('/api/admin?view=adoption'); nudges = await nudgesRead; alerts = await alertsRead; refreshedAt = Date.now(); render(); }
-  catch (error) { $('notice').className = 'error'; $('notice').textContent = `Could not load adoption: ${error.message} Try Refresh.`; }
+  try {
+    const fresh = { data: await adminJson('/api/admin?view=adoption'), nudges: await nudgesRead, alerts: await alertsRead }, same = sameData(fresh, { data, nudges, alerts });
+    ({ data, nudges, alerts } = fresh); refreshedAt = Date.now(); savePage(localStorage, 'admin_adoption', token, fresh);
+    if (same) $('refreshed').textContent = `Refreshed ${ago(refreshedAt)}`; else render();
+  } catch (error) { $('notice').className = 'error'; $('notice').textContent = data ? `Could not refresh: ${error.message} Showing the report from ${ago(refreshedAt)}.` : `Could not load adoption: ${error.message} Try Refresh.`; if (!data) $('testers').replaceChildren(); }
   finally { $('loader').hidden = true; }
 }
 $('refresh').onclick = load;
 setInterval(() => { if (refreshedAt) $('refreshed').textContent = `Refreshed ${ago(refreshedAt)}`; }, 30000);
+$('testers').replaceChildren(...skeletonRows(6, 13));
 load();
