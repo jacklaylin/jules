@@ -326,3 +326,16 @@ test('the report-view dedupe asks for one row of this person, kind and report si
   const url = decodeURIComponent(urls[0]);
   for (const part of [`conversation_id=eq.${A}`, 'kind=eq.report_viewed', 'ref=eq.r1', 'created_at=gte.2026-10-21T12:00:00.000Z', 'limit=1']) assert.ok(url.includes(part), part);
 });
+
+test('the person report reads ask only for the report’s fields, this person’s report events and one referral code', async () => {
+  const urls = [];
+  const store = createStore({ SUPABASE_URL: 'https://db.example', SUPABASE_SERVICE_ROLE_KEY: 'fake' }, async url => { urls.push(decodeURIComponent(url)); return { ok: true, text: async () => url.includes('public_signups') ? '[{"phone_number":"+1"},{"phone_number":"+1"},{"phone_number":"+2"}]' : '[]' }; });
+  assert.equal(await store.reportSummary(A), null);
+  assert.deepEqual(await store.reportEvents(A), []);
+  assert.equal(await store.signupsByRef('u-abc'), 2, 'each number counts once');
+  assert.ok(urls[0].includes(`gmail_imports?conversation_id=eq.${A}`) && urls[0].includes('data->style_report->>id') && !urls[0].includes('select=*'));
+  assert.ok(urls[1].includes('kind=in.(report_viewed,report_shared,report_share_opened)') && urls[1].includes(`conversation_id=eq.${A}`));
+  assert.ok(urls[2].includes('public_signups?ref=eq.u-abc'));
+  const missing = createStore({ SUPABASE_URL: 'https://db.example', SUPABASE_SERVICE_ROLE_KEY: 'fake' }, async () => ({ ok: false, status: 404, json: async () => ({}) }));
+  assert.deepEqual(await missing.reportEvents(A), [], 'before db/032 there are no events');
+});

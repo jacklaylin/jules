@@ -348,11 +348,25 @@ button.small{min-height:32px;padding:0 14px;font-size:13px}
 /* Data view (admin table pattern, Oct 15 design): views, one toolbar row, one status line, dense rows, and a detail
    panel beside the list. Occasional actions live in a More menu; secondary filters in a Filters menu. */
 .dv-title{font-size:34px;line-height:1;margin:0 0 14px}
-/* Metric strip: one bordered row of small figures (value + verdict badge), a label cell first. Two columns on phones. */
+/* MetricStrip (design system › Admin): one bordered row of figures, built with metricCell() from admin-console.js.
+   A cell is label, value, an optional detail line, then the change badge and the earlier value on one line.
+   Cells share the width (140px minimum); two per row on phones. */
 .dv-metrics{display:flex;flex-wrap:wrap;border:1px solid var(--line);border-radius:16px;overflow:hidden;margin:0 0 4px}
-.dv-metric{display:grid;align-content:center;justify-items:start;gap:3px;padding:8px 16px;border-right:1px solid var(--line);font-size:12px;color:var(--text-2)}
+.dv-metric{flex:1 1 140px;min-width:0;display:grid;align-content:start;justify-items:start;gap:3px;padding:8px 16px;border-right:1px solid var(--line);font-size:12px;color:var(--text-2)}
 .dv-metric:last-child{border-right:0}.dv-metric>strong{font-size:16px;font-weight:600;color:var(--ink)}
-.dv-metric-label>strong{font-size:13px}.dv-metric .badge{font-size:11px;padding:3px 8px 3px 5px}.dv-metric .badge::before{width:13px;height:13px}
+.dv-metric-detail{color:var(--ink)}
+.dv-metric-change{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px}.dv-metric-was{color:var(--text-2)}
+.dv-metric .badge{font-size:11px;padding:3px 8px 3px 5px}.dv-metric .badge::before{width:13px;height:13px}
+/* MetricsHelp: one closed fold under a strip that says what each figure counts and which way is better. */
+.metrics-help{margin:8px 0 4px}.metrics-help>summary{font-size:13px;color:var(--text-2)}
+.metrics-help dl{display:grid;grid-template-columns:max-content 1fr;gap:8px 16px;margin:0;font-size:13px;line-height:1.5}.metrics-help dt{font-weight:600}.metrics-help dd{margin:0;color:var(--text-2)}
+/* AdminCard: every titled block in admin, title inside the box. Quiet variant for a read-only aside. */
+.dv-card{border:1px solid var(--line);border-radius:var(--r-card);padding:20px 24px;display:flex;flex-direction:column;gap:14px;min-width:0;background:var(--white)}
+.dv-card--quiet{background:var(--fog);border-color:var(--fog)}.dv-card--quiet .badge{background:var(--white)}
+.dv-card-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 12px}.dv-card-head h2{font-size:30px;margin:0}.dv-card-head .spacer{flex:1}.dv-card-head a{font-size:13px;font-weight:600}
+.dv-card--quiet .dv-card-head h2{font-size:24px}
+.dv-card-note{font-size:12px;color:var(--text-2)}
+.dv-card-foot{margin:0;font-size:12px;color:var(--text-2);border-top:1px solid var(--line);padding-top:12px}.dv-card-foot strong{color:var(--ink)}
 .dv-toolbar-note{font-size:12px;color:var(--text-2)}
 /* Title with a figure beside it (a day's total) and one quiet line of what the figure is. */
 .dv-heading{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 16px;margin:0 0 14px}.dv-heading .dv-title{margin:0}
@@ -390,9 +404,6 @@ button.small{min-height:32px;padding:0 14px;font-size:13px}
 .dv-status .error{color:var(--danger);font-weight:600}.dv-keys{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-left:auto}
 .dv-token{display:inline-flex;align-items:center;gap:2px;min-height:26px;padding:0 2px 0 10px;border-radius:var(--r-pill);background:var(--fog);color:var(--ink);font-size:12px;font-weight:600}
 .dv-token button{min-height:22px;width:24px;padding:0;border:0;background:transparent;box-shadow:none;color:var(--text-2);font-size:15px}
-.dv-loader{display:inline-block;width:40px;height:8px;border-radius:var(--r-pill);border:1px solid var(--aqua-edge);background:repeating-linear-gradient(-45deg,var(--aqua-stripe) 0 5px,var(--aqua-stripe-light) 5px 10px);background-size:28px 8px;animation:dv-stripes 1s linear infinite}
-@keyframes dv-stripes{to{background-position:28px 0}}
-@media(prefers-reduced-motion:reduce){.dv-loader{animation:none}}
 /* Dense rows: a grid per row so a list of links reads as a table. Pages set --dv-cols. */
 .dv-list{border-top:1px solid var(--line);min-width:0}
 .dv-head,.dv-row{display:grid;grid-template-columns:var(--dv-cols);gap:0 12px;align-items:center;padding:0 10px}
@@ -428,8 +439,9 @@ button.quiet{border-color:transparent;box-shadow:none;background:transparent;col
 .dv-tool-head{display:flex;align-items:center;gap:10px;margin-bottom:6px}.dv-tool-head h2{margin:0;font-size:22px}.dv-tool-head button{margin-left:auto}
 @media(max-width:800px){
  .dv-toolbar button.small,.dv-search,.dv-views button,.seg button{min-height:44px}.dv-search{width:100%}.dv-keys,.dv-divider{display:none}.dv-field{min-height:44px}
- .dv-metrics{display:grid;grid-template-columns:1fr 1fr}.dv-metric{border-right:0;border-top:1px solid var(--line)}.dv-metric-label~.dv-metric:nth-child(even){border-right:1px solid var(--line)}
- .dv-metric-label{grid-column:1/-1;border-top:0}
+ .dv-metrics{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line)}.dv-metric{border:0;background:var(--white)}.dv-metric:last-child:nth-child(odd){grid-column:1/-1}
+ .metrics-help dl{grid-template-columns:1fr;gap:2px}.metrics-help dd{margin-bottom:8px}
+ .dv-card{padding:16px}.dv-card-head h2{font-size:26px}
  .dv-split.open{display:block;border:0;border-radius:0;overflow:visible}.dv-split.open>.dv-list{display:none}.dv-split.open>.dv-detail{padding:0}
 }
 /* Owner confirmation for an action that removes data: say exactly what goes and what stays. */
@@ -454,6 +466,8 @@ button.quiet{border-color:transparent;box-shadow:none;background:transparent;col
 .photo-pending .photo-status{font:500 11px/1.5 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;text-align:center;padding:0 8px}
 .skeleton{position:relative;overflow:hidden;background:var(--fog)}
 .skeleton-card-title{height:14px;width:75%;margin:16px 0 10px}.skeleton-price{height:14px;width:30%;margin:12px 0}
+/* Placeholder rows while a view's first data loads (admin-console.js skeletonRows): one bar per cell, or per block row. */
+.skeleton-bar{display:block;height:12px;border-radius:6px;margin:4px 0}div.skeleton-row{padding:14px 0;border-bottom:1px solid var(--line)}
 @media(hover:hover) and (pointer:fine){button.tile{transition:transform .22s ease}button.tile:hover{transform:translateY(-3px)}button.tile:active{transform:translateY(-1px)}}
 @media(max-width:800px){.product-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 14px}.tile{padding:8px 8px 20px}.tile .photo{aspect-ratio:3/4}.tile strong{font-size:14px;margin-inline:4px}.card-price{font-size:10px;margin-inline:4px}.photo-pending .orb{--s:34px}.photo-pending .photo-status{font-size:9px}}
 /* Round icon buttons on product photos: price alert at the upper-left, remove at the upper-right (× top-right always gets rid of something).
@@ -483,6 +497,12 @@ button.quiet{border-color:transparent;box-shadow:none;background:transparent;col
 .filter-chips{display:flex;flex:0 1 auto;min-width:0;flex-wrap:nowrap;gap:8px;overflow:hidden;padding:6px;margin:-6px}
 .filter-chips .chip{flex:none;white-space:nowrap}
 .filter-chips:empty{display:none}
+/* Two groups in one row (the wishlist: category, then state): a hairline between them, and state chips lead with
+   the line icon their card shows, so they never read as categories. One pick per group. */
+.filter-group{display:flex;flex:none;gap:inherit}
+.filter-divider{flex:none;align-self:center;width:1px;height:28px;margin:0 6px;background:var(--line)}
+.filter-chips .chip--state{display:inline-flex;align-items:center;gap:6px;padding-left:11px}
+.chip--state>svg{flex:none}
 .filter-bar .filter-count{flex:none;margin-left:auto;white-space:nowrap}
 .filter-bar>.btn{flex:none;white-space:nowrap}
 .chip-count{margin-left:8px;font:500 11px/1 var(--font-mono);letter-spacing:.04em;color:var(--text-2)}
@@ -513,6 +533,15 @@ dialog.filter-menu__panel{position:fixed;margin:0;width:300px;max-width:calc(100
 .filter-menu__name{display:flex;align-items:center;gap:8px}
 .filter-menu__check{display:grid;place-items:center;width:20px;height:20px}
 .filter-menu__row .chip-count{margin-left:0}
+.filter-menu__row .filter-menu__name>svg{flex:none}
+/* Grouped menus (wishlist): a Category and a Show section, then Clear and "Show N items" at the foot. */
+.filter-menu__section{display:flex;flex-direction:column;gap:2px}
+.filter-menu__section+.filter-menu__section{margin-top:12px}
+.filter-menu__section-title{margin:0;padding:8px 10px 6px;font:500 11px/1.6 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--text-2)}
+.filter-menu__foot{display:flex;gap:12px;padding-top:12px;margin-top:6px;border-top:1px solid var(--line)}
+.filter-menu__foot .btn{min-height:44px}
+.filter-menu__done{flex:1}
+.filter-menu__reset:disabled{opacity:.45;cursor:default}
 @media(max-width:800px){
 .collection-heading:has(+ .filter-bar){margin-bottom:16px}
 .filter-bar{gap:8px;margin-bottom:20px}

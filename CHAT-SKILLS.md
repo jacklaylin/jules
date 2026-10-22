@@ -209,7 +209,52 @@ The questions as asked:
 3. **A separate router call (+0.5–1 s per turn)** instead of the agent loading skills itself in its first round, which would add a whole round (~2–4 s). *Recommended: router call*, with the shadow PR measuring its accuracy before it controls anything.
 4. **The rule budget** (150 words per skill, no duplicates) as a standing triage rule. *Recommended: yes.*
 
+## Writing the reply from what happened (proposal, October 22; waiting for founder approval)
+
+This is step 4 of the chat-quality plan (after the frozen set, the bake-off and the stitched-fallback fix #334), and rule 7 of [CHAT-DEVELOPMENT.md](CHAT-DEVELOPMENT.md). It also does the core skill's "later idea": the voice guide only matters when writing.
+
+**The problem.** Today the model that calls the tools also writes the message and declares what it claims. When it says "saved it!" and the save didn't happen (blocked by the consent check, or never called), code catches it and asks again. On a second miss, code sends the plain drafts stitched together. On the frozen set that is 13% of turns, and 31 of 39 of those fallbacks were this exact false claim (#334).
+
+**The change: two jobs, two calls.**
+
+```
+AGENT (picks and runs tools, as today) ──► TURN RECORD (built by code) ──► WRITER (one model call) ──► checks ──► send
+   persona + shopping rules + tools          actions: tool, status (done /       VOICE.md + the writing rules
+   no voice guide, no writing rules           blocked / not run / failed), what   + the record + recent conversation
+   ends with a short note: an answer,         it was for; happened: saved,        + the agent's note
+   advice or a question                       alerts on/off, which items;
+                                              options shown; code's drafts;
+                                              the profile change
+```
+
+1. **Phase 1, the agent:** the same tools, loop, consent checks and validation. Its last call (`conversation_reply`) becomes a *note*: what the message should say beyond what the tools did (an answer, styling advice, one question). It no longer declares claims. It no longer gets the voice guide or the message-writing rules, which takes about 1,500 words out of every round.
+2. **The turn record (code):** each action that ran and its status, what it was for, what actually happened (`saved_now`, the saved items, alerts on or off), the options the user will see, code's factual drafts, and any profile change. Nothing in it comes from the model's own description of its work.
+3. **Phase 2, the writer:** one model call writes the message from the record, the recent conversation and VOICE.md. The record is the only evidence of what happened. The agent's note supplies content, but anything in it about saves, alerts, searches, prices or links that the record doesn't show is dropped. The writer declares nothing: code sets the claims from the record.
+4. **The checks stay** (links, prices, the independent claim audit, removing unsupported statements), but they should rarely fire. When one does, the *writer* tries once more with the problem named, never the agent. A second miss falls back as it does today.
+
+**What doesn't change:** tool choice, consent checks, `wishlist_status`/`profile_status` answers, the inbox composer (used when no reply was written), and the drafts code writes.
+
+**Cost and speed:** one extra writer call on every turn (about 1–2 s), while each agent round gets about 1,500 words shorter. The measurements are below. Later, the speed plan (SPEED.md) could let the agent finish in the same round as its last action.
+
+**Behind a flag:** `CHAT_NARRATE=on` turns it on (off by default). With it off, the prompt and the loop are byte-for-byte what they are today.
+
+**Measured (October 22, frozen set, 88 cases × 3 runs, chat gpt-5.6-luna as in production, judge gpt-5.5).** Two flag-on runs: the second was after one fix (a save or alert that ran but changed nothing was labeled `done`; it is now `ran`, and only `happened` says what changed).
+
+| | pass rate | stitched (agent_plain) | false save/alert claims caught | any check rejection | median / p90 turn |
+|---|---|---|---|---|---|
+| flag off (today) | 63% | 2% | 3 | 22% | 20.0 / 26.5 s |
+| flag on, run 1 | 70% | 1% | 16 | 18% | 20.6 / 27.9 s |
+| flag on, run 2 (final code) | 67% | 2% | 9 | 14% | 20.2 / 28.3 s |
+
+- **The premise was measured on the old model.** On gpt-4.1-mini, stitched was 13% and false claims caused most of it (#334). On gpt-5.6-luna, stitched is already 2% and false claims are rare. So the flag's gain here is in quality, not in fewer fallbacks.
+- **The writer's own first drafts claim things more often** (9–16 caught vs 3), mostly "alert is on" when the record says it isn't. The audit catches them and the writer's second try fixes them. On the final code, the judge's "claims a save/alert that didn't happen" failures were 5 vs 5.
+- **Flipped cases (majority of 3 runs), final run:** 7 fixed (dev-93301973, dev-c1494247, signal-2c562c0e, signal-5357a625, dev-32e713ec, dev-5d59f14e, dev-fe4cfeee; all but the second also fixed in run 1). 7 worse, of which 2 are in trust areas. signal-2e6b3164 (alert): the agent called alert *status* instead of *create* in 2 of 3 runs, though run 1 called create in 3 of 3; the replies said truthfully that it wasn't on. signal-91bdaf97 (save): nothing was saved in either mode; it is noisy in both. The others: dev-b14cb2cb (shows a different model's link that the drafts require), signal-c4501519, dev-704a6ede, signal-46e696ed, dev-507757b5 (one run each, within noise).
+- **Speed:** the writer call takes about 3.8 s (median), but each agent round is shorter without the voice guide, so the whole turn is about 0.2–0.6 s slower.
+- **Not measured:** the routing evals (`replay-gate --suite agent`). The run stopped when the OpenAI org hit its spend limit (October 22, 13:50 PDT). They matter because the agent's prompt changes under the flag; the signal-2e6b3164 flip could be that, or noise. There is no journey suite in the repo.
+
+**Founder decision needed:** whether to turn `CHAT_NARRATE=on` in production after a live check. *Recommended: not yet. First run the routing evals on a separate evals budget, flag off and on. If no save or alert case gets worse, turn it on in production for a few days, then compare complaints per turn and reply time.* The frozen set is +4 to +7 points, the stitched share didn't change (it was already low on luna), and the turn is about half a second slower.
+
 ## Follow-ups noticed (not part of this plan)
 
 - The consent checker's own prompt (appendix rows 199–209) and the 875-word `update_profile` description could get the same audit.
-- The voice guide (1,200 words) only matters when writing the reply; loading it only in that round is a separate experiment.
+- The voice guide (1,200 words) only matters when writing the reply: the writer above (`CHAT_NARRATE`) is that experiment.

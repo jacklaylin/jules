@@ -62,3 +62,30 @@ test('personAdoption reads one person’s rows over eight weeks and their lifeti
  assert.deepEqual(calls,[[ago(56),{conversation:'c1'}],['cost','c1']]);
  assert.equal(r.lifetime_cost_usd,2);
 });
+
+test('the Style report card: opens, shares by channel, friends’ opens, signups and the latest vote per card',async()=>{
+ const {reportEngagement}=await import('../lib/report-engagement.js');
+ assert.deepEqual(reportEngagement({report:null}),{built:false},'no report yet');
+ const report={id:'r2',built_at:'2026-10-20T10:00:00Z',share_at:'2026-10-19T10:00:00Z',feedback:[
+  {card:'receipt',vote:'down',report_id:'r1'},{card:'receipt',vote:'up',report_id:'r1'},// changed their mind: one up
+  {card:'gatekeeper',vote:'down',reason:'not_funny',report_id:'r1'},{card:'receipt',vote:'up',report_id:'r2'}]};
+ const events=[{kind:'report_viewed',created_at:'2026-10-19T09:00:00Z'},{kind:'report_viewed',created_at:'2026-10-21T09:00:00Z'},
+  {kind:'report_shared',detail:'copy',created_at:'2026-10-19T09:01:00Z'},{kind:'report_shared',detail:'copy'},{kind:'report_shared',detail:'story'},
+  {kind:'report_share_opened'},{kind:'link_click'}];
+ assert.deepEqual(reportEngagement({report,events,signups:1}),{built:true,built_at:report.built_at,share_link_at:report.share_at,opened:2,last_opened_at:'2026-10-21T09:00:00Z',
+  shared:3,channels:{copy:2,story:1},link_opened:1,signups:1,votes:{up:2,down:1}});
+});
+
+test('personAdoption reads the report summary, its events and signups through the person’s referral code alongside the rest',async()=>{
+ const {referralRef}=await import('../lib/referral.js');const env={SUPABASE_SERVICE_ROLE_KEY:'secret'},asked=[];
+ const base={outcomeRows:async()=>({messages:[],usage:[],events:[]}),lifetimeCost:async()=>[]};
+ const store={...base,reportSummary:async c=>{asked.push(['summary',c]);return {id:'r1',built_at:'2026-10-20T10:00:00Z',feedback:[]};},
+  reportEvents:async c=>{asked.push(['events',c]);return [{kind:'report_viewed',created_at:'2026-10-21T00:00:00Z'}];},signupsByRef:async ref=>{asked.push(['signups',ref]);return 2;}};
+ const r=await personAdoption(store,'c1',{now,env});
+ assert.deepEqual(asked,[['summary','c1'],['events','c1'],['signups',referralRef('c1',env)]]);
+ assert.equal(r.report.opened,1);assert.equal(r.report.signups,2);assert.equal(r.wins,0,'the adoption cards are unchanged');
+ // No history row: no report yet. A failed read marks only this card.
+ assert.deepEqual((await personAdoption({...store,reportSummary:async()=>null},'c1',{now,env})).report,{built:false});
+ const failed=await personAdoption({...store,reportEvents:async()=>{throw Object.assign(Error('x'),{database_status:500});}},'c1',{now,env});
+ assert.deepEqual(failed.report,{error:true});assert.equal(failed.lifetime_cost_usd,0);
+});

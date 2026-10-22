@@ -1,5 +1,5 @@
 /* Admin › Costs composition. The data view pieces (toolbar, status line, dense tables, tool panel) live in design-system.css. */
-.dv-status>span:not(:empty)~span:not(:empty):not(.dv-loader)::before{content:"· ";color:var(--text-2)}
+.dv-status>span:not(:empty)~span:not(:empty)::before{content:"· ";color:var(--text-2)}
 .costs-table .num{font:400 12px var(--font-mono);white-space:nowrap}
 .costs-table .service-name{font-weight:600;color:var(--ink);text-decoration:none}.costs-table .service-name:hover{color:var(--grape)}
 .costs-table small{display:block;max-width:320px;font-size:12px;line-height:1.4;color:var(--text-2);white-space:normal}

@@ -19,8 +19,11 @@ const session=createSession({storage:localStorage,lock:work=>navigator.locks?nav
 let gate,content,adminLink;
 export const adminToken=()=>session.token();
 
+// Reads load quietly: their sections show Skeletons (design system › Admin: Skeletons are admin's only loading
+// state). Only actions the owner takes (POST and the like) go through the activity panel.
 export async function adminFetch(path,options={}){
- const send=token=>trackedFetch(path,{...options,headers:{'Content-Type':'application/json',...options.headers,...(token?{Authorization:'Bearer '+token}:{})},cache:'no-store'});
+ const run=!options.method||options.method==='GET'?globalThis.fetch:trackedFetch;
+ const send=token=>run(path,{...options,headers:{'Content-Type':'application/json',...options.headers,...(token?{Authorization:'Bearer '+token}:{})},cache:'no-store'});
  let token=await session.token();
  if(!token){showGate();throw new Error('Sign in with the owner email to use admin tools.');}
  let response=await send(token);
@@ -33,6 +36,32 @@ export async function adminJson(path,options){
  const data=await response.json().catch(()=>({}));
  if(!response.ok)throw new Error(data.error??'Request failed.');
  return data;
+}
+
+// Grey placeholder rows while a view's first data loads (DESIGN-SYSTEM.md › Load speed): table rows with columns,
+// else block rows. Hidden from screen readers; the section's aria-busy says it is loading.
+export function skeletonRows(count,columns=0){
+ const bar=n=>{const b=element('span',{className:'skeleton skeleton-bar'});b.style.width=`${45+(n*37)%50}%`;return b;};
+ return Array.from({length:count},(_,i)=>{
+  const row=columns?element('tr',{className:'skeleton-row'},...Array.from({length:columns},(_,c)=>element('td',{},bar(i+c*3)))):element('div',{className:'skeleton-row'},bar(i));
+  row.setAttribute('aria-hidden','true');return row;
+ });
+}
+
+// MetricStrip cell (design system › Admin): label, value, an optional detail line, then the change badge and the
+// earlier value on one line. tone: ok (better), fail (worse), warn, or plain/'' for no change, New or too few.
+// The badge word stays short so it shares a line with the earlier value.
+export const shortVerdict=word=>/^too few/i.test(word??'')?'Too few':word;
+export function metricCell({label,value,detail=null,change=null,tone='',was=null}){
+ const cell=element('div',{className:'dv-metric'},element('span',{textContent:label}),element('strong',{textContent:value??'—'}));
+ if(detail)cell.append(element('span',{className:'dv-metric-detail',textContent:detail}));
+ if(change||was){
+  const line=element('span',{className:'dv-metric-change'});
+  if(change)line.append(element('span',{className:`badge ${tone}`.trim(),textContent:change}));
+  if(was)line.append(element('span',{className:'dv-metric-was',textContent:was}));
+  cell.append(line);
+ }
+ return cell;
 }
 
 function showGate(message=''){

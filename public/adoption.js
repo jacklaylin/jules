@@ -1,4 +1,5 @@
-import {mountAdminShell,adminJson} from './admin-console.js';
+import {mountAdminShell,adminJson,adminToken,skeletonRows,metricCell} from './admin-console.js';
+import {readPage,savePage,sameData} from './list-cache.js';
 import {ago} from './admin-people-view.js';
 import {testerCells,weekCells,summaryCells,qualitySummaryCells,qualityTesterCells,qualityWeekCells,usedKinds,missRow} from './adoption-view.js';
 // Admin › Adoption: each tester's furthest step on the delegation ladder, and the ladder week by week.
@@ -24,7 +25,7 @@ let data = null, nudges = null, alerts = null, refreshedAt = null;
 function render() {
   if (!data) return;
   const { steps, summary, testers, weeks } = data, now = Date.now();
-  $('summary').replaceChildren(...summaryCells(summary).map(c => el('div', { className: 'dv-metric' }, el('span', { textContent: c.label }), el('strong', { textContent: c.value }), el('span', { textContent: c.note }))));
+  $('summary').replaceChildren(...summaryCells(summary).map(c => metricCell({ label: c.label, value: c.value, detail: c.note })));
   $('summary').hidden = false;
   $('testers').replaceChildren(...testers.map(t => {
     const c = testerCells(t, steps, now);
@@ -56,7 +57,7 @@ function render() {
 function renderQuality(q, testers) {
   $('quality').hidden = !q; $('quality-error').hidden = Boolean(q);
   if (!q) return;
-  $('quality-summary').replaceChildren(...qualitySummaryCells(q).map(c => el('div', { className: 'dv-metric' }, el('span', { textContent: c.label }), el('strong', { textContent: c.value }), el('span', { textContent: c.note }))));
+  $('quality-summary').replaceChildren(...qualitySummaryCells(q).map(c => metricCell({ label: c.label, value: c.value, detail: c.note })));
   $('quality-testers').replaceChildren(...testers.map(t => {
     const c = qualityTesterCells(t, q.per_tester[t.id] ?? { misses: 0, flags: 0, thumbs: 0, photos: 0, photos_identified: 0, photos_saved: 0 });
     return el('tr', {}, cell('Tester', el('a', { className: 'tester-link', href: `/admin/people/${t.id}`, textContent: t.sender_id })),
@@ -97,7 +98,7 @@ function renderNudges(n, testers) {
   const link = id => el('a', { className: 'tester-link', href: `/admin/people/${id}`, textContent: name(id) });
   const t = n.totals;
   $('nudges-summary').replaceChildren(...[['Offers sent', String(t.offers), `${t.fit_checks} fit checks`], ['Answered', pct(t.reply_rate), `${t.answered} of ${t.offers} offers`], ['Said yes', pct(t.yes_rate), `${t.yes} offers`], ['No reply', String(t.no_reply), `${t.unrelated} replied about something else`]]
-    .map(([label, value, note]) => el('div', { className: 'dv-metric' }, el('span', { textContent: label }), el('strong', { textContent: value }), el('span', { textContent: note }))));
+    .map(([label, value, note]) => metricCell({ label, value, detail: note })));
   $('nudge-testers').replaceChildren(...n.people.map(p => el('tr', {}, cell('Tester', link(p.id)), cell('Offers', String(p.offers), 'end num'), cell('Answered', String(p.answered), 'end num'),
     cell('Yes', String(p.yes), 'end num'), cell('No / not now', String(p.no + p.not_now), 'end num'), cell('Other reply', String(p.unrelated), 'end num'),
     cell('No reply', `${p.no_reply}${p.open ? ' (+1 open)' : ''}`, 'end num'), cell('Fit checks', String(p.fit_checks), 'end num'),
@@ -122,7 +123,7 @@ function renderAlerts(a, testers) {
     ['Delivered', ratio(delivered, t.texts), `${t.failed + t.blocked} not delivered${t.uncertain ? ` · ${t.uncertain} uncertain` : ''}`],
     ['Tapped the link', a.tracking ? ratio(t.tapped, delivered, t.tap_rate) : 'Off', a.tracking ? 'within 7 days' : 'link tracking is off'],
     ['Replied', ratio(t.replied, delivered, t.reply_rate), 'within a day'], ['Bought', String(t.bought), 'marked bought within 14 days']]
-    .map(([label, value, note]) => el('div', { className: 'dv-metric' }, el('span', { textContent: label }), el('strong', { textContent: value }), el('span', { textContent: note }))));
+    .map(([label, value, note]) => metricCell({ label, value, detail: note })));
   $('alerts-note').textContent = `Price-drop, back-in-stock and nearly-sold-out texts from the last ${a.days} days. A tap is counted when the person opens the store link in that text (link previews don't count). Admin test texts are left out.${a.tracking ? '' : ' Link taps are not being recorded: set LINK_CLICK_TRACKING=true in Vercel to count them.'} Taps are only counted on texts sent after Oct 22, when alert links started going through Jules.`;
   $('alert-kinds').replaceChildren(...a.kinds.map(k => el('tr', {}, cell('Kind', el('strong', { textContent: k.label })), cell('Texts', String(k.texts), 'end num'),
     cell('Delivered', String(k.sent + k.uncertain), 'end num'), cell('Not delivered', String(k.failed + k.blocked), 'end num'), cell('People', String(k.people), 'end num'),
@@ -134,13 +135,21 @@ function renderAlerts(a, testers) {
   if (!a.recent.length) $('alert-recent').append(el('tr', {}, el('td', { colSpan: 5, className: 'dv-empty', textContent: 'Nothing recorded yet.' })));
 }
 
+// A return visit draws the last report at once (list-cache.js), with its age, while "Refreshing…" shows in the status line;
+// a fresh report that matches is not drawn again.
 async function load() {
   $('loader').hidden = false; $('notice').textContent = ''; $('notice').className = '';
+  const token = await adminToken().catch(() => null);
+  if (!data) { const saved = readPage(localStorage, 'admin_adoption', token); if (saved) { ({ data, nudges, alerts } = saved.data); refreshedAt = saved.at; render(); } }
   const nudgesRead = adminJson('/api/admin?view=nudges-summary').catch(() => null), alertsRead = adminJson('/api/admin?view=alerts-summary').catch(() => null);
-  try { data = await adminJson('/api/admin?view=adoption'); nudges = await nudgesRead; alerts = await alertsRead; refreshedAt = Date.now(); render(); }
-  catch (error) { $('notice').className = 'error'; $('notice').textContent = `Could not load adoption: ${error.message} Try Refresh.`; }
+  try {
+    const fresh = { data: await adminJson('/api/admin?view=adoption'), nudges: await nudgesRead, alerts: await alertsRead }, same = sameData(fresh, { data, nudges, alerts });
+    ({ data, nudges, alerts } = fresh); refreshedAt = Date.now(); savePage(localStorage, 'admin_adoption', token, fresh);
+    if (same) $('refreshed').textContent = `Refreshed ${ago(refreshedAt)}`; else render();
+  } catch (error) { $('notice').className = 'error'; $('notice').textContent = data ? `Could not refresh: ${error.message} Showing the report from ${ago(refreshedAt)}.` : `Could not load adoption: ${error.message} Try Refresh.`; if (!data) $('testers').replaceChildren(); }
   finally { $('loader').hidden = true; }
 }
 $('refresh').onclick = load;
 setInterval(() => { if (refreshedAt) $('refreshed').textContent = `Refreshed ${ago(refreshedAt)}`; }, 30000);
+$('testers').replaceChildren(...skeletonRows(6, 13));
 load();

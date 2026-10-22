@@ -1,23 +1,30 @@
-import {mountAdminShell,adminJson} from './admin-console.js';
+import {mountAdminShell,adminJson,adminToken,skeletonRows,metricCell,shortVerdict} from './admin-console.js';
+import {readPage,savePage,sameData} from './list-cache.js';
 import {ago} from './admin-people-view.js';
-import {TYPES,METRICS,metricCells,weekRows,worstTurns,agreement,turnRow} from './scorecard-view.js';
+import {TYPES,WHO,forWho,METRICS,metricCells,weekRows,worstTurns,agreement,turnRow} from './scorecard-view.js';
 // Admin › Scorecard: weekly search and recommendation quality, and the turns most worth reading.
 mountAdminShell('quality');
 const $ = id => document.getElementById(id);
 const el = (tag, props = {}, ...children) => { const node = Object.assign(document.createElement(tag), props); node.append(...children.filter(c => c !== null && c !== undefined)); return node; };
 const cell = (label, content, className = '') => { const td = el('td', { className }, content); td.dataset.label = label; return td; };
-let data = null, refreshedAt = null, type = 'all';
-try { type = new URLSearchParams(location.search).get('type') ?? 'all'; } catch {}
+let data = null, refreshedAt = null, type = 'all', who = 'testers';
+try { const q = new URLSearchParams(location.search); type = q.get('type') ?? 'all'; who = q.get('who') ?? 'testers'; } catch {}
 if (!TYPES.some(t => t.key === type)) type = 'all';
+if (!WHO.some(w => w.key === who)) who = 'testers';
+// The filters live in the address, so a reload or a shared link keeps them.
+const remember = () => { const q = new URLSearchParams(); if (type !== 'all') q.set('type', type); if (who !== 'testers') q.set('who', who); history.replaceState(null, '', q.size ? `?${q}` : location.pathname); };
 
 function render() {
   if (!data) return;
-  const turns = data.turns, now = Date.now();
-  $('types').replaceChildren(...TYPES.map(t => el('button', { type: 'button', ariaPressed: String(t.key === type), onclick: () => { type = t.key; history.replaceState(null, '', t.key === 'all' ? location.pathname : `?type=${t.key}`); render(); } },
+  const own = data.own_conversations ?? [], turns = forWho(data.turns, who, own), now = Date.now();
+  $('who').replaceChildren(...WHO.map(w => el('button', { type: 'button', ariaPressed: String(w.key === who), onclick: () => { who = w.key; remember(); render(); } },
+    w.label, el('span', { className: 'count', textContent: String(forWho(data.turns, w.key, own).length) }))));
+  $('who').hidden = !own.length;
+  $('own-missing').hidden = Boolean(data.own_configured);
+  $('types').replaceChildren(...TYPES.map(t => el('button', { type: 'button', ariaPressed: String(t.key === type), onclick: () => { type = t.key; remember(); render(); } },
     t.label, el('span', { className: 'count', textContent: String(t.key === 'all' ? turns.length : turns.filter(x => x.request_type === t.key).length) }))));
   const cells = metricCells(turns, { type, now });
-  $('metrics').replaceChildren(...cells.map(c => el('div', { className: 'dv-metric' }, el('span', { textContent: c.label }), el('strong', { textContent: c.value }),
-      el('span', { className: `badge ${c.tone}`, textContent: c.verdict }), el('span', { className: 'dv-metric-was', textContent: `${c.was} · ${c.sample}` }))));
+  $('metrics').replaceChildren(...cells.map(c => metricCell({ label: c.label, value: c.value, change: shortVerdict(c.verdict), tone: c.tone, was: `${c.was} · ${c.sample}` })));
   $('metrics').hidden = false;
   $('judge-missing').hidden = data.judge_available;
   $('weeks-head').replaceChildren(...['Week of', 'Searches', ...METRICS.map(m => m.label)].map(h => el('th', { textContent: h })));
@@ -57,12 +64,20 @@ async function post(body, done) {
   try { await done(await adminJson('/api/admin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })); }
   catch (error) { notice(`Couldn’t save that: ${error.message}`, true); }
 }
+// A return visit draws the last scorecard at once (list-cache.js), with its age, while "Refreshing…" shows in the status line;
+// a fresh scorecard that matches is not drawn again.
 async function load() {
   $('loader').hidden = false; notice('');
-  try { data = await adminJson('/api/admin?view=scorecard'); refreshedAt = Date.now(); render(); }
-  catch (error) { notice(`Could not load the scorecard: ${error.message} Try Refresh.`, true); }
+  const token = await adminToken().catch(() => null);
+  if (!data) { const saved = readPage(localStorage, 'admin_scorecard', token); if (saved) { data = saved.data; refreshedAt = saved.at; render(); } }
+  try {
+    const fresh = await adminJson('/api/admin?view=scorecard'), same = sameData(fresh, data);
+    data = fresh; refreshedAt = Date.now(); savePage(localStorage, 'admin_scorecard', token, fresh);
+    if (same) $('refreshed').textContent = `Refreshed ${ago(refreshedAt)}`; else render();
+  } catch (error) { notice(data ? `Could not refresh: ${error.message} Showing the scorecard from ${ago(refreshedAt)}.` : `Could not load the scorecard: ${error.message} Try Refresh.`, true); if (!data) $('weeks').replaceChildren(); }
   finally { $('loader').hidden = true; }
 }
 $('refresh').onclick = load;
 setInterval(() => { if (refreshedAt) $('refreshed').textContent = `Refreshed ${ago(refreshedAt)}`; }, 30000);
+$('weeks').replaceChildren(...skeletonRows(6, 8));
 load();

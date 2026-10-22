@@ -952,3 +952,40 @@ test('before db/049 runs, views, shares and share opens still work and only log'
  await buildReport(failing,owner,{},{interpret:writer});
  res=response();await handleReport({method:'GET',headers:{authorization:'Bearer t'}},res,{store:failing,env:{},auth,fetcher:fetch});assert.equal(res.statusCode,200);
 });
+
+// Step 3a (db/050): cards reached, card images shared, the share method on the link, the first build.
+test('each card the owner reaches is counted once per report; locked, unknown and missing cards are not',async()=>{
+ const store=withEvents(fixture());await buildReport(store,owner,{},{interpret:writer});
+ const auth=async()=>({status:200,conversation:owner}),post=async body=>{const res=response();await handleReport(postBody(body),res,{store,env:{},auth,fetcher:fetch});return res;};
+ for(const card of ['receipt','receipt','locked','starter','gatekeeper'])assert.equal((await post({action:'report-card-viewed',card})).statusCode,200,card);
+ const inReport=new Set(store.row.data.style_report.cards.map(c=>c.type)),id=store.row.data.style_report.id;
+ const expected=['receipt','gatekeeper'].filter(c=>inReport.has(c));
+ assert.deepEqual(store.events.map(e=>[e.kind,e.ref,e.detail]),expected.map(c=>['report_card_viewed',`${id}:${c}`,c]));
+ await buildReport(store,owner,{},{interpret:writer});await post({action:'report-card-viewed',card:'receipt'});
+ assert.equal(store.events.filter(e=>e.detail==='receipt').length,2,'a rebuilt report counts its cards again');
+});
+
+test('a Story share or download records which cards went with it; other channels and stray cards do not',async()=>{
+ const store=withEvents(fixture());await buildReport(store,owner,{},{interpret:writer});
+ const auth=async()=>({status:200,conversation:owner}),post=async body=>{const res=response();await handleReport(postBody(body),res,{store,env:{},auth,fetcher:fetch});return res;};
+ await post({action:'report-shared',channel:'story',cards:['receipt','receipt','starter']});
+ await post({action:'report-shared',channel:'copy',cards:['receipt']});
+ await post({action:'report-shared',channel:'download',cards:'receipt'});
+ assert.deepEqual(store.events.map(e=>[e.kind,e.detail]),[['report_shared','story'],['report_card_shared','receipt'],['report_shared','copy'],['report_shared','download']]);
+});
+
+test('a friend’s open carries the share method from the link; anything else is left out',async()=>{
+ const store=withEvents(fixture());await buildReport(store,owner,{},{interpret:sharingWriter});
+ const {share}=await updateReport(store,owner,{action:'report-share'});
+ const open=async query=>{const res=response();await handleSharedReport({method:'GET',url:`/api/wishlist?shared=${share.token}&first=1${query}`,headers:{'user-agent':'Mozilla/5.0'}},res,{store});return res;};
+ await open('&via=story');await open('&via=sms');await open('');
+ assert.deepEqual(store.events.map(e=>e.detail??null),['story',null,null]);
+});
+
+test('the first build date is kept across rebuilds',async()=>{
+ const store=fixture();let t=Date.parse('2026-10-20T10:00:00Z');const now=()=>new Date(t);
+ await buildReport(store,owner,{},{interpret:writer,now});const first=store.row.data.style_report.first_built_at;
+ t+=86400e3;await buildReport(store,owner,{},{interpret:writer,now});
+ assert.equal(first,'2026-10-20T10:00:00.000Z');assert.equal(store.row.data.style_report.first_built_at,first);
+ assert.notEqual(store.row.data.style_report.built_at,first);
+});
