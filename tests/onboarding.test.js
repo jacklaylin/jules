@@ -131,6 +131,19 @@ test('the agent sees whether the re-offer is open, with clicks only while it is'
  assert.equal((await onboardingContext({state:'offered',reoffered_at:null},gmail,{linkClicks:async()=>{throw Error('down');}},conversation.id)).product_link_clicks,0);
  assert.deepEqual(await onboardingContext(null,{...gmail,STYLE_ENABLED:'true'},store,conversation.id),{state:null,style_reading_available:true,gmail_import:true});
 });
+// October 22: the founder, with Gmail connected and purchases imported, got the re-offer line under
+// search results because the session still said 'offered'. History in, or a mailbox connected, closes it.
+test('someone whose shopping history is already connected is never re-offered onboarding',async()=>{
+ const offered={state:'offered',reoffered_at:null};
+ const withHistory=await onboardingContext(offered,gmail,{...reofferStore(),gmailImport:async()=>assert.fail('history already known')},conversation.id,{history:true});
+ assert.equal(withHistory.reoffer_available,false);
+ assert.equal(withHistory.product_link_clicks,undefined);
+ const connected=await onboardingContext(offered,gmail,{...reofferStore(),gmailImport:async()=>({token_ciphertext:'sealed'})},conversation.id);
+ assert.equal(connected.reoffer_available,false);
+ // A mailbox that was disconnected (no token) or no import row at all leaves it open; a failed read does too.
+ for(const gmailImport of [async()=>({token_ciphertext:null}),async()=>null,async()=>{throw Error('down');}])
+  assert.equal((await onboardingContext(offered,gmail,{...reofferStore(),gmailImport},conversation.id)).reoffer_available,true);
+});
 test('the agent loop re-offers once, after a positive sign, as a line after the message',async()=>{
  const options=[{brand:'Example',name:'Satin Shirt',url:'https://shop.example/a'},{brand:'Sample',name:'Mesh Shirt',url:'https://shop.example/b'}];
  const turn=async({decision,clicks=0,open=true,first='respond_to_options'})=>{

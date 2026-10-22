@@ -140,3 +140,37 @@ test('a linked item searched for itself (not a dupe) is still offered first, unc
  assert.equal(result.text_wishlist_state.search_plan.reference_product,undefined);
  assert.equal(dupeReference({alternatives:false,continuation:false,supplied:[linked()]}),null);
 });
+
+// October 21: "add this to my wishlist and look for cheaper options" with a store link. The search was
+// for the same item for less, and its answer was the user's own link, introduced as "this could be it".
+// The linked page is the reference of a same-item-for-less search too: never offered back, and the same
+// item elsewhere only for less.
+const forLess=(continuation='new_request')=>searchPlan({...raw('identify',continuation,[{name:'Jil Sander',role:'required'}]),search_goal:'same_item_for_less',reference_item:{source:'link',option_index:null,saved_item_id:null,brand:'Jil Sander'},stay_within_brand:null,occasion:null});
+test('the same item for less never answers with the page the user sent, and shows it elsewhere only for less',async()=>{
+ const copy=page('https://www.ssense.com/en-us/men/product/jil-sander/red-half-zip/1','Jil Sander','Red Half-Zip Sweater',640,'USD',{match:'likely_match'});
+ const pricier=page('https://www.farfetch.com/shopping/men/jil-sander-half-zip-item-1.aspx','Jil Sander','Wool half-zip sweater',950,'USD',{match:'likely_match'});
+ const state={stage:'reference',options:[linked()],supplied_links:[ORIGINAL]};
+ const {body,result}=await run({action:'start',query:'Jil Sander wool half-zip sweater, cheaper',search_plan:forLess()},state,
+  {products:[page(ORIGINAL,'Jil Sander','Wool half-zip sweater',890,'USD',{match:'likely_match'}),pricier,copy],same:async list=>[[0,list.findIndex(p=>p.url===copy.url),list.findIndex(p=>p.url===pricier.url)]]});
+ const shown=result.products.map(p=>p.url);
+ assert.ok(!shown.includes(ORIGINAL),'the page the user sent is not the answer');
+ assert.deepEqual(shown,[copy.url]);
+ assert.match(body,/\$250 less/);
+ assert.equal(result.text_wishlist_state.search_plan.reference_product.url,ORIGINAL);
+ assert.ok(!result.text_wishlist_state.search_plan.guidance.some(g=>/^like the/.test(g)),'the same item is not searched as a look');
+ // Asking again ("anywhere else?") continues with the same reference.
+ const again=await run({action:'start',query:'any other stores?',search_plan:forLess('same_request')},result.text_wishlist_state,{products:[pricier],same:async()=>[[0,1]]});
+ assert.equal(again.result.text_wishlist_state.search_plan.reference_product.url,ORIGINAL);
+ assert.ok(!again.result.products.some(p=>p.url===pricier.url),'the same item for more is still left out');
+});
+
+test('the same item for less from a page whose price is unread: no "this could be it" with the user\'s own link',async()=>{
+ const copy=page('https://www.ssense.com/en-us/men/product/jil-sander/red-half-zip/1','Jil Sander','Red Half-Zip Sweater',640,'USD',{match:'likely_match'});
+ const state={stage:'reference',options:[{url:ORIGINAL,name:'Item from mytheresa.com',brand:'',match:'unverified',sourcing_status:'store_not_found',merchant_options:[],reference_provenance:'user_link'}],supplied_links:[ORIGINAL]};
+ const {body,result}=await run({action:'start',query:'Jil Sander wool half-zip sweater, cheaper',search_plan:forLess()},state,
+  {products:[{...page(ORIGINAL,'Jil Sander','Wool half-zip sweater',null),match:'likely_match'},copy],same:async()=>[[0,1]]});
+ assert.ok(!result.products.some(p=>p.url===ORIGINAL));
+ assert.ok(!body.includes(ORIGINAL),'the user\'s own link is not sent back as a find');
+ assert.match(body,/couldn’t read the price on the page you sent/);
+ assert.doesNotMatch(body,/check those there/);
+});

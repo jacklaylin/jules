@@ -17,7 +17,7 @@ test('the ranker reads the stated requirements and preferences, and its rejectio
   const out=await rankDiscoveryProducts([crew,zip,alpaca],{query:'chunky bright red half zip sweater',requested,env:{OPENAI_API_KEY:'test'},
    fetcher:async(u,o)=>{body=JSON.parse(o.body);return reply({indices:[1],rejected_indices:[0,2],unlike_references_indices:[]})(u,o);}});
   const input=JSON.parse(body.input[0].content);
-  assert.deepEqual(input.requested,requested);
+  assert.deepEqual(input.requested,{...requested,department:null});
   assert.deepEqual(input.candidates.map(c=>c.color),['Aran','Terra Red','Oatmeal']);
   assert.match(body.instructions,/different garment type/);
   assert.deepEqual(out.map(x=>x.name),['Boiled Half-Zip Sweater']);
@@ -25,7 +25,7 @@ test('the ranker reads the stated requirements and preferences, and its rejectio
  // No plan: an empty reading, never invented requirements.
  let body;
  await rankDiscoveryProducts([crew,zip],{query:'knit',env:{OPENAI_API_KEY:'test'},fetcher:async(u,o)=>{body=JSON.parse(o.body);return reply({indices:[0,1],rejected_indices:[],unlike_references_indices:[]})(u,o);}});
- assert.deepEqual(JSON.parse(body.input[0].content).requested,{hard_constraints:[],guidance:[]});
+ assert.deepEqual(JSON.parse(body.input[0].content).requested,{hard_constraints:[],guidance:[],department:null});
 });
 
 test('a discovery search hands its plan to the ranker',async()=>{

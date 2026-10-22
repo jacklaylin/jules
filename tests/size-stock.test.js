@@ -139,10 +139,13 @@ test('a search for the user’s own item leads with the option in stock in their
  assert.ok(body.indexOf('/brown')<body.indexOf('/black'),'the option in stock in the user’s size comes first');
  assert.match(body,/size 12 in stock/);assert.match(body,/size 12 sold out/);
  const facts0=optionFacts(recorded.text_wishlist_state);
- assert.equal(facts0[0].your_size.stock,'in_stock');assert.deepEqual(facts0[1].sizes_seen,['12: sold out','13: in stock']);
+ assert.equal(facts0[0].your_size.stock,'in_stock');
+ // October 22: with a saved size applied, the full list is there for a question, not as what to show.
+ assert.equal(facts0[1].sizes_seen,undefined);assert.deepEqual(facts0[1].all_sizes_if_asked,['12: sold out','13: in stock']);
  const other=await run([]);
  assert.doesNotMatch(other,/size 12/,'without a saved size for this item nothing is claimed about the user’s size');
  assert.equal(optionFacts(recorded.text_wishlist_state)[0].your_size,'no saved size applied');
+ assert.ok(Array.isArray(optionFacts(recorded.text_wishlist_state)[0].sizes_seen),'with no saved size, every size seen is given');
 });
 
 // The October 19 production miss: the agent's own search call left the size keys empty whenever the

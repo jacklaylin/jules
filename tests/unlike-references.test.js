@@ -105,3 +105,33 @@ test('the plan keeps a valid level and drops anything else; old plans without on
  for(const level of [null,'luxury brands','cheap',3])assert.equal(searchPlan({...base,level}).level,null);
  assert.ok(!Object.hasOwn(searchPlan({...base}),'level'));
 });
+
+// October 22: "cool shirts that aren't too expensive" (level affordable) showed a $1,216 designer shirt
+// next to $50 and $110 ones. The level is held in both directions, and the stylist aims at it too.
+test('an affordable level leaves out designer labels the ranker marks as above it',async()=>{
+ let body;const fetcher=async(u,o)=>{body=JSON.parse(o.body);return reply({indices:[0,1,2],rejected_indices:[],unlike_references_indices:[0]})(u,o);};
+ const record={};
+ const out=await rankDiscoveryProducts([designer,close,mass],{query:'cool shirts, not too expensive',level:'affordable',env,fetcher,record});
+ assert.deepEqual(out.map(x=>x.brand),['Studio Nicholson','Mass Label']);assert.equal(record.unlike_references,1);
+ assert.match(body.instructions,/either direction/);assert.match(body.instructions,/above it/);
+ const levelPlan={...plan,reference_brands:[],level:'affordable'};
+ const kept=await textWishlistAction({action:'start',query:'cool shirts, not too expensive',search_plan:levelPlan},{env:{},facts:[],record:async()=>{},stylist:async()=>[],search:async()=>({status:'found',products:[designer,mass]}),
+  rank:async(list,{record})=>{record.unlike_references=1;return list.slice(1);},owned:async()=>[]});
+ assert.match(kept,/left out one that wasn’t close to the affordable level you asked for/);
+});
+
+// October 21: a women's cashmere half-zip was shown in a men's search; the page-word department read
+// missed it. The ranker gets the department, and a candidate that says it is for the other one is a contradiction.
+test('the ranker is given the search department, and the search passes it',async()=>{
+ let body;const fetcher=async(u,o)=>{body=JSON.parse(o.body);return reply({indices:[0],rejected_indices:[1],unlike_references_indices:[]})(u,o);};
+ const out=await rankDiscoveryProducts([close,mass],{query:'red half zip',requested:{hard_constraints:['half-zip'],guidance:['bright red']},department:'men',env,fetcher});
+ assert.deepEqual(out.map(x=>x.brand),['Studio Nicholson']);
+ assert.deepEqual(JSON.parse(body.input[0].content).requested,{hard_constraints:['half-zip'],guidance:['bright red'],department:'men'});
+ assert.match(body.instructions,/requested\.department/);
+ const seen=[];
+ for(const [facts,want] of [[[{field:'gender',key:'identity',value:'man',basis:'stated'}],'men'],[[],null]]){
+  await textWishlistAction({action:'start',query:'red half zip sweater',search_plan:{...plan,reference_brands:[]}},{env:{},facts,record:async()=>{},stylist:async()=>[],search:async()=>({status:'found',products:[close,mass]}),
+   departments:async list=>list,rank:async(list,{department})=>{seen.push(department);return list;},owned:async()=>[]});
+  assert.equal(seen.at(-1),want);
+ }
+});

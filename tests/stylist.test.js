@@ -212,3 +212,14 @@ test('a named or pictured item still searches the catalog with the request itsel
   stylist:async()=>assert.fail('no stylist for identify'),shop:async q=>{shopQueries.push(q);return null;},search:async()=>({status:'found',products:[p('xt6')]}),rank:async x=>x});
  assert.deepEqual(shopQueries,['Salomon XT-6']);
 });
+
+// October 22: an affordable request got a "secondhand designer" direction and a $1,216 shirt. The stylist
+// is given the plan's market level and told to aim every direction at it.
+test('the stylist is given the requested market level',async()=>{
+ const fetcher=model({concepts});
+ await stylistConcepts({query:'cool shirts that aren’t too expensive',plan:{...plan,level:'affordable'},env:{OPENAI_API_KEY:'k'},fetcher});
+ assert.equal(JSON.parse(model.last.input).level,'affordable');
+ assert.match(model.last.instructions,/level, when given/);
+ await stylistConcepts({query:'cool shirts',plan,env:{OPENAI_API_KEY:'k'},fetcher});
+ assert.equal(JSON.parse(model.last.input).level,null);
+});
