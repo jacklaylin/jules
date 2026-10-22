@@ -32,6 +32,7 @@
       <button id="contact-card" type="button" aria-haspopup="dialog">Text them Jules’s contact card…</button>
       <button id="ask-style" type="button" aria-haspopup="dialog">Ask them style questions…</button>
       <button id="nudges" type="button" aria-haspopup="dialog">Purchase nudges…</button>
+      <button id="returns" type="button" aria-haspopup="dialog">Return windows…</button>
       <button id="reset-onboarding" type="button" aria-haspopup="dialog">Reset onboarding…</button>
     </div>
     <nav class="tabs" aria-label="Person sections">
@@ -201,6 +202,19 @@
     <ul id="nudge-log" class="nudge-log"></ul>
     <p id="nudge-error" class="error" role="alert" hidden></p>
     <div class="dialog-actions"><button id="nudge-confirm" class="btn--butter" type="button" hidden>Send test nudge</button><button id="nudge-cancel" type="button">Close</button></div>
+  </dialog>
+  <dialog id="returns-dialog" class="confirm-dialog" aria-labelledby="returns-title">
+    <h2 id="returns-title">Return windows</h2>
+    <p class="muted">Read and log only: nothing is texted yet. A deadline comes only from what their order, shipping or delivery emails state: a return-by date, or a return period counted from a dated email. Never a store's policy page or an estimated delivery.</p>
+    <p id="returns-summary" class="muted"></p>
+    <ul id="returns-items" class="nudge-log"></ul>
+    <div id="returns-reread" hidden>
+      <p>Re-read <strong id="returns-left">0</strong> order, shipping and delivery emails from their last 45 days of purchases for the return terms they state. Only return terms are saved; their purchase history is otherwise unchanged.</p>
+    </div>
+    <h3 class="mono-label">Changes, newest first</h3>
+    <ul id="returns-log" class="nudge-log"></ul>
+    <p id="returns-error" class="error" role="alert" hidden></p>
+    <div class="dialog-actions"><button id="returns-confirm" class="btn--butter" type="button" hidden>Re-read emails</button><button id="returns-cancel" type="button">Close</button></div>
   </dialog>
   <dialog id="reread-dialog" class="confirm-dialog" aria-labelledby="reread-title">
     <h2 id="reread-title">Re-read this photo?</h2>
