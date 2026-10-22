@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { beginProgress, progressEmoji } from '../lib/photon.js';
+import { beginProgress, progressEmoji, sendGreeting } from '../lib/photon.js';
 import { receiveInInbox } from '../lib/inbox.js';
 
 test('reactions follow structured intent rather than message phrases', () => {
@@ -70,4 +70,38 @@ test('typing that starts after its time limit is stopped instead of left running
   assert.equal(outcome, 'imessage_ai_reply_sent');
   late(async () => { stops++; }); await new Promise(resolve => setTimeout(resolve, 10));
   assert.equal(stops, 1);
+});
+
+// SPEED.md change 5 (October 22): the reply goes out over the conversation the typing dots already hold.
+test('the reply is sent over the open typing conversation without a second connection, and its text time is kept', async () => {
+  const sent = []; let connects = 0, stops = 0;
+  const open = { send: async content => { sent.push(content); return { id: 'reply-1' }; } };
+  const out = await sendGreeting({ space: { phone: 'test-line' }, message: { sender: { id: 'test-user' } } }, 'hello there', {},
+    { open, connect: async () => { connects++; return { stop: async () => { stops++; } }; }, log: () => {} });
+  assert.deepEqual(sent, ['hello there']);
+  assert.equal(connects, 0); assert.equal(stops, 0);
+  assert.ok(Number.isFinite(out.text_sent_at));
+});
+
+test('the typing conversation is offered for the reply only while it is running and healthy', async () => {
+  const conversation = { startTyping: async () => {}, stopTyping: async () => {}, send: async () => ({}) };
+  const provider = () => ({ user: async id => id, space: { create: async () => conversation } });
+  provider.config = () => ({});
+  const delivery = { space: { phone: 'test-line' }, message: { id: 'test-message', sender: { id: 'test-user' } } };
+  const stop = await beginProgress(delivery, { SPECTRUM_PROJECT_ID: 'p', SPECTRUM_PROJECT_SECRET: 's' }, { provider, connect: async () => ({ stop: async () => {} }), log: () => {} });
+  assert.equal(stop.channel(), conversation);
+  await stop();
+  assert.equal(stop.channel(), null);
+});
+
+test('the inbox hands the typing conversation to the send and records when the text went out', async () => {
+  const open = { id: 'open-conversation' }; let given, saved;
+  const store = { receive: async () => 'test-conversation', claimAI: async () => true, context: async () => [],
+    prepareAI: async () => {}, finish: async () => {}, replyDiagnostics: async (_op, data) => { saved = data; } };
+  const stop = Object.assign(async () => {}, { channel: () => open });
+  const delivery = { space: { phone: 'test-line' }, message: { id: 'test-message', sender: { id: 'test-user' }, content: { text: 'hi' } } };
+  await receiveInInbox(delivery, { AI_ENABLED: 'true' }, { store, progress: async () => stop, generate: async () => 'Hello.',
+    send: async (_d, _body, _env, options) => { given = options.open; return { id: 'sent', text_sent_at: Date.now() }; } });
+  assert.equal(given, open);
+  assert.ok(saved.steps.some(s => s.step === 'send:text'));
 });

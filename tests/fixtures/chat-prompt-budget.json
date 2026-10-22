@@ -6,5 +6,8 @@
     "feature_guides": 1198,
     "tool_descriptions": 6466
   },
-  "raises": []
+  "raises": [
+    { "part": "feature_guides", "words": 20, "reason": "Taste guide: material/<fabric> facet so fabric likes and dislikes stop landing in silhouette as one run-on fact (October 22)." },
+    { "part": "tool_descriptions", "words": 20, "reason": "The same taste-guide material facet, which update_profile carries in its description (October 22)." }
+  ]
 }
