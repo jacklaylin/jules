@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { generateReply, optionFacts } from '../lib/ai.js';
+import { generateReply, optionFacts, requestFacts } from '../lib/ai.js';
 import { textWishlistAction } from '../lib/text-wishlist.js';
 import { receiveInInbox } from '../lib/inbox.js';
 import { agentTurn, tool, toolOutputs, isAgentRequest, isConsentCheck, consentResponse, isClaimAudit, auditResponse } from './helpers/agent.js';
@@ -349,4 +349,13 @@ test('inbox: a save committed before the turn deadline is reported by the fallba
   assert.equal(saved, true); assert.equal(sends.length, 1);
   assert.match(sends[0], /saved Dries Van Noten Peyter Pants to your wishlist/);
   assert.match(sends[0], /send that part again/);
+});
+
+test('the writer is told what request the options were found for, so a new request carries no earlier occasion', () => {
+  assert.equal(requestFacts(null), null);
+  assert.equal(requestFacts({ options:[] }), null);
+  assert.deepEqual(requestFacts({ search_plan:{ continuation:false, occasion:null, hard_constraints:['casual shirts', 'appropriate for fall'] } }),
+    { new_request:true, occasion:null, constraints:['casual shirts', 'appropriate for fall'] });
+  assert.deepEqual(requestFacts({ search_plan:{ continuation:true, occasion:{ name:'Basement', dress:'club', reading:'place' } } }),
+    { new_request:false, occasion:'Basement', constraints:[] });
 });
