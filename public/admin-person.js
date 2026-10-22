@@ -134,7 +134,7 @@ function renderMessages() {
   $('older').hidden = !cursor;
   const total = `${messages.length}${cursor ? '+' : ''}`;
   $('convo-count').textContent = onlyProblems ? `${shown.length} with problems, of ${total} loaded` : `${total} messages`;
-  $('count-conversation').textContent = total; $('stat-messages').textContent = total;
+  $('count-conversation').textContent = total;
   $('stat-active').textContent = messages.length ? when(messages.at(-1).created_at) : '—';
 }
 // The latest page (cached first, with the header) or, with earlier, the page before the oldest loaded.
@@ -375,7 +375,7 @@ function fillSelect(select, values, all) {
 function renderFacts() {
   if (!factsReady) return;
   const rows = allRows(), live = facts.filter(f => !f.deleted);
-  $('count-memory').textContent = knowledgeReady ? rows.length : ''; $('stat-facts').textContent = live.length;
+  $('count-memory').textContent = knowledgeReady ? rows.length : '';
   const counts = { '': rows.length, said: 0, seen: 0, inferred: 0, look: rows.filter(r => r.needsLook).length };
   for (const r of rows) counts[r.kind]++;
   if (kindFilter === 'look' && !counts.look) kindFilter = '';
