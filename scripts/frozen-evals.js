@@ -3,30 +3,38 @@
 //   node --env-file=.env.local scripts/frozen-evals.js sync                  # freeze reports not frozen yet
 //   node --env-file=.env.local scripts/frozen-evals.js run                   # sync, then run every case once
 //   node --env-file=.env.local scripts/frozen-evals.js run --model gpt-5.5 --runs 3
+//   node --env-file=.env.local scripts/frozen-evals.js run --area consent,saves --runs 3 --no-sync
 //   node --env-file=.env.local scripts/frozen-evals.js run --cases dev-1a2b3c4d --no-sync
-//   node --env-file=.env.local scripts/frozen-evals.js list
+//   node --env-file=.env.local scripts/frozen-evals.js list                  # every case with its areas
+//   node --env-file=.env.local scripts/frozen-evals.js rejudge --from <run file> --judge gpt-6-luna   # judge calibration (--failed, --passed, --sample n)
 //   node --env-file=.env.local scripts/frozen-evals.js sync --refresh-context   # add the user context snapshot to older cases (no model calls)
-// Options: --since <ISO> (sync; default October 13), --category <name>, --concurrency 4, --max-cost 15 (USD),
+// Options: --since <ISO> (sync; default October 13), --category <name>, --area <areas> (lib/eval-areas.js),
+//   --concurrency 4, --max-cost 15 (USD), --no-cache (send the profile check every time; lib/eval-cache.js), --out <file> (where the results go; default runs/<time>-<model>.json),
 //   --judges gpt-5.5,openrouter:anthropic/claude-opus-5.5 (several judges; a case passes only when all pass it).
+// The chat model defaults to MODEL_CHAT; the gate passes the production model with --model (CHAT-DEVELOPMENT.md).
 // Cases and run results live in FROZEN_EVALS_DIR (default ~/.jules/frozen-evals), outside the repository:
 // they hold private conversations. Nothing is searched, saved, alerted or sent.
-import { mkdir, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
 import { createStore } from '../lib/store.js';
 import { withUsage } from '../lib/usage.js';
-import { spendTracker } from '../lib/replay-gate.js';
+import { spendTracker, spendByModel } from '../lib/replay-gate.js';
 import { chatModel } from '../lib/compose.js';
-import { casesDir, loadCases, syncCases, refreshContext, runFrozenCase, frozenReport, judgeModels, DEFAULT_SINCE } from '../lib/frozen-evals.js';
+import { modelResponse } from '../lib/model-call.js';
+import { casesDir, loadCases, syncCases, refreshContext, runFrozenCase, frozenReport, judgeModels, replayTools, rejudge, judgeAgreement, DEFAULT_SINCE } from '../lib/frozen-evals.js';
+import { frozenAreas, parseAreas } from '../lib/eval-areas.js';
+import { evalCache } from '../lib/eval-cache.js';
 
 const args = process.argv.slice(2), option = name => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : undefined; };
 const command = args[0] ?? 'run';
-if (!['sync', 'run', 'list'].includes(command)) throw Error('First argument must be sync, run or list');
+if (!['sync', 'run', 'list', 'rejudge'].includes(command)) throw Error('First argument must be sync, run, list or rejudge');
 const env = { ...process.env, SEARCH_ENABLED: 'true', ...(option('--judges') ? { FROZEN_JUDGE_MODELS: option('--judges') } : {}) };
 const dir = casesDir(env);
 const database = Boolean(env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY);
 const store = database ? createStore(env) : null;
 const refresh = args.includes('--refresh-context');
 if (refresh && command !== 'sync') throw Error('--refresh-context works with sync only');
+const pct = v => v === null || v === undefined ? '   —' : `${Math.round(v * 100)}%`.padStart(4);
 
 if (command === 'sync' || (command === 'run' && !args.includes('--no-sync'))) {
   if (!database) { if (command === 'sync') throw Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are needed to read reports; run with --env-file=.env.local'); console.log('Not synced: no database credentials. Running the cases already frozen.'); }
@@ -43,30 +51,83 @@ if (command === 'sync' || (command === 'run' && !args.includes('--no-sync'))) {
     }
   }
 }
-const all = await loadCases(dir);
+const all = await loadCases(dir), tools = await replayTools(dir);
+const areasOf = c => frozenAreas(c, tools.get(c.id) ?? []);
 if (command === 'list') {
-  for (const c of all) console.log(`${c.id.padEnd(16)} ${c.reported_at.slice(0, 16)}  ${c.category.padEnd(22)} ${c.replayable ? '' : `(not replayable: ${c.not_replayable_reason}) `}${String(c.expectation?.text ?? '').slice(0, 90).replace(/\s+/g, ' ')}`);
+  for (const c of all) console.log(`${c.id.padEnd(16)} ${c.reported_at.slice(0, 16)}  ${c.category.padEnd(22)} ${(c.replayable ? areasOf(c).join(',') : '').padEnd(28)} ${c.replayable ? '' : `(not replayable: ${c.not_replayable_reason}) `}${String(c.expectation?.text ?? '').slice(0, 70).replace(/\s+/g, ' ')}`);
   console.log(`\n${all.length} cases, ${all.filter(c => c.replayable).length} replayable.`);
 }
-if (command !== 'run') process.exit(0);
+if (!['run', 'rejudge'].includes(command)) process.exit(0);
 
 if (!env.OPENAI_API_KEY || env.OPENAI_API_KEY.startsWith('replace-with')) throw Error('OPENAI_API_KEY is missing; run with --env-file=.env.local');
 const runs = Number(option('--runs') ?? 1), concurrency = Number(option('--concurrency') ?? 4), maxCost = Number(option('--max-cost') ?? 15);
 const model = option('--model') ?? null, only = option('--cases')?.split(',').map(s => s.trim()).filter(Boolean), category = option('--category');
+const areas = option('--area') ? parseAreas(option('--area')) : null;
 if (!(Number.isInteger(runs) && runs > 0)) throw Error('--runs must be a positive whole number');
-const cases = all.filter(c => (!only || only.includes(c.id)) && (!category || c.category === category));
+if (!(maxCost > 0)) throw Error('--max-cost must be a positive number of US dollars');
+// One tiny request first, so a bad key or an account out of credit fails in a second instead of as every case failing.
+const preflight = await modelResponse({ role: 'extract', env, body: { input: 'ok', max_output_tokens: 16 } }).catch(() => null);
+if (!preflight?.ok) {
+  const code = preflight ? (await preflight.json().catch(() => ({}))).error?.code ?? preflight.status : 'network error';
+  console.error(`OpenAI rejected the request (${code}): check the key and the evals project's balance. Nothing was run.`);
+  process.exit(2);
+}
+const spend = spendTracker(maxCost);
+const byId = new Map(all.map(c => [c.id, c]));
+
+if (command === 'rejudge') {
+  // Judge calibration: the stored runs of --from judged again by each --judge, compared per criterion with the verdicts stored.
+  const from = option('--from'), judges = String(option('--judge') ?? '').split(',').map(s => s.trim()).filter(Boolean);
+  if (!from || !judges.length) throw Error('rejudge needs --from <stored run file> and --judge <model[,model]>');
+  const stored = JSON.parse(await readFile(from, 'utf8'));
+  // --failed: only runs the stored judge failed; --sample n: every k-th run, about n of them (calibration on a budget).
+  let reference = (stored.results ?? []).filter(r => byId.has(r.id) && r.criteria && !r.skipped && r.judge_model !== 'code');
+  if (args.includes('--failed')) reference = reference.filter(r => !r.passed);
+  if (args.includes('--passed')) reference = reference.filter(r => r.passed);
+  if (option('--sample')) { const step = Math.max(1, Math.floor(reference.length / Number(option('--sample')))); reference = reference.filter((_, i) => i % step === 0); }
+  const queue = judges.flatMap(judge => reference.map(r => ({ judge, r }))), done = [];
+  async function worker() {
+    for (let job = queue.shift(); job && !spend.capped; job = queue.shift()) {
+      try { done.push({ judge: job.judge, reference: job.r, candidate: await withUsage({ store, env, conversation: null, operation: 'eval:frozen:rejudge', feature: 'eval_frozen', onUsage: rows => spend.add(rows), quiet: true }, () => rejudge(byId.get(job.r.id), job.r, job.judge, env)) }); }
+      catch (error) { console.error(`  ${job.r.id}: ${String(error?.message ?? error).slice(0, 100)}`); }
+      if (process.stderr.isTTY) process.stderr.write(`\r${done.length}/${judges.length * reference.length} · ~$${spend.spent.toFixed(2)}`);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.max(1, concurrency) }, worker));
+  if (process.stderr.isTTY) process.stderr.write('\n');
+  console.log(`Judge calibration on ${from.split('/').pop()} (${reference.length} runs, reference judge ${stored.judge_models?.join('+') ?? 'stored'})\n`);
+  const out = {};
+  for (const judge of judges) {
+    for (const [label, pairs] of [['all runs', done.filter(d => d.judge === judge)], ['runs with exact turn facts', done.filter(d => d.judge === judge && d.candidate.exact)]]) {
+      const a = judgeAgreement(pairs);
+      (out[judge] ??= {})[label] = a;
+      console.log(`${judge} · ${label} (${a.runs}): run pass/fail agrees ${pct(a.passed)}`);
+      for (const c of a.criteria) console.log(`  ${c.label.padEnd(26)} same verdict ${pct(c.exact)} · same fail/not-fail ${pct(c.decision)} · fails: reference ${c.reference_fails}, ${judge} ${c.candidate_fails}`);
+    }
+    console.log('');
+  }
+  await mkdir(join(dir, 'runs', 'rejudge'), { recursive: true, mode: 0o700 });
+  const file = join(dir, 'runs', 'rejudge', `${new Date().toISOString().replace(/[:.]/g, '-')}.json`);
+  await writeFile(file, JSON.stringify({ from, judges, spent_usd: spend.spent, agreement: out, pairs: done.map(d => ({ id: d.reference.id, judge: d.judge, exact: d.candidate.exact, reference: d.reference.criteria, candidate: d.candidate.criteria })) }, null, 2), { mode: 0o600 });
+  console.log(`Estimated cost: $${spend.spent.toFixed(2)} (cap $${maxCost.toFixed(2)}): ${spendByModel(spend)}. Verdicts: ${file}`);
+  process.exit(0);
+}
+
+const cases = all.filter(c => (!only || only.includes(c.id)) && (!category || c.category === category) && (!areas || (c.replayable && areasOf(c).some(a => areas.includes(a)))));
 const replayable = cases.filter(c => c.replayable);
 if (!replayable.length) throw Error(`No replayable cases${all.length ? ' match the filters' : ` in ${dir}; run sync first`}`);
 
-const spend = spendTracker(maxCost), operation = 'eval:frozen:' + new Date().toISOString();
+const operation = 'eval:frozen:' + new Date().toISOString();
+// The profile check's stored answers (lib/eval-cache.js); --no-cache sends every request.
+const cache = args.includes('--no-cache') ? null : await evalCache(join(dir, 'cache', 'requests.json'));
 const queue = replayable.flatMap(c => Array.from({ length: runs }, () => c));
 const results = [];
 async function worker() {
   for (let c = queue.shift(); c && !spend.capped; c = queue.shift()) {
     let outcome;
-    try { outcome = await withUsage({ store, env, conversation: null, operation, feature: 'eval_frozen', onUsage: rows => spend.add(rows), quiet: true }, () => runFrozenCase(c, env, { model })); }
+    try { outcome = await withUsage({ store, env, conversation: null, operation, feature: 'eval_frozen', onUsage: rows => spend.add(rows), quiet: true }, () => runFrozenCase(c, env, { model, ...(cache ? { fetcher: cache.fetcher } : {}) })); }
     catch (error) { outcome = { id: c.id, category: `frozen:${c.category}`, passed: false, failures: [`run_failed: ${String(error?.message ?? error).slice(0, 120)}`] }; }
-    results.push(outcome);
+    results.push({ ...outcome, areas: areasOf(c) });
     if (process.stderr.isTTY) process.stderr.write(`\r${results.length}/${replayable.length * runs} runs · ~$${spend.spent.toFixed(2)}`);
   }
 }
@@ -74,25 +135,26 @@ const started = Date.now();
 await Promise.all(Array.from({ length: Math.max(1, concurrency) }, worker));
 if (process.stderr.isTTY) process.stderr.write('\n');
 
+await cache?.save();
 const report = frozenReport(results, cases);
-const pct = v => v === null ? '   —' : `${Math.round(v * 100)}%`.padStart(4);
 const chat = model ?? chatModel(env);
-console.log(`Frozen eval set · ${report.cases} cases × ${runs} run${runs === 1 ? '' : 's'} · chat ${chat} · judge ${judgeModels(env).join(' + ')} · ${Math.round((Date.now() - started) / 1000)}s\n`);
+console.log(`Frozen eval set · ${report.cases} cases${areas ? ` in ${areas.join(', ')}` : ''} × ${runs} run${runs === 1 ? '' : 's'} · chat ${chat} · judge ${judgeModels(env).join(' + ')} · ${Math.round((Date.now() - started) / 1000)}s\n`);
 console.log(`PASS RATE  ${pct(report.pass_rate)}  (${results.filter(r => r.passed).length}/${report.runs} runs)\n`);
 const rr = report.replies;
 console.log(`Replies: stitched ${pct(rr.stitched_share)} · false save/alert claims caught ${rr.false_claims} (${pct(rr.false_claim_share)} of runs) · any check rejection ${pct(rr.rejected_share)} · written by the writer ${pct(rr.writer_share)}${env.CHAT_NARRATE === 'on' ? ' (CHAT_NARRATE on)' : ''} · mean turn ${rr.mean_seconds?.toFixed(1)}s\n`);
 for (const c of report.categories) console.log(`  ${pct(c.pass_rate)}  ${c.category.padEnd(30)} ${c.passes}/${c.runs}`);
 console.log('\nBy criterion:');
 for (const c of report.criteria) console.log(`  ${pct(c.pass_rate)}  ${c.label.padEnd(30)} ${c.scored} scored`);
+console.log(`\nJudge calls: ${report.judge_calls} · runs code decided without the judge: ${report.decided_by_code}${cache ? ` · profile checks answered from the cache: ${cache.stats.hits} of ${cache.stats.hits + cache.stats.misses}` : ''}`);
 if (report.judges.length > 1) console.log(`\nJudges (a case passes only when all pass it): ${report.judges.map(j => `${j.model} ${pct(j.pass_rate)}`).join(' · ')} · agree on ${pct(report.judge_agreement)} of runs`);
 if (report.timeout_rate || report.refused_rate) console.log(`\nTurns that hit the agent's round time limit: ${pct(report.timeout_rate)} · refused by the provider: ${pct(report.refused_rate)} (counted as failures when they produced no usable reply)`);
 const untestable = report.report_about.what_search_found + report.report_about.link_delivery + report.report_about.outside_the_reply;
 if (untestable) console.log(`\nReports only about search results, link delivery or outside the reply (judge's reading): ${report.report_about.what_search_found} / ${report.report_about.link_delivery} / ${report.report_about.outside_the_reply} runs. "Respects the report" is not applicable for those when this replay cannot reproduce them.`);
-if (report.skipped.length) console.log(`\n${report.skipped.length} cases not replayable (not an agent reply): ${[...new Set(report.skipped.map(s => s.reason))].join(', ')}`);
+if (report.skipped.length && !areas) console.log(`\n${report.skipped.length} cases not replayable (not an agent reply): ${[...new Set(report.skipped.map(s => s.reason))].join(', ')}`);
 const failing = report.case_rates.filter(c => c.pass_rate < 1);
 if (failing.length) { console.log('\nFailing cases:'); for (const c of failing) console.log(`  ${pct(c.pass_rate)}  ${c.id} (${c.category}): ${c.failures.join('; ').slice(0, 300)}`); }
-await mkdir(join(dir, 'runs'), { recursive: true, mode: 0o700 });
-const out = join(dir, 'runs', `${new Date().toISOString().replace(/[:.]/g, '-')}-${chat.replace(/[^A-Za-z0-9.-]/g, '_')}.json`);
-await writeFile(out, JSON.stringify({ chat_model: chat, judge_models: judgeModels(env), runs, spent_usd: spend.spent, report, results }, null, 2), { mode: 0o600 });
-console.log(`\nEstimated cost: $${spend.spent.toFixed(2)} (cap $${maxCost.toFixed(2)}). Replies and reasons: ${out}`);
-if (queue.length) console.log(`Stopped at the spending cap after ${results.length} runs; the number above is incomplete.`);
+const out = option('--out') ?? join(dir, 'runs', `${new Date().toISOString().replace(/[:.]/g, '-')}-${chat.replace(/[^A-Za-z0-9.-]/g, '_')}.json`);
+await mkdir(dirname(out), { recursive: true, mode: 0o700 });
+await writeFile(out, JSON.stringify({ chat_model: chat, judge_models: judgeModels(env), runs, areas, spent_usd: spend.spent, spent_by_model: spend.by_model, complete: !queue.length, report, results }, null, 2), { mode: 0o600 });
+console.log(`\nEstimated cost: $${spend.spent.toFixed(2)} (cap $${maxCost.toFixed(2)}): ${spendByModel(spend)}. Replies and reasons: ${out}`);
+if (queue.length) { console.log(`Stopped at the spending cap after ${results.length} runs; the number above is incomplete.`); process.exit(3); }
