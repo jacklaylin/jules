@@ -13,7 +13,7 @@
 // eval_agent / eval_replay) so the admin Costs page shows them beside real user spend.
 import { AGENT_EVAL_CASES, runAgentEval } from '../lib/agent-eval.js';
 import { REPLAY_CASES, runReplay } from '../lib/replay.js';
-import { gateReport, spendTracker } from '../lib/replay-gate.js';
+import { gateReport, spendTracker, PRODUCTION_CAPABILITIES } from '../lib/replay-gate.js';
 import { withUsage } from '../lib/usage.js';
 import { createStore } from '../lib/store.js';
 import { checkSchema, schemaReport, formatSchemaReport } from '../lib/schema-check.js';
@@ -37,7 +37,8 @@ if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
   if (!schema.ok) process.exit(schema.missing.length ? 1 : 2);
 } else console.log('Schema not checked: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are not set.\n');
 
-const env = { ...process.env, SEARCH_ENABLED: 'true' };
+// Production capabilities whatever .env.local says, so the agent evals offer the tools testers have.
+const env = { ...process.env, ...PRODUCTION_CAPABILITIES };
 const store = process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY ? createStore(process.env) : null;
 const spend = spendTracker(maxCost), gateRun = 'eval:' + new Date().toISOString();
 // One cheap request first, so a bad key fails in a second with a clear message instead of as every case failing.
