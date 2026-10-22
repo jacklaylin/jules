@@ -208,7 +208,7 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
       if (query.get('view') === 'summary') return json(res, 200, await personSummary(store, id));
       // The Summary's Adoption and Chat quality cards (lib/person-adoption.js): this person's shopping-request outcomes
       // over the last four weeks and lifetime cost. Read-only; no message text.
-      if (query.get('view') === 'person-adoption') return json(res, 200, await personAdoption(store, id));
+      if (query.get('view') === 'person-adoption') return json(res, 200, await personAdoption(store, id, { env }));
       let before;
       if (query.has('before')) {
         try { before = JSON.parse(query.get('before')); } catch { return json(res, 400, { error: 'Invalid history cursor.' }); }
