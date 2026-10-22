@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {viewOf,periodOf,apiDate,pickerValue,serviceColumns,featureColumn,money,totalLine,coverageText,budgetText,basisLabel,serviceRow,featureRows,meteredText,entryBody} from '../public/costs-view.js';
+import {viewOf,periodOf,apiDate,pickerValue,serviceColumns,featureColumn,money,totalLine,coverageText,budgetText,basisLabel,serviceRow,featureRows,meteredText,entryBody,lifetimeText} from '../public/costs-view.js';
 
 const rows=[{id:'openai',name:'OpenAI API',url:'u',today:1.25,month:3,projected:31,basis:'billed+estimate',source:'OpenAI Costs API',updated:'2026-10-15T12:00:00Z',notes:['Other projects left out.'],complete:true},
  {id:'vercel',name:'Vercel',url:'u',today:null,month:null,projected:null,basis:'unknown',source:'Manual ledger',updated:null,notes:[],complete:false}];
@@ -91,4 +91,10 @@ test('saving an amount: usage is for the day, subscriptions and the budget for t
  assert.deepEqual(entryBody({kind:'usage',service:'vercel',date:'2026-10-15',amount:'1.5',note:''}),{service:'vercel',kind:'usage',date:'2026-10-15',amount:1.5,note:''});
  assert.equal(entryBody({kind:'subscription',service:'vercel',date:'2026-10-15',amount:'20',note:''}).date,'2026-10-01');
  assert.deepEqual(entryBody({kind:'budget',service:'vercel',date:'2026-10-15',amount:'10',note:''}),{service:'openai',kind:'budget',date:'2026-10-01',amount:10,note:''});
+});
+
+test('lifetime line: total since the start, with missing services by month; unknown never $0',()=>{
+ assert.equal(lifetimeText({lifetime:{since:'2026-10',through:'2026-11-15',total:150,gaps:[{month:'2026-10',services:['SerpApi']}]}}),'Lifetime since October 2026: $150.00 through 2026-11-15 · known part only (missing SerpApi in October 2026)');
+ assert.equal(lifetimeText({lifetime:{since:'2026-10',through:'2026-10-21',total:null,gaps:[{month:'2026-10',services:['Vercel']}]}}),'Lifetime since October 2026: Unknown through 2026-10-21');
+ assert.equal(lifetimeText({lifetime:null}),'');
 });

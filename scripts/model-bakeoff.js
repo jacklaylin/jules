@@ -19,6 +19,7 @@ import { resolve, join } from 'node:path';
 import { homedir } from 'node:os';
 import { AGENT_EVAL_CASES, runAgentEval } from '../lib/agent-eval.js';
 import { REPLAY_CASES, runReplay } from '../lib/replay.js';
+import { PRODUCTION_CAPABILITIES } from '../lib/replay-gate.js';
 import { withUsage, priceFor } from '../lib/usage.js';
 import { createStore } from '../lib/store.js';
 import { ROLES } from '../lib/models.js';
@@ -61,7 +62,7 @@ globalThis.fetch = async (input, init) => {
 const [spec] = [ROLES[role]];
 const envFor = model => {
   const [id, effort] = model.split(/:(?=[a-z]+$)/);
-  const env = { ...process.env, SEARCH_ENABLED: 'true', [spec.env]: id, ...(effort ? { [`${spec.env}_REASONING`]: effort } : {}), ...(option('--judges') ? { FROZEN_JUDGE_MODELS: option('--judges') } : {}) };
+  const env = { ...process.env, ...PRODUCTION_CAPABILITIES, [spec.env]: id, ...(effort ? { [`${spec.env}_REASONING`]: effort } : {}), ...(option('--judges') ? { FROZEN_JUDGE_MODELS: option('--judges') } : {}) };
   if (role === 'search') delete env.SERPAPI_API_KEY;
   return env;
 };

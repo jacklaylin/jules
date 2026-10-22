@@ -39,7 +39,7 @@ test('a saved signup texts the owner once, as written, from the operator, to the
  const {res,logs}=await submit({store,send});
  assert.equal(res.statusCode,200);assert.equal(res.data.saved,true);
  assert.equal(sent.length,1);assert.equal(sent[0].target.message.sender.id,'+15550000000');
- assert.equal(sent[0].text,'new signup: Sam R., •••-0123, from podcast. set them up: https://jules.example/admin?view=signups');
+ assert.equal(sent[0].text,'new signup: Sam R., •••-0123, from podcast. enroll them in photon, ask them to text jules first, then approve: https://jules.example/admin');
  assert.doesNotMatch(sent[0].text,/555-?0123|4155550123/);
  const row=store.rows.get('signup-alert:'+body.request_id);
  assert.equal(row.source,'operator');assert.equal(row.status,'sent');assert.equal(row.conversation_id,OWNER);
@@ -93,6 +93,6 @@ test('a failed alert never changes the signup; an owner who texted STOP gets not
 });
 
 test('alert text uses the arrival when there is no ref, and never more than a first name and initial',()=>{
- assert.equal(signupAlertText({phone:'+447700900123',profile:{first_name:'Ana'},arrival:{referrer_host:'tiktok.com'},env}),'new signup: Ana, •••-0123, from tiktok.com. set them up: https://jules.example/admin?view=signups');
- assert.equal(signupAlertText({phone:'+14155550199',env}),'new signup: (no name), •••-0199. set them up: https://jules.example/admin?view=signups');
+ assert.equal(signupAlertText({phone:'+447700900123',profile:{first_name:'Ana'},arrival:{referrer_host:'tiktok.com'},env}),'new signup: Ana, •••-0123, from tiktok.com. enroll them in photon, ask them to text jules first, then approve: https://jules.example/admin');
+ assert.equal(signupAlertText({phone:'+14155550199',env}),'new signup: (no name), •••-0199. enroll them in photon, ask them to text jules first, then approve: https://jules.example/admin');
 });

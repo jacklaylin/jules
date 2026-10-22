@@ -21,7 +21,7 @@ function storage({items=[bought('jeans',200),bought('tee',100)],data={},recent=[
   reserve:async(o,key,body)=>{if(operations.has(key))return false;operations.set(key,{status:'sending',body,conversation_id:o,created_at:sentAt(key)});return true;},
   finish:async(key,status)=>{operations.get(key).status=status;},
   optedOut:false,smsOptedOut:async function(){return this.optedOut;},
-  unpromptedSince:async(o,since)=>[...operations].map(([operation_id,m])=>({operation_id,status:m.status,created_at:m.created_at})).filter(m=>m.created_at>=since)};
+  lastInbound:async()=>null,unpromptedSince:async(o,since)=>[...operations].map(([operation_id,m])=>({operation_id,status:m.status,created_at:m.created_at})).filter(m=>m.created_at>=since)};
 }
 // A ledger row's time: the day in its key (the daily text keys end in a date), at the run's hour.
 const sentAt=key=>{const day=key.match(/\d{4}-\d{2}-\d{2}$/)?.[0];return day?`${day}T17:00:00.000Z`:new Date(NOW).toISOString();};
@@ -78,6 +78,8 @@ test('one text names the new purchase as the email does and offers to find thing
  assert.doesNotMatch(store.sent[0],/[$€£]|\b32\b|stock|ship/i);
  assert.deepEqual(store.row.data.refresh.pending,[]);assert.deepEqual(store.row.data.refresh.announced,['cargo']);
  assert.deepEqual(store.row.data.nudges.log.map(e=>[e.kind,e.status,e.item_ids]),[['goes_with','sent',['cargo']]]);
+ // The offer waits for a reply, naming the item as the email did (lib/goes-with.js).
+ assert.deepEqual([store.row.data.nudges.open.operation,store.row.data.nudges.open.item.name,store.row.data.nudges.open.item.merchant],[`gmail:${OWNER}:purchases:2026-10-18`,'Carhartt WIP Camo Cargo Pants','END.']);
  store.row.data.refresh.pending=['tee'];
  const again=await announcePurchases(store,OWNER,{},{interpret:()=>assert.fail('held before choosing'),send:send(store),now:NOW+3600000});
  assert.deepEqual([again.status,store.sent.length],['held',1]);
@@ -129,6 +131,13 @@ test('the shared rules hold the offer: quiet hours, a price alert today, the wee
  for(const d of [1,3,5])busyWeek.operations.set(`gmail:${OWNER}:fit-check:2026-10-1${8-d}`,{status:'sent',created_at:new Date(NOW-d*DAY).toISOString()});
  assert.equal((await announcePurchases(busyWeek,OWNER,{},{interpret:()=>assert.fail(),send:send(busyWeek),now:NOW})).status,'held');
  assert.equal(busyWeek.row.data.nudges.log[0].reason,'weekly_cap');
+ // Two nudges in a row went unanswered: paused; a message from them since lifts the pause.
+ const ignored=storage({data:pending(),items:[cargos]});
+ for(const d of [6,4])ignored.operations.set(`gmail:${OWNER}:purchases:2026-10-1${8-d}`,{status:'sent',created_at:new Date(NOW-d*DAY).toISOString()});
+ assert.equal((await announcePurchases(ignored,OWNER,{},{interpret:()=>assert.fail(),send:send(ignored),now:NOW})).status,'held');
+ assert.equal(ignored.row.data.nudges.log.at(-1).reason,'ignored_backoff');assert.deepEqual(ignored.row.data.refresh.pending,['cargo']);
+ ignored.lastInbound=async()=>new Date(NOW-DAY).toISOString();
+ assert.equal((await announcePurchases(ignored,OWNER,{},{interpret:pick({send:true,lead_item_id:'cargo'}),send:send(ignored),now:NOW})).status,'sent');
  const stopped=storage({data:pending(),items:[cargos]});stopped.optedOut=true;
  assert.equal((await announcePurchases(stopped,OWNER,{},{interpret:()=>assert.fail(),send:send(stopped),now:NOW})).status,'opted_out');
  assert.deepEqual([stopped.sent.length,stopped.row.data.refresh.pending],[0,[]]);
@@ -146,6 +155,8 @@ test('an admin test nudge goes only to the designated test conversation, labelle
  assert.deepEqual([first.status,second.status],['sent','sent']);
  assert.equal(store.sent.length,2);assert.ok(store.sent.every(b=>b.startsWith(TEST_LABEL)&&b.includes('Item jeans')));
  assert.deepEqual(store.row.data.nudges.log.map(e=>[e.status,e.test]),[['sent',true],['sent',true]]);
+ // A test offer opens like a real one, so a reply goes down the same path.
+ assert.deepEqual([store.row.data.nudges.open.test,store.row.data.nudges.open.item.id],[true,'jeans']);assert.match(store.row.data.nudges.open.operation,/^nudge-test:/);
  // Test texts never count toward the person's limits.
  assert.equal([...store.operations.keys()].filter(k=>k.startsWith('gmail:')).length,0);
 });

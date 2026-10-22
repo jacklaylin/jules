@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Jules admin · People</title><meta name="robots" content="noindex"><link rel="stylesheet" href="/design-system.css"><link rel="stylesheet" href="/admin.css">
-  <script src="/admin.js" type="module"></script><link rel="modulepreload" href="/admin-console.js"><link rel="modulepreload" href="/design-system.js"><link rel="modulepreload" href="/brand-ui.js"><link rel="modulepreload" href="/activity.js"><link rel="modulepreload" href="/wishlist-session.js"><link rel="modulepreload" href="/admin-session.js"><link rel="modulepreload" href="/admin-review.js"><link rel="modulepreload" href="/admin-people-view.js"><link rel="modulepreload" href="/signup-phone.js">
+  <script src="/admin.js" type="module"></script><link rel="modulepreload" href="/admin-console.js"><link rel="modulepreload" href="/design-system.js"><link rel="modulepreload" href="/brand-ui.js"><link rel="modulepreload" href="/activity.js"><link rel="modulepreload" href="/wishlist-session.js"><link rel="modulepreload" href="/admin-session.js"><link rel="modulepreload" href="/admin-review.js"><link rel="modulepreload" href="/admin-people-view.js">
 <link rel="icon" href="/brand/icon.svg" type="image/svg+xml"></head>
 <body class="admin-console">
   <main>
@@ -31,7 +31,7 @@
     <div class="dv-status"><span id="metrics-note"></span><span id="notice" role="status" aria-live="polite"></span><span id="people-keys" class="dv-keys" aria-hidden="true"><span class="kbd">J</span><span class="kbd">K</span> move <span class="kbd">↵</span> open</span></div>
     <div id="people" class="dv-list people-list" aria-label="People"></div>
     <div id="signups" class="dv-list signups-list" aria-label="New signups" hidden></div>
-    <p id="signups-note" class="dv-note" hidden>Signups whose number has no conversation yet. Enroll the number in Photon first, then click Set up and enter the line Photon assigned them.</p>
+    <p id="signups-note" class="dv-note" hidden>People who signed up but haven’t texted Jules yet. Photon only lets Jules text someone after they’ve texted first, so for each one: enroll their number in Photon, ask them to text their Jules line, then find them under Testers and click Approve. Approving sets up their account and texts the welcome.</p>
   </main>
   <dialog id="access-dialog" class="confirm-dialog" aria-labelledby="access-title">
     <h2 id="access-title">Change waitlist status?</h2>
@@ -39,18 +39,6 @@
     <div id="access-lines"></div>
     <p id="access-error" class="error" role="alert" hidden></p>
     <div class="dialog-actions"><button id="access-confirm" class="btn--butter" type="button">Confirm</button><button id="access-cancel" type="button">Cancel</button></div>
-  </dialog>
-  <dialog id="setup-dialog" class="confirm-dialog" aria-labelledby="setup-title">
-    <form id="setup-form" method="dialog" novalidate>
-      <h2 id="setup-title">Set up this tester?</h2>
-      <p><strong id="setup-person">This person</strong></p>
-      <label for="setup-line">Their Photon line</label>
-      <input id="setup-line" type="tel" inputmode="tel" autocomplete="off" maxlength="32" placeholder="+1 415 555 0100" aria-describedby="setup-line-error">
-      <p id="setup-line-error" class="error" hidden></p>
-      <div id="setup-lines"></div>
-      <p id="setup-error" class="error" role="alert" hidden></p>
-      <div class="dialog-actions"><button id="setup-confirm" class="btn--butter" type="submit">Set up</button><button id="setup-cancel" type="button">Cancel</button></div>
-    </form>
   </dialog>
 </body>
 </html>

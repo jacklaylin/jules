@@ -9,7 +9,7 @@ import { accessResult, approvalLines } from '../public/admin-people-view.js';
 // (sign-in user, member row, onboarding invite) and texts the onboarding welcome once.
 const id = '00000000-0000-4000-8000-0000000000f1';
 const conversation = { id, sender_id: 'synthetic-sender', line: 'synthetic-line' };
-const env = { SITE_ORIGIN: 'https://jules.example', SUPABASE_URL: 'https://db.example', SUPABASE_SERVICE_ROLE_KEY: 'synthetic-key', WAITLIST_ENABLED: 'true', ONBOARDING_ENABLED: 'true', GMAIL_IMPORT_ENABLED: 'true', SELF_SERVE_ONBOARDING_ENABLED: 'true' };
+const env = { SITE_ORIGIN: 'https://jules.example', SUPABASE_URL: 'https://db.example', SUPABASE_SERVICE_ROLE_KEY: 'synthetic-key', WAITLIST_ENABLED: 'true', ONBOARDING_ENABLED: 'true', GMAIL_IMPORT_ENABLED: 'true', SELF_SERVE_ONBOARDING_ENABLED: 'true', CONTACT_CARD_ENABLED: 'true' };
 
 function world({ member = null, session = null, access = 'waitlisted' } = {}) {
   const state = { access, member, session, ledger: new Map(), sent: [], users: [] };

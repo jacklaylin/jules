@@ -1,10 +1,9 @@
 import {mountAdminShell,adminJson,anchorMenus} from './admin-console.js';
 import {browseKey} from './admin-review.js';
-import {filterPeople,accessSegments,accessChange,accessResult,ago,countLine,metricCells,metricsNote,filterSignups,setupLines,setupResult} from './admin-people-view.js';
-import {normalizeSignupPhone} from './signup-phone.js';
+import {filterPeople,accessSegments,accessChange,accessResult,ago,countLine,metricCells,metricsNote,filterSignups} from './admin-people-view.js';
 import {closeDialog} from './design-system.js';
 // Admin › People: the list of testers as a data view. The name opens the person page; Status changes waitlist access in place.
-// New signups lists signups with no conversation yet; Set up saves their Photon line and approves them.
+// New signups lists people who signed up but haven't texted Jules yet; their first text moves them to Testers.
 mountAdminShell('people');
 anchorMenus();
 const $ = id => document.getElementById(id);
@@ -54,14 +53,13 @@ function render() {
 function renderSignups() {
   $('people-access').hidden = true;
   const shown = filterSignups(signups, $('people-search').value);
-  const head = el('div', { className: 'dv-head', ariaHidden: 'true' }, el('span', { textContent: 'Name' }), el('span', { textContent: 'Phone' }), el('span', { textContent: 'Signed up' }), el('span', { className: 'end' }));
+  const head = el('div', { className: 'dv-head', ariaHidden: 'true' }, el('span', { textContent: 'Name' }), el('span', { textContent: 'Phone' }), el('span', { textContent: 'Signed up' }));
   $('signups').replaceChildren(head, ...shown.map(signup => el('div', { className: 'dv-row' },
     el('span', { className: 'signup-name' }, signup.name ? el('strong', { textContent: signup.name }) : el('span', { className: 'muted', textContent: 'No name' }),
       el('span', { className: 'muted signup-sub', textContent: `${signup.phone} · ${ago(signup.signed_up_at)}` })),
     el('span', { className: 'muted', textContent: signup.phone }),
-    el('span', { className: 'muted', textContent: ago(signup.signed_up_at), title: exact(signup.signed_up_at) }),
-    el('button', { type: 'button', className: 'small quiet', textContent: 'Set up', ariaLabel: `Set up ${signup.name ?? signup.phone}`, onclick: () => confirmSetup(signup) }))));
-  if (!shown.length) $('signups').append(el('p', { className: 'dv-empty', textContent: loading ? 'Loading…' : signupsFailed ? '' : !signups.length ? 'Nobody is waiting to be set up.' : 'No signups match this search.' }));
+    el('span', { className: 'muted', textContent: ago(signup.signed_up_at), title: exact(signup.signed_up_at) }))));
+  if (!shown.length) $('signups').append(el('p', { className: 'dv-empty', textContent: loading ? 'Loading…' : signupsFailed ? '' : !signups.length ? 'Nobody is waiting: everyone who signed up has texted Jules.' : 'No signups match this search.' }));
   $('people-count').textContent = signups.length || refreshedAt ? `${shown.length === signups.length ? '' : `${shown.length} of `}${signups.length} ${signups.length === 1 ? 'signup' : 'signups'}` : '';
   $('notice').className = signupsFailed ? 'error' : '';
   $('notice').textContent = signupsFailed || done;
@@ -71,37 +69,6 @@ for (const button of $('people-views').querySelectorAll('button')) button.onclic
   if (view) url.searchParams.set('view', view); else url.searchParams.delete('view');
   history.replaceState(null, '', url); render();
 };
-let setupPending = null;
-function confirmSetup(signup) {
-  setupPending = signup;
-  $('setup-title').textContent = `Set up ${signup.name ?? 'this tester'}?`;
-  $('setup-person').textContent = `${signup.name ? `${signup.name} · ` : ''}${signup.phone} · signed up ${ago(signup.signed_up_at)}`;
-  $('setup-lines').replaceChildren(...setupLines(waitlist.approvalText, waitlist.approvalAccount).map(line => el('p', { textContent: line })));
-  $('setup-confirm').textContent = waitlist.approvalText ? 'Set up and text them' : 'Set up';
-  $('setup-line').value = ''; lineError(''); $('setup-error').hidden = true;
-  $('setup-dialog').showModal(); $('setup-line').focus();
-}
-function lineError(message) {
-  $('setup-line-error').textContent = message; $('setup-line-error').hidden = !message;
-  if (message) $('setup-line').setAttribute('aria-invalid', 'true'); else $('setup-line').removeAttribute('aria-invalid');
-}
-$('setup-line').oninput = () => lineError('');
-$('setup-cancel').onclick = () => closeDialog($('setup-dialog'));
-$('setup-form').onsubmit = async event => {
-  event.preventDefault();
-  const line = normalizeSignupPhone($('setup-line').value);
-  if (!line) { lineError('Enter the line Photon assigned them as a phone number, with + and the country code outside the US or Canada.'); $('setup-line').focus(); return; }
-  const signup = setupPending, label = $('setup-confirm').textContent, buttons = [$('setup-confirm'), $('setup-cancel')];
-  buttons.forEach(b => { b.disabled = true; }); $('setup-confirm').textContent = 'Setting up…'; $('setup-error').hidden = true;
-  try {
-    const data = await adminJson('/api/admin', { method: 'POST', body: JSON.stringify({ action: 'set-up', signup: signup.signup, line, confirm: true }) });
-    done = `${signup.name ?? signup.phone}: ${setupResult(data)}`;
-    signups = signups.filter(s => s !== signup);
-    closeDialog($('setup-dialog')); render(); load();
-  } catch (error) { $('setup-error').textContent = error.message; $('setup-error').hidden = false; }
-  finally { buttons.forEach(b => { b.disabled = false; }); $('setup-confirm').textContent = label; }
-};
-
 // ---------- Waitlist status ----------
 // A compact select per row; a change asks for confirmation (approving texts them) before anything is saved.
 // Where a signup came from: the ?ref= code, or the person whose shared style report they signed up from.
@@ -149,7 +116,7 @@ async function load() {
   loading = true; failed = ''; signupsFailed = ''; render();
   // The signup list is its own read: if it fails, Testers still loads.
   const pendingSignups = adminJson('/api/admin?view=signups').then(data => { signups = data.signups; }, error => { signupsFailed = `Could not load new signups: ${error.message} Try Refresh in More.`; });
-  try { const data = await adminJson('/api/admin'); people = data.conversations; waitlist = { allowance: data.waitlist_replies ?? 3, approvalText: data.approval_text ?? null, approvalAccount: data.approval_account === true }; refreshedAt = Date.now(); }
+  try { const data = await adminJson('/api/admin'); people = data.conversations; waitlist = { allowance: data.waitlist_replies ?? 3, approvalText: data.approval_text ?? null, approvalAccount: data.approval_account === true, contactCard: data.contact_card_enabled === true }; refreshedAt = Date.now(); }
   catch (error) { failed = `Could not load people: ${error.message} Try Refresh in More.`; }
   finally { await pendingSignups; loading = false; render(); }
 }

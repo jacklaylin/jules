@@ -20,15 +20,15 @@ import { referralRef } from '../lib/referral.js';
 import { firstName } from '../lib/memory.js';
 import { copyWeek } from '../lib/report-copy.js';
 import { adoptionReport } from '../lib/adoption.js';
-import { resendContactCard } from '../lib/onboarding.js';
+import { resendContactCard, resendWelcome, resendWelcomeText, contactCardEnabled } from '../lib/onboarding.js';
 import { compareEmail, sampleSources, COMPARE_MODELS } from '../lib/extract-compare.js';
 import { gmailReconnectNeeded } from '../lib/gmail-client.js';
 import { rereadImage } from '../lib/image-reread.js';
 import { approveAccess, approvalPreview, waitlistAgain, WAITLIST_REPLIES } from '../lib/waitlist.js';
 import { profileFirstName, displayName } from '../lib/memory.js';
-import { setUpTester, signupsToSetUp } from '../lib/tester-setup.js';
+import { signupsWaiting } from '../lib/new-signups.js';
 import { goesWithCandidates, sendTestNudge, nudgeTestConversation, purchaseTextsOn } from '../lib/purchase-texts.js';
-import { nudgeTimezone } from '../lib/nudges.js';
+import { nudgeTimezone, nudgeSummary } from '../lib/nudges.js';
 
 export const config = { api: { bodyParser: false }, maxDuration: 30 };
 // Owner view. Conversations are read-only (Jules replies automatically); the owner can review and
@@ -42,24 +42,17 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
       if (req.method === 'POST') {
         // The only writes are purchase-history reviews, tagging, the onboarding reset, waitlist approval, setting up a new tester and texting the contact card, re-reading a failed photo; manual replies stay retired.
         const input = await readJson(req);
-        if (!['review', 'missed', 'tag', 'build-report', 'send-report', 'reset-onboarding', 'approve', 'waitlist', 'send-contact-card', 'start-interview', 'reread-image', 'judge-mark', 'replay-draft', 'extract-compare', 'set-up', 'send-test-nudge'].includes(input.action)) return json(res, 400, { error: 'Unknown purchase action.' });
+        if (!['review', 'missed', 'tag', 'build-report', 'send-report', 'reset-onboarding', 'approve', 'waitlist', 'send-contact-card', 'start-interview', 'reread-image', 'judge-mark', 'replay-draft', 'extract-compare', 'send-test-nudge', 'resend-welcome'].includes(input.action)) return json(res, 400, { error: 'Unknown purchase action.' });
         if (input.action === 'judge-mark' && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Mark the judge from the Jules admin page.' });
         if (['approve', 'waitlist'].includes(input.action) && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Change waitlist status from the Jules admin page.' });
         if (input.action === 'extract-compare' && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Run the comparison from the Jules admin page.' });
         if (input.action === 'reset-onboarding' && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Reset onboarding from the Jules admin page.' });
         if (input.action === 'start-interview' && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Send style questions from the Jules admin page.' });
+        if (input.action === 'resend-welcome' && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Resend the welcome from the Jules admin page.' });
         if (input.action === 'send-contact-card' && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Send the contact card from the Jules admin page.' });
         if (input.action === 'reread-image' && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Re-read photos from the Jules admin page.' });
         if (input.action === 'send-test-nudge' && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Send test nudges from the Jules admin page.' });
-        if (input.action === 'set-up' && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Set up testers from the Jules admin page.' });
         const store = storeFactory(env);
-        // A new signup has no conversation yet: this creates it on the line the owner typed, then approves (lib/tester-setup.js).
-        if (input.action === 'set-up') {
-          if (input.confirm !== true) throw Object.assign(new Error('Confirm the setup first.'), { status: 400 });
-          if (!uuid(input.signup)) return json(res, 404, { error: 'This signup is no longer there. Refresh and try again.' });
-          try { return json(res, 200, await setUpTester(store, input, env, send, fetcher)); }
-          catch (error) { if (error.status === 404) return json(res, 404, { error: error.message }); throw error; }
-        }
         if (!uuid(input.conversation) || !await store.conversation(input.conversation)) return json(res, 404, { error: 'Conversation not found.' });
         if (input.action === 'reset-onboarding') return json(res, 200, await resetOnboarding(store, input, env, fetcher));
         // Model bake-off (MODEL-BAKEOFF.md): one sampled receipt email read by each candidate extract
@@ -90,6 +83,13 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
           console.log(JSON.stringify({ event: 'admin_contact_card', status }));
           if (status === 'skipped') throw Object.assign(new Error('This person’s line isn’t a phone number; set JULES_PUBLIC_LINE in Vercel so the card has Jules’s number.'), { status: 409 });
           return json(res, 200, { contact_card: status });
+        }
+        // Texts the onboarding welcome again on purpose, as its own ledger entry (lib/onboarding.js).
+        if (input.action === 'resend-welcome') {
+          if (input.confirm !== true) throw Object.assign(new Error('Confirm resending the welcome first.'), { status: 400 });
+          const result = await resendWelcome(store, await store.conversation(input.conversation), env, send);
+          console.log(JSON.stringify({ event: 'admin_welcome_resent', welcome: result.welcome, contact_card: result.contact_card ?? null }));
+          return json(res, 200, result);
         }
         // The "goes with" offer about one wardrobe item, to the designated test conversation only (lib/purchase-texts.js).
         if (input.action === 'send-test-nudge') {
@@ -148,9 +148,11 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
       if (query.get('view') === 'feedback') return json(res, 200, { feedback: await store.feedback() });
       // The style report jokes loop: this week's best and worst lines, and each prompt version's votes.
       if (query.get('view') === 'report-copy') return json(res, 200, copyWeek(await store.reportCopyRows()));
-      // New signups with no conversation yet, to set up (lib/tester-setup.js). Phones are masked to the last four digits.
-      if (query.get('view') === 'signups') return json(res, 200, { signups: await signupsToSetUp(store), approval_text: approvalPreview(env)?.text ?? null, approval_account: approvalPreview(env)?.account ?? false });
+      // New signups who haven't texted Jules yet (lib/new-signups.js). Phones are masked to the last four digits.
+      if (query.get('view') === 'signups') return json(res, 200, { signups: await signupsWaiting(store) });
       if (query.get('view') === 'adoption') return json(res, 200, await adoptionReport(store));
+      // Unprompted texts across testers (lib/nudges.js): sends, holds, replies. Loaded on its own so a failure leaves Adoption as it is.
+      if (query.get('view') === 'nudges-summary') return json(res, 200, nudgeSummary(await store.nudgeLogs()));
       if (query.get('view') === 'metrics') return json(res, 200, await metricsTrend(store, { days: 7 }));
       // Per sourcing turn outcomes (lib/turn-outcomes.js): ids, counts and labels only, no message text.
       if (query.get('view') === 'scorecard') return json(res, 200, await loadScorecard(store));
@@ -175,7 +177,7 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
         return json(res, 200, { conversations: conversations.map(c => {
           const status = statuses.get(c.id), source = sources.get(c.sender_id) ?? null, sharer = source ? sharers.get(source) : null;
           return { ...c, name: names.get(c.id), source, arrival: arrivals.get(c.sender_id) ?? null, referred_by: sharer && sharer !== c.id ? { id: sharer, name: names.get(sharer) ?? null } : null, access: status?.access ?? null, waitlist_replies: status?.waitlist_replies ?? null };
-        }), waitlist_enabled: env.WAITLIST_ENABLED === 'true', waitlist_replies: WAITLIST_REPLIES, approval_text: approvalPreview(env)?.text ?? null, approval_account: approvalPreview(env)?.account ?? false });
+        }), waitlist_enabled: env.WAITLIST_ENABLED === 'true', waitlist_replies: WAITLIST_REPLIES, approval_text: approvalPreview(env)?.text ?? null, approval_account: approvalPreview(env)?.account ?? false, contact_card_enabled: contactCardEnabled(env) });
       }
       if (!uuid(id)) return json(res, 400, { error: 'Invalid conversation.' });
       const conversation = await store.conversation(id);
@@ -199,9 +201,11 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
         if (!uuid(before?.id) || !/^\d{4}-\d{2}-\d{2}T[\d:.]+(?:Z|\+00:00)$/.test(before.at ?? '')) return json(res, 400, { error: 'Invalid history cursor.' });
       }
       // Onboarding state, the "Not now" tap and the reminder (db/046); unknown (null) before that migration runs.
+      // resend_welcome: the exact text Resend welcome would send, only while it's offered.
       const [history, waitlist, onboarding] = await Promise.all([store.messages(id, before), before ? null : store.accessFor([id]).then(m => m.get(id) ?? null).catch(() => null),
         before ? null : Promise.resolve(store.onboardingOverview?.(id)).catch(() => null)]);
-      return json(res, 200, { conversation, ...history, ...(before ? {} : { access: waitlist, onboarding: onboarding ?? null, approval_text: approvalPreview(env)?.text ?? null, approval_account: approvalPreview(env)?.account ?? false }) });
+      const resend = onboarding ? await resendWelcomeText(store, id, env, onboarding.state).catch(() => null) : null;
+      return json(res, 200, { conversation, ...history, ...(before ? {} : { access: waitlist, onboarding: onboarding ?? null, resend_welcome: resend, contact_card_enabled: contactCardEnabled(env), approval_text: approvalPreview(env)?.text ?? null, approval_account: approvalPreview(env)?.account ?? false }) });
     } catch (error) {
       console.error(JSON.stringify({ event: 'admin_request_failed', status: error.status ?? null }));
       // Review validation and busy-lease messages are written for the owner; everything else is generic.
@@ -242,6 +246,6 @@ async function personWishlist(store, id, env) {
 async function nudgeView(store, id, env) {
   const row = await store.gmailImport(id), test = Boolean(nudgeTestConversation(env)) && nudgeTestConversation(env) === id;
   return { log: [...(row?.data?.nudges?.log ?? [])].reverse(), texts_on: purchaseTextsOn(row?.data), timezone: nudgeTimezone(row?.data), test_delivery: test,
-    candidates: test ? (await goesWithCandidates(store, id)).map(({ facts, ...item }) => item) : [] };
+    candidates: test ? (await goesWithCandidates(store, id)).map(({ facts, raw, ...item }) => item) : [] };
 }
 export default createAdminHandler();

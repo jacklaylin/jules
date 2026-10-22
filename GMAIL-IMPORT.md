@@ -323,3 +323,19 @@ The daily purchase text is now one offer: "saw your new <item> from <store> in y
 - **Admin test.** Person page › **Purchase nudges…**. It needs `PRICE_ALERT_TEST_CONVERSATION_ID` (already set for price alerts) to be the person's conversation.
 
 No setup and no database migration are needed.
+
+## October 21 update: replies to the "goes with" offer (step 2)
+
+- **Open offer.** A sent offer (real or admin test) is kept as `data.nudges.open`: the ledger operation, when it went out, and the item as the purchase named it (`lib/goes-with.js`). It counts only while its text is `sent` in the ledger and for 48 hours. Each turn reads it with `store.nudgeState` (just `data->nudges`, not the purchase history).
+- **The agent.** While an offer is open, the agent sees `goes_with_offer` and is offered `answer_goes_with_offer` (accepted / declined / not_now), which doesn't reply on its own. Accepted returns a brief, and the agent then calls `find_products` in the same turn. The search is for other kinds of pieces that go with the item, in saved sizes, never the bought size as a general size. No new search path; the usual ranking and store rules apply.
+- **Outcome.** The first reply settles the offer once (`settleOffer`) after the reply is written, in the background. Its source is the agent's answer, else `stopped` when purchase texts were turned off, else an independent model reading for the log only (`readOfferReply`, feature `chat`). If the reading fails, the outcome is `unrelated` (source `fallback`). Logs: `nudge` with status `replied`, the outcome as reason, `source` and `replied_after_ms`. Admin › Purchase nudges… shows them.
+- **Evals.** There are 8 multi-turn cases in the `goes_with` agent category: yes, yes with their own brief, "what would go with them", no, not now, an unrelated request, a gift correction and stop. All passed 3 of 3 against the real model (24/24), and the purchase_texts cases still pass (21/21). The reader classified 7 of 7 sample replies correctly.
+
+No setup and no database migration are needed.
+
+## October 21 update: back-off and the nudge overview (step 3)
+
+- **Back-off.** `lib/nudges.js` `backoffUntil`: take the nudges (offers and fit checks; not price alerts, not test texts, not failed sends) sent since the person's last message. With 2 or more, and the newest at least 2 days old, nudges pause until 16 days after the newest (2 days to reply plus 14). Any message from the person ends it. The check reads the last inbound message (`store.lastInbound`) and 20 days of the ledger. Held offers keep their purchases pending, as with the other holds, so a purchase still within 7 days can go out once the pause ends. Logged as `held` / `ignored_backoff`.
+- **Overview.** Admin › Adoption › Purchase nudges reads every row's `data.nudges` (`store.nudgeLogs`, `view=nudges-summary`, `nudgeSummary`). It shows totals (offers, answered %, yes %, no reply), a row per tester, and recent decisions. It loads on its own, so a failure only hides that section.
+
+No setup and no database migration are needed.

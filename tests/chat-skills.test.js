@@ -12,6 +12,7 @@ import { PURCHASE_HISTORY_TOOL } from '../lib/receipt-chat.js';
 import { OUTFIT_PHOTOS_TOOL } from '../lib/outfit-photos.js';
 import { PURCHASE_TEXTS_TOOL } from '../lib/purchase-texts.js';
 import { SCREENSHOT_PRODUCTS_TOOL } from '../lib/screenshot-products.js';
+import { GOES_WITH_TOOL } from '../lib/goes-with.js';
 
 // The prompt as it was before the split into skills (October 21, 2026). A skill migration changes
 // its own rules on purpose: update this fixture in that PR, so the review shows the prompt diff.
@@ -31,7 +32,7 @@ test('every rule has one place in the prompt and one skill', () => {
 
 test('every chat tool belongs to a skill, and the router can read each job', () => {
   const tools = [FIND_PRODUCTS_TOOL, ASK_SHOPPING_QUESTION_TOOL, RESPOND_TO_OPTIONS_TOOL, SAVE_TO_WISHLIST_TOOL, MANAGE_PRICE_ALERTS_TOOL, WISHLIST_PURCHASE_TOOL, WISHLIST_STATUS_TOOL, CHECKOUT_TOOL, QUALITY_SIGNAL_TOOL, CONVERSATION_TOOL,
-    LIKED_ITEMS_TOOL, STYLE_INTERVIEW_TOOL, ORDER_SCREENSHOT_TOOL, PROFILE_TOOL, PROFILE_STATUS_TOOL, ONBOARDING_TOOL, PURCHASE_HISTORY_TOOL, OUTFIT_PHOTOS_TOOL, PURCHASE_TEXTS_TOOL, SCREENSHOT_PRODUCTS_TOOL].map(t => t.name);
+    LIKED_ITEMS_TOOL, STYLE_INTERVIEW_TOOL, ORDER_SCREENSHOT_TOOL, PROFILE_TOOL, PROFILE_STATUS_TOOL, ONBOARDING_TOOL, PURCHASE_HISTORY_TOOL, OUTFIT_PHOTOS_TOOL, PURCHASE_TEXTS_TOOL, SCREENSHOT_PRODUCTS_TOOL, GOES_WITH_TOOL].map(t => t.name);
   const owned = new Set(SKILLS.flatMap(s => s.tools));
   assert.deepEqual(tools.filter(name => !owned.has(name)), []);
   assert.deepEqual([...owned].filter(name => !tools.includes(name)), []);
