@@ -135,3 +135,19 @@ test('a consent check that fails twice is recorded as failed, not as a refusal',
   assert.equal(t.commits, 0);
   assert.deepEqual(t.consents, [{ tool:'save_to_wishlist', failed:'Consent check failed', allowed:false }]);
 });
+
+// SPEED.md change 6 (October 22): the named options' photos start loading while consent is checked;
+// that is read-only, so a refused save still saves nothing.
+test('a save names its options for photo loading before the consent check answers, and a refusal still saves nothing', async () => {
+  for (const authorizes of [true, false]) {
+    const order = [];
+    const t = turn({ rounds:[[tool('save_to_wishlist', { option_indices:[0], consent_context:'explicit_request' })],
+      [reply(authorizes ? 'saved the cardigan to your wishlist.' : 'want me to save it?', { saved_now:authorizes })]],
+      reading:body => { order.push('consent'); return consentReply(authorizes ? asksToSave : { ...asksToSave, newest_message_asks_for:['question_or_comment'], asks_itself:false, authorizes:false }); },
+      state:{ stage:'choice', options:[cardigan] } });
+    t.memory.prepareSave = products => order.push('prepare:' + products.map(p => p.url).join(','));
+    await generateReply([sent('here’s the Drake’s cardigan.'), inbound(authorizes ? 'save it' : 'nice')], env, t.fetcher, t.memory);
+    assert.deepEqual(order.slice(0, 2), ['prepare:' + url, 'consent']);
+    assert.equal(t.commits, authorizes ? 1 : 0);
+  }
+});
