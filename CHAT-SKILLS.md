@@ -194,7 +194,7 @@ The prompt grew because a fix was usually "add a sentence". From now on:
 - **The budget never drops a needed rule** (founder, October 21). Before a rule is deleted, check the commit and feedback that added it (the inventory lists them). If it guards a real past failure that no eval case covers, add the case first. If a skill still needs more than 150 words, raise that skill's cap in its file (`word_cap: {words, reason}`) or split the skill; the raise shows in the PR for the founder to see. A test checks that every raise has a reason.
 - No rule appears in more than one place. If a field description says it, the prompt doesn't.
 
-The `feedback-triage` agent instructions would get these three lines when PR 1 lands.
+These rules, the eval gate and a word-budget ratchet on all chat instructions now live in [CHAT-DEVELOPMENT.md](CHAT-DEVELOPMENT.md) (October 22), which the `feedback-triage` agent follows.
 
 ## 7. Founder decisions (October 21, 2026)
 

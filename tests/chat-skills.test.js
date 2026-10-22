@@ -52,3 +52,30 @@ test('migrated skills keep the rule budget', () => {
   const texts = SKILLS.filter(s => s.migrated).flatMap(s => s.rules.map(([, text]) => text.trim()));
   assert.equal(new Set(texts).size, texts.length);
 });
+
+// Ratchet on everything the chat model reads as instructions (CHAT-DEVELOPMENT.md, October 22, 2026):
+// the prompt blocks, the feature guides loaded from app state, and the tool and field descriptions.
+// Each part stays within its budget in tests/fixtures/chat-prompt-budget.json. Growing a part needs a
+// raise with a reason (it shows in the PR); shrinking one needs the budget lowered in the same PR.
+const budgetFile = JSON.parse(fs.readFileSync(new URL('./fixtures/chat-prompt-budget.json', import.meta.url), 'utf8'));
+const GUIDE_MODULES = ['outfit-photos', 'liked-items', 'receipt-chat', 'purchase-texts', 'waitlist', 'order-screenshots', 'memory', 'goes-with', 'screenshot-products'];
+const TOOL_MODULES = ['ai', ...GUIDE_MODULES, 'interview', 'onboarding'];
+const countWords = s => String(s).split(/\s+/).filter(Boolean).length;
+const descriptionWords = o => !o || typeof o !== 'object' ? 0 : Object.entries(o).reduce((n, [k, v]) => n + (k === 'description' && typeof v === 'string' ? countWords(v) : descriptionWords(v)), 0);
+const exportsOf = async names => (await Promise.all([...new Set(names)].map(m => import(`../lib/${m}.js`)))).flatMap(mod => Object.entries(mod));
+const SLACK = 25;
+test('chat instructions stay within their word budget', async () => {
+  const guides = (await exportsOf(GUIDE_MODULES)).filter(([k, v]) => /GUIDE/.test(k) && typeof v === 'string');
+  const tools = new Map((await exportsOf(TOOL_MODULES)).filter(([k, v]) => /_TOOL$/.test(k) && v && typeof v === 'object'));
+  const current = {
+    prompt_blocks: Object.values(PROMPT_BLOCKS).reduce((n, s) => n + countWords(s), 0),
+    feature_guides: guides.reduce((n, [, s]) => n + countWords(s), 0),
+    tool_descriptions: [...tools.values()].reduce((n, t) => n + descriptionWords(t), 0),
+  };
+  for (const r of budgetFile.raises) assert.ok(r.part in current && Number.isInteger(r.words) && r.words > 0 && typeof r.reason === 'string' && r.reason.trim().length >= 20, 'a raise names a part, its words and a reason');
+  for (const [part, words] of Object.entries(current)) {
+    const allowed = budgetFile.budget[part] + budgetFile.raises.filter(r => r.part === part).reduce((n, r) => n + r.words, 0);
+    assert.ok(words <= allowed, `${part}: ${words} words, budget ${allowed}. Cut or merge a rule, prefer a code check or structured field, or add a raise with a reason.`);
+    assert.ok(words >= allowed - SLACK, `${part}: ${words} words, budget ${allowed}. Lower the budget to ${words} (and drop spent raises) so the cut stays cut.`);
+  }
+});
