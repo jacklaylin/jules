@@ -105,6 +105,17 @@ test('price ranges use sourced snapshots and never blend currencies or invent mi
  groups=groupWishlist([...rows,{...rows[0],links:[{url:'https://shop.example.com/CHF'}],price_snapshot:{amount:600,currency:'CHF',source_url:'https://shop.example.com/CHF',checked_at:'today'}}]);assert.equal(groups[0].price_ranges.length,2);
  assert.deepEqual(groupWishlist([{...rows[0],price_snapshot:{...rows[0].price_snapshot,source_url:'https://wrong.example.com'}}])[0].price_ranges,[]);
 });
+test('each saved item carries its wardrobe category, only while its tag still matches the item',async()=>{
+ const {wishlistTagFingerprint}=await import('../lib/wishlist-tag-key.js');
+ const row=(n,name,group)=>{const r={reply_id:id,source_image_id:null,item_id:`${id.slice(0,-1)}${n}`,target:name,name,brand:'Example',links:[{url:`https://shop.example.com/${n}`}]};return group?{...r,tag:{group,fp:wishlistTagFingerprint(r)}}:r;};
+ const rows=[row(3,'Derby shoes','shoes'),row(4,'Flannel overshirt','shirts'),row(5,'Wool coat',null),{...row(6,'Linen trousers','trousers'),name:'Renamed after tagging'}];
+ const handler=createWishlistHandler({env,auth:async()=>({status:200,conversation:id}),storeFactory:()=>({wishlistEntries:async()=>rows})});
+ const res=response();await handler(request(),res);
+ const items=JSON.parse(res.value).items;
+ // Tag groups are shown as the wardrobe's categories; a missing or stale tag is no category.
+ assert.deepEqual(Object.fromEntries(items.map(i=>[i.name,i.category])),{'Example Derby shoes':'shoes','Example Flannel overshirt':'tops','Example Wool coat':null,'Example Renamed after tagging':null});
+ assert.equal(items.some(i=>'tag_group' in i),false);
+});
 test('group detail and list use metadata only and remain scoped to the authenticated conversation',async()=>{
  const {groupWishlist}=await import('../lib/wishlist.js');
  const rows=[{reply_id:id,source_image_id:other,item_id:id,target:'jacket',name:'Jacket',links:[{url:product.url}],has_image:'image/jpeg'}];
