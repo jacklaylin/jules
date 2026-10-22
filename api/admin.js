@@ -1,12 +1,11 @@
 // Loads first so the cost meter wraps fetch before any handler below keeps a reference to it.
 import '../lib/usage.js';
 import { lowStockSummary } from '../lib/low-stock.js';
-import { readCoverage } from '../lib/coverage.js';
-import { readUserContext } from '../lib/user-context.js';
 import { knowledgeView } from '../lib/person-knowledge.js';
 import { tagWishlist } from '../lib/wishlist-tags.js';
 import { adminStartInterview } from '../lib/interview.js';
-import { personSummary } from '../lib/person-summary.js';
+import { summaryOf } from '../lib/person-summary.js';
+import { readCoverage, readTasteInputs } from '../lib/coverage.js';
 import { personAdoption } from '../lib/person-adoption.js';
 import { authorize } from '../lib/auth.js';
 import { createStore } from '../lib/store.js';
@@ -40,8 +39,10 @@ export const config = { api: { bodyParser: false }, maxDuration: 30 };
 // correct imported purchase history.
 export function createAdminHandler({ auth = authorize, storeFactory = createStore, env = process.env, fetcher = fetch, send } = {}) {
   return async (req, res) => {
+    const started = performance.now();
     try {
       const access = await auth(req.headers, env);
+      const authMs = performance.now() - started;
       if (access !== 200) return json(res, access, { error: access === 503 ? 'Admin is not configured yet.' : 'Please sign in with the owner account.' });
       if (!['GET','POST'].includes(req.method)) { res.setHeader('Allow', 'GET, POST'); return json(res, 405, { error: 'Method not allowed.' }); }
       if (req.method === 'POST') {
@@ -148,6 +149,7 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
         return json(res, 200, await purchaseReview(store, input.conversation));
       }
       const query = new URL(req.url, 'https://local.invalid').searchParams;
+      timeView(res, viewName(query), started, authMs);
       if (query.get('view') === 'access') return json(res, 200, { owner: true });
       const store = storeFactory(env);
       if (query.get('view') === 'feedback') return json(res, 200, { feedback: await store.feedback() });
@@ -200,12 +202,15 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
       if (query.get('view') === 'nudges') return json(res, 200, await nudgeView(store, id, env));
       // How much of the taste profile is known, per dimension (lib/coverage.js). Read-only, computed fresh.
       if (query.get('view') === 'coverage') return json(res, 200, await readCoverage(store, id));
-      // The Knowledge tab's derived rows and per-fact notes (lib/person-knowledge.js), from the same user context
-      // chat, the stylist and ranking read. Read-only, computed fresh; the person's own facts come from /api/profile.
-      if (query.get('view') === 'knowledge') return json(res, 200, knowledgeView((await readUserContext(store, id, env, { log: () => {} })).facts));
       // The Summary tab (lib/person-summary.js): coverage, one row per thing Jules weighs and what Jules would text
-      // now. Read-only, computed fresh; nothing is sent.
-      if (query.get('view') === 'summary') return json(res, 200, await personSummary(store, id));
+      // now; and the Knowledge tab's derived rows and per-fact notes (lib/person-knowledge.js), from the same user
+      // context chat, the stylist and ranking read. One read of that context serves both tabs: it re-reads the large
+      // purchase-history row and rebuilds receipts. Read-only, computed fresh; nothing is sent. The person's own
+      // facts come from /api/profile.
+      if (query.get('view') === 'summary') {
+        const inputs = await readTasteInputs(store, id, { log: () => {} });
+        return json(res, 200, { ...summaryOf(inputs), knowledge: knowledgeView(inputs.context) });
+      }
       // The Summary's Adoption and Chat quality cards (lib/person-adoption.js): this person's shopping-request outcomes
       // over the last four weeks and lifetime cost. Read-only; no message text.
       if (query.get('view') === 'person-adoption') return json(res, 200, await personAdoption(store, id, { env }));
@@ -227,6 +232,19 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
       if ([400, 409].includes(error.status) && req.method === 'POST' && error.message) return json(res, error.status, { error: error.message });
       return json(res, [400, 409, 413, 415].includes(error.status) ? error.status : 503, { error: 'Could not load this view. Refresh and try again.' });
     }
+  };
+}
+// Which read a GET is, for its timing: the view, else the People list or a conversation's messages.
+const viewName = query => (query.get('view') ?? (!query.get('conversation') ? 'people' : query.has('before') ? 'older-messages' : 'messages')).replace(/[^a-z-]/g, '').slice(0, 40) || 'unknown';
+// How long each Admin read took, once its response goes out: a Server-Timing header (the browser's Network panel
+// shows it) and an admin_view_timing log line (Vercel logs), so slow tabs show up by name. No ids or data.
+function timeView(res, view, started, authMs) {
+  const end = res.end.bind(res);
+  res.end = (...args) => {
+    const ms = Math.round(performance.now() - started);
+    if (!res.headersSent) res.setHeader('Server-Timing', `auth;dur=${authMs.toFixed(1)}, ${view};dur=${ms}`);
+    console.log(JSON.stringify({ event: 'admin_view_timing', view, status: res.statusCode, ms, auth_ms: Math.round(authMs) }));
+    return end(...args);
   };
 }
 // A person's name for their Admin page: the latest signup's full name, else the first name told to Jules.
