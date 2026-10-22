@@ -259,3 +259,18 @@ test('the acknowledgment delay comes from SEARCH_ACK_DELAY_MS, defaulting to 8 s
   assert.equal(ackDelay({ SEARCH_ACK_DELAY_MS: '15000' }), 15000); assert.equal(ackDelay({ SEARCH_ACK_DELAY_MS: '0' }), 0);
   assert.equal(ackDelay({ SEARCH_ACK_DELAY_MS: 'soon' }), 8000); assert.equal(ackDelay({ SEARCH_ACK_DELAY_MS: '-5' }), 8000);
 });
+
+// October 22: the 👀 tapback for a text search was sent after the search returned, so it landed after
+// the "on it" text. It now goes first, as for a photo search.
+test('a text search reacts before its acknowledgment and before the search runs', async () => {
+  const order = [];
+  const fetcher = async () => agentTurn(tool('find_products', { query: 'navy waxed jacket', acknowledgment: 'Looking now.' }));
+  let rounds = 0;
+  await generateReply([{ direction: 'inbound', body: 'Find a navy waxed jacket' }], { ...env, WISHLIST_ENABLED: 'true', SEARCH_ENABLED: 'true' }, async (...a) => (++rounds === 1 ? fetcher(...a) : agentTurn(tool('conversation_reply', { response: 'Here they are.' }))), {
+    acknowledge: async intent => { order.push('react:' + intent.action); },
+    searchStarting: async () => { order.push('ack'); },
+    wishlistAction: async () => { order.push('search'); return 'Found two.'; },
+    wishlistState: null,
+  });
+  assert.deepEqual(order.slice(0, 3), ['react:start', 'ack', 'search']);
+});

@@ -73,7 +73,7 @@ test('a persistent rate limit ends in the fallback with its code, limit and step
   const d = diagnostics.get('ai:fake-message');
   assert.equal(rows[0].body, GENERIC_FALLBACK);
   assert.equal(d.model_status, 429); assert.equal(d.model_error_code, 'rate_limit_exceeded'); assert.equal(d.model_limit, 'tokens');
-  assert.deepEqual(d.steps.map(s => s.step).slice(0, 4), ['progress', 'context', 'agent', 'retry']);
+  assert.deepEqual(d.steps.map(s => s.step).filter(s => s !== 'progress:ready').slice(0, 4), ['progress', 'context', 'agent', 'retry']);
   assert.ok(d.steps.every((s, i) => Number.isFinite(s.at_ms) && (i === 0 || s.at_ms >= d.steps[i - 1].at_ms)));
   assert.match(sent.find(s => s.to === 'founder-test-handle').body, /model 429 rate_limit_exceeded/);
 });
