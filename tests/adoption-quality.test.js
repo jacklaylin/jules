@@ -4,7 +4,7 @@ import { quality, photoOutcome } from '../lib/adoption-quality.js';
 import { adoptionReport } from '../lib/adoption.js';
 import { createStore } from '../lib/store.js';
 import { REACTION_NOTE, developerReport } from '../lib/developer-feedback.js';
-import { qualitySummaryCells, qualityTesterCells, qualityWeekCells, usedKinds, missRow } from '../public/adoption-view.js';
+import { qualitySummaryCells, qualityTesterCells, qualityWeekCells, usedKinds } from '../public/adoption-view.js';
 
 const A = '00000000-0000-4000-8000-00000000000a', B = '00000000-0000-4000-8000-00000000000b';
 const now = Date.parse('2026-10-14T12:00:00Z');
@@ -63,13 +63,7 @@ test('weekly quality puts misses by kind beside that week’s results replies; u
   assert.equal(weeks[0].photos.identified, 1); assert.equal(weeks[1].photos.unreadable, 1);
 });
 
-test('misses to read are newest first and link to the message in the conversation', () => {
-  const q = quality(rows, now);
-  assert.deepEqual(q.misses.map(m => m.id), ['m2', 'm1', 'm3']);
-  const row = missRow(q.misses[0], q.kinds);
-  assert.equal(row.href, `/admin/people/${A}?tab=conversation&message=m2`);
-  assert.equal(row.kind, 'Found it themselves'); assert.equal(row.about, 'About an earlier reply'); assert.equal(row.tester, '+15550000001');
-  assert.equal(missRow(q.misses[2], q.kinds).summary, 'No summary recorded.');
+test('nothing recorded means no weeks', () => {
   assert.deepEqual(quality({}, now).weeks, []);
 });
 

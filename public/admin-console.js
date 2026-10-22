@@ -7,12 +7,6 @@ import {trackedFetch} from './activity.js';
 
 export const ADMIN_SECTIONS=[
  ['Conversations',[['people','People','/admin','Threads, memory and purchases'],['adoption','Adoption','/admin/adoption','How far each tester has got, week by week'],['quality','Scorecard','/admin/quality','Search and recommendation quality, week by week'],['style-report','Style report','/admin/style-report','How reports are opened, shared and voted on, and the week’s jokes']]],
- ['Test lab',[
-  ['test-chat','Test chat','/admin/test-chat','Real Jules logic, no phone messages'],
-  ['replays','Replays & evals','/admin/replays','Sourcing replays and routing eval'],
-  ['search','Search check','/admin/search','Live search diagnostic'],
-  ['identify','Photo identification','/admin/identify','Image search and saved-item corrections'],
- ]],
  ['Operations',[['costs','Costs','/admin/costs','Daily spend and budget']]],
 ];
 const session=createSession({storage:localStorage,lock:work=>navigator.locks?navigator.locks.request('jules-wishlist-refresh',work):work()});
