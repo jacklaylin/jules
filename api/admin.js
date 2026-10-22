@@ -5,7 +5,7 @@ import { readCoverage } from '../lib/coverage.js';
 import { readUserContext, contextReport } from '../lib/user-context.js';
 import { tagWishlist } from '../lib/wishlist-tags.js';
 import { adminStartInterview } from '../lib/interview.js';
-import { previewEarlyRead } from '../lib/early-read.js';
+import { personSummary } from '../lib/person-summary.js';
 import { authorize } from '../lib/auth.js';
 import { createStore } from '../lib/store.js';
 import { json, readJson, uuid } from '../lib/http.js';
@@ -201,8 +201,9 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
       // What Jules knows about this person from every source (lib/user-context.js): the same picture chat,
       // the stylist and ranking read. Read-only, computed fresh.
       if (query.get('view') === 'context') return json(res, 200, contextReport(await readUserContext(store, id, env, { log: () => {} })));
-      // What the early read would text this person now (lib/early-read.js). Nothing is sent.
-      if (query.get('view') === 'early-read') return json(res, 200, await previewEarlyRead(store, id));
+      // The Summary tab (lib/person-summary.js): coverage, one row per thing Jules weighs and what Jules would text
+      // now. Read-only, computed fresh; nothing is sent.
+      if (query.get('view') === 'summary') return json(res, 200, await personSummary(store, id));
       let before;
       if (query.has('before')) {
         try { before = JSON.parse(query.get('before')); } catch { return json(res, 400, { error: 'Invalid history cursor.' }); }
@@ -210,10 +211,11 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
       }
       // Onboarding state, the "Not now" tap and the reminder (db/046); unknown (null) before that migration runs.
       // resend_welcome: the exact text Resend welcome would send, only while it's offered.
-      const [history, waitlist, onboarding] = await Promise.all([store.messages(id, before), before ? null : store.accessFor([id]).then(m => m.get(id) ?? null).catch(() => null),
-        before ? null : Promise.resolve(store.onboardingOverview?.(id)).catch(() => null)]);
+      // name: from the signup, else the first name told to Jules, as on the People list; a failed read leaves it blank.
+      const [history, waitlist, onboarding, name] = await Promise.all([store.messages(id, before), before ? null : store.accessFor([id]).then(m => m.get(id) ?? null).catch(() => null),
+        before ? null : Promise.resolve(store.onboardingOverview?.(id)).catch(() => null), before ? null : personName(store, conversation).catch(() => null)]);
       const resend = onboarding ? await resendWelcomeText(store, id, env, onboarding.state).catch(() => null) : null;
-      return json(res, 200, { conversation, ...history, ...(before ? {} : { access: waitlist, onboarding: onboarding ?? null, resend_welcome: resend, contact_card_enabled: contactCardEnabled(env), approval_text: approvalPreview(env)?.text ?? null, approval_account: approvalPreview(env)?.account ?? false }) });
+      return json(res, 200, { conversation, ...history, ...(before ? {} : { name, access: waitlist, onboarding: onboarding ?? null, resend_welcome: resend, contact_card_enabled: contactCardEnabled(env), approval_text: approvalPreview(env)?.text ?? null, approval_account: approvalPreview(env)?.account ?? false }) });
     } catch (error) {
       console.error(JSON.stringify({ event: 'admin_request_failed', status: error.status ?? null }));
       // Review validation and busy-lease messages are written for the owner; everything else is generic.
@@ -221,6 +223,12 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
       return json(res, [400, 409, 413, 415].includes(error.status) ? error.status : 503, { error: 'Could not load this view. Refresh and try again.' });
     }
   };
+}
+// A person's name for their Admin page: the latest signup's full name, else the first name told to Jules.
+async function personName(store, conversation) {
+  const signup = (await Promise.resolve(store.signupNames?.([conversation.sender_id])).catch(() => null))?.get(conversation.sender_id);
+  if (signup) return [displayName(signup.first_name), displayName(signup.last_name)].filter(Boolean).join(' ') || null;
+  return displayName(profileFirstName((await Promise.resolve(store.profile?.(conversation.id)).catch(() => null))?.facts)) || null;
 }
 // Lets the owner re-run onboarding with an existing tester number. Imported history goes first, the
 // same way the person's own delete does, so a busy import stops the reset before anything changes.
