@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { validateChanges, mergeFacts, saveChanges, extractChanges, MEMORY_PROMPT, updateProfile, PROFILE_TOOL, prevails, profileFirstName, firstName, displayName } from '../lib/memory.js';
+import { validateChanges, mergeFacts, saveChanges, extractChanges, MEMORY_PROMPT, updateProfile, PROFILE_TOOL, prevails, profileFirstName, firstName, displayName, FIELDS, FIELD_FORMS, factFormatError } from '../lib/memory.js';
 import { agentTurn, tool, agentContext, toolNames, toolOutputs } from './helpers/agent.js';
 import { generateReply } from '../lib/ai.js';
 import { receiveInInbox } from '../lib/inbox.js';
@@ -108,8 +108,8 @@ test('profile API denies access before database lookup and rejects stale owner e
 
 test('validation checks formats only: fixed-value fields need allowed values; durability is the model’s reading',()=>{
  const source={...message,body:'I’m a man. I wear menswear. My usual shoe budget is USD 300.'};
- assert.throws(()=>validateChanges([{...change,field:'gender',key:'identity',value:'male',evidence:'I’m a man.'}],[source]),/gender/);
- assert.throws(()=>validateChanges([{...change,field:'shopping_range',key:'clothing',value:'men’s formal shoes',evidence:'I wear menswear.'}],[source]),/range/);
+ assert.throws(()=>validateChanges([{...change,field:'gender',key:'identity',value:'male',evidence:'I’m a man.'}],[source]),/gender/i);
+ assert.throws(()=>validateChanges([{...change,field:'shopping_range',key:'clothing',value:'men’s formal shoes',evidence:'I wear menswear.'}],[source]),/range/i);
  assert.equal(validateChanges([{...change,field:'gender',key:'identity',value:'man',evidence:'I’m a man.'}],[source]).length,1);
  assert.equal(validateChanges([{...change,field:'shopping_range',key:'clothing',value:'men',evidence:'I wear menswear.'}],[source]).length,1);
  assert.equal(validateChanges([{...change,field:'budget',key:'shoes/usd',value:'-300',evidence:'My usual shoe budget is USD 300.'}],[source]).length,1);
@@ -149,4 +149,36 @@ test('size and budget keys keep their shape: a store name alone is not a size ke
 test('names are shown capitalised however they were saved, without touching names that have their own capitals',async()=>{
  assert.deepEqual(['jack','McKenzie','zoë-ann',"o'brien",'  ',null].map(displayName),['Jack','McKenzie','Zoë-Ann',"O'Brien",null,null]);
  assert.equal(await firstName({signupFirstName:async()=>null,profile:async()=>({facts:[{field:'name',key:'first',value:'jack',deleted:false,basis:'stated',updated_at:'2026-10-16T00:00:00Z'}]})},id),'Jack');
+});
+
+test('every field has a form entry, so Admin can add it by hand and file it under a topic',()=>{
+ assert.deepEqual(Object.keys(FIELD_FORMS).sort(),[...FIELDS].sort(),'a field added to FIELDS needs a FIELD_FORMS entry (label, topic, key or hints)');
+ for(const [field,form] of Object.entries(FIELD_FORMS)){
+  assert.ok(form.label&&form.topic,field);
+  assert.ok(form.key||form.keys||form.key_hint,`${field} says how to fill its key`);
+  assert.ok(form.values||form.value_hint,`${field} says how to fill its value`);
+ }
+});
+
+test('one set of format rules for chat and owner edits, in words',()=>{
+ assert.equal(factFormatError({field:'material',key:'linen',value:'loves it in summer'}),null);
+ assert.equal(factFormatError({field:'avoid',key:'acne studios',value:'too logo-y'}),null);
+ assert.match(factFormatError({field:'gender',key:'identity',value:'male'}),/Gender is one of: man, woman/);
+ assert.match(factFormatError({field:'spending',key:'cheap',value:'x'}),/prefers_lower or quality/);
+ assert.match(factFormatError({field:'size',key:'levis',value:'32'}),/category\/system/);
+ assert.match(factFormatError({field:'budget',key:'coats/usd',value:'$300'}),/MIN-MAX/);
+ assert.match(factFormatError({field:'name',key:'nickname',value:'Sam'}),/key first/);
+ assert.equal(factFormatError({field:'gender',key:'anything',value:'woman'}),null,'chat never had to use the fixed key for gender');
+});
+
+test('profile API lists every field and checks an owner edit with the chat rules',async()=>{
+ const store=db();const handler=createProfileHandler({auth:async()=>200,storeFactory:()=>store,env});
+ let result=res();await handler({method:'GET',headers:{},url:`/api/profile?conversation=${id}`},result);
+ const fields=result.body.fields;
+ assert.deepEqual(fields.map(f=>f.field).sort(),[...FIELDS].sort());
+ assert.deepEqual(fields.find(f=>f.field==='spending').keys,['prefers_lower','quality']);
+ result=res();await handler(req({conversation:id,action:'set',field:'budget',key:'coats/usd',value:'about 300',version:0}),result);
+ assert.equal(result.statusCode,400);assert.match(result.body.error,/MIN-MAX/);
+ result=res();await handler(req({conversation:id,action:'set',field:'occasion',key:'nights out',value:'black, a bit dressed up',version:0}),result);
+ assert.equal(result.statusCode,200);assert.equal((await store.profile(id)).facts[0].field,'occasion');
 });

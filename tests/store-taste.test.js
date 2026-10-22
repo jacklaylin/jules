@@ -10,10 +10,10 @@ const said=[{field:'store',key:'depop',value:'buys vintage there',updated_at:'20
 
 test('one store reading from what the person said, ordered, saved and liked', () => {
   const stores=storeTaste({facts:said,orders,wishlist,liked:[{name:'Depop',count:2}]});
-  assert.deepEqual(stores.find(s=>s.store==='lululemon'),{store:'lululemon',ordered:14,returned:1,last_order:'2026-06-25'});
+  assert.deepEqual(stores.find(s=>s.store==='lululemon'),{store:'lululemon',ordered:14,returned:1,last_order:'2026-06-25',weight:10},'the weight is kept for Admin › Knowledge');
   // An item saved twice counts once, dated by its newest save.
-  assert.deepEqual(stores.find(s=>s.store==='deeceestyle'),{store:'deeceestyle',wishlisted:1,last_wishlisted:'2026-10-08'});
-  assert.deepEqual(stores.find(s=>s.store==='depop'),{store:'depop',said:{value:'buys vintage there',on:'2026-10-01'},liked:2});
+  assert.deepEqual(stores.find(s=>s.store==='deeceestyle'),{store:'deeceestyle',wishlisted:1,last_wishlisted:'2026-10-08',weight:3});
+  assert.deepEqual(stores.find(s=>s.store==='depop'),{store:'depop',said:{value:'buys vintage there',on:'2026-10-01'},liked:2,weight:6});
   assert.equal(storeTasteFact({}),null);
   assert.equal(storeOf('not a url'),null);
 });
