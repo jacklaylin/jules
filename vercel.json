@@ -167,7 +167,7 @@
   ],
   "functions": {
     "api/image.js": {
-      "includeFiles": "public/brand/previews/saved-v2.png",
+      "includeFiles": "{public/brand/previews/saved-v2.png,public/brand/previews/report-bg-v1.png,public/fonts/instrument-serif.ttf}",
       "maxDuration": 30
     },
     "api/wishlist.js": {
