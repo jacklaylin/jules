@@ -6,6 +6,7 @@ import {generateReply as agentReply} from '../lib/ai.js';
 import {withConsent} from './helpers/agent.js';
 // These tests cover tool routing; the consent check approves (its own tests are in agent.test.js).
 const generateReply=(messages,env,fetcher,memory)=>agentReply(messages,env,withConsent(fetcher),memory);
+import findExact from '../lib/skills/find-exact.js';
 import {agentTurn,tool,agentContext} from './helpers/agent.js';
 const url='https://satisfyrunning.com/products/therocker-sterling-blue';
 test('Satisfy uses the requested US storefront without overriding an explicit market or another store',()=>{
@@ -44,7 +45,7 @@ test('image follow-up acceptance requires an explicit outcome and executes sourc
   let sourced=0,recorded=0;
   await generateReply(history,{OPENAI_API_KEY:'test',SEARCH_ENABLED:'true'},async(address,options)=>{
    const request=JSON.parse(options.body);
-   if(request.tools?.some(t=>t.name==='conversation_reply')){assert.equal(request.tool_choice,'required');assert.ok(request.instructions.includes('accepts a prior offer to search'));assert.equal(request.input.at(-1).content,answer);
+   if(request.tools?.some(t=>t.name==='conversation_reply')){assert.equal(request.tool_choice,'required');assert.ok(findExact.rules.filter(([slot])=>slot.startsWith('sourcing.')).every(([,rule])=>request.instructions.includes(rule.trim())));assert.equal(request.input.at(-1).content,answer);
     return agentTurn(tool('find_products',{query:'Similar Lemaire hobo bags and Jacques Marie Mage sunglasses',use_image:true,image_message_id:'original-photo'}));}
    sourced++;throw Error('Controlled provider outage');
   },{imageReferences:[{id:'original-photo',caption:'Lemaire hobo bag'}],loadImages:async()=>{return [{mime_type:'image/jpeg',data:'test-image'}];},recordSearch:async result=>{assert.equal(result.status,'failed');recorded++;}});
