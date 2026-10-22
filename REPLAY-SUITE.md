@@ -4,6 +4,10 @@ For the full tester-readiness gate, see `TESTER-READINESS.md`. This older shoe-o
 
 Acceptance: asking about a shoe yields sourced, individually checked product-page links compatible with the profile, or a useful question about the specific model or variants. Missing prices or stock are not reasons to reject an otherwise valid product page. Generic refusals fail when a supported known product should be available.
 
+## Real failures: the frozen eval set
+
+Every `#dev` report and quality signal is also frozen as a case and re-run against the current prompt and model, scored by a model judge: `node --env-file=.env.local scripts/frozen-evals.js run` prints one pass rate with a breakdown by category. See `FROZEN-EVALS.md`. Run it before and after any prompt or chat-model change.
+
 ## Before every deploy: the replay gate
 
 Run from the project folder, with the same `.env.local` the other scripts use (it needs `OPENAI_API_KEY`; the replay half also uses the search keys):
