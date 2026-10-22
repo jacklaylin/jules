@@ -35,7 +35,7 @@ test('a sale’s former price comes only from a consistent compare-at price; oth
  assert.deepEqual(euro.prices,[]);assert.equal(euro.size_options[0].amount,undefined);assert.equal(euro.size_options[0].available,true);
 });
 
-const facts=[{field:'size',key:'shoes/us_men',value:'12'},{field:'size',key:'shoes/eu',value:'45'},{field:'size',key:'trousers/waist',value:'32'}];
+const facts=[{field:'size',key:'shoes/us_men',value:'12'},{field:'size',key:'shoes/eu',value:'45'},{field:'size',key:'bottoms/waist',value:'32'}];
 const listing=(sizes,extra={})=>({brand:'Thursday',name:'Desperado',url:page,listing_check:{status:'verified',url:page,size_options:sizes,...extra},price_snapshot:{amount:249,currency:'USD'}});
 
 test('the user’s size is matched by the store’s own label, never converted',()=>{
@@ -46,9 +46,9 @@ test('the user’s size is matched by the store’s own label, never converted',
  assert.equal(sizeFor(listing([]),facts,keys).status,'unknown');
  assert.equal(sizeFor(listing([{size:'12',available:true}]),facts,[]),null,'no saved size named for this item');
  assert.equal(sizeFor(listing([{size:'12',available:true}]),facts,keys,{forSomeoneElse:true}),null,'someone else’s item never uses the user’s sizes');
- assert.equal(sizeFor(listing([{size:'32',available:true}]),facts,['trousers/waist']).store_size,'32');
+ assert.equal(sizeFor(listing([{size:'32',available:true}]),facts,['bottoms/waist']).store_size,'32');
  // A store's own spelling of the same label (Dover Street Market "Size 32", Found "Medium").
- assert.equal(sizeFor(listing([{size:'Size 30',available:true},{size:'Size 32',available:false}]),facts,['trousers/waist']).status,'sold_out');
+ assert.equal(sizeFor(listing([{size:'Size 30',available:true},{size:'Size 32',available:false}]),facts,['bottoms/waist']).status,'sold_out');
  const letters=[{field:'size',key:'tops/letter',value:'M'}];
  assert.equal(sizeFor(listing([{size:'Small',available:true},{size:'Medium',available:true}]),letters,['tops/letter']).store_size,'Medium');
  assert.equal(sizeFor(listing([{size:'X-Large',available:true}]),[{field:'size',key:'tops/letter',value:'XL'}],['tops/letter']).status,'in_stock');
@@ -150,12 +150,15 @@ test('a search for the user’s own item leads with the option in stock in their
 const boot={brand:'Thursday',name:'Desperado Boot',url:'https://thursday.example/products/desperado',match:'likely_match',sourcing_status:'store_found',price_snapshot:{amount:249,currency:'USD'},
  listing_check:{status:'verified',url:'https://thursday.example/products/desperado',product_brand:'Thursday',product_name:'Desperado Boot',availability:'InStock',size_options:[{size:'12',available:true},{size:'13',available:false}]}};
 const reading=(output,status=200)=>{const calls=[];const fetcher=async(_url,options)=>{calls.push(JSON.parse(options.body));return new Response(JSON.stringify({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(output)}]}]}),{status});};return {fetcher,calls};};
-test('the size reading may only answer with saved keys, and offers no key that carries no category',async()=>{
- const withStoreKey=[...facts,{field:'size',key:'mfpen retail aps',value:'31'}];
- const {fetcher,calls}=reading({products:[{index:0,keys:['shoes/us_men','shoes/eu','made/up']}]});
+test('the size reading only says what kind of item a product is; code picks the saved sizes of that category',async()=>{
+ const withStoreKey=[...facts,{field:'size',key:'mfpen retail aps',value:'31'},{field:'size',key:'women/shoes/us',value:'9'}];
+ const {fetcher,calls}=reading({products:[{index:0,category:'shoes'}]});
+ // Every shoe size saved under the fixed categories; a key without one (a store name, a department) is never used.
  assert.deepEqual(await sizeKeysFor([boot],withStoreKey,{OPENAI_API_KEY:'test'},fetcher),[['shoes/us_men','shoes/eu']]);
- const enumKeys=calls[0].text.format.schema.properties.products.items.properties.keys.items.enum;
- assert.deepEqual(enumKeys,['shoes/us_men','shoes/eu','trousers/waist'],'only category/system keys are offered');
+ assert.deepEqual(calls[0].text.format.schema.properties.products.items.properties.category.enum,['tops','bottoms','outerwear','suits','dresses','shoes','activewear','swimwear','underwear','accessories','none']);
+ // October 22: a shirt whose collar sizes read like shoe sizes gets the shirt's category, so no shoe size applies.
+ assert.deepEqual(await sizeKeysFor([boot],facts,{OPENAI_API_KEY:'test'},reading({products:[{index:0,category:'tops'}]}).fetcher),[[]]);
+ assert.deepEqual(await sizeKeysFor([boot],facts,{OPENAI_API_KEY:'test'},reading({products:[{index:0,category:'none'}]}).fetcher),[[]]);
  assert.deepEqual(await sizeKeysFor([boot],withStoreKey,{OPENAI_API_KEY:'test'},reading({},500).fetcher),[[]],'a failed reading claims no size');
  assert.deepEqual(await sizeKeysFor([{...boot,listing_check:{...boot.listing_check,size_options:[]}}],facts,{OPENAI_API_KEY:'test'},()=>assert.fail('no sizes, no call')),[[]]);
  assert.deepEqual(await sizeKeysFor([boot],[],{OPENAI_API_KEY:'test'},()=>assert.fail('no saved sizes, no call')),[[]]);
@@ -174,7 +177,7 @@ test('a search with options already pending still shows stock in the user’s si
   return agentTurn(...rounds[n++](options));
  };
  const pending={stage:'offer_set',options:[{brand:'enfants riches déprimés',name:'ERD Ripped Tee Red',url:'https://erd.example/product/tee',listing_check:{status:'verified'}}],selected_set:[],offered_urls:[]};
- const {fetcher:sizeFetcher}=reading({products:[{index:0,keys:['shoes/us_men']}]});
+ const {fetcher:sizeFetcher}=reading({products:[{index:0,category:'shoes'}]});
  const memory={facts,wishlistState:pending,outcome:{saved_now:false,alerts_turned_on:false,alerts_turned_off:false},
   wishlistAction:(args,state)=>textWishlistAction(args,{state,facts,env:{OPENAI_API_KEY:'test'},record:async r=>{recorded=r;},search:async()=>({products:[boot],refinement_attempted:true}),
    sizeKeys:(products,f,e)=>sizeKeysFor(products,f,e,sizeFetcher)}),

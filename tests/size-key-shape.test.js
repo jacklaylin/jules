@@ -20,11 +20,12 @@ function db(facts = []) {
 const malformed = { field:'size', key:'example retail aps', value:'31', deleted:false, source:'message', source_id:id, evidence:'Size 31 is also fine', updated_at:said.created_at, basis:'stated', evidence_ids:[] };
 
 test('size keys must be category/system or category/system/brand', () => {
-  for (const key of ['trousers/waist', 'trousers/unknown', 'shoes/eu/example brand', 'suits/unknown'])
+  for (const key of ['bottoms/waist', 'bottoms/unknown', 'shoes/eu/example brand', 'suits/unknown'])
     assert.equal(sizeKeyShape(key), true, key);
-  for (const key of ['example retail aps', 'trousers', 'trousers/', '/waist', 'a/b/c/d', ' / ', ''])
+  // The category is one of a fixed list: a department or a free-text kind of item is not one (October 22).
+  for (const key of ['example retail aps', 'trousers', 'trousers/', '/waist', 'a/b/c/d', ' / ', '', 'women/tops/us', 'jacket/lemaire', 'trousers/waist'])
     assert.equal(sizeKeyShape(key), false, key);
-  assert.equal(validateChanges([set('trousers/waist')], [said]).length, 1);
+  assert.equal(validateChanges([set('bottoms/waist')], [said]).length, 1);
   assert.throws(() => validateChanges([set('example retail aps')], [said]), /size key/);
   // Other fields keep their own key rules.
   assert.equal(validateChanges([{ ...set('example retail aps'), field:'brand', value:'likes' }], [said]).length, 1);
@@ -36,9 +37,9 @@ test('a size the model filed under a store name is not saved; valid changes besi
   const store = db();
   const result = await updateProfile(store, id, said, { changes:[
     { action:'remember', field:'size', key:'example retail aps', value:'31', quote:'Size 31 is also fine' },
-    { action:'remember', field:'size', key:'trousers/unknown', value:'31', quote:'Size 31 is also fine' }], acknowledgment:'' });
+    { action:'remember', field:'size', key:'bottoms/unknown', value:'31', quote:'Size 31 is also fine' }], acknowledgment:'' });
   assert.equal(result.saved, 1);
-  assert.deepEqual(result.facts.map(f => f.key), ['trousers/unknown']);
+  assert.deepEqual(result.facts.map(f => f.key), ['bottoms/unknown']);
   assert.deepEqual(result.rejected, [{ field:'size', key:'example retail aps', reason:'size_key_needs_item_category' }]);
 });
 
@@ -91,7 +92,20 @@ test('owner edits in the inbox use the same size key shape, and can remove a mal
   assert.equal(result.statusCode, 400);
   result = res(); await handler(req({ conversation:id, action:'remove', field:'size', key:'example retail aps', value:'', version:0 }), result);
   assert.equal(result.statusCode, 200);
-  result = res(); await handler(req({ conversation:id, action:'set', field:'size', key:'trousers/waist', value:'31', version:1 }), result);
+  result = res(); await handler(req({ conversation:id, action:'set', field:'size', key:'bottoms/waist', value:'31', version:1 }), result);
   assert.equal(result.statusCode, 200);
-  assert.deepEqual((await store.profile(id)).facts.filter(f => !f.deleted).map(f => f.key), ['trousers/waist']);
+  assert.deepEqual((await store.profile(id)).facts.filter(f => !f.deleted).map(f => f.key), ['bottoms/waist']);
+});
+
+test('old size keys move onto the fixed categories; unclear ones are left for Jules to ask', async () => {
+  const { migrateKey } = await import('../scripts/size-key-migration.js');
+  const size = (key, value) => ({ field:'size', key, value });
+  assert.equal(migrateKey(size('women/tops/us', 'M')), 'tops/us');
+  assert.equal(migrateKey(size('women/shoes/us', '9.5')), 'shoes/us_women');
+  assert.equal(migrateKey(size('women/shoes/eu', '39.5')), 'shoes/eu');
+  assert.equal(migrateKey(size('jacket/lemaire', 'large')), 'outerwear/letter/lemaire');
+  assert.equal(migrateKey(size('trousers/waist', '32')), 'bottoms/waist');
+  assert.equal(migrateKey(size('women/unknown', 'equivalent of size 8 for women')), null);
+  assert.equal(migrateKey(size('example retail aps', '31')), null);
+  assert.equal(migrateKey(size('shoes/eu', '45')), null, 'already fine');
 });

@@ -61,16 +61,16 @@ test('a missing-wishlist complaint inspects persisted items and cannot start ano
 
 test('simulator seeds a copy of the owner profile and preserves test overrides without production writes',async()=>{
   const handler=createSimulatorHandler({env:{...env,ADMIN_EMAIL:'fixture@example.test',SUPABASE_URL:'fixture'},auth:async()=>200,
-    storeFactory:()=>({wishlistMember:async()=>({conversation_id:'fixture-owner'}),wishlistEntries:async()=>[],profile:async()=>({facts:[{field:'gender',key:'identity',value:'man'},{field:'size',key:'suit/unknown',value:'50R'}]})}),
+    storeFactory:()=>({wishlistMember:async()=>({conversation_id:'fixture-owner'}),wishlistEntries:async()=>[],profile:async()=>({facts:[{field:'gender',key:'identity',value:'man'},{field:'size',key:'suits/unknown',value:'50R'}]})}),
     simulate:async(input,_env,dependencies)=>{assert.equal(dependencies.wishlistConversation,'fixture-owner');assert.ok(dependencies.wishlistStore);assert.equal(input.snapshot.profile_seeded,true);assert.equal(input.snapshot.profile.facts[0].value,'man');assert.equal(input.snapshot.profile.facts[1].value,'52R');return {snapshot:input.snapshot};}});
-  const request={method:'POST',headers:{'content-type':'application/json'},async *[Symbol.asyncIterator](){yield JSON.stringify({text:'Find trousers',snapshot:{messages:[],items:[],alerts:[],images:[],profile:{version:0,facts:[{field:'size',key:'suit/unknown',value:'52R'}]}}});}};
+  const request={method:'POST',headers:{'content-type':'application/json'},async *[Symbol.asyncIterator](){yield JSON.stringify({text:'Find trousers',snapshot:{messages:[],items:[],alerts:[],images:[],profile:{version:0,facts:[{field:'size',key:'suits/unknown',value:'52R'}]}}});}};
   const response={setHeader(){},end(value){this.body=JSON.parse(value);}};
   await handler(request,response);assert.equal(response.statusCode,200);
 });
 
 test('simulator persists profile changes through the production update_profile skill and inbox contracts',async()=>{
   const result=await simulateTurn({text:'I wear suit size 50R'},env,{
-    generate:async(_m,_e,_f,memory)=>{const saved=await memory.profileAction({changes:[{action:'remember',field:'size',key:'suit/unknown',value:'50R',quote:'I wear suit size 50R'}],acknowledgment:''});
+    generate:async(_m,_e,_f,memory)=>{const saved=await memory.profileAction({changes:[{action:'remember',field:'size',key:'suits/unknown',value:'50R',quote:'I wear suit size 50R'}],acknowledgment:''});
       assert.equal(saved.facts[0].value,'50R');return 'I’ll use that suit size.';},
   });
   assert.equal(result.snapshot.profile.version,1);
