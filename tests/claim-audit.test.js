@@ -25,6 +25,8 @@ test('the independent reading is compared with what happened, in every direction
   assert.match(auditProblems(read({}), { ...none, saved_now:true, saved_items:['Romi / Black'] }).join(), /saved now did not happen, but it did/);
   const wrongItem = auditProblems(read({ saved_now:true, names_other_saved_item:true }), { ...none, saved_now:true, saved_items:['Romi / Black'] });
   assert.equal(wrongItem.length, 1); assert.match(wrongItem[0], /different item was saved.*Romi \/ Black/);
+  // With no saved names to compare against, "a different item" cannot be judged (or fixed) and is not a problem.
+  assert.deepEqual(auditProblems(read({ saved_now:true, names_other_saved_item:true }), { ...none, saved_now:true, saved_items:[] }), []);
   assert.deepEqual(auditProblems(read({ saved_now:true, alerts_turned_on:true }), { ...none, saved_now:true, alerts_turned_on:true, saved_items:['Peyter Pants'] }), []);
   assert.deepEqual(problemKinds([...wrongItem, 'Include these links unchanged: https://x.example', 'Remove prices that are not in the outcome: 10']), ['audited_claim', 'missing_link', 'added_price']);
 });

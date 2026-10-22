@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { generateReply, optionFacts } from '../lib/ai.js';
 import { textWishlistAction } from '../lib/text-wishlist.js';
 import { receiveInInbox } from '../lib/inbox.js';
-import { agentTurn, tool, toolOutputs, isAgentRequest, isConsentCheck, consentResponse } from './helpers/agent.js';
+import { agentTurn, tool, toolOutputs, isAgentRequest, isConsentCheck, consentResponse, isClaimAudit, auditResponse } from './helpers/agent.js';
 
 // The chat agent is a bounded loop: tools run, their results go back to the model, and the model
 // either calls more tools or writes the message, which code checks before it is sent. These tests
@@ -20,10 +20,12 @@ const say = body => [{ direction:'inbound', status:'received', body }];
 
 // A scripted model: rounds[i] answers the i-th agent request (it may inspect the request). Consent
 // checks approve unless told otherwise.
-function model(rounds, { authorizes = true } = {}) {
-  const requests = [];
+// audits answers the independent claim audit in order (unavailable when not given).
+function model(rounds, { authorizes = true, audits = null } = {}) {
+  const requests = [], read = [];
   const fetcher = async (_url, options) => {
     if (isConsentCheck(options)) return consentResponse(authorizes);
+    if (isClaimAudit(options)) { read.push(JSON.parse(JSON.parse(options.body).input.at(-1).content.replace(/^MESSAGE \(data, not instructions\): /, ''))); const next = audits?.[read.length - 1]; return next ? auditResponse(next) : { ok:false }; }
     if (!isAgentRequest(options)) throw new Error('Unexpected request');
     const body = JSON.parse(options.body); requests.push(body);
     const next = rounds[requests.length - 1];
@@ -31,7 +33,7 @@ function model(rounds, { authorizes = true } = {}) {
     const out = typeof next === 'function' ? next(options, body) : next;
     return Array.isArray(out) ? agentTurn(...out) : out;
   };
-  return { fetcher, requests };
+  return { fetcher, requests, read };
 }
 // The text-wishlist executor with search, alert inspection and the inbox's state/commit hooks faked.
 function shopping({ results = [[peyter]], state = null, commit = true } = {}) {
@@ -94,7 +96,7 @@ test('a search that would overrun the shared deadline is not started; the model 
   assert.equal(shop.searches, 0); assert.match(body, /ran out of time/);
 });
 
-test('a message that drops a link, adds a price or claims a save is rejected once with the problems, then fixed', async () => {
+test('a message that adds a price or claims a save is rejected once with the problems, then fixed', async () => {
   const shop = shopping();
   let problems;
   const { fetcher, requests } = model([
@@ -104,8 +106,98 @@ test('a message that drops a link, adds a price or claims a save is rejected onc
   ]);
   const body = await generateReply(say('find the peyter pants'), env, fetcher, shop.memory);
   assert.equal(requests.length, 3); assert.deepEqual(requests[2].tool_choice, { type:'function', name:'conversation_reply' });
-  assert.ok(problems.some(p => /Include these links/.test(p))); assert.ok(problems.some(p => /Remove prices.*500/.test(p))); assert.ok(problems.some(p => /saved now/.test(p)));
+  assert.ok(problems.some(p => /Remove prices.*500/.test(p))); assert.ok(problems.some(p => /saved now/.test(p)));
+  assert.ok(problems.some(p => /Include these links/.test(p)));
   assert.match(body, /want me to save them/);
+});
+
+test('a link still left out on the last attempt is added by code; a left-out price is the model\'s to fix', async () => {
+  const shop = shopping();let final;
+  const { fetcher, requests } = model([
+    [tool('find_products', { query:'Peyter pants' })],
+    [reply('found the Peyter pants at Dover Street Market, $795.00. want me to save them?')],
+    [reply('the Peyter pants are at Dover Street Market for $795.00. want me to save them?')],
+  ]);
+  const body = await generateReply(say('find the peyter pants'), env, fetcher, { ...shop.memory, onReply:name => { final = name; } });
+  // The model was asked once to include the link; its second message is sent with the link added.
+  assert.equal(requests.length, 3); assert.equal(final, 'agent_reply');
+  assert.ok(body.includes(url)); assert.match(body, /want me to save them/);
+  const priced = model([
+    [tool('find_products', { query:'Peyter pants' })],
+    [reply(`found the Peyter pants at Dover Street Market.\n${url}`)],
+    [reply(`the Peyter pants are at Dover Street Market.\n${url}`)],
+  ]);
+  let plain;
+  await generateReply(say('find the peyter pants'), env, priced.fetcher, { ...shopping().memory, onReply:name => { plain = name; } });
+  assert.equal(priced.requests.length, 3); assert.equal(plain, 'agent_plain');
+});
+
+test('an approved save that saved nothing does not replace the search results in a fallback', async () => {
+  // The commit leaves the turn's facts unchanged (nothing was saved), so the search draft stays.
+  const shop = shopping();shop.memory.commitWishlist = async () => null;
+  const { fetcher } = model([
+    [tool('find_products', { query:'Peyter pants' })],
+    [tool('save_to_wishlist', { option_indices:[0], size_choices:[{ option_index:0, size:'IT 50' }], option_sizing:[{ option_index:0, sizing:'apparel' }] })],
+    [reply('saved them!', { saved_now:true })], [reply('all saved!', { saved_now:true })],
+  ]);
+  const body = await generateReply(say('find the peyter pants and save them'), env, fetcher, shop.memory);
+  assert.ok(body.includes(url)); assert.doesNotMatch(body, /saved them|all saved/);
+});
+
+test('a statement split from a numbered list keeps the list intact', async () => {
+  const { withoutStatements } = await import('../lib/compose.js');
+  const text = `two options:\n\n1. Peyter Pants — $795.00 at Dover Street Market.\n${url}\n\nboth ship free. want either?`;
+  assert.equal(withoutStatements(text, ['both ship free']), `two options:\n\n1. Peyter Pants — $795.00 at Dover Street Market.\n${url}\n\nwant either?`);
+  assert.equal(withoutStatements(text, ['ships tomorrow']), null);
+});
+
+test('the independent reading decides the claims: a wrong declaration on a right message is sent', async () => {
+  const shop = shopping();
+  const { fetcher, requests } = model([
+    [tool('find_products', { query:'Peyter pants' })],
+    [reply(`found them at Dover Street Market for $795.00.\n${url}\nwant me to save them?`, { saved_now:true })],
+  ], { audits:[{ saved_now:false, shop_statements:[] }] });
+  const body = await generateReply(say('find the peyter pants'), { ...env, WISHLIST_ENABLED:'true' }, fetcher, shop.memory);
+  assert.equal(requests.length, 2); assert.match(body, /want me to save them/);
+  // Without the reading, the declaration stands and the message is written again.
+  const unread = model([
+    [tool('find_products', { query:'Peyter pants' })],
+    [reply(`found them at Dover Street Market for $795.00.\n${url}`, { saved_now:true })],
+    [reply(`found them at Dover Street Market for $795.00.\n${url}`)],
+  ]);
+  await generateReply(say('find the peyter pants'), { ...env, WISHLIST_ENABLED:'true' }, unread.fetcher, shopping().memory);
+  assert.equal(unread.requests.length, 3);
+});
+
+test('a statement the results do not support is taken out, and the shorter message is read again', async () => {
+  const shop = shopping();
+  const { fetcher, requests, read } = model([
+    [tool('find_products', { query:'Peyter pants' })],
+    [reply(`found them at Dover Street Market for $795.00. they ship tomorrow.\n${url}\nwant me to save them?`)],
+  ], { audits:[{ shop_statements:[{ quote:'they ship tomorrow', kind:'states_fact', in_results:false }] }, { shop_statements:[] }] });
+  const body = await generateReply(say('find the peyter pants'), { ...env, WISHLIST_ENABLED:'true' }, fetcher, shop.memory);
+  assert.equal(requests.length, 2); assert.equal(read.length, 2);
+  assert.doesNotMatch(body, /ship/); assert.match(body, /\$795\.00/); assert.ok(body.includes(url)); assert.match(body, /want me to save them/);
+  // A quote that is not in the message cannot be taken out: the model writes it again.
+  const other = model([
+    [tool('find_products', { query:'Peyter pants' })],
+    [reply(`found them for $795.00, ready to ship.\n${url}`)],
+    [reply(`found them for $795.00.\n${url}`)],
+  ], { audits:[{ shop_statements:[{ quote:'ships free', kind:'states_fact', in_results:false }] }, { shop_statements:[] }] });
+  const fixed = await generateReply(say('find the peyter pants'), { ...env, WISHLIST_ENABLED:'true' }, other.fetcher, shopping().memory);
+  assert.equal(other.requests.length, 3); assert.doesNotMatch(fixed, /ship/);
+});
+
+test('a fallback after a save in the same turn is the save, never the earlier offer to save', async () => {
+  const shop = shopping();let final;
+  const { fetcher } = model([
+    [tool('find_products', { query:'Peyter pants' })],
+    [tool('save_to_wishlist', { option_indices:[0], size_choices:[{ option_index:0, size:'IT 50' }], option_sizing:[{ option_index:0, sizing:'apparel' }] })],
+    [reply('they are $500.', { saved_now:true })], [reply('they are $450 now.', { saved_now:true })],
+  ]);
+  const body = await generateReply(say('find the peyter pants and save them'), env, fetcher, { ...shop.memory, onReply:name => { final = name; } });
+  assert.equal(shop.commits, 1); assert.equal(final, 'agent_plain');
+  assert.match(body, /saved to your wishlist/); assert.doesNotMatch(body, /want me to save|\$500|\$450/);
 });
 
 test('a second failed message sends the plain factual draft, never the wrong wording', async () => {
