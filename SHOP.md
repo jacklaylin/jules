@@ -18,12 +18,12 @@ Shop order history is the first *connected source*. It runs on shared purchase-h
 - Shop links carry tracking and variant parameters. Jules checks and shows the plain product page instead.
 - Checkout links never change which store was recommended. Shop groups the same product across many sellers. If Shop offers another seller's cart for that size, Jules reports the size as unavailable at the chosen store.
 - Sizes are never converted. If the user's size doesn't exactly match one of the store's sizes, Jules lists the store's sizes and asks which one.
-- Logs (`text_wishlist_sources`) and the admin replay report count shown merchants by source. Watch these after turning on `SHOP_CATALOG_ENABLED`.
+- Logs (`text_wishlist_sources`) count shown merchants by source. Watch these after turning on `SHOP_CATALOG_ENABLED`.
 
 ## Turning it on
 
-1. Set `SHOP_CATALOG_ENABLED=true` in Vercel. Run the replay suite on `/admin/replays` and compare "Shown merchants by source" with a run from before the change.
-2. Set `CHECKOUT_LINKS_ENABLED=true`. Run the routing eval on the same page. Its checkout cases check that liking an item, saving it or asking its price never produces a checkout link.
+1. Set `SHOP_CATALOG_ENABLED=true` in Vercel. Run `node --env-file=.env.local scripts/replay-gate.js --suite replay` and compare the `text_wishlist_sources` logs with a run from before the change.
+2. Set `CHECKOUT_LINKS_ENABLED=true`. Run the routing eval (`scripts/replay-gate.js --suite agent`). Its checkout cases check that liking an item, saving it or asking its price never produces a checkout link.
 3. For order history, run `db/022_history_sources.sql` in the Supabase SQL Editor, set `SHOP_ORDERS_ENABLED=true`, and deploy. Then open `/onboarding`, tick the consent box, and click **Connect Shop**. Shop shows a code. Approve "Jules" in the Shop app, and the page imports up to 100 orders from the last five years. Follow-up questions arrive by text, as they do for Gmail.
 
 No new secrets are needed. Shop's sign-in token is encrypted with `GMAIL_TOKEN_KEY` and stored with the Gmail import data. It is never sent to the browser or to OpenAI. Only order records are sent to OpenAI, under the consent shown on the page.
