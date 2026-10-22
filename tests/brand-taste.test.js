@@ -66,6 +66,8 @@ test('taste coverage counts wishlist brands, and the style reading gets one bran
   assert.equal(brands(coverage({wishlist:[{item_id:'a',brand:'Lemaire'},{item_id:'b',brand:'LEMAIRE'}]})).status,'known');
   assert.equal(brandTasteLine([{brand:'Dries Van Noten',said:{value:'favorite brand',on:'2026-10-06'},bought:6,bought_as:{trousers:3,shirts:2,outerwear:1},wishlisted:2},{brand:'MAAP',bought:18,bought_as:{activewear:14}}]),
     'Dries Van Noten (said favorite brand (2026-10-06); bought 6 as trousers, shirts; saved 2), MAAP (bought 18 as activewear)');
+});
+
 test('the agent reads each brand once: the purchase summary drops its top brands when brand_taste is there', async () => {
   const {readUserContext}=await import('../lib/user-context.js');
   const summary={items:3,top_brands:[{name:'Our Legacy',count:3,recent:3}],latest_items:[]};
