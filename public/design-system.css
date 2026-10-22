@@ -497,6 +497,12 @@ button.quiet{border-color:transparent;box-shadow:none;background:transparent;col
 .filter-chips{display:flex;flex:0 1 auto;min-width:0;flex-wrap:nowrap;gap:8px;overflow:hidden;padding:6px;margin:-6px}
 .filter-chips .chip{flex:none;white-space:nowrap}
 .filter-chips:empty{display:none}
+/* Two groups in one row (the wishlist: category, then state): a hairline between them, and state chips lead with
+   the line icon their card shows, so they never read as categories. One pick per group. */
+.filter-group{display:flex;flex:none;gap:inherit}
+.filter-divider{flex:none;align-self:center;width:1px;height:28px;margin:0 6px;background:var(--line)}
+.filter-chips .chip--state{display:inline-flex;align-items:center;gap:6px;padding-left:11px}
+.chip--state>svg{flex:none}
 .filter-bar .filter-count{flex:none;margin-left:auto;white-space:nowrap}
 .filter-bar>.btn{flex:none;white-space:nowrap}
 .chip-count{margin-left:8px;font:500 11px/1 var(--font-mono);letter-spacing:.04em;color:var(--text-2)}
@@ -527,6 +533,15 @@ dialog.filter-menu__panel{position:fixed;margin:0;width:300px;max-width:calc(100
 .filter-menu__name{display:flex;align-items:center;gap:8px}
 .filter-menu__check{display:grid;place-items:center;width:20px;height:20px}
 .filter-menu__row .chip-count{margin-left:0}
+.filter-menu__row .filter-menu__name>svg{flex:none}
+/* Grouped menus (wishlist): a Category and a Show section, then Clear and "Show N items" at the foot. */
+.filter-menu__section{display:flex;flex-direction:column;gap:2px}
+.filter-menu__section+.filter-menu__section{margin-top:12px}
+.filter-menu__section-title{margin:0;padding:8px 10px 6px;font:500 11px/1.6 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--text-2)}
+.filter-menu__foot{display:flex;gap:12px;padding-top:12px;margin-top:6px;border-top:1px solid var(--line)}
+.filter-menu__foot .btn{min-height:44px}
+.filter-menu__done{flex:1}
+.filter-menu__reset:disabled{opacity:.45;cursor:default}
 @media(max-width:800px){
 .collection-heading:has(+ .filter-bar){margin-bottom:16px}
 .filter-bar{gap:8px;margin-bottom:20px}

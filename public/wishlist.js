@@ -7,7 +7,7 @@ import {rememberWishlistTarget,consumeWishlistTarget,itemURL} from './wishlist-d
 import {matchPhotoBackground} from './photo-background.js';
 import {readList,saveList,forgetLists} from './list-cache.js';
 import {whenNear} from './lazy-photo.js';
-import {filterChips,matchesFilter,nextFilter,filterLabel,filterFromURL,filterURL,countLabel,wantedCount} from './wishlist-filters.js';
+import {ALL,filterChips,matchesFilter,nextFilter,filterLabel,filterFromURL,filterURL,countLabel,wantedCount,isAll} from './wishlist-filters.js';
 const $ = id => document.getElementById(id);
 fitFilterBar($('toolbar'));
 const session=createSession({fetcher:fetch,storage:localStorage,lock:work=>navigator.locks?navigator.locks.request('jules-wishlist-refresh',work):work()});
@@ -134,32 +134,42 @@ function render(items,version,source){
  itemCache.clear();$('grid').replaceChildren();$('login').hidden=true;$('collection').hidden=false;
  for(const item of items){itemCache.set(item.id,item);const card=node('div',null,'product-card');card.dataset.group=item.id;const tile=node('button',null,'tile');tile.type='button';tile.append(item.has_image?photo(productPhoto(item),item.name):pendingPhoto(item.photo_status==='retry_pending'),node('strong',item.name),node('span',priceRange(item.price_ranges),'card-price'+(item.stock?' sold-out':'')),...(item.bought?[]:cardStock(item.stock,item.price_alert?.active?item.price_alert.low_stock:null)));if(item.bought)tile.append(node('span',boughtLine(item.bought),'card-state'));else if(item.sourcing_status==='store_not_found')tile.append(node('span','Product identified · Store not found','card-state'));tile.onclick=()=>detail(item.id);card.append(tile,removeButton(item,card));if(item.alerts_enabled&&!item.bought)card.append(alertToggle(item));$('grid').append(card);}
  // A link to a filter with nothing in it opens the whole wishlist.
- if(filter!=='all'&&!items.some(item=>matchesFilter(item,filter)))setFilter('all',false);
+ if(!isAll(filter)&&!items.some(item=>matchesFilter(item,filter)))setFilter(ALL,false);
  applyFilter();message('');$('collection').dataset.listSource=source;
  requestAnimationFrame(()=>{if(version===generation&&!$('collection').dataset.readyMs)$('collection').dataset.readyMs=performance.now().toFixed(1);});
 }
 
-function setFilter(id,apply=true){
- filter=id;history.replaceState(history.state,'',filterURL(location.href,id));
+function setFilter(selection,apply=true){
+ filter=selection;history.replaceState(history.state,'',filterURL(location.href,selection));
  if(apply)applyFilter();
 }
-// Chips count every state; refilter=false keeps cards in place after an alert change until the person picks a filter.
+// State chips carry the line icon their card shows (the bell, the Sold out tag), so they never read as categories.
+const STATE_ICONS={alerts:'<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/>','sold-out':'<circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/>',bought:'<path d="M5 8h14l-1 12H6z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/><path d="M9.5 14l2 2 3.5-4"/>'};
+const pressed=chip=>chip.group==='all'?isAll(filter):chip.group==='category'?filter.category===chip.id:filter.filter===chip.id;
+function chipButton(chip){
+ const on=pressed(chip),button=node('button',null,'chip'+(chip.group==='state'?' chip--state':'')+(on?' chip--on':''));button.type='button';button.setAttribute('aria-pressed',String(on));
+ if(STATE_ICONS[chip.id])button.insertAdjacentHTML('beforeend',`<svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${STATE_ICONS[chip.id]}</svg>`);
+ button.append(chip.label,node('span',String(chip.count),'chip-count'));button.onclick=()=>setFilter(nextFilter(filter,chip));return button;
+}
+function chipGroup(chips,name,label){const group=node('div',null,'filter-group');group.dataset.group=name;group.setAttribute('role','group');group.setAttribute('aria-label',label);group.append(...chips.map(chipButton));return group;}
+// Chips keep their own counts; refilter=false keeps cards in place after an alert change until the person picks a filter.
 function applyFilter(refilter=true){
  const items=[...itemCache.values()];saveList(localStorage,'wishlist',token,items);
- $('filters').replaceChildren(...filterChips(items,filter).map(chip=>{
-  const button=node('button',chip.label,'chip'+(chip.id===filter?' chip--on':''));button.type='button';button.setAttribute('aria-pressed',String(chip.id===filter));
-  button.append(node('span',String(chip.count),'chip-count'));button.onclick=()=>setFilter(nextFilter(filter,chip.id));return button;
- }));
+ // Category (with All) and state are two groups in one row, a hairline between them (DESIGN-SYSTEM.md Filter row rules).
+ const chips=filterChips(items,filter),categories=chips.filter(c=>c.group!=='state'),states=chips.filter(c=>c.group==='state');
+ const divider=node('span',null,'filter-divider');divider.setAttribute('aria-hidden','true');
+ $('filters').replaceChildren(...(chips.length?[chipGroup(categories,'category','Category'),...(states.length?[divider,chipGroup(states,'state','Show')]:[])]:[]));
  let shown=0;
  for(const card of $('grid').children){const item=itemCache.get(card.dataset.group);if(!item)continue;if(refilter)card.hidden=!matchesFilter(item,filter);if(!card.hidden)shown++;}
+ $('filters').dataset.shown=String(shown);
  $('count').textContent=countLabel(shown,wantedCount(items),filter);
  $('toolbar').hidden=!items.length;
  // Everything bought: All is empty, and the Bought chip stays above the prompt to find more.
- $('empty').hidden=filter!=='all'||shown>0;
- const empty=Boolean(items.length)&&filter!=='all'&&!shown;$('filter-empty').hidden=!empty;
+ $('empty').hidden=!isAll(filter)||shown>0;
+ const empty=Boolean(items.length)&&!isAll(filter)&&!shown;$('filter-empty').hidden=!empty;
  if(empty){$('filter-empty-text').textContent=`Nothing left in ${filterLabel(filter)}.`;$('filter-show-all').textContent=`Show all ${items.length} ${items.length===1?'item':'items'}`;}
 }
-$('filter-show-all').onclick=()=>setFilter('all');
+$('filter-show-all').onclick=()=>setFilter(ALL);
 async function recoverAlertBaselines(items,version){
  if(!items.some(item=>item.price_alert?.active&&item.price_alert.baseline_pending))return;
  try{
