@@ -40,6 +40,10 @@ test('only items in the wardrobe count: no gifts, returns, removed or never-boug
  // Grouped by item type: shirts apart from t-shirts, trousers apart from denim.
  assert.deepEqual(s.groups.map(c=>[c.group,c.items]),[['shirts',3],['denim',1],['tops',1],['trousers',1]]);
  assert.equal(s.about.includes('not wearing or liking'),true);
+ // Each brand's owned items by group, for brand_taste; basics (the boxer briefs) are left out, and the
+ // per-brand list stays off the fact the stylist and search read.
+ assert.deepEqual(s.brands,[{brand:'Brand',items:6,groups:{shirts:3,denim:1,tops:1,trousers:1}}]);
+ assert.ok(!closetFact(s).value.includes('"brands"'));
 });
 
 test('receipt colour wins; the photo fills an unknown; recurring details only',()=>{

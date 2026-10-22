@@ -44,3 +44,12 @@ test('with a brand reading, the raw brand statements stop appearing as a separat
   assert.ok(!signals.saved_facts.some(f=>f.field==='brand'));
   assert.equal(candidateSignals({brand:'Unknown Label',url:'https://example.com/x'},{facts}).brand_taste,null);
 });
+
+test('purchases say what each brand was bought for, without basics', () => {
+  const closet=[{brand:'MAAP',items:18,groups:{activewear:18}},{brand:'Our Legacy',items:11,groups:{shirts:6,knitwear:3}}];
+  const brands=brandTaste({purchases:[{name:'MAAP',count:18,recent:18},{name:'Bombas',count:5,recent:5},{name:'OUR LEGACY',count:11,recent:6}],closet});
+  assert.deepEqual(brands.find(b=>b.brand==='MAAP').bought_as,{activewear:18});
+  assert.equal(brands.find(b=>b.brand==='Our Legacy').bought_recently,6);
+  // A basics-only brand is not in the closet's brands, so it adds nothing.
+  assert.equal(brands.find(b=>/bombas/i.test(b.brand)),undefined);
+});

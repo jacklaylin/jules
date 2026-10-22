@@ -40,9 +40,9 @@ stock, size or favorite-status claim.
 October 22 (founder): the saved "favorite brand" facts were three brands from one early message, copied again
 by the style pack, and the stylist read them as fixed taste. `brand_taste` combines every source per brand:
 `said` (the statement and its date; a copy never makes it newer, and `from` names a non-chat source),
-`bought` and `bought_recently` (purchase summary), `wishlisted` and `last_wishlisted`, and `liked`. Brands are
+`bought` and `bought_recently`, `bought_as` (what kinds of items they were, from the closet's item tags, basics left out), `wishlisted` and `last_wishlisted`, and `liked`. A brand is strong context for requests of the kinds it was bought as and much weaker for others: gym brands inform gym clothes, not a shirt (founder, October 22). Brands are
 ordered by behaviour: a save or like counts more than a receipt line, purchases are capped so gym kit or
-socks don't swamp them, and every stated brand stays in the list. The stylist reads it as `brand_taste` (in
+socks don't swamp them, and every stated brand stays in the list. The October 8 style-pack copies of brand statements (`style-pack/…`) were soft-deleted from the one profile that had them; nothing writes them any more. The stylist reads it as `brand_taste` (in
 place of the raw favourites), and the ranker sees each candidate brand's entry. With it present, `tasteView`
 leaves out the raw brand statements. It is soft taste: never a filter or a loyalty claim, and avoids and
 corrections stated elsewhere still win.
