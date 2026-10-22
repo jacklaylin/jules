@@ -87,7 +87,7 @@ test('style readings are evidence; saved reports keep references; confirmed beli
 
 test('chat-stated beliefs cite the quoted message as evidence',()=>{
  const message={id:'00000000-0000-4000-8000-000000000001',direction:'inbound',body:'I wear US men’s 10 in sneakers.',created_at:'2026-10-12T00:00:00Z'};
- const facts=validateChanges([{field:'size',key:'sneakers/us_men',value:'10',action:'set',source_id:message.id,evidence:'I wear US men’s 10'}],[message]);
+ const facts=validateChanges([{field:'size',key:'shoes/us_men',value:'10',action:'set',source_id:message.id,evidence:'I wear US men’s 10'}],[message]);
  assert.equal(facts[0].basis,'stated');
  const rows=chatStatementEvidence(facts);
  assert.deepEqual(rows.map(r=>[r.id,r.kind,r.source.quote]),[[facts[0].evidence_ids[0],'chat_statement','I wear US men’s 10']]);

@@ -76,7 +76,7 @@ test('the profile skill records each valid change with its quote and skips malfo
 test('details the model marks as someone else\'s are never saved to the user\'s profile',async()=>{
  const said={...message,body:'I’m a 32 waist in jeans. my sister is all about the boho thing'};
  const result=await updateProfile(db(),id,said,{changes:[
-  {about:'user',action:'remember',field:'size',key:'jeans/waist',value:'32',quote:'I’m a 32 waist in jeans'},
+  {about:'user',action:'remember',field:'size',key:'bottoms/waist',value:'32',quote:'I’m a 32 waist in jeans'},
   {about:'someone_else',action:'remember',field:'style',key:'aesthetic',value:'boho',quote:'all about the boho thing'}],acknowledgment:''});
  assert.equal(result.saved,1);assert.deepEqual(result.facts.map(f=>f.field),['size']);
  assert.deepEqual(result.rejected,[{field:'style',key:'aesthetic',reason:'about_someone_else'}]);
@@ -136,8 +136,8 @@ test('size and budget keys keep their shape: a store name alone is not a size ke
  const message = { id: '00000000-0000-4000-8000-000000000009', direction: 'inbound', body: 'Size 31 is also fine. I usually spend $300 on jeans.', created_at: '2026-10-15T10:00:00Z' };
  const one = change => { try { return validateChanges([{ action: 'set', source_id: message.id, ...change }], [message]); } catch { return []; } };
  assert.equal(one({ field: 'size', key: 'mfpen retail aps', value: '31', evidence: 'Size 31 is also fine' }).length, 0);
- assert.equal(one({ field: 'size', key: 'trousers/waist', value: '31', evidence: 'Size 31 is also fine' }).length, 1);
- assert.equal(one({ field: 'size', key: 'trousers/unknown/a.p.c.', value: '31', evidence: 'Size 31 is also fine' }).length, 1);
+ assert.equal(one({ field: 'size', key: 'bottoms/waist', value: '31', evidence: 'Size 31 is also fine' }).length, 1);
+ assert.equal(one({ field: 'size', key: 'bottoms/unknown/a.p.c.', value: '31', evidence: 'Size 31 is also fine' }).length, 1);
  assert.equal(one({ field: 'budget', key: 'jeans', value: '$300', evidence: 'I usually spend $300 on jeans.' }).length, 0);
  assert.equal(one({ field: 'budget', key: 'jeans/usd', value: '-300', evidence: 'I usually spend $300 on jeans.' }).length, 1);
  // A budget value is MIN-MAX in plain numbers; free text or a bare dash is a format error.
