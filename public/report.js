@@ -433,10 +433,15 @@ async function shareLink(){
  markOpened(report.share.token);
  return shareUrl();
 }
-// Each share, copy or download is counted (Admin › Adoption); never waited on, never in the way.
+// Each share, copy or download is counted (Admin › Style report); never waited on, never in the way.
+// The request leaves at once with the token already in hand: handing a Story to Instagram suspends or reloads
+// this tab, so anything sent after the phone's share sheet finishes can be lost.
 function record(body){
  if(readOnly)return;
- session.token().then(token=>token&&fetch('/api/wishlist?report=1',{method:'POST',keepalive:true,headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify(body)})).catch(()=>{});
+ const send=token=>token&&fetch('/api/wishlist?report=1',{method:'POST',keepalive:true,headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify(body)});
+ const saved=session.read();
+ if(saved?.access_token&&!(saved.expires_at<Date.now()/1000+30)){send(saved.access_token)?.catch(()=>{});return;}
+ session.token().then(send).catch(()=>{});
 }
 // A Story share or download also names the cards whose images went with it.
 const counted=(channel,cards=[])=>record({action:'report-shared',channel,cards});
@@ -504,7 +509,9 @@ $('share-story').onclick=()=>{
  // Not awaited: the share sheet has to open in the same tap.
  navigator.clipboard?.writeText(url).catch(()=>{});
  if(sharing){
-  navigator.share({files}).then(()=>{counted('story',cards);$('sheet-share').close();toast('Shared. Your link is copied for the link sticker.');}).catch(error=>{if(error?.name!=='AbortError')toast('Couldn’t open sharing. Try again.');});
+  // Counted on the tap: the phone gives no reliable "done" once Instagram takes over (a cancelled sheet still counts).
+  counted('story',cards);
+  navigator.share({files}).then(()=>{$('sheet-share').close();toast('Shared. Your link is copied for the link sticker.');}).catch(error=>{if(error?.name!=='AbortError')toast('Couldn’t open sharing. Try again.');});
   return;
  }
  counted('download',cards);
@@ -515,7 +522,7 @@ $('share-copy').onclick=async()=>{if(!report.share)return;$('sheet-share').close
 $('share-more').onclick=async()=>{
  if(!report.share)return;
  const url=shareUrl('share_sheet');
- if(navigator.share){try{await navigator.share({title:'My style report',text:'Jules went through my orders. What would yours say?',url});counted('share_sheet');$('sheet-share').close();}catch(error){if(error?.name!=='AbortError')toast('Couldn’t open sharing. Copy the link instead.');}return;}
+ if(navigator.share){counted('share_sheet');try{await navigator.share({title:'My style report',text:'Jules went through my orders. What would yours say?',url});$('sheet-share').close();}catch(error){if(error?.name!=='AbortError')toast('Couldn’t open sharing. Copy the link instead.');}return;}
  $('sheet-share').close();await copyLink();
 };
 $('share').onclick=()=>openShare('card');$('end-share').onclick=$('end-share-row').onclick=()=>openShare('end');
