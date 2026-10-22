@@ -148,14 +148,14 @@ async function loadContext() {
   const cell = text => el('td', { textContent: text || '—' });
   const said = b => b.said ? `${b.said.value}${b.said.on ? ' · ' + onDay(b.said.on) : ''}${b.said.from ? ' · from ' + GROUP(b.said.from) : ''}` : '';
   const bought = b => b.bought ? `${b.bought}${b.bought_recently ? ` (${b.bought_recently} recent)` : ''}${b.bought_as ? ' · ' + Object.entries(b.bought_as).sort((x, y) => y[1] - x[1]).map(([g, n]) => `${GROUP(g)} ${n}`).join(', ') : ''}` : '';
-  const saved = b => b.wishlisted ? `${b.wishlisted}${b.last_wishlisted ? ' · ' + onDay(b.last_wishlisted) : ''}` : '';
+  const saved = b => b.wishlisted ? `${b.wishlisted}${b.last_wishlisted ? ' · ' + onDay(b.last_wishlisted) : ''}${b.wishlisted_as ? ' · ' + Object.entries(b.wishlisted_as).sort((x, y) => y[1] - x[1]).map(([g, n]) => `${GROUP(g)} ${n}`).join(', ') : ''}` : '';
   const brands = data.brands.length ? el('div', { className: 'dv-table-wrap' }, el('table', { className: 'dv-table context-brands' },
     el('thead', {}, el('tr', {}, ...['Brand', 'Said', 'Bought', 'Wishlist', 'Liked'].map(h => el('th', { textContent: h })))),
     el('tbody', {}, ...data.brands.map(b => el('tr', {}, cell(b.brand), cell(said(b)), cell(bought(b)), cell(saved(b)), cell(b.liked ? String(b.liked) : '')))))) : el('p', { className: 'muted', textContent: 'No brands from any source yet.' });
   const list = (title, rows) => rows.length ? el('div', { className: 'context-list' }, el('h3', { textContent: title }), el('ul', {}, ...rows.map(text => el('li', { textContent: text })))) : null;
   $('context-body').replaceChildren(sources, el('h3', { textContent: 'Brands' }), brands,
     list('Wardrobe', data.wardrobe.map(g => `${GROUP(g.group)} · ${g.items}${g.types ? ' · ' + g.types : ''}`)),
-    list('Wishlist, newest first', data.wishlist.map(i => [i.brand, i.item, i.saved ? onDay(i.saved) : null].filter(Boolean).join(' · '))),
+    list('Wishlist, newest first', data.wishlist.map(i => [i.brand, i.item, i.kind ? GROUP(i.kind) : null, i.saved ? onDay(i.saved) : null].filter(Boolean).join(' · '))),
     list('Liked', data.liked.map(i => [i.brand, i.item].filter(Boolean).join(' · '))));
   $('context').hidden = false;
 }

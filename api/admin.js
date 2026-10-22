@@ -3,6 +3,7 @@ import '../lib/usage.js';
 import { lowStockSummary } from '../lib/low-stock.js';
 import { readCoverage } from '../lib/coverage.js';
 import { readUserContext, contextReport } from '../lib/user-context.js';
+import { tagWishlist } from '../lib/wishlist-tags.js';
 import { adminStartInterview } from '../lib/interview.js';
 import { previewEarlyRead } from '../lib/early-read.js';
 import { authorize } from '../lib/auth.js';
@@ -136,9 +137,9 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
         }
         if (input.action === 'tag') {
           // One click tags as many items as fit in this request; the page offers to continue.
-          const run = await tagPurchaseHistory(store, input.conversation, env, { budgetMs: 20000 });
+          const [run, wishlist] = await Promise.all([tagPurchaseHistory(store, input.conversation, env, { budgetMs: 20000 }), tagWishlist(store, input.conversation, env)]);
           if (run.busy && !run.tagged) throw Object.assign(new Error('Purchase history is busy (an import or another edit is running). Try again in a moment.'), { status: 409 });
-          return json(res, 200, { ...await purchaseReview(store, input.conversation), tag_run: run });
+          return json(res, 200, { ...await purchaseReview(store, input.conversation), tag_run: { ...run, wishlist_tagged: wishlist.tagged } });
         }
         if (input.action === 'review') await reviewPurchase(store, input.conversation, input);
         else await reportMissedPurchase(store, input.conversation, input);
