@@ -111,7 +111,7 @@ test('a message that adds a price or claims a save is rejected once with the pro
   assert.match(body, /want me to save them/);
 });
 
-test('a link still left out on the last attempt is added by code; a left-out price is the model\'s to fix', async () => {
+test('a link still left out on the last attempt is added by code; a left-out price is put back beside its link at once', async () => {
   const shop = shopping();let final;
   const { fetcher, requests } = model([
     [tool('find_products', { query:'Peyter pants' })],
@@ -127,9 +127,11 @@ test('a link still left out on the last attempt is added by code; a left-out pri
     [reply(`found the Peyter pants at Dover Street Market.\n${url}`)],
     [reply(`the Peyter pants are at Dover Street Market.\n${url}`)],
   ]);
-  let plain;
-  await generateReply(say('find the peyter pants'), env, priced.fetcher, { ...shopping().memory, onReply:name => { plain = name; } });
-  assert.equal(priced.requests.length, 3); assert.equal(plain, 'agent_plain');
+  let written;
+  const repaired = await generateReply(say('find the peyter pants'), env, priced.fetcher, { ...shopping().memory, onReply:name => { written = name; } });
+  // SPEED.md change 3: the verified price from the results goes above the link; no rewrite round, no plain fallback.
+  assert.equal(priced.requests.length, 2); assert.equal(written, 'agent_reply');
+  assert.ok(repaired.includes(`795`)); assert.match(repaired, /Dover Street Market\.\n.*795.*\n/);
 });
 
 test('an approved save that saved nothing does not replace the search results in a fallback', async () => {

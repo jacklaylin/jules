@@ -1,6 +1,6 @@
 # Chat speed: where a turn's time goes, and what to cut
 
-Status: **approved October 22; built one PR at a time, each checked live before the next.** Change 1 (store page time limit, 25 s directions cap): live October 22 (#340), founder saw searches much faster. Change 2 (typing dots beside the context read, plus the search 👀 tapback sent before the search instead of after it): in review.
+Status: **approved October 22; built one PR at a time, each checked live before the next.** Change 1 (store page time limit, 25 s directions cap): live October 22 (#340), founder saw searches much faster. Change 2 (typing dots beside the context read, plus the search 👀 tapback first): live October 22 (#342). Change 3 (left-out prices put back beside their link): in review.
 
 ## What was measured
 
