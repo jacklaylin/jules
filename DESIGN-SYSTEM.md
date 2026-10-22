@@ -26,7 +26,7 @@ The owner console has its own section in the Jules design system (Claude Design 
 - **Compare:** a `.dv-field` select in the toolbar, "This week vs last week" or "Last 4 weeks vs the 4 before". The windows and the change badge come from `lib/compare.js` (`windows`, `change`), so every strip reads the same way; Scorecard's verdicts use the same windows (`periodRanges` in `scorecard-view.js`). A figure with no earlier value to compare says so ("now only", or New before it was tracked), never 0.
 - **AdminPage stack:** a page's AdminCards sit in `.dv-cards` (24px apart); a section that can be hidden as a whole is a nested `.dv-cards` holding its cards. MetricsHelp sits right under the strip. Secondary filters (Scorecard's "Whose searches") live in the Filters popover, so the toolbar keeps one filter group.
 - **Admin › Costs:** a MetricStrip for the picked month (to date, projected month end against last month's whole total, today against the daily warning budget, lifetime) or day, with What these numbers mean holding the Billed/Estimate/Manual legend and each view's explanation; each view (By service, By feature, By person, Recurring jobs, Evals) is one AdminCard. Coverage, billed vs recorded, caps and job alerts stay in the status line on every view. Less spend is better, so a higher projection is red.
-- **Still to move over** (one PR each, checked in prod): the test lab (AdminPage + AdminForm), then person Wishlist and Conversation and the retired classes (`.data-table`, `.mono-label` outside menus, `.notice-bar`, `.empty-state`, `.app-heading`, `.dv-subhead`, page-specific strip and table classes).
+- **Still to move over** (one PR each, checked in prod): person Wishlist and Conversation and the retired classes (`.data-table`, `.mono-label` outside menus, `.notice-bar`, `.empty-state`, `.app-heading`, `.dv-subhead`, page-specific strip and table classes).
 
 ## Visual rules
 
@@ -132,7 +132,7 @@ Every rich iMessage preview image is one component, LinkPreview, designed on the
 
 | Haze | Surface | File |
 | --- | --- | --- |
-| Butter | Style report share `/r/…` | `report-v2.png` (no name: "A style report is in") |
+| Butter | Style report share `/r/…` | `report-bg-v1.png` plus the sharer's name, drawn per link (`lib/report-preview.js`); `report-v2.png` when there is no name |
 | Daylight | Homepage `/` | `home-v2.png` |
 | Bubblegum | Wishlist `/wishlist` | `wishlist-v2.png` (three blank cards) |
 | Sherbet | Your style `/style` | `style-v2.png` |
@@ -140,4 +140,5 @@ Every rich iMessage preview image is one component, LinkPreview, designed on the
 | Signup | Spare (invites) | — |
 
 - **Product cards:** 340×500 white card, 350px photo slot on `fog`, name and store bars. One card per item the link actually holds (one for a single save, up to three); a product photo only ever appears on its own white card. Product `/go/` links stay the plain product photo on white (October 20 decision).
+- **Names and other live text:** `lib/link-preview-headline.js` draws a headline from the bundled Instrument Serif onto a headline-free background, following the same rules (112px, balanced lines, 590px column). Longer text steps down 112 → 100 → 88 → 76 → 64px until it fits in three lines. A single word wider than the column shrinks the size further. Text the font can't draw (emoji, most non-Latin scripts) uses the generic headline.
 - **Changing art:** bump the file's version (`-v3`) and its metadata references so Apple fetches the new image; keep the canvas and this template in step.

@@ -99,5 +99,7 @@ export const SURFACES=[
  {file:'wishlist-v2.png',haze:'bubblegum',headline:'Your wishlist',visual:'wishlist',options:{items:3,photo:null}},
  {file:'style-v2.png',haze:'sherbet',headline:'Your style report is ready',visual:'style'},
  {file:'saved-v2.png',haze:'dusk',headline:'Added to your wishlist',visual:'saved'},
- {file:'report-v2.png',haze:'butter',headline:'A style report is in',visual:'report'}
+ {file:'report-v2.png',haze:'butter',headline:'A style report is in',visual:'report'},
+ // The style report share without its headline: lib/report-preview.js draws the sharer's name on it.
+ {file:'report-bg-v1.png',haze:'butter',headline:'',visual:'report'}
 ];
