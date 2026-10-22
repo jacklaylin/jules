@@ -153,3 +153,27 @@ $('refresh').onclick = load;
 setInterval(() => { if (refreshedAt) $('refreshed').textContent = `Refreshed ${ago(refreshedAt)}`; }, 30000);
 $('testers').replaceChildren(...skeletonRows(6, 13));
 load();
+
+// The style report's share loop (Admin › Style report has the rest): shared → friends opened → signed up, last 4 weeks.
+// It reads the same cached numbers as that page, so either page warms the other; a failure only empties the card.
+async function loadReportTile() {
+  const token = await adminToken().catch(() => null), saved = readPage(localStorage, 'admin_style_report', token);
+  if (saved) drawReportTile(saved.data); else $('report-funnel').replaceChildren(...skeletonRows(3).map(row => el('li', {}, row)));
+  try { const fresh = await adminJson('/api/admin?view=style-report'); savePage(localStorage, 'admin_style_report', token, fresh); drawReportTile(fresh); }
+  catch (error) { if (!saved) $('report-funnel').replaceChildren(el('li', { className: 'dv-empty', textContent: `Could not load the share loop: ${error.message}` })); $('report-tile').removeAttribute('aria-busy'); }
+}
+function drawReportTile(report) {
+  const t = report.periods.month.totals, top = Math.max(t.shares, t.friends, 1);
+  const row = (label, n, max, note) => {
+    const bar = el('div', { className: 'split-bar__bar split-bar--compact', role: 'img', ariaLabel: `${label} ${n}` });
+    const fill = el('span', { className: 'is-ink' }); fill.style.flexGrow = String(n); const rest = el('span'); rest.style.flexGrow = String(Math.max(0, max - n));
+    if (n) bar.append(fill); bar.append(rest);
+    return el('li', {}, el('span', { textContent: label }), bar, el('span', { className: 'nowrap' }, el('strong', { textContent: String(n) }), note ? el('span', { className: 'muted', textContent: ` · ${note}` }) : ''));
+  };
+  $('report-funnel').replaceChildren(
+    row('Shared', t.shares, top, `${t.shared} ${t.shared === 1 ? 'tester' : 'testers'}`),
+    row('Friends opened', t.friends, top, t.shares ? `${Math.round(t.friends / t.shares * 10) / 10} per share` : ''),
+    row('Signed up', t.signups, Math.max(t.friends, 1), t.friends ? `${Math.round(t.signups / t.friends * 100)}% of friends` : ''));
+  $('report-tile').removeAttribute('aria-busy');
+}
+loadReportTile();

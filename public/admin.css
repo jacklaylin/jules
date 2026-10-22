@@ -162,3 +162,13 @@ p{line-height:1.65}.login-card{max-width:490px;margin:7vh auto}.login-card>p{col
 /* Purchase nudges dialog (admin-person.js) */
 .nudge-log{max-height:240px;overflow:auto;padding-left:18px;font-size:14px}
 #nudge-item{width:100%}
+
+/* Admin › Style report: AdminCards stacked under the strip; method keys and the current week's row. */
+.report-cards{display:flex;flex-direction:column;gap:24px;margin-top:20px}
+.method-key{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:8px;vertical-align:-1px}
+.nowrap{white-space:nowrap}.report-card-table .split-cell{min-width:240px}
+.report-cards .dv-table tr.current th,.report-cards .dv-table tr.current td{font-weight:600}
+.report-cards .dv-table th[scope=row]{font-weight:600;color:var(--ink);font-size:13px;white-space:nowrap}
+.adoption-report{margin:20px 0 4px}
+.report-funnel{list-style:none;margin:0;padding:0;display:grid;gap:8px;font-size:13px}.report-funnel li{display:grid;grid-template-columns:110px minmax(0,1fr) minmax(0,auto);align-items:center;gap:12px}
+@media(max-width:800px){.report-funnel li{grid-template-columns:96px minmax(0,1fr)}.report-funnel li>:last-child{grid-column:1/-1}}

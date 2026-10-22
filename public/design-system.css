@@ -312,7 +312,7 @@ body.admin-console>.admin-nav~main,.admin-gate{padding-top:var(--page-top)}
 }
 
 /* Admin data components (from the admin design handoff). Status is never colour alone: each badge has a glyph and a word. */
-:root{--ok-bg:#E3F2EA;--ok-text:#14573A;--warn-bg:#FFF0C2;--warn-text:#6B4A00;--fail-bg:#FBE3E0;--fail-text:#9B1C14;--info-text:#4A433E;--grape-tint:#F7F3FF}
+:root{--ok-mark:#3f9b65;--ok-bg:#E3F2EA;--ok-text:#14573A;--warn-bg:#FFF0C2;--warn-text:#6B4A00;--fail-bg:#FBE3E0;--fail-text:#9B1C14;--info-text:#4A433E;--grape-tint:#F7F3FF}
 .badge{display:inline-flex;align-items:center;gap:6px;font:600 12px/1 var(--font-sans);padding:6px 10px 6px 7px;border-radius:999px;white-space:nowrap;background:var(--fog);color:var(--info-text)}
 .badge::before{content:"i";display:inline-grid;place-items:center;width:15px;height:15px;border-radius:50%;border:1.5px solid currentColor;font:700 9px/1 var(--font-mono)}
 .badge.ok{background:var(--ok-bg);color:var(--ok-text)}.badge.ok::before{content:"✓"}
@@ -367,6 +367,14 @@ button.small{min-height:32px;padding:0 14px;font-size:13px}
 .dv-card--quiet .dv-card-head h2{font-size:24px}
 .dv-card-note{font-size:12px;color:var(--text-2)}
 .dv-card-foot{margin:0;font-size:12px;color:var(--text-2);border-top:1px solid var(--line);padding-top:12px}.dv-card-foot strong{color:var(--ink)}
+/* SplitBar: how a total splits into parts, with counts beside it. Part widths are set through the style object
+   (flex-grow), never a style attribute. Full size above a table with a legend; compact (8px) inside a table cell. */
+.split-bar{display:flex;flex-direction:column;gap:8px}
+.split-bar__bar{display:flex;height:12px;border-radius:var(--r-pill);overflow:hidden;gap:2px;background:var(--fog);min-width:60px}.split-bar--compact{height:8px;flex:1}
+.split-bar__legend{display:flex;flex-wrap:wrap;gap:4px 16px;margin:0;font-size:12px}.split-bar__legend>span{white-space:nowrap}
+.split-bar__legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.split-cell{display:flex;align-items:center;gap:10px}
+.is-ink{background:var(--ink)}.is-grape{background:var(--grape)}.is-strong{background:var(--line-strong)}.is-line{background:var(--line)}.is-up{background:var(--ok-mark)}.is-down{background:var(--danger)}
 .dv-toolbar-note{font-size:12px;color:var(--text-2)}
 /* Title with a figure beside it (a day's total) and one quiet line of what the figure is. */
 .dv-heading{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 16px;margin:0 0 14px}.dv-heading .dv-title{margin:0}
@@ -375,6 +383,8 @@ button.small{min-height:32px;padding:0 14px;font-size:13px}
 .dv-field{display:inline-flex;align-items:center;gap:8px;white-space:nowrap;min-height:34px;box-sizing:border-box;padding:0 6px 0 14px;border-radius:var(--r-pill);background:var(--fog);font-size:13px;color:var(--text-2)}
 .dv-field:focus-within{outline:3px solid var(--grape);outline-offset:3px}
 .dv-field input:not([type=checkbox]):not([type=radio]){width:auto;min-height:32px;margin:0;padding:0 6px;border:0;border-radius:0;background:transparent;box-shadow:none;font-size:13px;color:var(--ink);outline:none}
+/* A select in a toolbar field (a period picker): no box of its own, a small chevron, the field's height. */
+.dv-field select{width:auto;min-height:32px;margin:0;padding:0 26px 0 6px;border:0;border-radius:0;background-color:transparent;background-position:right 2px center;background-size:16px;box-shadow:none;font-size:13px;color:var(--ink)}
 .dv-note{margin:10px 0 0;font-size:12px;line-height:1.5;color:var(--text-2);max-width:820px}
 .dv-subhead{margin:24px 0 8px;font-size:22px}
 .dv-empty{margin:0;padding:14px 10px;font-size:13px;color:var(--text-2)}
