@@ -94,5 +94,6 @@ layer (`readUserContext(..., {wishlist})`).
    counts wishlist saves as a brand source. The Wrapped style report stays purchase-only on purpose: it counts what
    was bought.
 4. ~~An admin view of what Jules knows about a person, from the layer.~~ (October 22) Admin › People › person ›
-   Personal memory › "What Jules knows": source counts, the brand reading (said, bought and as what, saved, liked)
-   and the wardrobe, wishlist and liked summaries (`contextReport`, `/api/admin?view=context`). Read-only.
+   Personal memory › "What Jules knows". Replaced the same day by the Knowledge tab: every fact and derived source
+   in one table, each marked Said, Seen or Inferred, with the brand weight kept in the reading
+   (`lib/person-knowledge.js`, `/api/admin?view=knowledge`). Read-only apart from the person's own facts.

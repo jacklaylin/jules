@@ -2,7 +2,7 @@ import {mountAdminShell,adminJson,adminFetch,adminToken,anchorMenus} from './adm
 import {mountPurchases,loadPurchases,syncPurchaseView} from './admin-purchases.js';
 import {browseKey} from './admin-review.js';
 import {approvalLines,accessResult,welcomeResult} from './admin-people-view.js';
-// Admin › People › one person: Summary, Personal memory, Conversation, Purchase history and Wishlist tabs.
+// Admin › People › one person: Summary, Knowledge, Conversation, Purchase history and Wishlist tabs.
 // The selected tab lives in the URL (?tab=) so every view can be linked.
 mountAdminShell('people');
 anchorMenus();
@@ -13,10 +13,11 @@ const when = at => at ? new Date(at).toLocaleString(undefined, { month: 'short',
 const day = at => at ? new Date(at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'date unknown';
 const notice = text => { $('notice').textContent = text; };
 const api = (path, options) => adminJson(path, options);
-const TABS = ['summary', 'memory', 'conversation', 'purchases', 'wishlist'];
+const TABS = ['summary', 'knowledge', 'conversation', 'purchases', 'wishlist'];
 const person = location.pathname.split('/')[3] ?? '';
 
 function showTab(tab, push = false) {
+  if (tab === 'memory') tab = 'knowledge'; // Personal memory became Knowledge (October 22); old links still work.
   if (!TABS.includes(tab)) tab = 'summary';
   for (const link of document.querySelectorAll('.tabs a')) { if (link.dataset.tab === tab) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current'); }
   for (const panel of document.querySelectorAll('[data-panel]')) panel.hidden = panel.dataset.panel !== tab;
@@ -163,89 +164,121 @@ $('summary-learn').onclick = async () => {
   finally { $('summary-learn').disabled = false; }
 };
 
-// What Jules knows from every source (lib/user-context.js contextReport): source counts, the brand reading
-// (said, bought and as what, saved, liked) and the summaries the stylist and search read. Read-only.
-const GROUP = group => String(group).replace(/_/g, ' ');
-// Date-only values (2026-10-06) are calendar days: read at local noon so no time zone moves them a day.
-const onDay = value => /^\d{4}-\d{2}-\d{2}$/.test(value ?? '') ? day(value + 'T12:00:00') : day(value);
-async function loadContext() {
-  const data = await api(`/api/admin?view=context&conversation=${encodeURIComponent(person)}`), s = data.sources;
-  const sources = el('p', { className: 'muted', textContent: [`${s.stated} stated facts`, `${s.purchases} purchases`, `${s.wardrobe} wardrobe items`, `${s.wishlist} wishlist items`, `${s.liked} liked items`, s.outfit_photos ? 'outfit photos' : 'no outfit photos'].join(' · ') });
-  const cell = text => el('td', { textContent: text || '—' });
-  const said = b => b.said ? `${b.said.value}${b.said.on ? ' · ' + onDay(b.said.on) : ''}${b.said.from ? ' · from ' + GROUP(b.said.from) : ''}` : '';
-  const bought = b => b.bought ? `${b.bought}${b.bought_recently ? ` (${b.bought_recently} recent)` : ''}${b.bought_as ? ' · ' + Object.entries(b.bought_as).sort((x, y) => y[1] - x[1]).map(([g, n]) => `${GROUP(g)} ${n}`).join(', ') : ''}` : '';
-  const saved = b => b.wishlisted ? `${b.wishlisted}${b.last_wishlisted ? ' · ' + onDay(b.last_wishlisted) : ''}${b.wishlisted_as ? ' · ' + Object.entries(b.wishlisted_as).sort((x, y) => y[1] - x[1]).map(([g, n]) => `${GROUP(g)} ${n}`).join(', ') : ''}` : '';
-  const brands = data.brands.length ? el('div', { className: 'dv-table-wrap' }, el('table', { className: 'dv-table context-brands' },
-    el('thead', {}, el('tr', {}, ...['Brand', 'Said', 'Bought', 'Wishlist', 'Liked'].map(h => el('th', { textContent: h })))),
-    el('tbody', {}, ...data.brands.map(b => el('tr', {}, cell(b.brand), cell(said(b)), cell(bought(b)), cell(saved(b)), cell(b.liked ? String(b.liked) : '')))))) : el('p', { className: 'muted', textContent: 'No brands from any source yet.' });
-  const list = (title, rows) => rows.length ? el('div', { className: 'context-list' }, el('h3', { textContent: title }), el('ul', {}, ...rows.map(text => el('li', { textContent: text })))) : null;
-  $('context-body').replaceChildren(sources, el('h3', { textContent: 'Brands' }), brands,
-    list('Wardrobe', data.wardrobe.map(g => `${GROUP(g.group)} · ${g.items}${g.types ? ' · ' + g.types : ''}`)),
-    list('Wishlist, newest first', data.wishlist.map(i => [i.brand, i.item, i.kind ? GROUP(i.kind) : null, i.saved ? onDay(i.saved) : null].filter(Boolean).join(' · '))),
-    list('Liked', data.liked.map(i => [i.brand, i.item].filter(Boolean).join(' · '))));
-  $('context').hidden = false;
-}
-
-// ---------- Personal memory ----------
-const TYPES = { gender: 'gender', shopping_range: 'clothing range', size: 'size', brand: 'brand', category: 'category', style: 'style', budget: 'budget', spending: 'spending' };
-let profileVersion = 0, facts = [], profileBusy = false, typeFilter = '';
+// ---------- Knowledge ----------
+// Everything Jules knows in one table: the person's own facts (from /api/profile, editable in place) and one
+// read-only row per derived source (lib/person-knowledge.js). Kind: Said (stated or confirmed), Inferred (Jules's
+// reading, including facts it picked up without being told) or Seen (counted from what they did).
+let profileVersion = 0, facts = [], profileBusy = false, knowledge = { rows: [], notes: {} }, kindFilter = '', sortBy = 'topic', sortDir = 1;
 const dirty = new Map(), factKey = fact => `${fact.field}|${fact.key}`;
 // Same shape check as lib/relevance.js sizeKeyShape: a size key is category/system[/brand].
 const malformedSize = fact => { const parts = String(fact.key ?? '').split('/'); return fact.field === 'size' && !(parts.length >= 2 && parts.length <= 3 && parts.every(p => p.trim())); };
-function evidenceText(fact) {
-  if (fact.source === 'operator') return `Owner edit · ${day(fact.updated_at)}`;
-  const kind = fact.source === 'message' ? 'User statement' : 'Learned';
-  return `${kind} · ${day(fact.updated_at)}${fact.evidence ? ` · “${fact.evidence}”` : ''}`;
+// Date-only values (2026-10-06) are calendar days: read at local noon so no time zone moves them a day.
+const onDay = value => value ? (/^\d{4}-\d{2}-\d{2}$/.test(value) ? day(value + 'T12:00:00') : day(value)) : '';
+const FIELD = { shopping_range: 'Clothing range', gender: 'Gender', name: 'First name', country: 'Country', currency: 'Currency', size: 'Size', brand: 'Brand', avoid: 'Avoid',
+  style: 'Style', fit: 'Fit', inspiration: 'Inspiration', occasion: 'Occasion', category: 'Category', owned: 'Owns', budget: 'Budget', spending: 'Spending', store: 'Store', retailer: 'Store' };
+const TOPICS = ['Person', 'Sizes', 'Brands', 'Style', 'Budget and stores', 'Saved and liked', 'Other'];
+const KIND_ORDER = { said: 0, inferred: 1, seen: 2 };
+const label = text => String(text ?? '').replace(/_/g, ' ');
+// What a fact is about, in words: "Bottoms · levis" for a size key, "Avoid · acne studios", "Clothing range".
+function aboutOf(fact) {
+  if (fact.field === 'size') { const [category, , brand] = String(fact.key).split('/'); return [label(category), brand].filter(Boolean).join(' · ') || fact.key; }
+  if (['brand', 'store', 'retailer'].includes(fact.field)) return fact.key;
+  if (fact.field === 'budget') { const [category, currency] = String(fact.key).split('/'); return `Budget · ${label(category)}${currency && currency !== 'unknown' ? ` (${currency.toUpperCase()})` : ''}`; }
+  return ['identity', 'department', 'first', 'summary', 'code'].includes(fact.key) ? FIELD[fact.field] ?? label(fact.field) : `${FIELD[fact.field] ?? label(fact.field)} · ${label(fact.key)}`;
 }
-// Type filter (the only counts) and search narrow the table; unsaved values survive filtering.
-function renderTypes(live) {
-  const counts = live.reduce((m, f) => m.set(f.field, (m.get(f.field) ?? 0) + 1), new Map());
-  if (typeFilter && !counts.has(typeFilter)) typeFilter = '';
-  $('memory-types').replaceChildren(...[['', 'All', live.length], ...Object.keys(TYPES).filter(t => counts.has(t)).map(t => [t, TYPES[t][0].toUpperCase() + TYPES[t].slice(1), counts.get(t)])].map(([value, label, n]) => {
-    const button = el('button', { type: 'button' }, label, el('span', { className: 'count', textContent: n }));
-    button.setAttribute('aria-pressed', String(typeFilter === value));
-    button.onclick = () => { typeFilter = value; renderFacts(); };
+const sourceOf = fact => fact.source === 'signup' ? 'Signup form' : fact.source === 'operator' ? 'Owner edit' : fact.source === 'message' ? 'Chat' : 'Learned from messages';
+function allRows() {
+  const own = facts.filter(f => !f.deleted).map(f => {
+    const note = knowledge.notes[factKey(f)] ?? {};
+    return { id: 'fact:' + factKey(f), fact: f, topic: note.topic ?? 'Other', about: aboutOf(f), value: f.value, kind: f.basis === 'inferred' ? 'inferred' : 'said',
+      source: sourceOf(f), when: f.updated_at ?? null, weight: note.weight ?? null, seen: note.seen ?? null, needsLook: malformedSize(f) };
+  });
+  return [...own, ...knowledge.rows];
+}
+const weightValue = w => w === 'last' ? -1 : typeof w === 'number' ? w : -2;
+function compare(a, b) {
+  const by = { topic: () => TOPICS.indexOf(a.topic) - TOPICS.indexOf(b.topic), about: () => a.about.localeCompare(b.about), value: () => String(a.value ?? '').localeCompare(String(b.value ?? '')),
+    weight: () => weightValue(a.weight) - weightValue(b.weight), kind: () => KIND_ORDER[a.kind] - KIND_ORDER[b.kind], source: () => a.source.localeCompare(b.source),
+    when: () => (Date.parse(a.when ?? '') || 0) - (Date.parse(b.when ?? '') || 0) }[sortBy];
+  // Ties: kind (said first), then the stronger brand, then name.
+  return by() * sortDir || KIND_ORDER[a.kind] - KIND_ORDER[b.kind] || weightValue(b.weight) - weightValue(a.weight) || a.about.localeCompare(b.about);
+}
+// A brand's weight as a small ring, full for their strongest brand.
+function weightCell(weight, top) {
+  if (weight === 'last') return el('td', { className: 'muted knowledge-weight', textContent: 'Ranked last' });
+  if (typeof weight !== 'number') return el('td');
+  const ns = 'http://www.w3.org/2000/svg', svg = document.createElementNS(ns, 'svg'), ring = (stroke, dash) => {
+    const c = document.createElementNS(ns, 'circle'); for (const [k, v] of Object.entries({ cx: 10, cy: 10, r: 8, fill: 'none', stroke, 'stroke-width': 3, ...(dash ? { 'stroke-dasharray': dash, 'stroke-linecap': 'round', transform: 'rotate(-90 10 10)' } : {}) })) c.setAttribute(k, v); return c; };
+  const length = 2 * Math.PI * 8;
+  for (const [k, v] of Object.entries({ width: 20, height: 20, viewBox: '0 0 20 20', 'aria-hidden': 'true' })) svg.setAttribute(k, v);
+  svg.append(ring('var(--line)'), ring('var(--ink)', `${top ? (weight / top) * length : 0} ${length}`));
+  return el('td', { className: 'knowledge-weight' }, el('span', { className: 'weight', title: `Weight ${weight}${top ? ` (their strongest brand is ${top})` : ''}` }, svg, el('strong', { textContent: String(weight) })));
+}
+function factRow(row, top) {
+  const fact = row.fact, keyId = factKey(fact), input = el('input', { value: dirty.get(keyId) ?? fact.value, maxLength: 500 });
+  input.setAttribute('aria-label', `${row.about}: what Jules knows`);
+  const save = el('button', { type: 'button', className: 'small btn--butter', textContent: 'Save', hidden: !dirty.has(keyId) });
+  const remove = el('button', { type: 'button', className: 'small quiet', textContent: 'Remove' });
+  const quote = fact.evidence && fact.source === 'message' ? ` · “${fact.evidence}”` : '';
+  const tr = el('tr', { className: dirty.has(keyId) ? 'dirty' : '' },
+    el('td', { className: 'muted', textContent: row.topic }),
+    el('th', { scope: 'row' }, row.about, row.needsLook ? el('span', { className: 'badge warn', title: 'Size keys need the item it is for: category/system[/brand]. Remove this and add the correct one.', textContent: 'Needs category' }) : null),
+    el('td', {}, input, row.seen ? el('div', { className: 'muted knowledge-seen', textContent: `Seen: ${row.seen}` }) : null),
+    weightCell(row.weight, top), el('td', {}, kindTag(row.kind, KIND_LABEL[row.kind])),
+    el('td', { className: 'muted knowledge-source', title: row.source + quote }, row.source + quote, fact.source_id ? el('button', { type: 'button', className: 'small quiet', textContent: 'Open ↗', ariaLabel: 'Open the message in Conversation', onclick: () => openMessage(fact.source_id) }) : null),
+    el('td', { className: 'muted', textContent: onDay(row.when) }), el('td', { className: 'end knowledge-actions' }, save, remove));
+  input.oninput = () => {
+    if (input.value === fact.value) dirty.delete(keyId); else dirty.set(keyId, input.value);
+    save.hidden = !dirty.has(keyId); tr.classList.toggle('dirty', dirty.has(keyId)); renderDirty();
+  };
+  save.onclick = () => changeProfile({ action: 'set', field: fact.field, key: fact.key, value: input.value }, keyId);
+  remove.onclick = () => changeProfile({ action: 'remove', field: fact.field, key: fact.key, value: '' }, keyId);
+  return tr;
+}
+const derivedRow = (row, top) => el('tr', { className: `derived kind-row-${row.kind}` },
+  el('td', { className: 'muted', textContent: row.topic }), el('th', { scope: 'row', textContent: row.about }),
+  el('td', {}, row.value ?? el('span', { className: 'muted', textContent: 'Not built yet' })), weightCell(row.weight, top),
+  el('td', {}, kindTag(row.kind, KIND_LABEL[row.kind])), el('td', { className: 'muted knowledge-source', textContent: row.source }),
+  el('td', { className: 'muted', textContent: onDay(row.when) }), el('td'));
+const KIND_LABEL = { said: 'Said', seen: 'Seen', inferred: 'Inferred' };
+function fillSelect(select, values, all) {
+  const current = select.value;
+  select.replaceChildren(el('option', { value: '', textContent: all }), ...values.map(v => el('option', { value: v, textContent: v })));
+  select.value = values.includes(current) ? current : '';
+}
+// Kind chips (with counts), topic, source and search narrow the table; unsaved values survive filtering.
+function renderFacts() {
+  const rows = allRows(), live = facts.filter(f => !f.deleted);
+  $('count-memory').textContent = rows.length; $('stat-facts').textContent = live.length;
+  const counts = { '': rows.length, said: 0, seen: 0, inferred: 0, look: rows.filter(r => r.needsLook).length };
+  for (const r of rows) counts[r.kind]++;
+  if (kindFilter === 'look' && !counts.look) kindFilter = '';
+  $('knowledge-kinds').replaceChildren(...[['', 'All'], ['said', 'Said'], ['seen', 'Seen'], ['inferred', 'Inferred'], ...(counts.look ? [['look', 'Needs a look']] : [])].map(([value, text]) => {
+    const button = el('button', { type: 'button' }, ['said', 'seen', 'inferred'].includes(value) ? kindTag(value, text) : text, el('span', { className: 'count', textContent: counts[value] }));
+    button.setAttribute('aria-pressed', String(kindFilter === value));
+    button.onclick = () => { kindFilter = value; renderFacts(); };
     return button;
   }));
-}
-function renderFacts() {
-  const live = facts.filter(f => !f.deleted);
-  $('count-memory').textContent = live.length; $('stat-facts').textContent = live.length;
-  renderTypes(live);
-  const q = $('memory-search').value.trim().toLowerCase();
-  const shown = live.filter(f => (!typeFilter || f.field === typeFilter) && (!q || [f.key, f.value, f.evidence, dirty.get(factKey(f))].some(v => v && v.toLowerCase().includes(q))));
-  const rows = shown.flatMap(fact => {
-    const keyId = factKey(fact), input = el('input', { value: dirty.get(keyId) ?? fact.value, maxLength: 500 });
-    input.setAttribute('aria-label', `${TYPES[fact.field] ?? fact.field} ${fact.key}`);
-    const save = el('button', { type: 'button', className: 'small btn--butter', textContent: 'Save', hidden: !dirty.has(keyId) });
-    const remove = el('button', { type: 'button', className: 'small quiet', textContent: 'Remove' });
-    const row = el('tr', { className: dirty.has(keyId) ? 'dirty' : '' },
-      el('td', { className: 'fact-type', textContent: TYPES[fact.field] ?? fact.field }), el('td', { className: 'fact-key' }, fact.key, malformedSize(fact) ? ' ' : null, malformedSize(fact) ? el('span', { className: 'badge warn', title: 'Size keys need the item it is for: category/system[/brand]. Remove this and add the correct one.', textContent: 'Needs category' }) : null),
-      el('td', {}, input), el('td', { className: 'fact-evidence', textContent: evidenceText(fact), title: evidenceText(fact) }), el('td', { className: 'fact-actions' }, save, remove));
-    input.oninput = () => {
-      if (input.value === fact.value) dirty.delete(keyId); else dirty.set(keyId, input.value);
-      save.hidden = !dirty.has(keyId); row.classList.toggle('dirty', dirty.has(keyId)); renderDirty();
-    };
-    save.onclick = () => changeProfile({ action: 'set', field: fact.field, key: fact.key, value: input.value }, keyId);
-    remove.onclick = () => changeProfile({ action: 'remove', field: fact.field, key: fact.key, value: '' }, keyId);
-    if (!fact.source_id) return [row];
-    const source = el('button', { type: 'button', className: 'small quiet', textContent: 'Source', ariaExpanded: 'false' });
-    const message = () => messages.find(m => m.id === fact.source_id);
-    const sourceRow = el('tr', { className: 'source-row', hidden: true }, el('td', { colSpan: 5 },
-      el('span', { className: 'mono-label', textContent: 'Source' }), ' ',
-      el('span', { className: 'source-text' }),
-      el('button', { type: 'button', className: 'small', textContent: 'Open in Conversation →', onclick: () => openMessage(fact.source_id) })));
-    source.onclick = () => {
-      const open = sourceRow.hidden; sourceRow.hidden = !open; source.setAttribute('aria-expanded', String(open));
-      const found = message();
-      sourceRow.querySelector('.source-text').textContent = found ? `Inbound message · ${when(found.created_at)}${found.message_images?.length ? ' · with photo' : ''} · “${found.body.slice(0, 160)}”` : 'Inbound message (older than the loaded conversation)';
-    };
-    row.lastChild.prepend(source);
-    return [row, sourceRow];
-  });
-  const empty = live.length ? 'No preferences match these filters.' : 'No saved preferences yet. Add one, or use More › Learn from existing messages.';
-  $('profile-facts').replaceChildren(...(rows.length ? rows : [el('tr', {}, el('td', { colSpan: 5, className: 'muted', textContent: empty }))]));
+  fillSelect($('knowledge-topic'), TOPICS.filter(t => rows.some(r => r.topic === t)), 'All topics');
+  fillSelect($('knowledge-source'), [...new Set(rows.map(r => r.source))].sort(), 'All sources');
+  const q = $('knowledge-search').value.trim().toLowerCase(), topic = $('knowledge-topic').value, source = $('knowledge-source').value;
+  const shown = rows.filter(r => (!kindFilter || (kindFilter === 'look' ? r.needsLook : r.kind === kindFilter)) && (!topic || r.topic === topic) && (!source || r.source === source)
+    && (!q || [r.about, r.value, r.source, r.seen, r.fact?.evidence, r.fact && dirty.get(factKey(r.fact))].some(v => v && String(v).toLowerCase().includes(q)))).sort(compare);
+  const top = Math.max(0, ...rows.map(r => typeof r.weight === 'number' ? r.weight : 0));
+  for (const th of document.querySelectorAll('.knowledge-table th[aria-sort], .knowledge-table thead th')) th.removeAttribute('aria-sort');
+  document.querySelector(`.knowledge-table [data-sort="${sortBy}"]`).parentElement.setAttribute('aria-sort', sortDir > 0 ? 'ascending' : 'descending');
+  const empty = rows.length ? 'Nothing matches these filters.' : 'Jules knows nothing about them yet. Add what they said, or use More › Learn from existing messages.';
+  $('profile-facts').replaceChildren(...(shown.length ? shown.map(r => r.fact ? factRow(r, top) : derivedRow(r, top)) : [el('tr', {}, el('td', { colSpan: 8, className: 'muted', textContent: empty }))]));
   renderDirty();
+}
+for (const button of document.querySelectorAll('.knowledge-table [data-sort]')) button.onclick = () => {
+  if (sortBy === button.dataset.sort) sortDir = -sortDir; else { sortBy = button.dataset.sort; sortDir = ['weight', 'when'].includes(sortBy) ? -1 : 1; }
+  renderFacts();
+};
+$('knowledge-topic').onchange = renderFacts; $('knowledge-source').onchange = renderFacts;
+async function loadKnowledge() {
+  knowledge = await api(`/api/admin?view=knowledge&conversation=${encodeURIComponent(person)}`);
+  renderFacts();
 }
 function renderDirty() {
   const n = [...dirty.keys()].filter(k => facts.some(f => !f.deleted && factKey(f) === k)).length;
@@ -260,7 +293,7 @@ async function loadProfile() {
 async function changeProfile(change, keyId) {
   if (profileBusy) return;
   profileBusy = true;
-  const buttons = [...$('tab-memory').querySelectorAll('button')]; buttons.forEach(b => { b.disabled = true; });
+  const buttons = [...$('tab-knowledge').querySelectorAll('button')]; buttons.forEach(b => { b.disabled = true; });
   $('profile-notice').textContent = change.action === 'import' ? 'Reading existing messages…' : 'Saving…';
   try {
     const response = await adminFetch('/api/profile', { method: 'POST', body: JSON.stringify({ conversation: person, version: profileVersion, ...change }) });
@@ -269,7 +302,7 @@ async function changeProfile(change, keyId) {
     if (!response.ok) throw new Error(data.error ?? 'Could not save.');
     if (keyId) dirty.delete(keyId);
     profileVersion = data.version; facts = data.facts;
-    loadSummary().catch(() => {});
+    loadSummary().catch(() => {}); loadKnowledge().catch(() => {});
     $('profile-notice').textContent = data.limited ? 'Learned from the latest 100 incoming messages. Earlier history was not included.' : change.action === 'remove' ? 'Removed. Add it again below to restore it.' : 'Saved.';
     if (change.action === 'set' && !keyId) { $('profile-add').reset(); showAddFact(false); }
   } catch (error) { $('profile-notice').textContent = error.message; }
@@ -278,7 +311,7 @@ async function changeProfile(change, keyId) {
 const reloadProfile = () => loadProfile().then(() => { $('profile-notice').textContent = dirty.size ? 'Reloaded. Your unsaved values are kept; save them again.' : 'Reloaded.'; }).catch(error => { $('profile-notice').textContent = error.message; });
 $('conflict-reload').onclick = reloadProfile;
 $('profile-import').onclick = () => changeProfile({ action: 'import' });
-$('memory-search').addEventListener('input', renderFacts);
+$('knowledge-search').addEventListener('input', renderFacts);
 function showAddFact(open) {
   $('tool-add-fact').hidden = !open; $('memory-add-open').setAttribute('aria-expanded', String(open));
   if (open) $('fact-field').focus();
@@ -287,8 +320,8 @@ $('memory-add-open').onclick = () => showAddFact($('tool-add-fact').hidden);
 $('memory-add-close').onclick = () => showAddFact(false);
 // "/" searches the open tab's list (Purchase history handles its own keys).
 addEventListener('keydown', event => {
-  if ($('tab-memory').hidden || document.querySelector('dialog[open], .dv-pop:popover-open')) return;
-  if (browseKey(event, { open: false })?.type === 'search') { event.preventDefault(); $('memory-search').focus(); }
+  if ($('tab-knowledge').hidden || document.querySelector('dialog[open], .dv-pop:popover-open')) return;
+  if (browseKey(event, { open: false })?.type === 'search') { event.preventDefault(); $('knowledge-search').focus(); }
 });
 $('profile-add').onsubmit = event => { event.preventDefault(); changeProfile({ action: 'set', field: $('fact-field').value, key: $('fact-key').value, value: $('fact-value').value }); };
 
@@ -507,7 +540,7 @@ $('reset-confirm').onclick = async () => {
     $('reset-dialog').close();
     const texts = `${data.texts_removed} onboarding text${data.texts_removed === 1 ? '' : 's'} removed`;
     notice(`Onboarding reset. ${texts}; ${data.history === 'cleared' ? 'imported history deleted and Gmail and Shop disconnected' : 'there was no imported history'}. Sign up again with this number to start over.`);
-    loadMessages().catch(error => notice(`Conversation: ${error.message}`)); loadProfile().catch(() => {}); loadSummary().catch(() => {}); loadPurchases(person);
+    loadMessages().catch(error => notice(`Conversation: ${error.message}`)); loadProfile().catch(() => {}); loadSummary().catch(() => {}); loadKnowledge().catch(() => {}); loadPurchases(person);
   } catch (error) { $('reset-error').textContent = error.message; $('reset-error').hidden = false; }
   finally { buttons.forEach(b => { b.disabled = false; }); $('reset-confirm').textContent = 'Reset onboarding'; }
 };
@@ -523,7 +556,7 @@ else {
   loadMessages().then(() => { if (/^[0-9a-f-]{36}$/i.test(linked ?? '')) return openMessage(linked); }).catch(fail('Conversation'));
   loadProfile().catch(fail('Memory'));
   loadSummary().catch(error => summaryFailed(error));
-  loadContext().catch(() => {});
+  loadKnowledge().catch(error => { $('profile-notice').textContent = `Could not load what Jules derived from purchases, saves and likes: ${error.message}`; });
   loadPurchases(person);
   loadWishlist().catch(error => { $('wishlist-note').textContent = error.message; });
 }
