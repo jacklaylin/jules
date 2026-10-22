@@ -250,6 +250,7 @@ function alertBadge(alert) {
   const low = alert.low_stock, check = alert.low_stock_check;
   return el('span', {}, badge('ok', `Alert on${alert.size ? ` · ${alert.size}` : ''}`),
     low ? badge('warn', `Only ${low.quantity} left · ${low.store}${low.fresh ? '' : ' (old)'}`) : null,
+    alert.low_stock_alerts === false ? badge('plain', 'Low-stock texts off') : null,
     check ? el('span', { className: 'muted', textContent: ` low stock: ${check.reason.replaceAll('_', ' ')}${check.would_send ? ' · would text' : ''}` }) : null);
 }
 function storeLinks(item) {
@@ -286,7 +287,7 @@ function testForm(item) {
     try {
       const data = await api('/api/price-checks', { method: 'POST', body: JSON.stringify({ alert_id: alert.id, deliver, previous_stock: previous.value || undefined, low_stock_episode: episode.value || undefined,
         offers: [{ url: storeSelect.value, size: size.value, amount: Number(price.value), currency: currency.value.toUpperCase(), available: available.checked, ...(shipping.value ? { shipping: Number(shipping.value) } : {}), ...(quantity.value ? { quantity: Number(quantity.value) } : {}) }] }) });
-      result.textContent = `Outcome: ${data.status}${data.event ? ` (${data.event})` : ''}${data.delivery ? ` · Delivery: ${data.delivery}` : ''}\n\n${data.message ?? 'No text would be sent.'}${data.low_stock ? `\n\nLow stock: ${data.low_stock.state} (${data.low_stock.reason.replaceAll('_', ' ')})${data.low_stock.message ? `\nWould send (not sent yet; low-stock texts are off in this step):\n${data.low_stock.message}` : ''}` : ''}`;
+      result.textContent = `Outcome: ${data.status}${data.event ? ` (${data.event})` : ''}${data.delivery ? ` · Delivery: ${data.delivery}` : ''}\n\n${data.message ?? 'No text would be sent.'}${data.low_stock ? `\n\nLow stock: ${data.low_stock.state} (${data.low_stock.reason.replaceAll('_', ' ')})${data.low_stock.combined ? ' · included in the text above' : ''}` : ''}`;
     } catch (error) { result.textContent = error.message; }
     finally { preview.disabled = false; send.disabled = !wishlist.test_delivery; }
   };
