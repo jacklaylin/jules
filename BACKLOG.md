@@ -11,6 +11,11 @@ Ideas the founder wants kept, not built yet. Nothing here is assigned work: buil
 
 - **Outfit and closet planner.** Builds on the wardrobe and evidence store. Take layout and interaction cues from Alta's closet and outfit views.
 - **Trip planner.** "I'm going to Italy next month, handle it": a packing list from the closet plus gaps Jules shops for.
+- **Event prep.** "Wedding in June, black tie": Jules researches the dress code, builds a shortlist in the user's sizes, and reminds them before shipping and tailoring time runs out. Same idea as the trip planner, for one occasion.
+
+## Delegated errands
+
+- **Gift reminders.** Before a saved birthday or occasion, Jules suggests gifts using the recipient's own sizes and taste, kept separate from the user's profile, plus what was given last time. Proactive, so it uses the shared nudge rules (daily cap, quiet hours, opt-out).
 
 ## Commerce
 
