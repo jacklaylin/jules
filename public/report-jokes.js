@@ -9,7 +9,7 @@ const el=(tag,props={},...children)=>{const node=Object.assign(document.createEl
 const CARD={receipt:'Receipt',gatekeeper:'Gatekeeper',inout:'In / Out',emoji:'Emojis',spectrum:'Spectrum',match:'Style match',read:'The Read',judges:'Judges'};
 const REASON={wrong:'Wrong',not_funny:'Not funny',wont_share:'Wouldn’t share'};
 const SOURCE={generated:'AI',prewritten:'pre-written',fact:'plain fact'};
-const METHOD={copy:['Copy link','is-ink'],story:['Instagram Story','is-grape'],share_sheet:['Share sheet','is-strong'],download:['Download','is-line']};
+const METHOD={copy:['Copy link','is-ink'],story:['Image share','is-grape'],share_sheet:['Share sheet','is-strong'],download:['Download','is-line']};
 const pct=v=>v==null?'—':`${Math.round(v*100)}%`;
 const cell=(text,className='')=>el('td',{className,textContent:text});
 const muted=text=>el('span',{className:'muted',textContent:text});
