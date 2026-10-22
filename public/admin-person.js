@@ -139,8 +139,12 @@ function summaryRow(row) {
     fromCell(row));
 }
 const TEXT_KIND = { early_read: 'Early read · thin profile', purchases: 'Purchase summary · rich profile', none: 'Nothing to send' };
+// Summary and Knowledge come from one server read of what Jules knows (view=summary carries both), so loaders
+// called together share the request in flight; a later call reads afresh.
+let profileRead = null;
+const readProfileViews = () => profileRead ??= api(`/api/admin?view=summary&conversation=${encodeURIComponent(person)}`).finally(() => { profileRead = null; });
 async function loadSummary() {
-  const data = await api(`/api/admin?view=summary&conversation=${encodeURIComponent(person)}`), c = data.coverage;
+  const data = await readProfileViews(), c = data.coverage;
   $('strip-coverage').textContent = `${{ rich: 'Rich', empty: 'Empty' }[c.level] ?? 'Thin'} · ${c.known} of ${c.total} known`;
   const open = data.rows.filter(r => ['silhouettes', 'palette'].includes(r.topic) && r.status !== 'known').map(r => r.label.toLowerCase());
   $('strip-coverage-note').textContent = c.level === 'rich' ? 'Silhouettes and palette known' : open.length ? `Rich needs ${open.join(' and ')} known` : `Rich needs 5 of ${c.total} known`;
@@ -314,7 +318,7 @@ for (const button of document.querySelectorAll('.knowledge-table [data-sort]')) 
 };
 $('knowledge-topic').onchange = renderFacts; $('knowledge-source').onchange = renderFacts;
 async function loadKnowledge() {
-  knowledge = await api(`/api/admin?view=knowledge&conversation=${encodeURIComponent(person)}`);
+  knowledge = (await readProfileViews()).knowledge;
   renderFacts();
 }
 function renderDirty() {

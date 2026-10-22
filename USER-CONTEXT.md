@@ -96,4 +96,5 @@ layer (`readUserContext(..., {wishlist})`).
 4. ~~An admin view of what Jules knows about a person, from the layer.~~ (October 22) Admin › People › person ›
    Personal memory › "What Jules knows". Replaced the same day by the Knowledge tab: every fact and derived source
    in one table, each marked Said, Seen or Inferred, with the brand weight kept in the reading
-   (`lib/person-knowledge.js`, `/api/admin?view=knowledge`). Read-only apart from the person's own facts.
+   (`lib/person-knowledge.js`, carried by `/api/admin?view=summary` so one read serves Summary and Knowledge).
+   Read-only apart from the person's own facts.
