@@ -72,6 +72,17 @@ whatever the feature flags say, and logs a failed source as `coverage_source_fai
 unchanged (checked on every real profile). The large purchase-history row is now fetched once per read and
 shared by the purchase summary, the closet and coverage.
 
+## Stores, dated statements, one wishlist read
+
+October 22 (founder): `store_taste` (lib/store-taste.js) reads stores the way `brand_taste` reads brands:
+what the person said about a store (dated), orders kept there (returns counted apart, last order), items saved
+from it (the saved link's store) and liked items from that platform. The ranker sees each candidate store's
+entry; with the reading present the raw store statements leave the taste view. Stated style, inspiration, fit,
+occasion, category and owned rows carry the day they were said (`on`), in the taste view and the agent's
+profile, and the readers' guide says to weigh them against behaviour since; sizes, avoids, corrections, budget,
+country, department and name stay rules without dates. The chat turn reads the wishlist once and hands it to the
+layer (`readUserContext(..., {wishlist})`).
+
 ## Next steps
 
 1. ~~One layer and one taste view for chat, search, the stylist and ranking.~~
