@@ -5,10 +5,12 @@ let cases=[],reports=[],stopping=false;
 const request=input=>adminJson('/api/identification-test',{method:'POST',body:JSON.stringify(input)});
 // Shown merchants per search source, so a shift toward one source (such as Shop) is visible.
 const mix=list=>Object.entries(list.flatMap(r=>r.sources??[]).reduce((m,s)=>{m[s]=(m[s]??0)+1;return m;},{})).map(([s,n])=>`${s} ${n}`).join(', ');
+// Pass or fail as a status badge (glyph and word), as everywhere in admin.
+const verdict=passed=>Object.assign(document.createElement('span'),{className:`badge ${passed?'ok':'fail'}`,textContent:passed?'Pass':'Fail'});
 function show(report){
  reports.push(report);$('download').disabled=false;
  const article=document.createElement('article'),heading=document.createElement('h3'),body=document.createElement('pre'),detail=document.createElement('p');
- heading.textContent=`${report.passed?'PASS':'FAIL'} · ${report.name}`;
+ heading.append(verdict(report.passed),report.name);body.className='dv-output';
  detail.textContent=`${(report.elapsed_ms/1000).toFixed(1)} seconds · ${report.links} links${report.sources?.length?' · sources: '+mix([report]):''}${report.failures.length?' · '+report.failures.join(', '):''}`;
  body.textContent=report.body;article.append(heading,detail,body);$('results').append(article);
 }
@@ -48,7 +50,7 @@ $('run-eval').onclick=async()=>{
   const byCategory=Object.entries(results.reduce((m,r)=>{m[r.category]??=[0,0];m[r.category][0]+=r.passed?1:0;m[r.category][1]++;return m;},{}));
   $('eval-status').textContent=`${results[0]?.model??''} · ${results.filter(r=>r.passed).length}/${results.length} passed · `+byCategory.map(([c,[p,n]])=>`${c} ${p}/${n}`).join(' · ');
   for(const r of results.filter(r=>!r.passed)){const article=document.createElement('article'),heading=document.createElement('h3'),body=document.createElement('pre');
-   heading.textContent=`FAIL · routing · ${r.id}`;body.textContent=[...r.failures,'chose: '+JSON.stringify(r.tools)].join('\n');article.append(heading,body);$('results').append(article);}
+   heading.append(verdict(false),`Routing · ${r.id}`);body.className='dv-output';body.textContent=[...r.failures,'chose: '+JSON.stringify(r.tools)].join('\n');article.append(heading,body);$('results').append(article);}
   reports.push({id:'agent_routing_eval',created_at:new Date().toISOString(),results});$('download').disabled=false;
  }catch(error){$('eval-status').textContent=error.message;}finally{$('run-eval').disabled=false;}
 };

@@ -1,1 +1,39 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Jules admin · Replays</title><meta name="robots" content="noindex"><link rel="stylesheet" href="/design-system.css"><link rel="stylesheet" href="/replay.css"><script src="/replay.js" type="module"></script><link rel="modulepreload" href="/admin-console.js"><link rel="modulepreload" href="/design-system.js"><link rel="modulepreload" href="/brand-ui.js"><link rel="modulepreload" href="/activity.js"><link rel="modulepreload" href="/wishlist-session.js"><link rel="modulepreload" href="/admin-session.js"><link rel="icon" href="/brand/icon.svg" type="image/svg+xml"></head><body class="admin-console"><main><div class="app-heading"><h1>Replays &amp; evals</h1></div><p>Test the same reply generation, product search, page checks, profile filtering, and wishlist selection used by iMessage. Nothing is sent, saved to a wishlist, or activated as an alert. Live runs use API credits.</p><section><h2>Product-search acceptance</h2><p>A shoe request produces verified product-page links that fit the profile, or a useful question about the model or variant. A generic verification failure is a failed test.</p><label for="case">Case</label><select id="case"></select><label for="runs">Runs per case</label><select id="runs"><option value="1">1 · first check</option><option value="3">3 · repeatability check</option></select><button id="run-case">Run selected case</button><button id="run-suite">Run broader suite</button><button id="stop" disabled>Stop after current run</button></section><section><h2>Replay a reported bug</h2><p>Capture the latest incoming turn, preceding conversation, current saved profile, and pending wishlist selection. Set the expected brand and model. Download the report to preserve this private snapshot for future runs; it belongs outside Git.</p><label for="brand">Expected brand</label><input id="brand" maxlength="80" placeholder="e.g. Nike"><label for="model">Expected model</label><input id="model" maxlength="80" placeholder="e.g. Air Max 90"><button id="capture">Replay latest conversation turn</button><label for="saved">Saved replay report</label><input id="saved" type="file" accept="application/json"><button id="run-saved">Replay saved snapshot</button></section><p id="status" role="status">Loading cases…</p><button id="download" disabled>Download private report</button><section><h2>Agent routing eval</h2><p>Runs 50 labeled turns through the real agent model with every tool stubbed: nothing is searched, saved or sent. Each turn is scored on the tool the agent chose and its key arguments. Costs a few cents; run it after any prompt or tool change.</p><label for="eval-model">Agent model</label><select id="eval-model"><option value="">Production setting</option><option value="gpt-4.1-mini">gpt-4.1-mini</option><option value="gpt-4.1">gpt-4.1</option><option value="gpt-6-luna">gpt-6-luna</option></select><button id="run-eval">Run routing eval</button><p id="eval-status" role="status" aria-live="polite"></p></section><section id="results" aria-label="Replay results"></section></main></body></html>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Jules admin · Replays</title><meta name="robots" content="noindex"><link rel="stylesheet" href="/design-system.css"><script src="/replay.js" type="module"></script><link rel="modulepreload" href="/admin-console.js"><link rel="modulepreload" href="/design-system.js"><link rel="modulepreload" href="/brand-ui.js"><link rel="modulepreload" href="/activity.js"><link rel="modulepreload" href="/wishlist-session.js"><link rel="modulepreload" href="/admin-session.js"><link rel="icon" href="/brand/icon.svg" type="image/svg+xml"></head><body class="admin-console"><main>
+    <div class="dv-heading"><h1 class="dv-title">Replays &amp; evals</h1><span class="dv-heading-note">Same reply generation, product search, page checks, profile filtering and wishlist selection as iMessage. Nothing is sent, saved or turned into an alert. Live runs use API credits.</span></div>
+    <div class="dv-cards">
+      <section class="dv-card" aria-labelledby="acceptance-title">
+        <div class="dv-card-head"><h2 id="acceptance-title">Product-search acceptance</h2><span class="dv-card-note">verified product-page links that fit the profile, or a useful question</span></div>
+        <div class="dv-form">
+          <label>Case<select id="case"></select></label>
+          <label>Runs per case<select id="runs"><option value="1">1 · first check</option><option value="3">3 · repeatability check</option></select></label>
+          <div class="dv-form-actions"><button id="run-case" class="btn--butter" type="button">Run selected case</button><button id="run-suite" class="quiet" type="button">Run broader suite</button><button id="stop" class="quiet" type="button" disabled>Stop after current run</button></div>
+        </div>
+        <p class="dv-card-foot">A shoe request passes with verified product-page links that fit the profile, or a useful question about the model or variant. A generic verification failure is a failed test.</p>
+      </section>
+      <section class="dv-card" aria-labelledby="bug-title">
+        <div class="dv-card-head"><h2 id="bug-title">Replay a reported bug</h2><span class="dv-card-note">the latest incoming turn, its conversation, profile and pending selection</span></div>
+        <div class="dv-form">
+          <label>Expected brand<input id="brand" maxlength="80" placeholder="e.g. Nike"></label>
+          <label>Expected model<input id="model" maxlength="80" placeholder="e.g. Air Max 90"></label>
+          <div class="dv-form-actions"><button id="capture" class="quiet" type="button">Replay latest conversation turn</button></div>
+          <label class="dv-form-wide">Saved replay report<input id="saved" type="file" accept="application/json"></label>
+          <div class="dv-form-actions"><button id="run-saved" class="quiet" type="button">Replay saved snapshot</button></div>
+        </div>
+        <p class="dv-card-foot">Download the report to keep this private snapshot for future runs. It belongs outside Git.</p>
+      </section>
+      <section class="dv-card" aria-labelledby="eval-title">
+        <div class="dv-card-head"><h2 id="eval-title">Agent routing eval</h2><span class="dv-card-note">50 labeled turns, every tool stubbed</span></div>
+        <div class="dv-form">
+          <label>Agent model<select id="eval-model"><option value="">Production setting</option><option value="gpt-4.1-mini">gpt-4.1-mini</option><option value="gpt-4.1">gpt-4.1</option><option value="gpt-6-luna">gpt-6-luna</option></select></label>
+          <div class="dv-form-actions"><button id="run-eval" class="quiet" type="button">Run routing eval</button></div>
+        </div>
+        <p id="eval-status" class="dv-form-status" role="status" aria-live="polite"></p>
+        <p class="dv-card-foot">Each turn runs through the real agent model and is scored on the tool it chose and its key arguments. Nothing is searched, saved or sent. Costs a few cents; run it after any prompt or tool change.</p>
+      </section>
+      <section class="dv-card" aria-labelledby="results-title">
+        <div class="dv-card-head"><h2 id="results-title">Results</h2><span class="dv-card-note">this visit only, until you download them</span><span class="spacer"></span><button id="download" class="quiet small" type="button" disabled>Download private report</button></div>
+        <p id="status" class="dv-form-status" role="status">Loading cases…</p>
+        <div id="results" class="dv-results" aria-label="Replay results"></div>
+      </section>
+    </div>
+  </main></body></html>
