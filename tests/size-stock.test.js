@@ -186,3 +186,20 @@ test('a search with options already pending still shows stock in the user’s si
  assert.equal(recorded.text_wishlist_state.options[0].your_size.status,'in_stock');
  assert.equal(told.pending_shopping.options[0].your_size.stock,'in_stock');assert.equal(told.pending_shopping.options[0].your_size.store_label,'12');
 });
+
+test('saved sizes are a starting point: the next size in stock is offered, called out as one size off', async () => {
+  const { sizeFor, sizeText } = await import('../lib/size-stock.js');
+  const trousers = sizes => ({ brand:'Example', listing_check:{ status:'verified', size_options:sizes.map(([size,available])=>({ size, available })) } });
+  const saved = value => [{ field:'size', key:'bottoms/waist', value }];
+  // 32 sold out, 31 in stock: offered as near, never as their size.
+  const sold = sizeFor(trousers([['30',true],['31',true],['32',false],['33',false]]), saved('32'), ['bottoms/waist']);
+  assert.deepEqual([sold.status, sold.store_size, sold.near.store_size], ['sold_out', '32', '31']);
+  assert.equal(sizeText({ your_size:sold }), 'size 32 sold out; 31 in stock (one size off your saved size)');
+  // In stock in their size: no near size.
+  assert.equal(sizeFor(trousers([['31',true],['32',true]]), saved('32'), ['bottoms/waist']).near, undefined);
+  // Two sizes saved in one value ("31, 32"): either counts as theirs.
+  const either = sizeFor(trousers([['31',true],['32',false]]), saved('31, 32'), ['bottoms/waist']);
+  assert.deepEqual([either.status, either.store_size, either.near], ['in_stock', '31', undefined]);
+  // Two sizes away is not near.
+  assert.equal(sizeFor(trousers([['30',true],['31',false],['32',false]]), saved('32'), ['bottoms/waist']).near, undefined);
+});
