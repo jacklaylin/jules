@@ -19,7 +19,7 @@ const OTHER_TERMS = [
   ['Cost', 'Estimated OpenAI and SerpApi spend caused by this tester, at list prices.'],
   ['Not tracked yet', 'Completed purchases. Jules never buys, so a purchase is only known when a receipt arrives later.'],
 ];
-let data = null, nudges = null, refreshedAt = null;
+let data = null, nudges = null, alerts = null, refreshedAt = null;
 
 function render() {
   if (!data) return;
@@ -46,6 +46,7 @@ function render() {
   }));
   renderQuality(data.quality, testers);
   renderNudges(nudges, testers);
+  renderAlerts(alerts, testers);
   const quality = data.quality ? [...data.quality.kinds.map(k => [`Miss: ${k.label}`, k.explain]), ...data.quality.photo_outcomes.map(o => [`Photo: ${o.label}`, o.explain])] : [];
   $('definitions').replaceChildren(...[...steps.map(s => [s.label, s.explain]), ...OTHER_TERMS, ...quality].flatMap(([term, text]) => [el('dt', { textContent: term }), el('dd', { textContent: text })]));
   $('refreshed').textContent = refreshedAt ? `Refreshed ${ago(refreshedAt, now)}` : '';
@@ -107,10 +108,36 @@ function renderNudges(n, testers) {
   if (!n.recent.length) $('nudge-recent').append(el('tr', {}, el('td', { colSpan: 4, className: 'dv-empty', textContent: 'Nothing recorded yet.' })));
 }
 
+// Alert texts (lib/alert-metrics.js alertSummary), last 30 days. Loaded on its own; a failed read only hides this section.
+const DELIVERY = { sent: 'Sent', uncertain: 'Uncertain', failed: 'Failed', blocked: 'Blocked (STOP)', sending: 'Sending' };
+const ratio = (part, whole, r) => whole ? `${part} (${pct(r ?? part / whole)})` : '0';
+function renderAlerts(a, testers) {
+  if (a === undefined) return;
+  $('alerts').hidden = !a; $('alerts-error').hidden = Boolean(a);
+  if (!a) return;
+  const name = id => testers.find(t => t.id === id)?.sender_id ?? String(id).slice(0, 8);
+  const link = id => el('a', { className: 'tester-link', href: `/admin/people/${id}`, textContent: name(id) });
+  const t = a.totals, delivered = t.sent + t.uncertain;
+  $('alerts-summary').replaceChildren(...[['Alert texts', String(t.texts), `${t.people} people · last ${a.days} days`],
+    ['Delivered', ratio(delivered, t.texts), `${t.failed + t.blocked} not delivered${t.uncertain ? ` · ${t.uncertain} uncertain` : ''}`],
+    ['Tapped the link', a.tracking ? ratio(t.tapped, delivered, t.tap_rate) : 'Off', a.tracking ? 'within 7 days' : 'link tracking is off'],
+    ['Replied', ratio(t.replied, delivered, t.reply_rate), 'within a day'], ['Bought', String(t.bought), 'marked bought within 14 days']]
+    .map(([label, value, note]) => el('div', { className: 'dv-metric' }, el('span', { textContent: label }), el('strong', { textContent: value }), el('span', { textContent: note }))));
+  $('alerts-note').textContent = `Price-drop, back-in-stock and nearly-sold-out texts from the last ${a.days} days. A tap is counted when the person opens the store link in that text (link previews don't count). Admin test texts are left out.${a.tracking ? '' : ' Link taps are not being recorded: set LINK_CLICK_TRACKING=true in Vercel to count them.'} Taps are only counted on texts sent after Oct 22, when alert links started going through Jules.`;
+  $('alert-kinds').replaceChildren(...a.kinds.map(k => el('tr', {}, cell('Kind', el('strong', { textContent: k.label })), cell('Texts', String(k.texts), 'end num'),
+    cell('Delivered', String(k.sent + k.uncertain), 'end num'), cell('Not delivered', String(k.failed + k.blocked), 'end num'), cell('People', String(k.people), 'end num'),
+    cell('Tapped link', a.tracking ? ratio(k.tapped, k.sent + k.uncertain, k.tap_rate) : '—', 'end num'), cell('Replied', ratio(k.replied, k.sent + k.uncertain, k.reply_rate), 'end num'), cell('Bought', String(k.bought), 'end num'))));
+  if (!a.kinds.length) $('alert-kinds').append(el('tr', {}, el('td', { colSpan: 8, className: 'dv-empty', textContent: 'No alert texts yet.' })));
+  const kindLabel = Object.fromEntries(a.kinds.map(k => [k.kind, k.label]));
+  $('alert-recent').replaceChildren(...a.recent.map(r => el('tr', {}, cell('When (UTC)', r.at.slice(0, 16).replace('T', ' ')), cell('Tester', link(r.id)), cell('Kind', kindLabel[r.kind] ?? r.kind),
+    cell('Delivery', DELIVERY[r.status] ?? r.status), cell('What happened', [r.tapped && 'tapped link', r.replied && 'replied', r.bought && 'bought'].filter(Boolean).join(', ') || '—'))));
+  if (!a.recent.length) $('alert-recent').append(el('tr', {}, el('td', { colSpan: 5, className: 'dv-empty', textContent: 'Nothing recorded yet.' })));
+}
+
 async function load() {
   $('loader').hidden = false; $('notice').textContent = ''; $('notice').className = '';
-  const nudgesRead = adminJson('/api/admin?view=nudges-summary').catch(() => null);
-  try { data = await adminJson('/api/admin?view=adoption'); nudges = await nudgesRead; refreshedAt = Date.now(); render(); }
+  const nudgesRead = adminJson('/api/admin?view=nudges-summary').catch(() => null), alertsRead = adminJson('/api/admin?view=alerts-summary').catch(() => null);
+  try { data = await adminJson('/api/admin?view=adoption'); nudges = await nudgesRead; alerts = await alertsRead; refreshedAt = Date.now(); render(); }
   catch (error) { $('notice').className = 'error'; $('notice').textContent = `Could not load adoption: ${error.message} Try Refresh.`; }
   finally { $('loader').hidden = true; }
 }

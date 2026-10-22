@@ -22,6 +22,12 @@ export const config={maxDuration:120};
 const DISCOVERIES_PER_RUN=10;
 const persisted=({market_country,market_currency,watched_sizes,...link})=>link;
 
+// Stored with each alert text (messages.search_result): which alert and kind it was, for Admin › Adoption's
+// alert numbers, and the store links it carried, which become tracked /go/ links so a tap is counted.
+export function alertResult(alert,kind,body){
+  const urls=[...new Set((String(body).match(/https:\/\/\S+/g)??[]).map(u=>u.replace(/[).,!?;:’”"']+$/,'')))];
+  return {alert:{id:alert.id,item_id:alert.item_id??null,kind},products:urls.map(url=>({url,name:alert.name,retailer:storeName(url)}))};
+}
 export async function checkAlert(alert,{store,env,inspect,discover,send,discoveries}){
   const market=marketEnvironment((await store.profile?.(alert.conversation_id))?.facts??[],env),country=market.SHOPPING_COUNTRY;
   const withMarket=link=>({...link,market_country:country,market_currency:market.SHOPPING_CURRENCY,watched_sizes:link.requested_sizes??[alert.size]});
@@ -44,17 +50,17 @@ export async function checkAlert(alert,{store,env,inspect,discover,send,discover
   const watched=links??alert.links,low=decideLowStock(alert,checks,{sizes:alertSizes(alert),urls:watched.map(l=>l.url),readable:checks.some(c=>c.status==='checked')});
   const lowOn=alert.low_stock_alerts!==false,lowSend=low.would_send&&lowOn;
   let status=decision.status,baselines=decision.establish??undefined,delivery=null,duplicate=false,lowDelivery=null;
-  const deliver=async(operation,body)=>{
+  const deliver=async(operation,body,kind)=>{
     const conversation=await store.conversation(alert.conversation_id);
     const existing=await store.operation(operation);
-    return existing?{status:existing.status,duplicate:true}:await deliverReply({store,send,conversation,operation,body,source:'operator',env,purpose:'price_alert'});
+    return existing?{status:existing.status,duplicate:true}:await deliverReply({store,send,conversation,operation,body,source:'operator',env,purpose:'price_alert',result:alertResult(alert,kind,body)});
   };
   if(decision.event&&await store.priceAlertCurrent(alert.id,alert.revision)){
-    const result=await deliver(`price-alert:${alert.id}:${alert.revision}:${decision.event.fingerprint}`,lowSend?withLowStock(decision.event.body,low.lowest):decision.event.body);
+    const result=await deliver(`price-alert:${alert.id}:${alert.revision}:${decision.event.fingerprint}`,lowSend?withLowStock(decision.event.body,low.lowest):decision.event.body,decision.event.kind+(lowSend?'+low_stock':''));
     delivery=result.status;duplicate=Boolean(result.duplicate);if(lowSend)lowDelivery=delivery;
     if(result.status==='sent'&&decision.after_send)baselines=decision.after_send;
   }else if(lowSend&&!decision.event&&await store.priceAlertCurrent(alert.id,alert.revision)){
-    const result=await deliver(`price-alert:${alert.id}:${alert.revision}:low-stock:${low.episode.id}`,lowStockMessage(alert,low.lowest));
+    const result=await deliver(`price-alert:${alert.id}:${alert.revision}:low-stock:${low.episode.id}`,lowStockMessage(alert,low.lowest),'low_stock');
     lowDelivery=delivery=result.status;duplicate=Boolean(result.duplicate);
   }
   const lowStock=lowStockRecord(low,{event:decision.event?.kind,delivery:lowDelivery,turned_off:low.would_send&&!lowOn});
@@ -108,7 +114,7 @@ async function simulate(req,res,{env,store,send}){
   if(input.deliver===true&&body){
     if(!env.PRICE_ALERT_TEST_CONVERSATION_ID||alert.conversation_id!==env.PRICE_ALERT_TEST_CONVERSATION_ID)return json(res,403,{error:'Test delivery is limited to the designated test conversation.'});
     const conversation=await store.conversation(alert.conversation_id),label=decision.event?TEST_LABEL:LOW_STOCK_TEST_LABEL;
-    delivery=(await deliverReply({store,send,conversation,operation:`price-alert-test:${alert.id}:${randomUUID()}`,body:label+body,source:'operator',env,purpose:'price_alert',
+    delivery=(await deliverReply({store,send,conversation,operation:`price-alert-test:${alert.id}:${randomUUID()}`,body:label+body,source:'operator',env,purpose:'price_alert',result:alertResult(alert,decision.event?.kind??'low_stock',body),
       // The label is re-added after composing, so the test shows the exact message a user would get.
       compose:async args=>{const c=await composeReply({...args,draft:body});return c.composed?{...c,body:label+c.body}:{...c,body:args.draft};}})).status;
   }
