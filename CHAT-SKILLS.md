@@ -179,7 +179,7 @@ Every PR from PR 3 on has to pass this before merge:
 | 11 | **conversation + core trim** | Small | Full gate |
 | 12 | **Selective loading on**, plus the `load_skill` escape hatch | Yes | Full gate + recall ≥98% |
 
-Step 2 records each turn's route in `reply_diagnostics.skill_route` (jobs, confidence, the skills it would load, the tools the agent called and any it would have missed). Read recall with `node --env-file=.env.local scripts/router-recall.js --days 2`. `CHAT_ROUTER=off` turns the router off; `MODEL_ROUTE` changes its model. There is no admin screen for it.
+Step 2 records each turn's route in `reply_diagnostics.skill_route` (jobs, confidence, the skills it would load, the tools the agent called and any it would have missed). Read recall with `node --env-file=.env.local scripts/router-recall.js --days 2`. Without waiting for new turns, `scripts/router-replay.js --days 60` replays past turns that recorded their tools through the router (one small call each, nothing sent or written; shown options are rebuilt, photos, saved items and a waiting style question are not, so it underestimates). October 22: 75 turns, 65% recall. `CHAT_ROUTER=off` turns the router off; `MODEL_ROUTE` changes its model. There is no admin screen for it.
 
 `CHAT_CONTEXT_ROUTING=on` (off by default, October 22) lets the router's picks also choose which derived profile sources the agent reads (USER-CONTEXT.md, Size per turn); it uses the same fail-open rule.
 
