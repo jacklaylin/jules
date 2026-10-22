@@ -35,6 +35,16 @@ export async function adminJson(path,options){
  return data;
 }
 
+// Grey placeholder rows while a view's first data loads (DESIGN-SYSTEM.md › Load speed): table rows with columns,
+// else block rows. Hidden from screen readers; the section's aria-busy says it is loading.
+export function skeletonRows(count,columns=0){
+ const bar=n=>{const b=element('span',{className:'skeleton skeleton-bar'});b.style.width=`${45+(n*37)%50}%`;return b;};
+ return Array.from({length:count},(_,i)=>{
+  const row=columns?element('tr',{className:'skeleton-row'},...Array.from({length:columns},(_,c)=>element('td',{},bar(i+c*3)))):element('div',{className:'skeleton-row'},bar(i));
+  row.setAttribute('aria-hidden','true');return row;
+ });
+}
+
 function showGate(message=''){
  if(!gate)return;
  gate.hidden=false;content.hidden=true;adminLink.hidden=true;

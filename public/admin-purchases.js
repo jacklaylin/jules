@@ -1,4 +1,4 @@
-import {adminFetch} from './admin-console.js';
+import {adminFetch,skeletonRows} from './admin-console.js';
 import {REASONS,STATUSES,reviewed,statusOf,matches,neighbour,position,filterLabel,reviewKey,browseKey} from './admin-review.js';
 // Admin People: browse and correct a person's imported purchase history. Every correction
 // carries a "what was wrong" label; the server records it as correction evidence.
@@ -17,7 +17,7 @@ const SOURCE_LABEL = { gmail: 'Gmail', shop: 'Shop', screenshot: 'Chat screensho
 const sourceName = s => SOURCE_LABEL[s] ?? s;
 const STOPS = { no_more_pages: 'the service said there were no more pages', next_page_without_cursor: 'the service said more pages exist but gave no way to request them', limit: 'the import limit was reached', page_cap: 'the page limit was reached', call_cap: 'the request limit was reached', throttled: 'the service asked Jules to slow down', search_failed: 'a search failed', end: 'listing ended' };
 
-let api, conversation = null, data = null, busy = false, version = 0, statusFilter = '';
+let api, load, conversation = null, data = null, busy = false, version = 0, statusFilter = '';
 // The item review on screen: which item and which loaded data it was drawn from, so unrelated
 // re-renders keep a half-filled form.
 let shownReview = null;
@@ -32,8 +32,10 @@ const itemHref = id => { const url = new URL(location.href); url.searchParams.se
 // Style-report tags (type, group, colour family, resale). Empty until the item is tagged.
 const tagText = tags => tags ? ['Tags:', [tags.item_type, tags.group?.replace(/_/g, ' '), tags.color_family !== 'unknown' && tags.color_family, tags.resale && 'resale'].filter(Boolean).join(' · ')].join(' ') : null;
 
-export function mountPurchases(request) {
-  api = request;
+// request: the page's JSON fetch. view(name, path, draw): how the page loads a view, calling draw with a saved copy
+// first when it has one and again with fresh data when that differs (admin-person.js); a plain fetch otherwise.
+export function mountPurchases(request, view = async (name, path, draw) => draw(await request(path))) {
+  api = request; load = view;
   for (const id of ['purchases-search', 'purchases-store', 'purchases-source']) $(id).addEventListener('input', render);
   $('purchases-reload').onclick = () => conversation && loadPurchases(conversation);
   $('purchases-start').onclick = () => { const first = data && neighbour(data.items, null, filter()); if (first) openItem(first, true); };
@@ -59,15 +61,17 @@ export function mountPurchases(request) {
 // The person page calls this whenever the URL changes tab (including Back), so the list or the item review matches it.
 export const syncPurchaseView = render;
 
+// A reload keeps the list on screen while it refreshes; only another person's history starts empty.
 export async function loadPurchases(id) {
-  conversation = id; data = null; shownReview = null; const mine = ++version;
+  const mine = ++version;
   $('skipped-list').replaceChildren(); $('skipped-status').textContent = '';
-  $('purchases-count').textContent = ''; $('purchases-list').replaceChildren(); notice('Loading purchase history…');
-  render();
+  if (id !== conversation || !data) {
+    conversation = id; data = null; shownReview = null;
+    $('purchases-count').textContent = ''; $('purchases-list').replaceChildren(...skeletonRows(8)); notice('Loading purchase history…');
+    render();
+  }
   try {
-    const result = await api(`/api/admin?view=purchases&conversation=${encodeURIComponent(id)}`);
-    if (mine !== version) return;
-    data = result; notice(''); render();
+    await load('purchases', `/api/admin?view=purchases&conversation=${encodeURIComponent(id)}`, result => { if (mine === version) { data = result; notice(''); render(); } });
   } catch (error) { if (mine === version) { notice(error.message); render(); } }
 }
 
