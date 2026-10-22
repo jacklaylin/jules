@@ -9,6 +9,8 @@ export function consumeWishlistTarget(items,storage,now=Date.now()){
  let target;try{target=JSON.parse(raw);}catch{return null;}
  if(!valid(target.item)||!Number.isFinite(target.expires)||target.expires<now)return null;
  // Resolve only against the current authenticated account's collection.
- const item=items.find(i=>i.image_item===target.item||i.entries?.some(e=>e.item_id===target.item));
+ const item=items.find(i=>i.id===target.item||i.image_item===target.item||i.entries?.some(e=>e.item_id===target.item));
  return item?{id:item.id}:{missing:true};
 }
+// The open product page's id rides in the address bar (?item=), so a copied or reloaded link reopens it.
+export function itemURL(href,id){const url=new URL(href);if(id)url.searchParams.set('item',id);else url.searchParams.delete('item');return url.pathname+url.search;}
