@@ -115,3 +115,35 @@ test('a Shop-only import gets the completion text and its questions',async()=>{
  await announceImport(store,owner,{},store.send);
  assert.match(store.sent[0],/^done reading your Shop orders\. i found 5/);assert.equal(store.sent.at(-1),'Were the BODE shirts for you?');
 });
+// A chat turn that updated purchase history carries the next question in its own reply (lib/inbox.js).
+test('deliver false: an open question not yet asked is recorded as asked and returned, never sent; it is asked once',async()=>{
+ const questions=[{id:'q1',status:'open',question:'Were the BODE shirts for you?',item_ids:['item-4']},{id:'q2',status:'open',question:'Were the jeans for you?',item_ids:['item-1']}];
+ const store=ledger(labelled,{questions});
+ await announceImport(store,owner,{},store.send);store.sent.length=0;
+ questions[0].status='answered';
+ const joined=await nextReceiptQuestion(store,owner,{},store.send,{deliver:false});
+ assert.deepEqual(joined,{question:'q2',text:'Were the jeans for you?',status:'joined'});
+ assert.equal(store.sent.length,0,'nothing is sent on its own');
+ // Recorded, never sent on its own: history (sent rows only) shows the question once, in the reply.
+ assert.equal(store.operations.get(`gmail:${owner}:question:s1:q2`).status,'blocked');
+ assert.deepEqual(await nextReceiptQuestion(store,owner,{},store.send,{deliver:false}),{deferred:true},'already asked: not joined again');
+ await nextReceiptQuestion(store,owner,{},store.send);
+ assert.equal(store.sent.length,0,'the usual call after the reply does not send it again');
+});
+test('deliver false joins nothing while the summary is unsent, or with no open question; the usual sends then follow',async()=>{
+ const questions=[{id:'q1',status:'open',question:'Were the BODE shirts for you?',item_ids:['item-4']}];
+ // The count is out but the summary is not: the question waits so the summary keeps its own text first.
+ let store=ledger(labelled,{questions});
+ store.operations.set(`gmail:${owner}:ready:s1`,{conversation_id:owner,status:'sent',body:'done reading'});
+ assert.deepEqual(await nextReceiptQuestion(store,owner,{},store.send,{deliver:false}),{deferred:true});
+ assert.deepEqual(kinds(store),['ready'],'nothing recorded or sent');
+ await nextReceiptQuestion(store,owner,{},store.send);
+ assert.deepEqual(kinds(store),['ready','profile','question'],'the summary, then the question, as before');
+ // Nothing open: the interview start or report link keep their own texts after the reply.
+ store=ledger(labelled);await announceImport(store,owner,{},store.send);
+ assert.deepEqual(await nextReceiptQuestion(store,owner,{},store.send,{deliver:false}),{deferred:true});
+ // Before the import is done, nothing.
+ store=ledger(labelled,{questions,job:{status:'extracting',started_at:'s1'}});
+ assert.deepEqual(await nextReceiptQuestion(store,owner,{},store.send,{deliver:false}),{deferred:true});
+ assert.equal(store.sent.length,0);
+});
