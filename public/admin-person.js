@@ -1,4 +1,5 @@
-import {mountAdminShell,adminJson,adminFetch,adminToken,anchorMenus} from './admin-console.js';
+import {mountAdminShell,adminJson,adminFetch,adminToken,anchorMenus,skeletonRows} from './admin-console.js';
+import {readView,saveView} from './list-cache.js';
 import {mountPurchases,loadPurchases,syncPurchaseView} from './admin-purchases.js';
 import {browseKey} from './admin-review.js';
 import {approvalLines,accessResult,welcomeResult} from './admin-people-view.js';
@@ -15,6 +16,49 @@ const notice = text => { $('notice').textContent = text; };
 const api = (path, options) => adminJson(path, options);
 const TABS = ['summary', 'knowledge', 'conversation', 'purchases', 'wishlist'];
 const person = location.pathname.split('/')[3] ?? '';
+const valid = /^[0-9a-f-]{36}$/i.test(person);
+
+// ---------- Loading ----------
+// Each view is drawn first from what it showed on the last visit (list-cache.js: kept for the signed-in owner,
+// forgotten on sign-out), then refreshed; fresh data that matches what is drawn is not drawn again, so nothing
+// flashes. Only the open tab's views are requested; another tab's load when it is first opened. The header's
+// messages and facts load for every tab.
+const drawn = new Map(), status = new Map();
+async function load(view, path, draw) {
+  const token = await adminToken().catch(() => null);
+  if (!drawn.has(view)) {
+    const saved = readView(localStorage, person, view, token);
+    if (saved) { drawn.set(view, JSON.stringify(saved.data)); status.set(view, { at: saved.at, state: 'refreshing' }); draw(saved.data); }
+  }
+  if (drawn.has(view)) status.set(view, { ...status.get(view), state: 'refreshing' });
+  showUpdated();
+  try {
+    const data = await api(path), text = JSON.stringify(data);
+    if (drawn.get(view) !== text) draw(data);
+    drawn.set(view, text); status.set(view, { at: Date.now(), state: 'fresh' }); saveView(localStorage, person, view, token, data);
+    return data;
+  } catch (error) {
+    // With something drawn, the page keeps it and says it could not refresh; with nothing, the caller shows the failure.
+    if (!drawn.has(view)) throw error;
+    status.set(view, { ...status.get(view), state: 'failed', error: error.message });
+  } finally { showUpdated(); }
+}
+// The open tab's quiet line: when what is shown loaded, and whether it is being refreshed.
+const TAB_VIEW = { summary: 'summary', knowledge: 'summary', conversation: 'messages', purchases: 'purchases', wishlist: 'wishlist' };
+const since = at => { const m = Math.round((Date.now() - at) / 60000); return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `on ${day(at)}`; };
+function showUpdated() {
+  const s = status.get(TAB_VIEW[new URLSearchParams(location.search).get('tab')] ?? 'summary');
+  $('person-updated').textContent = !s ? '' : s.state === 'fresh' ? `Updated ${new Date(s.at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`
+    : s.state === 'failed' ? `Could not refresh (${s.error}). Showing what loaded ${since(s.at)}.` : `Showing what loaded ${since(s.at)} · refreshing…`;
+}
+// What each tab needs beyond the header; each view loads once here and again only when an action changes it.
+const TAB_DATA = { summary: ['summary', 'adoption'], knowledge: ['summary'], conversation: [], purchases: ['purchases'], wishlist: ['wishlist'] };
+const LOADERS = { summary: () => loadSummary(), adoption: () => loadAdoption(), purchases: () => loadPurchases(person), wishlist: () => loadWishlist() };
+const started = new Set();
+function loadTab(tab) {
+  if (!valid) return;
+  for (const name of TAB_DATA[tab] ?? []) if (!started.has(name)) { started.add(name); LOADERS[name](); }
+}
 
 function showTab(tab, push = false) {
   if (tab === 'memory') tab = 'knowledge'; // Personal memory became Knowledge (October 22); old links still work.
@@ -28,6 +72,7 @@ function showTab(tab, push = false) {
   const url = new URL(location.href); url.searchParams.set('tab', tab); if (tab !== 'purchases' || push) { url.searchParams.delete('item'); url.searchParams.delete('view'); }
   if (push) history.pushState(null, '', url); else history.replaceState(null, '', url);
   syncPurchaseView();
+  loadTab(tab); showUpdated();
 }
 for (const link of document.querySelectorAll('.tabs a')) link.onclick = event => { event.preventDefault(); showTab(link.dataset.tab, true); };
 addEventListener('popstate', () => showTab(new URLSearchParams(location.search).get('tab')));
@@ -97,13 +142,19 @@ function renderMessages() {
   const worst = Object.entries(counts).sort(([, a], [, b]) => (a.kind === 'fail' ? 0 : 1) - (b.kind === 'fail' ? 0 : 1)).slice(0, 2);
   $('person-badges').replaceChildren(...worst.map(([text, { kind, n }]) => badge(kind, n > 1 ? `${text} ×${n}` : text)));
 }
+// The latest page (cached first, with the header) or, with earlier, the page before the oldest loaded.
 async function loadMessages(earlier = false) {
   const query = new URLSearchParams({ conversation: person });
-  if (earlier && cursor) query.set('before', JSON.stringify(cursor));
-  const data = await api(`/api/admin?${query}`);
-  if (!earlier) { showName(data.name, data.conversation.sender_id); showAccess(data.access?.access ?? null, data.approval_text ?? null, data.approval_account === true); showOnboarding(data.onboarding); resendText = data.resend_welcome ?? null; $('resend-welcome').hidden = !resendText; $('welcome-card').hidden = data.contact_card_enabled !== true; }
-  messages = earlier ? [...data.messages, ...messages] : data.messages; cursor = data.before;
-  renderMessages();
+  if (earlier && cursor) {
+    query.set('before', JSON.stringify(cursor));
+    const data = await api(`/api/admin?${query}`);
+    messages = [...data.messages, ...messages]; cursor = data.before; renderMessages();
+    return;
+  }
+  await load('messages', `/api/admin?${query}`, data => {
+    showName(data.name, data.conversation.sender_id); showAccess(data.access?.access ?? null, data.approval_text ?? null, data.approval_account === true); showOnboarding(data.onboarding); resendText = data.resend_welcome ?? null; $('resend-welcome').hidden = !resendText; $('welcome-card').hidden = data.contact_card_enabled !== true;
+    messages = data.messages; cursor = data.before; renderMessages();
+  });
 }
 $('convo-filter').onchange = renderMessages;
 $('older').onclick = async () => { $('older').disabled = true; try { await loadMessages(true); } catch (error) { notice(error.message); } finally { $('older').disabled = false; } };
@@ -139,12 +190,17 @@ function summaryRow(row) {
     fromCell(row));
 }
 const TEXT_KIND = { early_read: 'Early read · thin profile', purchases: 'Purchase summary · rich profile', none: 'Nothing to send' };
-// Summary and Knowledge come from one server read of what Jules knows (view=summary carries both), so loaders
-// called together share the request in flight; a later call reads afresh.
-let profileRead = null;
-const readProfileViews = () => profileRead ??= api(`/api/admin?view=summary&conversation=${encodeURIComponent(person)}`).finally(() => { profileRead = null; });
-async function loadSummary() {
-  const data = await readProfileViews(), c = data.coverage;
+// Summary and Knowledge come from one server read of what Jules knows (view=summary carries both). Calls made
+// while one is in flight share it. Failures show in both tabs; it never rejects.
+let summaryRead = null;
+const loadSummary = () => summaryRead ??= load('summary', `/api/admin?view=summary&conversation=${encodeURIComponent(person)}`, data => {
+  renderSummary(data); knowledge = data.knowledge; knowledgeReady = true; renderFacts();
+}).catch(error => {
+  summaryFailed(error); knowledgeReady = true; renderFacts();
+  $('profile-notice').textContent = `Could not load what Jules derived from purchases, saves and likes: ${error.message}`;
+}).finally(() => { summaryRead = null; });
+function renderSummary(data) {
+  const c = data.coverage;
   $('strip-coverage').textContent = `${{ rich: 'Rich', empty: 'Empty' }[c.level] ?? 'Thin'} · ${c.known} of ${c.total} known`;
   const open = data.rows.filter(r => ['silhouettes', 'palette'].includes(r.topic) && r.status !== 'known').map(r => r.label.toLowerCase());
   $('strip-coverage-note').textContent = c.level === 'rich' ? 'Silhouettes and palette known' : open.length ? `Rich needs ${open.join(' and ')} known` : `Rich needs 5 of ${c.total} known`;
@@ -167,8 +223,8 @@ const WEEK_WORDS = { win: 'a win', asked: 'asked, nothing liked', quiet: 'quiet'
 const ENDING_WORDS = { positive: 'positive: saved, picked, clicked, asked to buy or reacted', neutral: 'refined or moved on', negative: 'turned down, missed or flagged', silent: 'no reply' };
 const weekLabel = w => new Date(w.week_of + 'T12:00:00Z').toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' });
 const ago = at => { const days = Math.floor((Date.now() - Date.parse(at)) / 86400000); return days < 1 ? 'Today' : days === 1 ? 'Yesterday' : `${days} days ago`; };
-async function loadAdoption() {
-  const data = await api(`/api/admin?view=person-adoption&conversation=${encodeURIComponent(person)}`);
+const loadAdoption = () => load('adoption', `/api/admin?view=person-adoption&conversation=${encodeURIComponent(person)}`, renderAdoption).catch(adoptionFailed);
+function renderAdoption(data) {
   $('strip-wins').textContent = `${data.wins} of the last 4`; $('adoption-wins').textContent = `${data.wins} of 4`;
   const last = data.last_positive;
   $('strip-last').textContent = last ? ago(last.at) : 'None yet';
@@ -238,6 +294,8 @@ $('summary-learn').onclick = async () => {
 // read-only row per derived source (lib/person-knowledge.js). Kind: Said (stated or confirmed), Inferred (Jules's
 // reading, including facts it picked up without being told) or Seen (counted from what they did).
 let profileVersion = 0, facts = [], profileBusy = false, knowledge = { rows: [], notes: {} }, kindFilter = '', sortBy = 'topic', sortDir = 1;
+// Until their facts load the table shows placeholder rows; until the derived rows load, placeholders follow the facts.
+let factsReady = false, knowledgeReady = false;
 const dirty = new Map(), factKey = fact => `${fact.field}|${fact.key}`;
 // Same shape check as lib/relevance.js sizeKeyShape: a size key is category/system[/brand].
 const malformedSize = fact => { const parts = String(fact.key ?? '').split('/'); return fact.field === 'size' && !(parts.length >= 2 && parts.length <= 3 && parts.every(p => p.trim())); };
@@ -317,13 +375,14 @@ function fillSelect(select, values, all) {
 }
 // Kind chips (with counts), topic, source and search narrow the table; unsaved values survive filtering.
 function renderFacts() {
+  if (!factsReady) return;
   const rows = allRows(), live = facts.filter(f => !f.deleted);
-  $('count-memory').textContent = rows.length; $('stat-facts').textContent = live.length;
+  $('count-memory').textContent = knowledgeReady ? rows.length : ''; $('stat-facts').textContent = live.length;
   const counts = { '': rows.length, said: 0, seen: 0, inferred: 0, look: rows.filter(r => r.needsLook).length };
   for (const r of rows) counts[r.kind]++;
   if (kindFilter === 'look' && !counts.look) kindFilter = '';
   $('knowledge-kinds').replaceChildren(...[['', 'All'], ['said', 'Said'], ['seen', 'Seen'], ['inferred', 'Inferred'], ...(counts.look ? [['look', 'Needs a look']] : [])].map(([value, text]) => {
-    const button = el('button', { type: 'button' }, ['said', 'seen', 'inferred'].includes(value) ? kindTag(value, text) : text, el('span', { className: 'count', textContent: counts[value] }));
+    const button = el('button', { type: 'button' }, ['said', 'seen', 'inferred'].includes(value) ? kindTag(value, text) : text, el('span', { className: 'count', textContent: knowledgeReady ? counts[value] : '' }));
     button.setAttribute('aria-pressed', String(kindFilter === value));
     button.onclick = () => { kindFilter = value; renderFacts(); };
     return button;
@@ -337,7 +396,8 @@ function renderFacts() {
   for (const th of document.querySelectorAll('.knowledge-table th[aria-sort], .knowledge-table thead th')) th.removeAttribute('aria-sort');
   document.querySelector(`.knowledge-table [data-sort="${sortBy}"]`).parentElement.setAttribute('aria-sort', sortDir > 0 ? 'ascending' : 'descending');
   const empty = rows.length ? 'Nothing matches these filters.' : 'Jules knows nothing about them yet. Add what they said, or use More › Learn from existing messages.';
-  $('profile-facts').replaceChildren(...(shown.length ? shown.map(r => r.fact ? factRow(r, top) : derivedRow(r, top)) : [el('tr', {}, el('td', { colSpan: 8, className: 'muted', textContent: empty }))]));
+  const waiting = knowledgeReady ? [] : skeletonRows(3, 8);
+  $('profile-facts').replaceChildren(...(shown.length ? shown.map(r => r.fact ? factRow(r, top) : derivedRow(r, top)) : waiting.length ? [] : [el('tr', {}, el('td', { colSpan: 8, className: 'muted', textContent: empty }))]), ...waiting);
   renderDirty();
 }
 for (const button of document.querySelectorAll('.knowledge-table [data-sort]')) button.onclick = () => {
@@ -345,19 +405,16 @@ for (const button of document.querySelectorAll('.knowledge-table [data-sort]')) 
   renderFacts();
 };
 $('knowledge-topic').onchange = renderFacts; $('knowledge-source').onchange = renderFacts;
-async function loadKnowledge() {
-  knowledge = (await readProfileViews()).knowledge;
-  renderFacts();
-}
 function renderDirty() {
   const n = [...dirty.keys()].filter(k => facts.some(f => !f.deleted && factKey(f) === k)).length;
   $('memory-dirty').hidden = !n; $('memory-dirty').textContent = `${n} unsaved edit${n === 1 ? '' : 's'}`;
 }
 async function loadProfile() {
-  const data = await api(`/api/profile?conversation=${encodeURIComponent(person)}`);
-  profileVersion = data.version; facts = data.facts;
-  $('memory-conflict').hidden = true;
-  renderFacts();
+  await load('profile', `/api/profile?conversation=${encodeURIComponent(person)}`, data => {
+    profileVersion = data.version; facts = data.facts; factsReady = true;
+    $('memory-conflict').hidden = true;
+    renderFacts();
+  });
 }
 async function changeProfile(change, keyId) {
   if (profileBusy) return;
@@ -371,7 +428,7 @@ async function changeProfile(change, keyId) {
     if (!response.ok) throw new Error(data.error ?? 'Could not save.');
     if (keyId) dirty.delete(keyId);
     profileVersion = data.version; facts = data.facts;
-    loadSummary().catch(() => {}); loadKnowledge().catch(() => {});
+    loadSummary();
     $('profile-notice').textContent = data.limited ? 'Learned from the latest 100 incoming messages. Earlier history was not included.' : change.action === 'remove' ? 'Removed. Add it again below to restore it.' : 'Saved.';
     if (change.action === 'set' && !keyId) { $('profile-add').reset(); showAddFact(false); }
   } catch (error) { $('profile-notice').textContent = error.message; }
@@ -463,7 +520,8 @@ function renderWishlist() {
       item.links.length ? storeLinks(item) : el('p', { className: 'muted', textContent: 'No store links saved.' }), panel);
   }) : [el('p', { className: 'empty-state', textContent: 'Nothing saved to this wishlist yet.' })]));
 }
-async function loadWishlist() { wishlist = await api(`/api/admin?view=wishlist&conversation=${encodeURIComponent(person)}`); renderWishlist(); }
+const loadWishlist = () => load('wishlist', `/api/admin?view=wishlist&conversation=${encodeURIComponent(person)}`, data => { wishlist = data; renderWishlist(); })
+  .catch(error => { $('wishlist-list').replaceChildren(); $('wishlist-note').textContent = error.message; });
 
 // ---------- Onboarding ----------
 // Beside the name: a "Not now" tap on /onboarding and the one reminder text (db/046), when either happened.
@@ -540,7 +598,7 @@ $('ask-confirm').onclick = async () => {
     $('ask-dialog').close();
     notice(interview.status === 'sent' ? 'First style question sent. Their replies will show in Conversation.' : `Style question not confirmed (${interview.status}); check Conversation before sending again.`);
     loadMessages().catch(error => notice(`Conversation: ${error.message}`));
-    loadSummary().catch(() => {});
+    loadSummary();
   } catch (error) { $('ask-error').textContent = error.message; $('ask-error').hidden = false; }
   finally { buttons.forEach(b => { b.disabled = false; }); $('ask-confirm').textContent = 'Send'; }
 };
@@ -609,24 +667,25 @@ $('reset-confirm').onclick = async () => {
     $('reset-dialog').close();
     const texts = `${data.texts_removed} onboarding text${data.texts_removed === 1 ? '' : 's'} removed`;
     notice(`Onboarding reset. ${texts}; ${data.history === 'cleared' ? 'imported history deleted and Gmail and Shop disconnected' : 'there was no imported history'}. Sign up again with this number to start over.`);
-    loadMessages().catch(error => notice(`Conversation: ${error.message}`)); loadProfile().catch(() => {}); loadSummary().catch(() => {}); loadKnowledge().catch(() => {}); loadPurchases(person);
+    // Everything the reset could change, for the tabs already loaded.
+    loadMessages().catch(error => notice(`Conversation: ${error.message}`)); loadProfile().catch(() => {});
+    for (const name of started) LOADERS[name]();
   } catch (error) { $('reset-error').textContent = error.message; $('reset-error').hidden = false; }
   finally { buttons.forEach(b => { b.disabled = false; }); $('reset-confirm').textContent = 'Reset onboarding'; }
 };
 
 // ---------- Start ----------
-showTab(new URLSearchParams(location.search).get('tab'));
-if (!/^[0-9a-f-]{36}$/i.test(person)) { $('person-name').textContent = 'Person not found'; notice('This link does not name a person. Go back to People.'); }
+if (!valid) { showTab(new URLSearchParams(location.search).get('tab')); $('person-name').textContent = 'Person not found'; notice('This link does not name a person. Go back to People.'); }
 else {
-  mountPurchases(api);
+  mountPurchases(api, load);
+  // Placeholders until the first data (or the last visit's copy) is drawn.
+  $('summary-rows').replaceChildren(...skeletonRows(8, 4)); $('profile-facts').replaceChildren(...skeletonRows(6, 8));
+  $('messages').replaceChildren(...skeletonRows(5)); $('wishlist-list').replaceChildren(...skeletonRows(3));
+  // The open tab's data (showTab), and the header's messages and facts.
+  showTab(new URLSearchParams(location.search).get('tab'));
   const fail = area => error => { notice(`${area}: ${error.message}`); };
   // ?message=<id> (linked from Admin › Adoption's misses) opens the conversation at that message.
   const linked = new URLSearchParams(location.search).get('message');
-  loadMessages().then(() => { if (/^[0-9a-f-]{36}$/i.test(linked ?? '')) return openMessage(linked); }).catch(fail('Conversation'));
-  loadProfile().catch(fail('Memory'));
-  loadSummary().catch(error => summaryFailed(error));
-  loadAdoption().catch(adoptionFailed);
-  loadKnowledge().catch(error => { $('profile-notice').textContent = `Could not load what Jules derived from purchases, saves and likes: ${error.message}`; });
-  loadPurchases(person);
-  loadWishlist().catch(error => { $('wishlist-note').textContent = error.message; });
+  loadMessages().then(() => { if (/^[0-9a-f-]{36}$/i.test(linked ?? '')) return openMessage(linked); }).catch(error => { $('messages').replaceChildren(); fail('Conversation')(error); });
+  loadProfile().catch(error => { factsReady = true; renderFacts(); fail('Memory')(error); });
 }
