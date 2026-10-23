@@ -86,7 +86,7 @@ function renderQuality(q, testers) {
 
 // Purchase nudges (lib/nudges.js nudgeSummary). Loaded on its own; a failed read only hides this section.
 const NUDGE_KIND = { goes_with: 'Goes with', fit_check: 'Fit check' };
-const NUDGE_REASON = { quiet_hours: 'quiet hours', daily_cap: 'already texted today', weekly_cap: '3 this week', price_alert_today: 'price alert today', ignored_backoff: 'paused (2 ignored)',
+const NUDGE_REASON = { quiet_hours: 'quiet hours', daily_cap: 'already texted today', weekly_cap: '3 this week', price_alert_today: 'alert today', ignored_backoff: 'paused (2 ignored)',
   mid_conversation: 'mid-conversation', opted_out: 'texted STOP', texts_off: 'purchase texts off', not_clothing: 'not clothing', not_worth_a_text: 'not worth an offer', nothing_recent: 'nothing recent',
   accepted: 'said yes', declined: 'said no', not_now: 'not now', unrelated: 'other reply', stopped: 'turned texts off' };
 const outcomeText = e => `${e.status}${e.reason ? ` · ${NUDGE_REASON[e.reason] ?? e.reason}` : ''}${e.test ? ' · test' : ''}`;

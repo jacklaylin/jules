@@ -58,7 +58,7 @@ test('migrated skills keep the rule budget', () => {
 // Each part stays within its budget in tests/fixtures/chat-prompt-budget.json. Growing a part needs a
 // raise with a reason (it shows in the PR); shrinking one needs the budget lowered in the same PR.
 const budgetFile = JSON.parse(fs.readFileSync(new URL('./fixtures/chat-prompt-budget.json', import.meta.url), 'utf8'));
-const GUIDE_MODULES = ['outfit-photos', 'liked-items', 'receipt-chat', 'purchase-texts', 'waitlist', 'order-screenshots', 'memory', 'goes-with', 'screenshot-products'];
+const GUIDE_MODULES = ['outfit-photos', 'liked-items', 'receipt-chat', 'purchase-texts', 'waitlist', 'order-screenshots', 'memory', 'goes-with', 'screenshot-products', 'return-windows'];
 const TOOL_MODULES = ['ai', ...GUIDE_MODULES, 'interview', 'onboarding'];
 const countWords = s => String(s).split(/\s+/).filter(Boolean).length;
 const descriptionWords = o => !o || typeof o !== 'object' ? 0 : Object.entries(o).reduce((n, [k, v]) => n + (k === 'description' && typeof v === 'string' ? countWords(v) : descriptionWords(v)), 0);

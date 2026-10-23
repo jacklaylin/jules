@@ -80,13 +80,15 @@ test('evidence rule: a stated date, or a stated window from a dated email; other
  const fromDelivery={source_id:'order-1',window:{days:30},window_quote:'within 30 days of delivery',window_from:'delivery'};
  const delivered=returnDeadline(item([fromDelivery],{shipped:[2],delivered:[5]}));
  assert.equal(delivered.deadline,'2026-11-05');assert.equal(delivered.basis,'window_from_delivery');assert.equal(delivered.evidence.from.source_id,'delivered-1');
- // Shipped but no delivery email: never "shipped plus a few days".
- assert.deepEqual(returnDeadline(item([fromDelivery],{shipped:[2]})),{deadline:null,reason:'no_delivered_date'});
- // A Shop order or screenshot does not date a parcel.
- assert.equal(returnDeadline(item([fromDelivery],{delivered:[5,'shop:abc']})).deadline,null);
+ // Shipped but no delivery email: never "shipped plus a few days"; the order date is a floor ("at least until").
+ const floor=returnDeadline(item([fromDelivery],{shipped:[2]}));
+ assert.equal(floor.deadline,'2026-10-31');assert.equal(floor.basis,'order_date_floor');assert.equal(floor.at_least,true);
+ // A Shop order or screenshot does not date a parcel: still the floor.
+ assert.equal(returnDeadline(item([fromDelivery],{delivered:[5,'shop:abc']})).basis,'order_date_floor');
  const fromOrder={source_id:'order-1',window:{days:14},window_quote:'14 days from your order date',window_from:'order'};
  assert.equal(returnDeadline(item([fromOrder])).deadline,'2026-10-15');
- assert.deepEqual(returnDeadline(item([{source_id:'order-1',window:{days:30},window_quote:'30 days',window_from:'not_stated'}])),{deadline:null,reason:'window_start_not_stated'});
+ // A period with no stated start: the order date is still a floor, since no start can come before the order.
+ assert.equal(returnDeadline(item([{source_id:'order-1',window:{days:30},window_quote:'30 days',window_from:'not_stated'}])).at_least,true);
  assert.deepEqual(returnDeadline(item([])),{deadline:null,reason:'no_terms'});
  assert.equal(returnDeadline(item([stated,{source_id:'order-1',final_sale:'final sale'}])).reason,'final_sale');
  // Two stated deadlines: the earlier one wins.
@@ -189,4 +191,198 @@ test('a person saying they kept it moves the item out of the reminder set',async
  assert.equal(returnWindowCandidates(kept,{now:at('2026-10-22'),zone:ZONE})[0].reason,'kept');
  const returned=applyReceiptFeedback(state,{id:'chat:2',owner_id:OWNER,source:'chat_answer',at:'2026-10-22T16:00:00Z',item_ids:[state.items[0].id],action:'report_return'});
  assert.equal(returnWindowCandidates(returned,{now:at('2026-10-22'),zone:ZONE})[0].reason,'returned');
+});
+
+// ---------- Step 2: in-store purchases, the floor, sending, opt-out, replies ----------
+import {harmonizeEmail} from '../lib/receipt-extraction.js';
+import {sendReturnReminders,reminderDraft,reminderItem,manageReturnReminders,sendTestReminder,openReminder,TEST_LABEL,RETURN_OPERATION} from '../lib/return-windows.js';
+import {nudgeDecision} from '../lib/nudges.js';
+import {runDailyRefresh} from '../lib/purchase-texts.js';
+import {updatePurchaseHistory} from '../lib/receipt-chat.js';
+import {applyReceiptAnswerPartially,receiptLearningView} from '../lib/receipt-feedback.js';
+import {projectReceiptState} from '../lib/receipt-extraction.js';
+
+const STORE_TEXT='SUBJECT\nYour receipt from CHERRY LA\nCHERRY LA Melrose Ave store\nIn-store purchase\nWide Leg Cargo Pants × 1 32 $368.00\nReturns must be initiated within 14 days of receiving your item(s).';
+const BOUGHT=Date.parse('2026-10-17T20:00:00Z');
+const pantsLine=(extra={})=>line('purchased',{basis:{value:'receipt_or_invoice',quote:'Your receipt from CHERRY LA'},merchant:fact('CHERRY LA','Your receipt from CHERRY LA'),order_reference:none,
+ product:fact('Wide Leg Cargo Pants','Wide Leg Cargo Pants × 1 32 $368.00'),brand:fact('CHERRY LA','Your receipt from CHERRY LA'),size_label:fact('32','Wide Leg Cargo Pants × 1 32 $368.00'),evidence:'Wide Leg Cargo Pants × 1 32 $368.00',
+ return_window:fact('14 days','Returns must be initiated within 14 days of receiving your item(s).'),return_window_from:'delivery',...extra});
+const storeReceipt=(extra={})=>read([pantsLine(extra)],source('receipt-1',STORE_TEXT,BOUGHT)).records;
+
+test('an in-store purchase is received the day it was bought: a quoted fulfillment dates the window',()=>{
+ const records=storeReceipt({fulfillment:{value:'in_store',quote:'In-store purchase'}});
+ assert.deepEqual(records[0].fulfillment,{value:'in_store',quote:'In-store purchase'});
+ const state=projectReceiptEvidence(OWNER,records.map(r=>purchaseEvidence(r))).state,pants=projectReceiptState(state).items[0];
+ const d=returnDeadline(pants,'America/Los_Angeles');
+ assert.equal(d.deadline,'2026-10-31');assert.equal(d.basis,'window_from_in_store_purchase');assert.equal(d.at_least,undefined);
+ assert.equal(d.evidence.in_store,'In-store purchase');
+ // A fulfillment quote the receipt does not contain is withheld: the window falls back to the floor.
+ const unquoted=storeReceipt({fulfillment:{value:'in_store',quote:'Bought at the store'}});
+ assert.equal(unquoted[0].fulfillment,undefined);assert.ok(unquoted[0].withheld_fields.includes('fulfillment'));
+ const floor=returnDeadline(projectReceiptState(projectReceiptEvidence(OWNER,unquoted.map(r=>purchaseEvidence(r))).state).items[0],'America/Los_Angeles');
+ assert.equal(floor.basis,'order_date_floor');assert.equal(floor.deadline,'2026-10-31');assert.equal(floor.at_least,true);
+});
+
+test('lines quoting the same return sentence share its start, and the email\'s fulfillment applies to every line',()=>{
+ const q='Returns must be initiated within 14 days of receiving your item(s).';
+ const out=harmonizeEmail({events:[{return_window:fact('14 days',q),return_window_from:'delivery',fulfillment:{value:'in_store',quote:'In-store purchase'}},{return_window:fact('14 days',q),return_window_from:'not_stated',fulfillment:{value:'unknown',quote:null}}]});
+ assert.equal(out.events[1].return_window_from,'delivery');assert.equal(out.events[1].fulfillment.value,'in_store');
+ // Disagreeing lines share nothing.
+ const mixed=harmonizeEmail({events:[{return_window:fact('14 days',q),return_window_from:'delivery'},{return_window:fact('14 days',q),return_window_from:'order'},{return_window:fact('14 days',q),return_window_from:'not_stated'}]});
+ assert.equal(mixed.events[2].return_window_from,'not_stated');
+});
+
+test('the text names the date and why, and says "at least until" for a floor',()=>{
+ const pants={id:'p',brand:'CHERRY LA',product:'Wide Leg Cargo Pants',merchant:'CHERRY LA',fulfillment:{value:'in_store',quote:'In-store purchase'},return_terms:[{source_id:'r',window:{days:14},window_quote:'within 14 days',window_from:'delivery'}],
+  source_events:[{kind:'purchased',at:BOUGHT,source_id:'r'}],outcome:{value:'unknown'},recipient:{value:'self'},field_provenance:{}};
+ const exact=reminderItem(pants,returnDeadline(pants,'America/Los_Angeles'));
+ assert.equal(reminderDraft([exact]),'heads up: for your CHERRY LA Wide Leg Cargo Pants, the return window closes saturday, oct 31 (14 days, and you bought it in store on oct 17). keeping it?');
+ const shipped={...pants,fulfillment:null};
+ const floor=reminderItem(shipped,returnDeadline(shipped,'America/Los_Angeles'));
+ assert.match(reminderDraft([floor]),/you have at least until saturday, oct 31 to return it \(their email says 14 days from when it arrives, and you ordered oct 17\)/);
+ const stated=reminderItem(item([{source_id:'order-1',return_by:'2026-10-24',return_by_quote:'Return by October 24'}]),returnDeadline(item([{source_id:'order-1',return_by:'2026-10-24',return_by_quote:'Return by October 24'}])));
+ assert.match(reminderDraft([stated,floor]),/^heads up, a few return windows are closing: your SSENSE Our Legacy Jacket: the return window closes saturday, oct 24 \(going by your order email\); your CHERRY LA .*keeping them\?$/);
+});
+
+// The purchase-history row, evidence rows and message ledger, shaped as the application stores them.
+function ledger(records,{data={},optedOut=false,sent=[]}={}){
+ const store=storage(records,data),operations=new Map(sent.map(([k,at])=>[k,{status:'sent',conversation_id:OWNER,created_at:at}])),texts=[];
+ return Object.assign(store,{operations,texts,conversation:async()=>({id:OWNER,line:'line',sender_id:'sender'}),recent:async()=>[],smsOptedOut:async()=>optedOut,
+  operation:async key=>operations.get(key)??null,reserve:async(o,key,body)=>{if(operations.has(key))return false;operations.set(key,{status:'sending',body,conversation_id:o,created_at:new Date().toISOString()});return true;},
+  finish:async(key,status)=>{operations.get(key).status=status;},prepareAI:async()=>{},
+  unpromptedSince:async()=>[...operations].map(([operation_id,m])=>({operation_id,status:m.status,created_at:m.created_at}))});
+}
+const send=store=>async(target,body)=>{store.texts.push(body);return {id:'msg'};};
+const compose=async({draft})=>({body:draft,composed:false});
+const DUE=Date.parse('2026-10-28T19:00:00Z');// noon in Los Angeles, 3 days before Oct 31
+const LA={style_report:{timezone:'America/Los_Angeles'}};
+
+test('a due reminder goes out once, as an alert in the ledger, and is never repeated',async()=>{
+ const store=ledger(storeReceipt({fulfillment:{value:'in_store',quote:'In-store purchase'}}),{data:LA});
+ assert.equal((await sendReturnReminders(store,OWNER,{},{send:send(store),compose,now:Date.parse('2026-10-27T19:00:00Z')})).status,'nothing_due','4 days before: too early');
+ const result=await sendReturnReminders(store,OWNER,{},{send:send(store),compose,now:DUE});
+ assert.equal(result.status,'sent');assert.equal(store.texts.length,1);
+ assert.match(store.texts[0],/CHERRY LA Wide Leg Cargo Pants, the return window closes saturday, oct 31/);
+ assert.ok(store.operations.has(RETURN_OPERATION(OWNER,'2026-10-28')));
+ const data=store.row.data;
+ assert.equal(data.returns.reminded.length,1);assert.equal(openReminder(data.returns,DUE).items[0].deadline,'2026-10-31');
+ assert.equal(data.returns.log.at(-1).status,'sent');
+ // Next day: already reminded, no second text.
+ assert.equal((await sendReturnReminders(store,OWNER,{},{send:send(store),compose,now:DUE+DAY})).status,'nothing_due');
+ assert.equal(store.texts.length,1);assert.equal(store.row.data.returns.log.at(-1).reason,'already_reminded');
+});
+
+test('quiet hours hold it for tomorrow; STOP and their own off switch skip it',async()=>{
+ const records=storeReceipt({fulfillment:{value:'in_store',quote:'In-store purchase'}});
+ const night=ledger(records,{data:LA});
+ const held=await sendReturnReminders(night,OWNER,{},{send:send(night),compose,now:Date.parse('2026-10-29T06:00:00Z')});// 11pm on Oct 28 in LA
+ assert.deepEqual([held.status,held.reason,night.texts.length],['held','quiet_hours',0]);
+ assert.equal((night.row.data.returns.reminded??[]).length,0,'held items stay due');
+ const stopped=ledger(records,{data:LA,optedOut:true});
+ assert.equal((await sendReturnReminders(stopped,OWNER,{},{send:send(stopped),compose,now:DUE})).reason,'opted_out');
+ const off=ledger(records,{data:{...LA,return_reminders:{enabled:false}}});
+ assert.equal((await sendReturnReminders(off,OWNER,{},{send:send(off),compose,now:DUE})).reason,'reminders_off');
+ assert.equal(stopped.texts.length+off.texts.length,0);
+});
+
+test('cap interaction: a nudge sent today does not hold a reminder, and a reminder takes the day\'s nudge slot',async()=>{
+ const today=new Date(DUE-3600000).toISOString();
+ const store=ledger(storeReceipt({fulfillment:{value:'in_store',quote:'In-store purchase'}}),{data:LA,sent:[[`gmail:${OWNER}:purchases:2026-10-28`,today],[`gmail:${OWNER}:fit-check:2026-10-26`,today]]});
+ assert.equal((await sendReturnReminders(store,OWNER,{},{send:send(store),compose,now:DUE})).status,'sent','nudge limits do not apply to reminders');
+ const reminder=[{operation_id:RETURN_OPERATION(OWNER,'2026-10-28'),status:'sent',created_at:today}];
+ assert.equal(nudgeDecision({sent:reminder,now:DUE,timezone:'America/Los_Angeles'}).reason,'price_alert_today');
+ // A reminder never counts toward the nudge back-off or the weekly cap.
+ assert.equal(nudgeDecision({sent:reminder,now:DUE+DAY,timezone:'America/Los_Angeles'}).send,true);
+});
+
+test('several items closing together share one text, at most three',async()=>{
+ const lines=['Cargo Pants','Work Shirt','Field Jacket','Wool Beanie'].map((name,n)=>pantsLine({product:fact(name),evidence:name,size_label:none,fulfillment:{value:'in_store',quote:'In-store purchase'}}));
+ const text=STORE_TEXT+'\n'+['Cargo Pants','Work Shirt','Field Jacket','Wool Beanie'].join('\n');
+ const store=ledger(read(lines,source('receipt-1',text,BOUGHT)).records,{data:LA});
+ const result=await sendReturnReminders(store,OWNER,{},{send:send(store),compose,now:DUE});
+ assert.deepEqual([result.status,result.items,store.texts.length],['sent',3,1]);
+ assert.match(store.texts[0],/keeping them\?$/);
+ assert.equal(store.row.data.returns.log.filter(e=>e.reason==='next_text').length,1,'the fourth waits for the next text');
+});
+
+test('the daily run sends reminders before the purchase check, for everyone with history',async()=>{
+ const order=[];
+ await runDailyRefresh({gmailConnections:async()=>{order.push('check');return [];}},{},{reminders:async()=>{order.push('reminders');return {sent:1};},now:()=>DUE});
+ assert.deepEqual(order,['reminders','check']);
+});
+
+test('their own switch turns reminders off and on, and reports status',async()=>{
+ const store=storage(read([line()]).records);
+ assert.match(await manageReturnReminders(store,OWNER,'turn_off'),/no more return-window reminders/);
+ assert.equal(store.row.data.return_reminders.enabled,false);
+ assert.match(await manageReturnReminders(store,OWNER,'status'),/off/);
+ assert.match(await manageReturnReminders(store,OWNER,'turn_on'),/done/);
+ assert.equal(store.row.data.return_reminders.enabled,true);
+});
+
+test('test reminders go only to the test conversation, are labelled, and never count as the real one',async()=>{
+ const env={PRICE_ALERT_TEST_CONVERSATION_ID:OWNER};
+ const store=ledger(read([line()]).records,{data:LA});
+ await assert.rejects(sendTestReminder(store,OWNER,'x',{PRICE_ALERT_TEST_CONVERSATION_ID:'someone-else'},{send:send(store),compose}),/designated test conversation/);
+ const id=projectReceiptEvidence(OWNER,store.rows).state.items[0].id;
+ await assert.rejects(sendTestReminder(store,OWNER,id,env,{send:send(store),compose}),/rehearsal date/);
+ const first=await sendTestReminder(store,OWNER,id,env,{rehearsal:'2026-11-02',send:send(store),compose,now:DUE});
+ assert.deepEqual([first.status,first.rehearsal],['sent',true]);
+ assert.ok(store.texts[0].startsWith(TEST_LABEL));assert.match(store.texts[0],/closes monday, nov 2/);
+ assert.equal(store.row.data.returns.open.test,true);assert.equal((store.row.data.returns.reminded??[]).length,0);
+ await sendTestReminder(store,OWNER,id,env,{rehearsal:'2026-11-02',send:send(store),compose,now:DUE});
+ assert.equal(store.texts.length,2,'can be sent again');
+});
+
+// Multi-turn replies: the model reads the reply (stubbed here with what it returns for each); code applies it.
+async function reply(store,text,actions){
+ let seen=null;
+ const interpret=async request=>{seen=request.context.state;return {actions:actions(projectReceiptEvidence(OWNER,store.rows).state.items[0].id)};};
+ const result=await updatePurchaseHistory({message:{id:'m-'+text.length,content:{text}}},OWNER,Object.assign(store,{context:async()=>[{provider_id:'m-'+text.length,created_at:new Date(DUE).toISOString()}]}),{},{interpret,wait:async()=>{}});
+ return {result,seen,state:projectReceiptState(projectReceiptEvidence(OWNER,store.rows).state)};
+}
+const act=(action,extra={})=>id=>[{item_ids:[id],action,recipient:null,recipient_label:null,fit:null,corrections:[],target_item_id:null,question_id:null,...extra}];
+async function reminded(){
+ const store=ledger(storeReceipt({fulfillment:{value:'in_store',quote:'In-store purchase'}}),{data:LA});
+ await sendReturnReminders(store,OWNER,{},{send:send(store),compose,now:DUE});
+ return store;
+}
+
+test('reply "keeping it": the reader sees the reminder, the item is kept, and no more reminders',async()=>{
+ const store=await reminded();
+ const {result,seen,state}=await reply(store,'yep keeping them',act('report_kept'));
+ assert.equal(seen.return_reminders[0].deadline,'2026-10-31','the open reminder reaches the reader');
+ assert.equal(result.updated,true);assert.equal(state.items[0].outcome.value,'kept');
+ assert.equal(returnWindowCandidates(state,{now:DUE+DAY,zone:'America/Los_Angeles'})[0].reason,'kept');
+});
+
+test('reply "returning it": the item leaves the wardrobe',async()=>{
+ const store=await reminded();
+ const {state}=await reply(store,'sending them back',act('report_return'));
+ assert.equal(state.items[0].outcome.value,'returned');
+ assert.equal(returnWindowCandidates(state,{now:DUE+DAY,zone:'America/Los_Angeles'})[0].reason,'returned');
+});
+
+test('reply "too short, going back": a return plus a fit note for that brand only, never a general size',async()=>{
+ const store=await reminded();
+ const {state}=await reply(store,'too short so they are going back',act('report_return',{fit:'runs_small'}));
+ assert.equal(state.items[0].outcome.value,'returned');assert.equal(state.items[0].fit,'runs_small');
+ assert.equal(receiptLearningView(state).profile_writes,false,'the purchase history never writes the profile');
+ // A reason that is not about fit adds nothing.
+ const other=await reminded();
+ const {state:colour}=await reply(other,'didn\'t love the colour, returning',act('report_return'));
+ assert.equal(colour.items[0].fit??null,null);
+});
+
+test('reply "not sure yet": nothing recorded and no "which item" question',async()=>{
+ const store=await reminded();
+ const before=store.rows.length;
+ const {result}=await reply(store,'not sure yet',act('defer_question'));
+ assert.equal(result.updated,false);assert.match(result.body,/haven’t decided/);assert.equal(store.rows.length,before);
+});
+
+test('a fit on a return becomes its own fit report, appended so earlier actions keep their ids',()=>{
+ const state=projectReceiptEvidence(OWNER,storeReceipt().map(r=>purchaseEvidence(r))).state,id=state.items[0].id;
+ const out=applyReceiptAnswerPartially(state,{actions:act('report_return',{fit:'runs_large'})(id)},{id:'imessage:1',owner_id:OWNER,source:'chat_answer',at:'2026-10-28T19:00:00Z'});
+ assert.deepEqual(out.state.feedback.map(e=>[e.id,e.action]),[['imessage:1:0','report_return'],['imessage:1:1','report_fit']]);
 });

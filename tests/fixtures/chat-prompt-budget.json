@@ -13,6 +13,8 @@
       "reason": "CHAT_NARRATE's conversation_reply variant (NOTE_TOOL, lib/ai.js) is counted beside the current one while the flag is tried. Only one is offered per turn; when the flag is settled the other is deleted and this raise dropped."
     },
     { "part": "feature_guides", "words": 25, "reason": "Taste guide: a material field so fabric likes and dislikes stop landing in silhouette or fit (October 22)." },
-    { "part": "tool_descriptions", "words": 25, "reason": "The same taste-guide material field, which update_profile carries in its description (October 22)." }
+    { "part": "tool_descriptions", "words": 25, "reason": "The same taste-guide material field, which update_profile carries in its description (October 22)." },
+    { "part": "feature_guides", "words": 38, "reason": "Return-window reminders (October 22): the guide shown only while a reminder is open, so a keep/return reply goes to update_purchase_history and a stop to manage_purchase_texts (which: return_reminders)." },
+    { "part": "tool_descriptions", "words": 9, "reason": "Return-window reminders (October 22): manage_purchase_texts also turns return reminders off and on (its new which field) instead of a new tool, so the tool count holds." }
   ]
 }
