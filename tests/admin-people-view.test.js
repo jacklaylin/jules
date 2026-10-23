@@ -24,9 +24,9 @@ test('last activity reads as time ago, and as a date once it is old',()=>{
  assert.equal(ago('not a date',now),'—');
 });
 
-test('the count says how many a search shows and when the list was refreshed',()=>{
- assert.equal(countLine(10,10,now-60e3,now),'10 people · refreshed 1 min ago');
- assert.equal(countLine(3,10,now,now),'3 of 10 people · refreshed just now');
- assert.equal(countLine(1,1,null,now),'1 person');
+test('the count says how many a search shows',()=>{
+ assert.equal(countLine(10,10),'10 people');
+ assert.equal(countLine(3,10),'3 of 10 people');
+ assert.equal(countLine(1,1),'1 person');
 });
 

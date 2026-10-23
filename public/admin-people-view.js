@@ -52,9 +52,9 @@ export function ago(at, now = Date.now()) {
 }
 
 // "10 people · refreshed 1 min ago", or "3 of 10 people · …" while a search narrows the list.
-export function countLine(shown, total, refreshedAt, now = Date.now()) {
+export function countLine(shown, total) {
   const people = `${total} ${total === 1 ? 'person' : 'people'}`;
-  return `${shown === total ? people : `${shown} of ${people}`}${refreshedAt ? ` · refreshed ${ago(refreshedAt, now)}` : ''}`;
+  return shown === total ? people : `${shown} of ${people}`;
 }
 
 // ---------- New signups (lib/new-signups.js) ----------
