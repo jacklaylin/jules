@@ -32,6 +32,7 @@ import { profileFirstName, displayName } from '../lib/memory.js';
 import { signupsWaiting } from '../lib/new-signups.js';
 import { goesWithCandidates, sendTestNudge, nudgeTestConversation, purchaseTextsOn } from '../lib/purchase-texts.js';
 import { nudgeTimezone, nudgeSummary } from '../lib/nudges.js';
+import { returnWindowView, rereadReturnTerms } from '../lib/return-windows.js';
 import { alertSummary } from '../lib/alert-metrics.js';
 import { reportAdoptionData } from '../lib/report-adoption.js';
 
@@ -49,7 +50,7 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
       if (req.method === 'POST') {
         // The only writes are purchase-history reviews, tagging, the onboarding reset, waitlist approval, setting up a new tester and texting the contact card, re-reading a failed photo; manual replies stay retired.
         const input = await readJson(req);
-        if (!['review', 'missed', 'tag', 'build-report', 'send-report', 'reset-onboarding', 'approve', 'waitlist', 'send-contact-card', 'start-interview', 'reread-image', 'judge-mark', 'replay-draft', 'extract-compare', 'send-test-nudge', 'resend-welcome'].includes(input.action)) return json(res, 400, { error: 'Unknown purchase action.' });
+        if (!['review', 'missed', 'tag', 'build-report', 'send-report', 'reset-onboarding', 'approve', 'waitlist', 'send-contact-card', 'start-interview', 'reread-image', 'judge-mark', 'replay-draft', 'extract-compare', 'send-test-nudge', 'resend-welcome', 'reread-returns'].includes(input.action)) return json(res, 400, { error: 'Unknown purchase action.' });
         if (input.action === 'judge-mark' && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Mark the judge from the Jules admin page.' });
         if (['approve', 'waitlist'].includes(input.action) && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Change waitlist status from the Jules admin page.' });
         if (input.action === 'extract-compare' && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Run the comparison from the Jules admin page.' });
@@ -58,6 +59,7 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
         if (input.action === 'resend-welcome' && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Resend the welcome from the Jules admin page.' });
         if (input.action === 'send-contact-card' && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Send the contact card from the Jules admin page.' });
         if (input.action === 'reread-image' && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Re-read photos from the Jules admin page.' });
+        if (input.action === 'reread-returns' && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Re-read return terms from the Jules admin page.' });
         if (input.action === 'send-test-nudge' && (!env.SITE_ORIGIN || req.headers.origin !== env.SITE_ORIGIN.replace(/\/$/, ''))) return json(res, 400, { error: 'Send test nudges from the Jules admin page.' });
         const store = storeFactory(env);
         if (!uuid(input.conversation) || !await store.conversation(input.conversation)) return json(res, 404, { error: 'Conversation not found.' });
@@ -103,6 +105,12 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
           if (input.confirm !== true) throw Object.assign(new Error('Confirm sending the test nudge first.'), { status: 400 });
           try { return json(res, 200, { nudge: await sendTestNudge(store, input.conversation, String(input.item ?? ''), env, send ? { send } : {}), ...await nudgeView(store, input.conversation, env) }); }
           catch (error) { if (error.status === 403) throw Object.assign(new Error(error.message), { status: 409 }); throw error; }
+        }
+        // Return windows (lib/return-windows.js): re-read a few recent order emails for the return terms they state.
+        // Only return terms are saved; nothing is texted. The page calls again until none are left.
+        if (input.action === 'reread-returns') {
+          if (input.confirm !== true) throw Object.assign(new Error('Confirm re-reading their emails first.'), { status: 400 });
+          return json(res, 200, { reread: await rereadReturnTerms(store, input.conversation, env, { fetcher }) });
         }
         // Texts the person the next style question (lib/interview.js), as if they had asked for it.
         if (input.action === 'start-interview') {
@@ -203,6 +211,8 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
       if (query.get('view') === 'wishlist') return json(res, 200, await personWishlist(store, id, env));
       // Unprompted texts: the decision log, the setting, and (test conversation only) what a test nudge could be about.
       if (query.get('view') === 'nudges') return json(res, 200, await nudgeView(store, id, env));
+      // Return windows (step 1, read and log only): recent purchases, the return terms their emails state, and today's decision.
+      if (query.get('view') === 'returns') return json(res, 200, await returnWindowView(store, id));
       // How much of the taste profile is known, per dimension (lib/coverage.js). Read-only, computed fresh.
       if (query.get('view') === 'coverage') return json(res, 200, await readCoverage(store, id));
       // The Summary tab (lib/person-summary.js): coverage, one row per thing Jules weighs and what Jules would text

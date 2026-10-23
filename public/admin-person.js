@@ -126,14 +126,18 @@ function messageView(message) {
     el('div', { className: 'message-meta' }, el('span', { className: 'muted', textContent: when(message.created_at) }), ...issues.map(([kind, text]) => badge(kind, text)),
       inbound && message.image_status === 'failed' && !message.message_images?.length && el('button', { type: 'button', className: 'small', textContent: 'Re-read photo…', onclick: () => openReread(message.id) }), details));
 }
+// All or Problems only (the toolbar's one filter group).
+let convoFilter = 'all';
 function renderMessages() {
   imageURLs.forEach(url => URL.revokeObjectURL(url)); imageURLs = [];
-  const onlyProblems = $('convo-filter').value === 'problems';
-  const shown = onlyProblems ? messages.filter(m => problems(m).length) : messages;
+  const onlyProblems = convoFilter === 'problems', withProblems = messages.filter(m => problems(m).length);
+  const shown = onlyProblems ? withProblems : messages;
+  for (const button of $('convo-filter').querySelectorAll('button')) button.setAttribute('aria-pressed', String(button.dataset.filter === convoFilter));
   $('messages').replaceChildren(...(shown.length ? shown.map(messageView) : [el('p', { className: 'dv-empty', textContent: onlyProblems ? 'No problems in the loaded messages.' : 'No messages yet.' })]));
   $('older').hidden = !cursor;
   const total = `${messages.length}${cursor ? '+' : ''}`;
-  $('convo-count').textContent = onlyProblems ? `${shown.length} with problems, of ${total} loaded` : `${total} messages`;
+  $('convo-all').textContent = total; $('convo-problems').textContent = withProblems.length;
+  $('convo-count').textContent = onlyProblems ? `${shown.length} with problems, of ${total} loaded` : `${total} messages${cursor ? ' loaded' : ''}`;
   $('count-conversation').textContent = total;
   $('stat-active').textContent = messages.length ? when(messages.at(-1).created_at) : '—';
 }
@@ -151,10 +155,10 @@ async function loadMessages(earlier = false) {
     messages = data.messages; cursor = data.before; renderMessages();
   });
 }
-$('convo-filter').onchange = renderMessages;
+for (const button of $('convo-filter').querySelectorAll('button')) button.onclick = () => { convoFilter = button.dataset.filter; renderMessages(); };
 $('older').onclick = async () => { $('older').disabled = true; try { await loadMessages(true); } catch (error) { notice(error.message); } finally { $('older').disabled = false; } };
 async function openMessage(id) {
-  showTab('conversation', true); $('convo-filter').value = 'all';
+  showTab('conversation', true); convoFilter = 'all';
   try { while (!messages.some(m => m.id === id) && cursor) await loadMessages(true); } catch (error) { notice(error.message); }
   renderMessages();
   const target = document.getElementById(`message-${id}`);
@@ -486,7 +490,7 @@ function alertBadge(alert) {
 function storeLinks(item) {
   return el('ul', { className: 'store-links' }, ...item.links.map(link => el('li', {},
     el('a', { href: link.url, target: '_blank', rel: 'noopener noreferrer', textContent: link.retailer }),
-    link.price ? el('span', { className: 'mono-label', textContent: ` ${money(link.price)}` }) : el('span', { className: 'muted', textContent: ' price unverified' }),
+    link.price ? el('span', { className: 'num', textContent: money(link.price) }) : el('span', { className: 'muted', textContent: ' price unverified' }),
     link.verification_status === 'unverified' ? badge('warn', 'Unverified link') : null)));
 }
 function testForm(item) {
@@ -509,7 +513,7 @@ function testForm(item) {
     el('p', { className: 'muted', textContent: `Runs the real alert decision on a made-up price. Nothing is saved. Reference: ${alert.baselines.map(b => money(b)).join(', ') || 'none yet'} · last stock: ${(alert.stock ?? 'unknown').replace('_', ' ')}.` }),
     el('div', { className: 'add-fact-fields' }, field('Store', storeSelect), field('Size', size), field('Price', price), field('Currency', currency), field('Listed shipping (optional)', shipping), field('Previous stock', previous), field('Stated left in size (optional)', quantity), field('Low-stock episode', episode)),
     el('label', { className: 'check' }, available, 'Size in stock'),
-    el('div', { className: 'toolbar' }, preview, send, !wishlist.test_delivery && el('span', { className: 'muted', textContent: 'Test texts only go to the designated test account.' })),
+    el('div', { className: 'dv-toolbar' }, preview, send, !wishlist.test_delivery && el('span', { className: 'muted', textContent: 'Test texts only go to the designated test account.' })),
     result);
   const run = async deliver => {
     if (!form.reportValidity()) return;
@@ -530,15 +534,18 @@ function renderWishlist() {
   $('count-wishlist').textContent = items.length;
   $('wishlist-note').textContent = !wishlist.alerts_enabled ? 'Price alerts are turned off in this deployment, so alert status and tests are unavailable.'
     : wishlist.test_delivery ? 'This is the designated test account: Test alert can send a labelled test text.' : 'Test alert previews the message an alert would send. Test texts only go to the designated test account.';
-  $('wishlist-list').replaceChildren(...(items.length ? items.map(item => {
-    const test = item.price_alert && wishlist.alerts_enabled ? el('button', { type: 'button', className: 'small', textContent: 'Test alert', ariaExpanded: 'false' }) : null;
-    const panel = el('div', { className: 'alert-panel', hidden: true });
-    if (test) test.onclick = () => { const open = panel.hidden; panel.hidden = !open; test.setAttribute('aria-expanded', String(open)); if (open && !panel.firstChild) panel.append(testForm(item)); };
-    return el('article', { className: 'wish-item' },
-      el('div', { className: 'wish-head' }, el('div', {}, el('strong', { textContent: item.name ?? 'Saved item' }), el('p', { className: 'muted', textContent: `Saved ${day(item.sent_at)}` })),
-        el('div', { className: 'badges' }, wishlist.alerts_enabled ? alertBadge(item.price_alert) : null, test)),
-      item.links.length ? storeLinks(item) : el('p', { className: 'muted', textContent: 'No store links saved.' }), panel);
-  }) : [el('p', { className: 'dv-empty', textContent: 'Nothing saved to this wishlist yet.' })]));
+  $('wishlist-count').textContent = `${items.length} saved${wishlist.alerts_enabled ? ` · ${items.filter(i => i.price_alert?.active).length} with an alert on` : ''}`;
+  // One row per item; Test alert opens the rehearsal form in a full-width row under it.
+  $('wishlist-list').replaceChildren(...(items.length ? items.flatMap(item => {
+    const test = item.price_alert && wishlist.alerts_enabled ? el('button', { type: 'button', className: 'small quiet', textContent: 'Test alert', ariaExpanded: 'false' }) : null;
+    const panel = el('div', { className: 'alert-panel' }), panelRow = el('tr', { className: 'alert-row', hidden: true }, el('td', { colSpan: 4 }, panel));
+    if (test) test.onclick = () => { const open = panelRow.hidden; panelRow.hidden = !open; test.setAttribute('aria-expanded', String(open)); if (open && !panel.firstChild) panel.append(testForm(item)); };
+    return [el('tr', {},
+      el('td', {}, el('span', { className: 'wish-name', textContent: item.name ?? 'Saved item' }), el('small', { textContent: `Saved ${day(item.sent_at)}` })),
+      el('td', {}, item.links.length ? storeLinks(item) : el('span', { className: 'muted', textContent: 'No store links saved' })),
+      el('td', {}, wishlist.alerts_enabled ? el('div', { className: 'badges' }, alertBadge(item.price_alert)) : el('span', { className: 'muted', textContent: 'Alerts off' })),
+      el('td', { className: 'end' }, test)), panelRow];
+  }) : [el('tr', {}, el('td', { colSpan: 4, className: 'dv-empty', textContent: 'Nothing saved to this wishlist yet.' }))]));
 }
 const loadWishlist = () => load('wishlist', `/api/admin?view=wishlist&conversation=${encodeURIComponent(person)}`, data => { wishlist = data; renderWishlist(); })
   .catch(error => { $('wishlist-list').replaceChildren(); $('wishlist-note').textContent = error.message; });
@@ -660,6 +667,49 @@ $('nudge-confirm').onclick = async () => {
   } catch (error) { $('nudge-error').textContent = error.message; $('nudge-error').hidden = false; }
   finally { buttons.forEach(b => { b.disabled = false; }); $('nudge-confirm').textContent = 'Send test nudge'; }
 };
+// ---------- Return windows ----------
+// Step 1 of return-window reminders (lib/return-windows.js): each recent purchase, the return terms its emails
+// state, and today's decision with the reason. Re-reading recent emails saves only their return terms.
+const RETURN_REASONS = { no_terms: 'no return terms in its emails', final_sale: 'final sale', window_start_not_stated: 'period stated, start not stated', no_delivered_date: 'counts from delivery; no delivery email',
+  no_shipped_date: 'counts from shipping; no shipping email', no_purchased_date: 'counts from the order; no dated order email', too_early: 'too early', deadline_passed: 'deadline passed', already_reminded: 'already reminded',
+  kept: 'they kept it', return_requested: 'return already started', returned: 'returned', cancelled: 'cancelled', gift: 'a gift', gone: 'no longer theirs', never_bought: 'not a purchase' };
+const returnDay = d => new Date(d + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+function returnTermsText(terms) {
+  return terms.map(t => [t.return_by ? `return by ${returnDay(t.return_by)} (“${t.return_by_quote}”)` : null, t.window ? `${t.window.days ? t.window.days + ' days' : t.window.months + ' months'} from ${t.window_from.replace('not_stated', 'an unstated start')} (“${t.window_quote}”)` : null, t.final_sale ? `final sale (“${t.final_sale}”)` : null].filter(Boolean).join('; ')).join(' · ');
+}
+function renderReturns(data) {
+  $('returns-summary').textContent = `${data.items.length} purchases in the last 120 days · ${data.with_terms} with stated return terms · ${data.with_deadline} with a deadline · time zone ${data.zone}${data.connected ? '' : ' · Gmail not connected'}`;
+  $('returns-items').replaceChildren(...(data.items.length ? data.items.map(i => el('li', { textContent: `${[i.brand, i.product].filter(Boolean).join(' ') || 'Purchase'}${i.merchant ? ` · ${i.merchant}` : ''} · bought ${i.bought_at.slice(0, 10)} · ${i.deadline ? `last return day ${returnDay(i.deadline)} (${i.days_left} days left) · ` : ''}${i.status === 'would_send' ? 'would remind today' : RETURN_REASONS[i.reason] ?? i.reason}${i.terms.length ? ` · ${returnTermsText(i.terms)}` : ''}${i.evidence?.from ? ` · ${i.evidence.from.kind} email ${i.evidence.from.day}` : ''}` }))
+    : [el('li', { className: 'muted', textContent: 'No purchases in the last 120 days.' })]));
+  $('returns-log').replaceChildren(...(data.log.length ? data.log.map(e => el('li', { textContent: `${e.at.slice(0, 16).replace('T', ' ')} UTC · ${e.status === 'would_send' ? 'would remind' : RETURN_REASONS[e.reason] ?? e.reason}${e.deadline ? ` · last day ${returnDay(e.deadline)}` : ''}` }))
+    : [el('li', { className: 'muted', textContent: 'No decisions logged yet (the daily purchase check writes them).' })]));
+  $('returns-left').textContent = data.reread.remaining;
+  $('returns-reread').hidden = !data.connected || !data.reread.remaining; $('returns-confirm').hidden = $('returns-reread').hidden;
+}
+$('returns').onclick = async () => {
+  $('returns-error').hidden = true; $('returns-reread').hidden = true; $('returns-confirm').hidden = true;
+  $('returns-items').replaceChildren(...skeletonRows(2).map(row => el('li', {}, row)));
+  $('returns-dialog').showModal();
+  try { renderReturns(await api(`/api/admin?conversation=${person}&view=returns`)); }
+  catch (error) { $('returns-error').textContent = error.message; $('returns-error').hidden = false; }
+};
+$('returns-cancel').onclick = () => $('returns-dialog').close();
+$('returns-confirm').onclick = async () => {
+  const buttons = [$('returns-confirm'), $('returns-cancel')]; buttons.forEach(b => { b.disabled = true; }); $('returns-error').hidden = true;
+  let read = 0, found = 0;
+  try {
+    // A few emails per call, so each request stays well inside the function time limit.
+    for (let round = 0; round < 30; round++) {
+      $('returns-confirm').textContent = `Reading… ${read} read`;
+      const { reread } = await api('/api/admin', { method: 'POST', body: JSON.stringify({ action: 'reread-returns', conversation: person, confirm: true }) });
+      read += reread.read; found += reread.found;
+      if (!reread.remaining || !reread.read) break;
+    }
+    notice(`Re-read ${read} emails; ${found} stated return terms.`);
+    renderReturns(await api(`/api/admin?conversation=${person}&view=returns`));
+  } catch (error) { $('returns-error').textContent = error.message; $('returns-error').hidden = false; }
+  finally { buttons.forEach(b => { b.disabled = false; }); $('returns-confirm').textContent = 'Re-read emails'; }
+};
 // ---------- Re-read a failed photo ----------
 // Reads the photo again from Photon (recompressing a large screenshot) and saves it to that message; no text is sent.
 let rereadMessage = null;
@@ -700,7 +750,7 @@ else {
   mountPurchases(api, load);
   // Placeholders until the first data (or the last visit's copy) is drawn.
   $('summary-rows').replaceChildren(...skeletonRows(8, 4)); $('profile-facts').replaceChildren(...skeletonRows(6, 8));
-  $('messages').replaceChildren(...skeletonRows(5)); $('wishlist-list').replaceChildren(...skeletonRows(3));
+  $('messages').replaceChildren(...skeletonRows(5)); $('wishlist-list').replaceChildren(...skeletonRows(3, 4));
   // The open tab's data (showTab), and the header's messages and facts.
   showTab(new URLSearchParams(location.search).get('tab'));
   const fail = area => error => { notice(`${area}: ${error.message}`); };

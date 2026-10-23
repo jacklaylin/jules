@@ -34,10 +34,6 @@ Disallow: /report-jokes.html
 Disallow: /onboarding
 Disallow: /login$
 Disallow: /login.html
-Disallow: /simulator.html
-Disallow: /replay.html
-Disallow: /search-diagnostic.html
-Disallow: /identification-test.html
 Disallow: /costs.html
 Disallow: /adoption.html
 Disallow: /scorecard.html
