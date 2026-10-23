@@ -63,3 +63,16 @@ test('stores show as people say them, one spelling per store, while matching kee
  assert.deepEqual(state.items.map(i=>i.merchant),['SSENSE','SSENSE','SSENSE','On']);
  assert.equal(state.items[3].original.merchant,'On Team (on.com)','the stored name stays as read, for matching');
 });
+
+test('the answer reader sees only open questions, and texts show a brand without its company suffix (October 23)',async()=>{
+ const {answerView}=await import('../lib/receipt-feedback.js');
+ const {itemName,wardrobeView}=await import('../lib/wardrobe.js');
+ const state=projectReceiptEvidence(owner,[record(1,'MFPEN')]).state;
+ state.questions=[{id:'open',topic:'recipient',fields:[],question:'For you?',item_ids:['item-1'],status:'open'},{id:'dup',topic:'duplicate',fields:[],question:'Duplicates?',item_ids:['item-1'],status:'needs_rephrase'},{id:'later',topic:'recipient',fields:[],question:'x',item_ids:['item-1'],status:'deferred'}];
+ assert.deepEqual(answerView(state).questions.map(q=>q.id),['open']);
+ // A brand a correction stored with the company name is shown without it.
+ const fixed=applyReceiptFeedback(state,{id:'chat:1',owner_id:owner,source:'chat_answer',at:'2026-10-12T00:00:00Z',item_ids:['item-1'],action:'correct_fields',values:{brand:'MFPEN Retail ApS'}});
+ assert.equal(fixed.items[0].brand,'MFPEN Retail ApS','stored as the correction wrote it');
+ assert.ok(!/Retail ApS/.test(itemName(fixed.items[0])));
+ assert.equal(wardrobeView(fixed).items[0].brand,'MFPEN');
+});
