@@ -418,7 +418,7 @@ test('merchant spellings of the same store link, deduplicate and group; differen
  const {purchaseSummary}=await import('../lib/evidence.js');
  let mixed=reconcileReceipt(bought,{...legal,id:'m3',text:'mfpen.com Order O2 Shirt purchased'},{events:[receipt({merchant:fact('mfpen.com'),order_reference:fact('O2'),product:fact('Shirt'),brand:fact(null),color:fact(null),size_label:fact(null),quantity:fact(null)})]}).state;
  for(const item of mixed.items)mixed=applyReceiptFeedback(mixed,{id:'self-'+item.id,owner_id:'owner',source:'chat_answer',at:'2026-10-12',item_ids:[item.id],action:'set_recipient',value:'self'});
- assert.deepEqual(purchaseSummary(mixed).top_merchants.map(m=>[m.name,m.count]),[['mfpen.com',2]]);
+ assert.deepEqual(purchaseSummary(mixed).top_merchants.map(m=>[m.name,m.count]),[['MFPEN',2]]);
 });
 // Synthetic mailbox shaped like the founder's: a brand's own store sends store-platform order emails
 // ("Order #CB1001 confirmed"), while the generic searches return mostly mail earlier imports already

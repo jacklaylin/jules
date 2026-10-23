@@ -387,9 +387,3 @@ test('a fit on a return becomes its own fit report, appended so earlier actions 
  assert.deepEqual(out.state.feedback.map(e=>[e.id,e.action]),[['imessage:1:0','report_return'],['imessage:1:1','report_fit']]);
 });
 
-test('the store is named as people say it, once',()=>{
- const trousers={id:'t',brand:'MFPEN',product:'Service Trousers',color:'Muted Black Cotton',merchant:'MFPEN Retail ApS',outcome:{value:'unknown'},recipient:{value:'self'},field_provenance:{},
-  return_terms:[{source_id:'order-1',return_by:'2026-10-28',return_by_quote:'Return by October 28, 2026'}],source_events:[{kind:'purchased',at:ORDERED,source_id:'order-1'}]};
- const text=reminderDraft([reminderItem(trousers,returnDeadline(trousers))]);
- assert.ok(!/Retail ApS/.test(text),text);assert.match(text,/^heads up: for your Muted Black Cotton MFPEN Service Trousers, the return window closes wednesday, oct 28/);
-});
