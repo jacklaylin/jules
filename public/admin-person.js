@@ -667,6 +667,49 @@ $('nudge-confirm').onclick = async () => {
   } catch (error) { $('nudge-error').textContent = error.message; $('nudge-error').hidden = false; }
   finally { buttons.forEach(b => { b.disabled = false; }); $('nudge-confirm').textContent = 'Send test nudge'; }
 };
+// ---------- Return windows ----------
+// Step 1 of return-window reminders (lib/return-windows.js): each recent purchase, the return terms its emails
+// state, and today's decision with the reason. Re-reading recent emails saves only their return terms.
+const RETURN_REASONS = { no_terms: 'no return terms in its emails', final_sale: 'final sale', window_start_not_stated: 'period stated, start not stated', no_delivered_date: 'counts from delivery; no delivery email',
+  no_shipped_date: 'counts from shipping; no shipping email', no_purchased_date: 'counts from the order; no dated order email', too_early: 'too early', deadline_passed: 'deadline passed', already_reminded: 'already reminded',
+  kept: 'they kept it', return_requested: 'return already started', returned: 'returned', cancelled: 'cancelled', gift: 'a gift', gone: 'no longer theirs', never_bought: 'not a purchase' };
+const returnDay = d => new Date(d + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+function returnTermsText(terms) {
+  return terms.map(t => [t.return_by ? `return by ${returnDay(t.return_by)} (“${t.return_by_quote}”)` : null, t.window ? `${t.window.days ? t.window.days + ' days' : t.window.months + ' months'} from ${t.window_from.replace('not_stated', 'an unstated start')} (“${t.window_quote}”)` : null, t.final_sale ? `final sale (“${t.final_sale}”)` : null].filter(Boolean).join('; ')).join(' · ');
+}
+function renderReturns(data) {
+  $('returns-summary').textContent = `${data.items.length} purchases in the last 120 days · ${data.with_terms} with stated return terms · ${data.with_deadline} with a deadline · time zone ${data.zone}${data.connected ? '' : ' · Gmail not connected'}`;
+  $('returns-items').replaceChildren(...(data.items.length ? data.items.map(i => el('li', { textContent: `${[i.brand, i.product].filter(Boolean).join(' ') || 'Purchase'}${i.merchant ? ` · ${i.merchant}` : ''} · bought ${i.bought_at.slice(0, 10)} · ${i.deadline ? `last return day ${returnDay(i.deadline)} (${i.days_left} days left) · ` : ''}${i.status === 'would_send' ? 'would remind today' : RETURN_REASONS[i.reason] ?? i.reason}${i.terms.length ? ` · ${returnTermsText(i.terms)}` : ''}${i.evidence?.from ? ` · ${i.evidence.from.kind} email ${i.evidence.from.day}` : ''}` }))
+    : [el('li', { className: 'muted', textContent: 'No purchases in the last 120 days.' })]));
+  $('returns-log').replaceChildren(...(data.log.length ? data.log.map(e => el('li', { textContent: `${e.at.slice(0, 16).replace('T', ' ')} UTC · ${e.status === 'would_send' ? 'would remind' : RETURN_REASONS[e.reason] ?? e.reason}${e.deadline ? ` · last day ${returnDay(e.deadline)}` : ''}` }))
+    : [el('li', { className: 'muted', textContent: 'No decisions logged yet (the daily purchase check writes them).' })]));
+  $('returns-left').textContent = data.reread.remaining;
+  $('returns-reread').hidden = !data.connected || !data.reread.remaining; $('returns-confirm').hidden = $('returns-reread').hidden;
+}
+$('returns').onclick = async () => {
+  $('returns-error').hidden = true; $('returns-reread').hidden = true; $('returns-confirm').hidden = true;
+  $('returns-items').replaceChildren(...skeletonRows(2).map(row => el('li', {}, row)));
+  $('returns-dialog').showModal();
+  try { renderReturns(await api(`/api/admin?conversation=${person}&view=returns`)); }
+  catch (error) { $('returns-error').textContent = error.message; $('returns-error').hidden = false; }
+};
+$('returns-cancel').onclick = () => $('returns-dialog').close();
+$('returns-confirm').onclick = async () => {
+  const buttons = [$('returns-confirm'), $('returns-cancel')]; buttons.forEach(b => { b.disabled = true; }); $('returns-error').hidden = true;
+  let read = 0, found = 0;
+  try {
+    // A few emails per call, so each request stays well inside the function time limit.
+    for (let round = 0; round < 30; round++) {
+      $('returns-confirm').textContent = `Reading… ${read} read`;
+      const { reread } = await api('/api/admin', { method: 'POST', body: JSON.stringify({ action: 'reread-returns', conversation: person, confirm: true }) });
+      read += reread.read; found += reread.found;
+      if (!reread.remaining || !reread.read) break;
+    }
+    notice(`Re-read ${read} emails; ${found} stated return terms.`);
+    renderReturns(await api(`/api/admin?conversation=${person}&view=returns`));
+  } catch (error) { $('returns-error').textContent = error.message; $('returns-error').hidden = false; }
+  finally { buttons.forEach(b => { b.disabled = false; }); $('returns-confirm').textContent = 'Re-read emails'; }
+};
 // ---------- Re-read a failed photo ----------
 // Reads the photo again from Photon (recompressing a large screenshot) and saves it to that message; no text is sent.
 let rereadMessage = null;
