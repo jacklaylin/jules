@@ -2,7 +2,7 @@
 // previews; designed on the "iMessage link previews" Claude Design canvas). A haze background, the
 // headline top-left in a 590px column, the logo bottom-left, and on the right what the link opens.
 // No eyebrow. Copy never states prices, stock or counts as facts.
-import {PHOTO_CARD} from '../lib/link-preview-photo.js';
+import {PHOTO_CARD,SET_CARDS,FRAMES,FRAME_MARGIN} from '../lib/link-preview-photo.js';
 
 // Each haze is a base colour and brand-colour blobs scattered by a fixed seed, so a rebuild draws the
 // same picture. Blobs keep to the right two-thirds; the two quiet ones on the left stay faint so the
@@ -66,10 +66,11 @@ export const VISUALS={
    +[68,22,50].map(p=>`<div style="position:relative;height:10px;border-radius:999px;background:#e8e4e0"><div style="position:absolute;left:${p}%;top:-9px;width:28px;height:28px;border-radius:50%;background:#17120f"></div></div>`).join('')+'</div>'),
  // items: how many saved items the link holds (1–3); only the front card carries a photo.
  wishlist:({items=1,photo=null,alert=false}={})=>{
-  const one=items===1,back=(left,top,rotate)=>productCard({left,top,rotate,w:300,h:440,photoH:300});
-  return (items>=3?back(700,170,-10):'')+(items>=2?back(800,96,-1):'')
-   +productCard({left:one?810:880,top:one?72:140,rotate:one?5:8,w:340,h:500,photoH:350,photo,alert});
+  if(items===1)return productCard({left:810,top:72,rotate:5,w:340,h:500,photoH:350,photo,alert});
+  return SET_CARDS.slice(SET_CARDS.length-items).map((c,i,all)=>{const f=FRAMES[c.frame],front=i===all.length-1;
+   return productCard({left:c.left,top:c.top,rotate:c.rotate,w:f.width,h:f.height,photoH:f.slotHeight,photo:front?photo:null,alert:front&&alert});}).join('');
  },
+ none:()=>'',
  saved:()=>productCard({left:810,top:72,rotate:6,w:340,h:500,photoH:350,saved:true}),
  // The single save with a product photo: the card with an empty white slot; lib/link-preview-photo.js
  // places the photo in it, from the same numbers.
@@ -106,5 +107,15 @@ export const SURFACES=[
  {file:'report-v2.png',haze:'butter',headline:'A style report is in',visual:'report'},
  // The style report share without its headline: lib/report-preview.js draws the sharer's name on it.
  {file:'report-bg-v1.png',haze:'butter',headline:'',visual:'report'},
- {file:'saved-photo-bg-v1.png',haze:'bubblegum',headline:'Added to your wishlist',visual:'savedPhoto'}
+ {file:'saved-photo-bg-v1.png',haze:'bubblegum',headline:'Added to your wishlist',visual:'savedPhoto'},
+ // A save of several items: the haze, headline and logo only; lib/link-preview-photo.js lays the cards on it.
+ {file:'saved-set-bg-v1.png',haze:'bubblegum',headline:'Added to your wishlist',visual:'none'}
 ];
+
+// Card frames for that save: one card, unturned, with an empty white slot and its shadow, on transparent.
+export function framePage(kind){
+ const f=FRAMES[kind],m=FRAME_MARGIN;
+ return {width:f.width+2*m,height:f.height+2*m,html:`<!doctype html><html><head><meta charset="utf-8"><style>*{box-sizing:border-box}body{margin:0;background:transparent}`
+  +`.card{position:absolute;display:flex;flex-direction:column;border-radius:24px;box-shadow:0 22px 60px #17120f33}</style></head><body>`
+  +productCard({left:m,top:m,rotate:0,w:f.width,h:f.height,photoH:f.slotHeight,slot:'#ffffff'})+'</body></html>'};
+}

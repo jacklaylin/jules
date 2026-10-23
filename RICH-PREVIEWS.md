@@ -1,6 +1,6 @@
 # Saved-item rich previews
 
-Single-item text-save confirmations include a signed product-preview URL. Photon sends the confirmation followed by native `richlink` content. Preview-send failures are logged and do not undo the save or fail the confirmation. Multi-item saves retain the collection link for now.
+Single-item text-save confirmations include a signed product-preview URL. Photon sends the confirmation followed by native `richlink` content. Preview-send failures are logged and do not undo the save or fail the confirmation. A save of several items gets one signed set link (`wishlistSetPreviewURL`: `items=<id>,<id>[,<id>]`, the first three, its own HMAC context). Its card shows one LinkPreview card per item, the first saved in front, each with that item's own product photo or an empty slot (`savedSetPreview` in `lib/link-preview-photo.js`). Removed items drop out, and opening the link goes to the wishlist. If the link can't be signed, the confirmation keeps the plain wishlist link.
 
 The preview endpoint validates an HMAC before reading one item. It exposes only its sourced name and product photo. Original images, outfit crops, custom display names, profile facts, account identifiers and prices are excluded. Removed/missing items return an unavailable response. Opening the link redirects to the private wishlist; normal account authentication and ownership checks still apply.
 
