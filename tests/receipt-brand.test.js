@@ -11,7 +11,8 @@ test('a receipt brand loses the seller’s company suffix, in imports and in rep
  for(const [raw,clean] of [['MFPEN Retail ApS','MFPEN'],['Apple Inc.','Apple'],['Acme Ltd','Acme'],['Our Legacy','Our Legacy'],['Inc','Inc'],[null,null]])assert.equal(cleanBrand(raw),clean,raw);
  const state=projectReceiptEvidence(owner,[record(1,'MFPEN Retail ApS'),record(2,'Dries Van Noten')]).state;
  assert.deepEqual(state.items.map(i=>i.brand),['MFPEN','Dries Van Noten']);
- assert.equal(state.items[0].merchant,'MFPEN Retail ApS','only the brand is cleaned');
+ // The store is shown the same way (founder, October 23: "make sure it's fixed everywhere").
+ assert.equal(state.items[0].merchant,'MFPEN');
 });
 
 test('a brand the person set themself is kept exactly as written',()=>{
@@ -20,4 +21,33 @@ test('a brand the person set themself is kept exactly as written',()=>{
  assert.equal(fixed.items[0].brand,'MFPEN Studio Ltd');
  const replayed=projectReceiptEvidence(owner,[record(1,'MFPEN Retail ApS'),correctionEvidence(fixed.feedback.at(-1))]).state;
  assert.equal(replayed.items[0].brand,'MFPEN Studio Ltd');
+});
+
+test('the store is shown as people say it, everywhere history is read: wardrobe, texts and admin',async()=>{
+ const {cleanMerchant}=await import('../lib/receipt-extraction.js');
+ for(const [raw,clean] of [['MFPEN Retail ApS','MFPEN'],['SSENSE Inc.','SSENSE'],['FARFETCH','FARFETCH'],['Abercrombie & Co','Abercrombie & Co'],['Mr Porter','Mr Porter'],[null,null]])assert.equal(cleanMerchant(raw),clean,raw);
+ const {wardrobeView}=await import('../lib/wardrobe.js');
+ const record={event_id:'e1:0',kind:'purchased',source_id:'e1',at:Date.parse('2026-10-02'),evidence:'Service Trousers',
+  values:{merchant:'MFPEN Retail ApS',order_reference:'1001',product:'Service Trousers',sku:null,brand:'MFPEN Retail ApS',color:null,size_label:'M/32',size_system:null,quantity:1,units_per_pack:null},item_id:'trousers'};
+ const {state}=projectReceiptEvidence('owner',[purchaseEvidence(record)]);
+ assert.equal(state.items[0].merchant,'MFPEN');
+ assert.equal(wardrobeView(state).items[0].merchant,'MFPEN');
+});
+
+test('the answer reader gets a compact history: each item as a person would name it, and only waiting questions',async()=>{
+ const {answerView,interpretReceiptAnswer}=await import('../lib/receipt-feedback.js');
+ const state=projectReceiptEvidence(owner,[record(1,'MFPEN Retail ApS'),record(2,'Dries Van Noten')]).state;
+ const fixed=applyReceiptFeedback(state,{id:'closet:1',owner_id:owner,source:'closet_edit',at:'2026-10-22T00:00:00Z',item_ids:['item-1'],action:'correct_fields',values:{brand:'MFPEN Studio'}});
+ fixed.questions=[{id:'q1',topic:'recipient',fields:[],question:'Was this for you?',item_ids:['item-2'],status:'open',reason:'r',evidence_ids:['e2']},{id:'q0',topic:'recipient',fields:[],question:'Old',item_ids:['item-2'],status:'resolved',reason:'r',evidence_ids:['e2']}];
+ const view=answerView({...fixed,conversation:[{direction:'inbound'}],return_reminders:[{id:'item-1'}]});
+ assert.deepEqual(view.items.map(i=>i.id),['item-1','item-2']);
+ const first=view.items[0];
+ assert.equal(first.brand,'MFPEN Studio');assert.equal(first.as_first_read.brand,'MFPEN','the original reading is kept when corrected');
+ assert.deepEqual(first.events,['purchased']);assert.ok(first.bought);
+ for(const k of ['source_events','original','field_provenance','source_ids'])assert.ok(!(k in first),k);
+ assert.ok(!('feedback' in view),'no correction log');
+ assert.deepEqual(view.questions.map(q=>q.id),['q1']);
+ assert.equal(view.conversation.length,1);assert.equal(view.return_reminders[0].id,'item-1');
+ let sent;await interpretReceiptAnswer(fixed,'keeping it',async request=>{sent=request.context.state;return {actions:[]};});
+ assert.ok(JSON.stringify(sent).length<JSON.stringify(fixed).length/2,'much smaller than the full history');
 });

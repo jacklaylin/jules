@@ -386,3 +386,4 @@ test('a fit on a return becomes its own fit report, appended so earlier actions 
  const out=applyReceiptAnswerPartially(state,{actions:act('report_return',{fit:'runs_large'})(id)},{id:'imessage:1',owner_id:OWNER,source:'chat_answer',at:'2026-10-28T19:00:00Z'});
  assert.deepEqual(out.state.feedback.map(e=>[e.id,e.action]),[['imessage:1:0','report_return'],['imessage:1:1','report_fit']]);
 });
+
