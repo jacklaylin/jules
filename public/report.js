@@ -609,7 +609,8 @@ function opened(result){
   // A friend's view: about the person, ending with an invitation to get their own.
   // The name appears once, in the headline; the eyebrow says where the report comes from, and the
   // end is a single question back to the friend (founder, 16 Oct).
-  $('intro-eyebrow').textContent=['Made by Jules from real orders',report.built_at&&day(report.built_at)].filter(Boolean).join(' · ');
+  const fromOrders=report.cards.some(c=>!['read','judges'].includes(c.type));
+  $('intro-eyebrow').textContent=[fromOrders?'Made by Jules from real orders':'Made by Jules from a real fit',report.built_at&&day(report.built_at)].filter(Boolean).join(' · ');
   $('intro-title').textContent=report.name?`${report.name}’s style report is in.`:'A style report is in.';
   $('end-title').textContent='What would yours say?';
   $('end-body').textContent=`${report.name?`Jules made ${report.name}’s`:'Jules made this'} from what they really buy and wear. Sign up and Jules will start on yours.`;
@@ -647,8 +648,8 @@ async function load(){
   const again=()=>load().catch(()=>setTimeout(again,READ_AGAIN_MS));setTimeout(again,READ_AGAIN_MS);return;
  }
  const NOT_READY={
-  no_history:['Connect your orders first.','Your style report is made from your shopping history. Connect Gmail or Shop and Jules does the rest.',{label:'Connect your orders ↗',href:'/account'}],
-  not_enough:['Not enough to go on yet.','Jules needs a few more orders to say anything worth sharing. Connect another account or text Jules a receipt.',{label:'Add more orders ↗',href:'/account'}]};
+  no_history:['Nothing to go on yet.','Your style report is made from whatever you share: text Jules a photo of a fit you love or a screenshot of your orders, or connect Gmail or Shop.',{label:'Connect your orders ↗',href:'/account'}],
+  not_enough:['Not enough to go on yet.','Jules needs a little more to say anything worth sharing. Text Jules a photo of a fit or an order screenshot, or connect another account.',{label:'Add more orders ↗',href:'/account'}]};
  const [title,body,action]=NOT_READY[result.status]??['Not ready yet.',person?'This tester has no report yet. Build it from their purchase history.':'Try again in a little while.',null];
  message(title,body,'Your style',action);
 }

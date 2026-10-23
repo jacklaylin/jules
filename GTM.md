@@ -137,6 +137,8 @@ Steps to be ready for a spike. Hitting a cost ceiling, or limiting new sign-ups 
 
 ## Share funnel check (October 19, 2026)
 
+Update, October 23, 2026: the fixes below have shipped (per-sharer `ref`, a "Get your style report" button at the start and end, end copy without order emails, "Text Jules" on exported images, the `/style` image pointing to sign-up). The report is now source agnostic (founder decision): it's built from whatever Jules has (Gmail, Shop, order screenshots or outfit photos in chat) and texted as soon as there's enough to say, so a friend who signs up from a card can get their own from one outfit photo.
+
 What a friend sees today, and what to fix:
 
 | Surface | Today | Gap |

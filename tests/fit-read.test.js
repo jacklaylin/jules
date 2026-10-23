@@ -399,3 +399,28 @@ test('the judges score the whole report from its counted facts, close the deck, 
  const shared=sharedView(report,'Jack').cards.find(c=>c.type==='judges');
  assert.deepEqual(Object.keys(shared).sort(),['scores','type','verdict']);assert.ok(!/\byou\b/i.test(shared.verdict));
 });
+
+// Source agnostic (founder, 23 Oct 2026): a report as soon as there's enough to say, from any source.
+async function photoOnly(photos){
+ const store=await fixture({photos});
+ return Object.assign(store,{evidence:async()=>[],made:false,
+  gmailImport:async()=>store.made?structuredClone(store.row):null,ensureGmailImport:async()=>{store.made=true;}});
+}
+test('outfit photos alone make a report: the Read, no receipt or judges panel, and locked cards to fill',async()=>{
+ const store=await photoOnly(['o2']);
+ const result=await buildReport(store,owner,env,{interpret:writer,judges});
+ assert.equal(result.status,'built');assert.ok(store.made,'the history row is made to hold the report');
+ const types=store.row.data.style_report.cards.map(c=>c.type);
+ assert.equal(types[0],'read');assert.ok(!types.includes('receipt'));assert.ok(!types.includes('judges'));
+ assert.ok(types.length>=3,'locked cards fill the report');assert.ok(types.slice(1).every(t=>t==='locked'));
+ assert.ok(sharedView(store.row.data.style_report,'Jack').cards.every(c=>c.type==='read'),'only the real card is shared');
+});
+test('nothing to say yet: no photos and too few purchases, or a photo that can’t be read, builds no report',async()=>{
+ const empty=await photoOnly([]);
+ assert.equal((await buildReport(empty,owner,env,{interpret:writer,judges})).status,'no_history');assert.equal(empty.made,false,'no row for nothing');
+ const unreadable=await photoOnly(['o2']);
+ const result=await buildReport(unreadable,owner,env,{interpret:writer,judges:async()=>answer({photo_id:null,problem:'several_people'})});
+ assert.equal(result.status,'not_enough');assert.equal(unreadable.row.data.style_report,undefined);
+ const off=await photoOnly(['o2']);
+ assert.equal((await buildReport(off,owner,{...env,STYLE_ENABLED:'false'},{interpret:writer,judges})).status,'not_enough','Reads off: photos say nothing yet');
+});
