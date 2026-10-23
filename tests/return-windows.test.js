@@ -387,3 +387,12 @@ test('a fit on a return becomes its own fit report, appended so earlier actions 
  assert.deepEqual(out.state.feedback.map(e=>[e.id,e.action]),[['imessage:1:0','report_return'],['imessage:1:1','report_fit']]);
 });
 
+
+test('an answer whose question reference is not a waiting question is still recorded (founder\'s "Yeah I am", October 23)',()=>{
+ const state=projectReceiptEvidence(OWNER,storeReceipt().map(r=>purchaseEvidence(r))).state,id=state.items[0].id;
+ const out=applyReceiptAnswerPartially(state,{actions:act('report_kept',{question_id:id})(id)},{id:'imessage:2',owner_id:OWNER,source:'chat_answer',at:'2026-10-28T19:00:00Z'});
+ assert.equal(out.applied,1);assert.deepEqual(out.withheld,[]);assert.equal(out.state.feedback[0].question_id,undefined);
+ // A defer still needs a real question.
+ const defer=applyReceiptAnswerPartially(state,{actions:act('defer_question',{question_id:'no-such-question'})(id)},{id:'imessage:3',owner_id:OWNER,source:'chat_answer',at:'2026-10-28T19:00:00Z'});
+ assert.equal(defer.applied,0);
+});
