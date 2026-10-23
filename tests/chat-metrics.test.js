@@ -119,7 +119,7 @@ test('comparison says better, worse, or too few to tell', () => {
   const after = { ...base, first_message_s: { median: 4 }, final_result_s: { median: 70, p90: 100 }, model_written_share: 0.6, named_accepted: 2, first_try_rate: 1 };
   const moved = Object.fromEntries(compareMetrics(base, after).map(m => [m.metric, m.verdict]));
   assert.deepEqual(moved, { 'first_message_s.median': 'better', 'final_result_s.median': 'worse', 'final_result_s.p90': 'unchanged',
-    failure_rate: 'unchanged', model_written_share: 'better', first_try_rate: 'too few to tell' });
+    failure_rate: 'unchanged', complaint_rate: 'no data', messages_per_turn: 'no data', model_written_share: 'better', first_try_rate: 'too few to tell' });
 });
 
 test('triage packets include the trend when the store can read metrics, without failing triage when it cannot', async () => {
@@ -147,7 +147,8 @@ test('metric rows page through results and still read before migration 027 adds 
   const rows = await store.metricRows('2026-10-01T00:00:00Z');
   assert.equal(rows.length, 1003);
   assert.ok(urls.every(u => !/\bbody\b/.test(u)), 'message text is never read');
-  assert.equal(urls.filter(u => u.includes('offset=1000')).length, 1);
+  assert.equal(urls.filter(u => u.includes('offset=1000') && !u.includes('&select=provider_id')).length, 1);
+  assert.ok(urls.some(u => u.includes('developer_feedback=not.is.null') && u.includes('select=provider_id&')), 'flags are read by id only');
 });
 
 test('reply diagnostics: recorded outcomes and composition win, and a watchdog-recovered reply counts as a stall', () => {
@@ -203,4 +204,31 @@ test('messages per turn count every sent row of the turn plus the reply’s card
   const summary = chatMetrics(rows, { now: Date.parse(at(80)) }).summary;
   assert.equal(summary.messages_per_turn, 2); assert.equal(summary.messages_per_search_turn, 2.5);
   assert.equal(summary.search_turns, 2); assert.equal(summary.single_message_share, 0.667);
+});
+
+test('complaints: a #dev note, a 👎 tapback or a quality signal counts against the newest turn before it', () => {
+  const rows = [
+    inbound('a1', 0), reply('ai', 'a1', 0, { sent_at: at(5) }),
+    { ...inbound('dev', 10), developer_feedback: { flagged: true } }, // a note or tapback: no reply of its own
+    inbound('a2', 20), reply('ai', 'a2', 20, { sent_at: at(25) }),
+    { ...inbound('a3', 30), quality_signal: { kind: 'ignored_constraint' } }, reply('ai', 'a3', 30, { sent_at: at(35) }), // about a2
+    inbound('a4', 40), reply('ai', 'a4', 40, { sent_at: at(45) }),
+    inbound('b1', 50, D), { ...reply('ai', 'b1', 50, { sent_at: at(55) }), conversation_id: D },
+    { ...inbound('identification-test:z', 60, D), developer_feedback: { flagged: true } }, // owner tests never count
+    { ...inbound('early', -10, D), developer_feedback: { flagged: true } }, // no turn before it: counts against nothing
+  ];
+  const turns = turnsFrom(rows);
+  assert.deepEqual(turns.map(t => t.complained), [true, true, false, false, false]);
+  assert.doesNotMatch(JSON.stringify(turns), /11111111-aaaa|conversation_id/);
+  const s = chatMetrics(rows).summary;
+  assert.equal(s.complaints, 2);
+  assert.equal(s.complaint_rate, 0.4);
+});
+
+test('complaint rate and messages per turn are compared week on week, lower being better', () => {
+  const week = (complaint_rate, messages_per_turn) => ({ turns: 20, failure_turns: 20, messages_turns: 20, complaint_rate, messages_per_turn });
+  const moved = Object.fromEntries(compareMetrics(week(0.2, 2.5), week(0.1, 1.5)).map(m => [m.metric, m]));
+  assert.deepEqual([moved.complaint_rate.verdict, moved.complaint_rate.direction, moved.complaint_rate.after_n], ['better', -1, 20]);
+  assert.deepEqual([moved.messages_per_turn.verdict, moved.messages_per_turn.direction, moved.messages_per_turn.after_n], ['better', -1, 20]);
+  assert.equal(compareMetrics(week(0.1, 1.5), week(0.2, 2.5)).find(m => m.metric === 'messages_per_turn').verdict, 'worse');
 });

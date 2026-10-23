@@ -36,27 +36,31 @@ test('the chat quality strip shows each figure with a plain label, the week befo
   {metric:'final_result_s.p90',before:60,after:71,verdict:'worse',before_n:30,after_n:31},
   {metric:'failure_rate',before:0.02,after:0.02,verdict:'unchanged',before_n:50,after_n:40},
   {metric:'first_try_rate',before:null,after:1,verdict:'too few to tell',before_n:0,after_n:1},
- ],current:{turns:40,timed_turns:31,fallbacks:2,stuck:1,named_searches:14,named_accepted:2}};
+  {metric:'complaint_rate',before:0.1,after:0.125,verdict:'too few to tell',before_n:4,after_n:40},
+  {metric:'messages_per_turn',before:2.25,after:1.8,verdict:'better',before_n:50,after_n:40},
+ ],current:{turns:40,timed_turns:31,fallbacks:2,stuck:1,complaints:5,named_searches:14,named_accepted:2}};
  const cells=metricCells(trend);
- assert.equal(cells.length,6);
- assert.deepEqual(cells.map(c=>c.label),['First reply','Full answer','Slowest 10%','Failed replies','Written by AI','Found first try']);
- assert.deepEqual(cells.map(c=>c.tone),['ok','plain','fail','plain','plain','plain']);
+ assert.equal(cells.length,8);
+ assert.deepEqual(cells.map(c=>c.label),['First reply','Full answer','Slowest 10%','Failed replies','Complaints','Texts per reply','Written by AI','Found first try']);
+ assert.deepEqual(cells.map(c=>c.tone),['ok','plain','fail','plain','plain','ok','plain','plain']);
  assert.deepEqual([cells[0].value,cells[0].verdict,cells[0].was,cells[0].sample],['4s','Better','vs 6s','31 replies']);
  // No number for the period: a dash and "No data", never a figure beside it.
  assert.deepEqual([cells[1].value,cells[1].verdict,cells[1].was,cells[1].sample],['—','No data','nothing before','no replies']);
  assert.deepEqual([cells[3].value,cells[3].sample],['2%','40 messages']);
- assert.deepEqual([cells[5].value,cells[5].verdict,cells[5].was,cells[5].sample],['100%','Too few to tell','nothing before','1 pick']);
+ assert.deepEqual([cells[4].value,cells[4].was,cells[4].sample],['13%','vs 10%','40 messages']);
+ assert.deepEqual([cells[5].value,cells[5].verdict,cells[5].was,cells[5].sample],['1.8','Better','vs 2.3','40 replies']);
+ assert.deepEqual([cells[7].value,cells[7].verdict,cells[7].was,cells[7].sample],['100%','Too few to tell','nothing before','1 pick']);
  // Every metric explains itself and says which way is good, matching the comparison's direction.
  assert.ok(cells.every(c=>c.explain.length>20));
- assert.deepEqual(cells.map(c=>c.better),['Lower is better.','Lower is better.','Lower is better.','Lower is better.','Higher is better.','Higher is better.']);
- assert.equal(metricsNote(trend.current),'Last 7 days: 40 tester messages, 3 failed (2 generic, 1 never sent), 2 of 14 named-product searches ended in a pick.');
+ assert.deepEqual(cells.map(c=>c.better),['Lower is better.','Lower is better.','Lower is better.','Lower is better.','Lower is better.','Lower is better.','Higher is better.','Higher is better.']);
+ assert.equal(metricsNote(trend.current),'Last 7 days: 40 tester messages, 3 failed (2 generic, 1 never sent), 5 complaints, 2 of 14 named-product searches ended in a pick.');
  assert.equal(metricsNote({turns:1,fallbacks:0,stuck:0,named_searches:0}),'Last 7 days: 1 tester message, 0 failed (0 generic, 0 never sent).');
  assert.equal(metricsNote(undefined),'');
 });
 
 test('the strip and the comparison agree on which direction is better',async()=>{
  const {compareMetrics}=await import('../lib/chat-metrics.js');
- const summary={turns:9,timed_turns:9,first_timed:9,composed_known:9,named_accepted:9,first_message_s:{median:1},final_result_s:{median:1,p90:1},failure_rate:0.1,model_written_share:0.1,first_try_rate:0.1};
+ const summary={turns:9,timed_turns:9,first_timed:9,composed_known:9,named_accepted:9,first_message_s:{median:1},final_result_s:{median:1,p90:1},failure_rate:0.1,complaint_rate:0.1,messages_per_turn:1.5,failure_turns:9,messages_turns:9,model_written_share:0.1,first_try_rate:0.1};
  const moved=compareMetrics(summary,summary);
  for(const cell of metricCells({moved})) assert.equal(cell.better,moved.find(m=>m.metric===cell.key).direction>0?'Higher is better.':'Lower is better.',cell.key);
 });

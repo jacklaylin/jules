@@ -69,6 +69,10 @@ export const METRICS = [
     explain: '1 in 10 full answers took at least this long. Shows the bad waits the typical number hides.' },
   { key: 'failure_rate', label: 'Failed replies', format: pct, noun: ['message', 'messages'],
     explain: 'Tester messages that got the generic “something went wrong” text or no reply at all.' },
+  { key: 'complaint_rate', label: 'Complaints', format: pct, noun: ['message', 'messages'],
+    explain: 'Tester messages whose reply drew a complaint: a #dev note, a 👎 tapback, or a later message showing Jules missed what they asked (a quality signal). Counted against the reply just before it.' },
+  { key: 'messages_per_turn', label: 'Texts per reply', format: v => v.toFixed(1), noun: ['reply', 'replies'],
+    explain: 'How many iMessages Jules sent for each tester message, counting the “looking now” text, product cards, photos and captions. Fewer means less to scroll.' },
   { key: 'model_written_share', label: 'Written by AI', format: pct, noun: ['reply', 'replies'], higher: true,
     explain: 'Replies the model wrote in Jules’s voice, rather than fixed text. Replies sent before this was recorded are left out.' },
   { key: 'first_try_rate', label: 'Found first try', format: pct, noun: ['pick', 'picks'], higher: true,
@@ -98,6 +102,7 @@ export function metricsNote(current) {
   if (!current) return '';
   const failed = current.fallbacks + current.stuck;
   return `Last 7 days: ${count(current.turns, ['tester message', 'tester messages'])}, ${failed} failed (${current.fallbacks} generic, ${current.stuck} never sent)`
+    + `${Number.isFinite(current.complaints) ? `, ${count(current.complaints, ['complaint', 'complaints'])}` : ''}`
     + `${current.named_searches ? `, ${current.named_accepted} of ${current.named_searches} named-product searches ended in a pick` : ''}.`;
 }
 
