@@ -453,3 +453,15 @@ test('recording an answer reuses the history it just read unless something else 
   assert.equal(evidenceReads,reads,between?'read again after another write':'read once');
  }
 });
+
+test('while a reminder is open, the reader sees the conversation from that reminder on (October 23: "Yes I am" kept every earlier item)',async()=>{
+ const store=await reminded(),sent=Date.parse(store.row.data.returns.open.at);
+ const at=ms=>new Date(sent+ms).toISOString();
+ const history=[{provider_id:'old-reminder',direction:'outbound',body:'heads up: for your Acne sweater… keeping it?',created_at:at(-3*3600000)},{provider_id:'old-answer',direction:'inbound',body:'Yeah I am',created_at:at(-3*3600000+20000)},
+  {provider_id:'reminder',direction:'outbound',body:'heads up: for your CHERRY LA Wide Leg Cargo Pants… keeping it?',created_at:at(1000)},{provider_id:'m-15',direction:'inbound',body:'Yes I am',created_at:at(20000)}];
+ let seen=null;
+ const interpret=async request=>{seen=request.context.state;return {actions:act('report_kept')(projectReceiptEvidence(OWNER,store.rows).state.items[0].id)};};
+ await updatePurchaseHistory({message:{id:'m-15',content:{text:'Yes I am'}}},OWNER,Object.assign(store,{context:async()=>history}),{},{interpret,wait:async()=>{}});
+ assert.deepEqual(seen.conversation.map(m=>m.provider_id),['reminder','m-15']);
+ assert.equal(seen.return_reminders.length,1);
+});

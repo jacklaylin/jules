@@ -1,6 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {verifyListing,verifySearchMerchants} from '../lib/listings.js';
+import {listingProduct} from '../lib/product-photos.js';
 const url='https://www.barbour.com/us/jacket.html';
 const name='Transport Windowpane Waxed Jacket';
 const html=product=>new Response('<script type="application/ld+json">'+JSON.stringify(product)+'</script>',{headers:{'content-type':'text/html'}});
@@ -54,6 +55,9 @@ test('explicit canonical product metadata supports a link without fabricating co
  const value=await verifyListing(url,name,async()=>new Response(page,{headers:{'content-type':'text/html'}}));
  assert.equal(value.status,'verified');assert.equal(value.shopping_range,'men');assert.equal(value.price_snapshot,null);assert.equal(value.availability,null);
  for(const bad of [page.replace('content="product"','content="website"'),page.replace(url,'https://www.barbour.com/another'),page.replace(name,'Unrelated shoes')])assert.equal((await verifyListing(url,name,async()=>new Response(bad,{headers:{'content-type':'text/html'}}))).status,'not_product');
+ const tank='https://shop.example/products/pro-tank';
+ const encoded=`<link rel="canonical" href="${tank}"><meta property="og:type" content="product"><meta property="og:title" content="Nike Men&#39;s Pro Tank">`;
+ assert.equal(listingProduct(encoded,"Nike Men's Pro Tank",tank).name,"Nike Men's Pro Tank");
 });
 test('retailer brand and department words in a title do not hide the matching product',async()=>{
  const value=await verifyListing(url,'Barbour Men’s Transport Windowpane Waxed Jacket',async()=>html({...product,brand:{name:'Barbour'}}));

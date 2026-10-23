@@ -24,7 +24,10 @@ test('entity-encoded Prada product metadata is parsed without weakening product-
   assert.equal(listingProduct(html,name).sku,sku);
   assert.ok(!listingProduct(html,'Unrelated hiking boots'));
   assert.equal(listingProduct(html+'<script type="application/ld+json">{"@type":"CollectionPage"}</script>',name),null);
-  assert.equal(structuredJSON('{"name":"A &amp; B"}').name,'A &amp; B');
+  assert.equal(structuredJSON('{"name":"A &amp; B"}').name,'A & B');
+  // Shopify escapes text twice: the JSON reads fine but the name still holds an entity.
+  assert.equal(structuredJSON('{"name":"Nike Men\\u0026#39;s Pro Tank"}').name,"Nike Men's Pro Tank");
+  assert.equal(structuredJSON('{"offers":{"url":"https://shop.example/p?a=1&amp;b=2"}}').offers.url,'https://shop.example/p?a=1&b=2');
   assert.equal(structuredJSON('{&#34;name&#34;:&#34;A&#34;}').name,'A');
 });
 test('Prada live-page facts yield selected color and explicit currency; mismatched models and unknown currencies remain unknown',async()=>{

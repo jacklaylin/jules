@@ -26,6 +26,8 @@ export async function withActivity(label,fn,{agent=false}={}){
 export async function trackedFetch(url,options={}){
  const path=String(url);if(/(?:crop|source)=|\/api\/image/.test(path))return globalThis.fetch(url,options);
  let action;try{action=JSON.parse(options.body||'{}').action;}catch{}
+ // A wishlist remove or restore already happened on the page (public/wishlist-remove.js); its request runs behind it.
+ if(path.includes('/wishlist')&&['remove','restore'].includes(action))return globalThis.fetch(url,options);
  const labels={analyze:'Reading your style. Your uploads are saved; keep this page open',upload:'Saving your upload',confirm:'Saving your style and preferences',login:'Sending your sign-in link',refresh:'Renewing your session',context:'Saving your notes',tone:'Changing the tone',hide:'Updating your cards',logout:'Signing out'};
  const agent=action==='analyze';
  const label=labels[action]||(agent?'Working on your shopping request':path.includes('/style')?'Loading your style':path.includes('wardrobe=1')?(options.method==='POST'?'Updating your wardrobe':'Loading your wardrobe'):path.includes('/wishlist')?'Loading your wishlist':path.includes('/costs')?'Checking costs':options.method==='POST'?'Working on your request':'Loading this page');

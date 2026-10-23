@@ -53,8 +53,8 @@ This is not a growth or learning feature. With 5–10 testers revenue teaches no
 
 - **Hook point.** The `/go/<token>` handler in `lib/adoption-events.js`. When a person (not a preview bot) taps, it already records the click and responds `302` to the store URL. With `AFFILIATE_ENABLED=true`, it responds with the Sovrn Redirect API URL wrapping the store URL instead.
 - **Redirect API, not Link Check, at tap time.** The Redirect API is a URL Jules builds itself, so there's no network call while someone is waiting. It wraps stores Sovrn doesn't have; those simply forward with no commission.
-- **Tracking ID.** An opaque value derived from the link token (for example a short hash of operation + index). Stored with the click event so a purchase can be matched to the reply and product later.
-- **Scope.** Product links in chat replies and price-alert texts that go through `/go/`. Wishlist page links can follow in the same phase if they use the same redirect. Shop cart links (`CHECKOUT_LINKS_ENABLED`) stay unwrapped until a test purchase confirms wrapping doesn't break the cart.
+- **Tracking ID.** An opaque value derived from the link token (for example a short hash of operation + index). Stored with the click event so a purchase can be matched to the reply and product later. Since October 23, 2026 each `link_click` event already records the tapped link's position (`link_index`, db/052), so taps per store can be counted before any affiliate work.
+- **Scope.** Product links in chat replies and price-alert texts that go through `/go/`. Wishlist page links go through `/go/` too since October 23, 2026 (`lib/wishlist-go.js`; taps recorded with ref `wishlist:<item>`). Shop cart links (`CHECKOUT_LINKS_ENABLED`) stay unwrapped until a test purchase confirms wrapping doesn't break the cart.
 - **Settings.** `AFFILIATE_ENABLED` (off by default) and `SOVRN_CAMPAIGN_KEY` in Vercel environment variables. Never in source code.
 
 ### Phase 2: measure

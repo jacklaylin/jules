@@ -119,9 +119,12 @@ test('each saved item carries its wardrobe category, only while its tag still ma
 test('group detail and list use metadata only and remain scoped to the authenticated conversation',async()=>{
  const {groupWishlist}=await import('../lib/wishlist.js');
  const rows=[{reply_id:id,source_image_id:other,item_id:id,target:'jacket',name:'Jacket',links:[{url:product.url}],has_image:'image/jpeg'}];
- const handler=createWishlistHandler({verify:async url=>({status:'verified',url,price_snapshot:null}),env,auth:async()=>({status:200,conversation:id}),storeFactory:()=>({wishlistEntries:async conversation=>{assert.equal(conversation,id);return rows;}})});
+ const signed={...env,SUPABASE_SERVICE_ROLE_KEY:'secret'},handler=createWishlistHandler({verify:async url=>({status:'verified',url,price_snapshot:null}),env:signed,auth:async()=>({status:200,conversation:id}),storeFactory:()=>({wishlistEntries:async conversation=>{assert.equal(conversation,id);return rows;}})});
  let res=response();await handler(request(),res);assert.equal(res.statusCode,200);assert.equal(JSON.parse(res.value).items.length,1);assert.equal(JSON.parse(res.value).items[0].links,undefined);
  res=response();await handler(request('GET',`/api/wishlist?group=${groupWishlist(rows)[0].id}`),res);assert.equal(res.statusCode,200);assert.equal(JSON.parse(res.value).item.links.length,1);
+ // Each store link opens through Jules (/go/), signed for this conversation and item, and forwards to the store.
+ const {readWishlistGoLink}=await import('../lib/wishlist-go.js'),link=JSON.parse(res.value).item.links[0];
+ assert.match(link.go_url,/^\/go\/w\./);assert.deepEqual(readWishlistGoLink(link.go_url.slice(4),signed),{conversation:id,group:groupWishlist(rows)[0].id,url:link.url});
  res=response();await handler(request('GET',`/api/wishlist?group=${id}`),res);assert.equal(res.statusCode,404);
 });
 

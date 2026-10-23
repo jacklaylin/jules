@@ -7,6 +7,7 @@ import {rememberWishlistTarget,consumeWishlistTarget,itemURL} from './wishlist-d
 import {matchPhotoBackground} from './photo-background.js';
 import {readList,saveList,forgetLists} from './list-cache.js';
 import {whenNear} from './lazy-photo.js';
+import {createRemoval} from './wishlist-remove.js';
 import {ALL,filterChips,matchesFilter,nextFilter,filterLabel,filterFromURL,filterURL,countLabel,wantedCount,isAll} from './wishlist-filters.js';
 const $ = id => document.getElementById(id);
 fitFilterBar($('toolbar'));
@@ -104,7 +105,7 @@ function previewPhoto(entry){
  const frame=node('div',null,'photo skeleton');const img=node('img');img.alt=entry.name;img.referrerPolicy='no-referrer';
  img.onload=()=>{matchPhotoBackground(frame,img);frame.classList.remove('skeleton');frame.replaceChildren(img);};img.onerror=()=>{frame.classList.remove('skeleton');frame.textContent='No preview';};img.src=entry.preview_image_url;return frame;
 }
-function links(entries){const box=node('div',null,'links');for(const entry of [...entries??[]].sort((a,b)=>soldOutLink(a)-soldOutLink(b))){try{const u=new URL(entry.url);if(u.protocol!=='https:'||u.username||u.password)continue;const a=node('a',null,'link-preview');a.href=u.href;a.target='_blank';a.rel='noopener noreferrer';const copy=node('div',null,'link-copy');copy.append(node('span',entry.retailer||u.hostname,'retailer label'),node('strong',entry.name),node('span',(entry.verification_status==='unverified'?'Saved link · price and stock unverified':entry.price?money(entry.price.amount,entry.price.currency)+(entry.price.evidence_level==='indexed'?' · sizes unconfirmed':entry.discovered?' · found by Jules · sizes unconfirmed':'')+(entry.unreviewed?' · unreviewed store':''):entry.verification_status==='indexed'?'Current price and sizes unconfirmed':'Price unavailable')+(soldOutLink(entry)&&!entry.stock_fresh?' · '+soldOutWhen(entry.stock_checked_at):'')+' ↗','link-action'));if(soldOutLink(entry)){a.classList.add('sold-out');if(entry.stock_fresh)copy.querySelector('.link-action').prepend(stockTag('Sold out'),' ');}if(entry.best_price)copy.querySelector('.link-action').prepend(node('span','Best price','stock-tag best-price'),' ');if(entry.image_item||entry.preview_image_url)a.append(previewPhoto(entry));else a.append(node('div','No preview','photo'));a.append(copy);box.append(a);}catch{}}return box;}
+function links(entries){const box=node('div',null,'links');for(const entry of [...entries??[]].sort((a,b)=>soldOutLink(a)-soldOutLink(b))){try{const u=new URL(entry.url);if(u.protocol!=='https:'||u.username||u.password)continue;const a=node('a',null,'link-preview');a.href=/^\/go\/w\.[\w.-]+$/.test(entry.go_url??'')?entry.go_url:u.href;a.target='_blank';a.rel='noopener noreferrer';const copy=node('div',null,'link-copy');copy.append(node('span',entry.retailer||u.hostname,'retailer label'),node('strong',entry.name),node('span',(entry.verification_status==='unverified'?'Saved link · price and stock unverified':entry.price?money(entry.price.amount,entry.price.currency)+(entry.price.evidence_level==='indexed'?' · sizes unconfirmed':entry.discovered?' · found by Jules · sizes unconfirmed':'')+(entry.unreviewed?' · unreviewed store':''):entry.verification_status==='indexed'?'Current price and sizes unconfirmed':'Price unavailable')+(soldOutLink(entry)&&!entry.stock_fresh?' · '+soldOutWhen(entry.stock_checked_at):'')+' ↗','link-action'));if(soldOutLink(entry)){a.classList.add('sold-out');if(entry.stock_fresh)copy.querySelector('.link-action').prepend(stockTag('Sold out'),' ');}if(entry.best_price)copy.querySelector('.link-action').prepend(node('span','Best price','stock-tag best-price'),' ');if(entry.image_item||entry.preview_image_url)a.append(previewPhoto(entry));else a.append(node('div','No preview','photo'));a.append(copy);box.append(a);}catch{}}return box;}
 async function detail(id){
  $('detail-content').dataset.group=id;history.replaceState(history.state,'',itemURL(location.href,id));
  const openedAt=performance.now();const version=++detailVersion;message('');$('detail-content').setAttribute('aria-busy','true');const saved=itemCache.get(id);if(saved){const summary=node('div',null,'info');summary.append(node('h2',saved.name),node('p',priceRange(saved.price_ranges),'price-range'),...storeSkeleton());$('detail-content').replaceChildren(photoCarousel(saved),summary);}else $('detail-content').replaceChildren(...detailSkeleton());$('detail').showModal();$('detail').focus();document.body.classList.add('detail-open');requestAnimationFrame(()=>{if(version===detailVersion)$('detail-content').dataset.summaryMs=(performance.now()-openedAt).toFixed(1);});
@@ -233,13 +234,16 @@ function removeButton(item,card){
  button.onclick=async()=>{button.disabled=true;try{await removeItem(item,card);}catch(e){message(e.message);button.disabled=false;}};
  return button;
 }
-// One removal for the card's × and the detail's Remove row.
-async function removeItem(item,card=[...$('grid').children].find(c=>c.dataset.group===item.id)){
- await alertPost({action:'remove',group:item.id});if(card)await removeWithMotion(card);itemCache.delete(item.id);applyFilter();
+// One removal for the card's × and the detail's Remove row (public/wishlist-remove.js): the card leaves and the
+// toast shows at once; a refused request brings the card back with the error.
+const removal=createRemoval({cache:itemCache,send:alertPost,removeCard:removeWithMotion,refilter:()=>applyFilter(),
+ redraw:()=>render([...itemCache.values()],generation,'local'),notify:toast,dismiss:()=>{$('toast').hidden=true;},fail:e=>message(e.message),
  // Someone who bought it often just removes it: one tap records the purchase instead (store and size unknown).
- toast(item.price_alert?.active?'Removed. Alert turned off.':'Removed from your wishlist.',async()=>{await alertPost({action:'restore',group:item.id});await load();},
-  item.bought?null:{label:'I bought it',run:()=>markBought(item,{via:'remove_toast'})});
- const next=$('grid').querySelector('.product-card:not([hidden]) .tile');if(next)next.focus();
+ bought:item=>markBought(item,{via:'remove_toast'})});
+async function removeItem(item,card=[...$('grid').children].find(c=>c.dataset.group===item.id)){
+ const done=removal.remove(item,card);
+ const next=[...$('grid').querySelectorAll('.product-card:not([hidden]) .tile')].find(tile=>!card?.contains(tile));if(next)next.focus();
+ await done;
 }
 // "I bought this" (lib/wishlist-purchases.js): the item moves to Bought, its alert stops and it joins the wardrobe.
 const boughtLine=bought=>['Bought '+date(bought.at),bought.store].filter(Boolean).join(' · ');

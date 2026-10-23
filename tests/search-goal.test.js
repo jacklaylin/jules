@@ -5,7 +5,7 @@ import { searchPlan } from '../lib/text-wishlist.js';
 // The model says what a search is for (search_goal) and which item it is about (reference_item); code
 // derives the mode and the reference brand's role (CHAT-SKILLS.md PR 3, the "cheaper" fix). These tests
 // assert the plan the search runs, never wording.
-const price = { stance:null, amount_quote:null, min:null, max:null, currency:null, budget_key:null };
+const price = { stance:null, price_quote:null, min:null, max:null, currency:null, budget_key:null };
 const plan = extra => ({ continuation:'new_request', named_model:null, brands:[], level:null, occasion:null, hard_constraints:[], guidance:[], keep_option_indices:[], exclude_option_indices:[], price, reference_item:null, stay_within_brand:null, ...extra });
 const options = [{ brand:'Dries Van Noten', name:'Peyter Pants', url:'https://dsm.example/peyter' }];
 const saved = [{ id:'saved-1', brand:'Lemaire', name:'Twisted Coat' }];

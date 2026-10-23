@@ -27,7 +27,7 @@ test('the answer’s cards, captions and wishlist card are returned by id, with 
  const products=[{name:'Shirt A',url:'https://a.example/p',preview_url:'https://jules.example/go/a'},{name:'Shirt B',url:'https://b.example/p',preview_url:'https://jules.example/go/b',caption:'the boxy one'}];
  const sent=await deliver(c,'two options:\nhttps://jules.example/go/a\nhttps://jules.example/go/b',{products});
  assert.equal(sent.id,'m1');
- assert.deepEqual(sent.parts,[{id:'m2',kind:'card',option:1},{id:'m3',kind:'card',option:2},{id:'m4',kind:'card',option:2}]);
+ assert.deepEqual(sent.parts,[{id:'m2',kind:'card',option:1,url:'https://a.example/p'},{id:'m3',kind:'card',option:2,url:'https://b.example/p'},{id:'m4',kind:'card',option:2,url:'https://b.example/p'}]);
  // A save confirmation's wishlist card is kept too.
  const w=conversation();
  const saved=await deliver(w,'saved it. https://jules.example/wishlist');
