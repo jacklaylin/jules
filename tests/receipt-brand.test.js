@@ -51,3 +51,15 @@ test('the answer reader gets a compact history: each item as a person would name
  let sent;await interpretReceiptAnswer(fixed,'keeping it',async request=>{sent=request.context.state;return {actions:[]};});
  assert.ok(JSON.stringify(sent).length<JSON.stringify(fixed).length/2,'much smaller than the full history');
 });
+
+test('stores show as people say them, one spelling per store, while matching keeps each email\'s own name',async()=>{
+ const {storeName}=await import('../lib/receipt-extraction.js');
+ for(const [raw,shown] of [['Cettire (cettire.com)','Cettire'],['Cotton On Orders (cottonon.com)','Cotton On'],['On Team (on.com)','On'],['MAAP (maap.cc)','MAAP'],['Amazon.com','Amazon'],['FWRD.com','FWRD'],
+  ['FitFlop USA','FitFlop'],['Scuffers-UK','Scuffers'],['Suit Supply (U.S.A.)','Suit Supply'],['RC Outdoor Supply®','RC Outdoor Supply'],['RESEARCH STUDIO™','RESEARCH STUDIO'],['CHIMI SAS','CHIMI'],
+  ['Tiffany & Co.','Tiffany & Co.'],['J.Crew','J.Crew'],['END.','END.'],['Saks Fifth Avenue','Saks Fifth Avenue'],['On','On']])assert.equal(storeName(raw),shown,raw);
+ const rec=(n,merchant)=>purchaseEvidence({event_id:`e${n}:0`,kind:'purchased',source_id:'e'+n,at:Date.parse('2026-10-0'+n),evidence:'Item '+n,
+  values:{merchant,order_reference:'O'+n,product:'Item '+n,sku:null,brand:null,color:null,size_label:null,size_system:null,quantity:1,units_per_pack:null},item_id:'item-'+n});
+ const {state}=projectReceiptEvidence(owner,[rec(1,'SSENSE'),rec(2,'ssense.com'),rec(3,'SSENSE'),rec(4,'On Team (on.com)')]);
+ assert.deepEqual(state.items.map(i=>i.merchant),['SSENSE','SSENSE','SSENSE','On']);
+ assert.equal(state.items[3].original.merchant,'On Team (on.com)','the stored name stays as read, for matching');
+});
