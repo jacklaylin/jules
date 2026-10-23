@@ -55,6 +55,11 @@ test('existing product photos become cached previews without provider calls',asy
  assert.equal(res.statusCode,200);assert.equal(res.headers['Content-Type'],'image/jpeg');
  const metadata=await sharp(res.body).metadata();assert.equal(metadata.width,1200);assert.equal(metadata.height,630);
  assert.match(res.headers['Cache-Control'],/s-maxage=86400/);
+ // The photo sits in the LinkPreview card on the right (kept whole, on white), not over the headline.
+ const {data:pixels}=await sharp(res.body).raw().toBuffer({resolveWithObject:true});
+ const at=(x,y)=>[...pixels.subarray((y*1200+x)*3,(y*1200+x)*3+3)];
+ const [r,g,b]=at(985,265);assert.ok(r>200&&g>200&&b<80,'the yellow photo fills the slot centre');
+ const [hr,hg,hb]=at(300,300);assert.ok(!(hr>200&&hg>200&&hb<80),'nothing of the photo outside the card');
 });
 test('outfit crops and missing photos use a branded fallback rather than publishing user images',async()=>{
  for(const product of [{image_kind:'outfit_crop',image:{mime_type:'image/jpeg',data:'INVALID PRIVATE IMAGE'}},{}]){
