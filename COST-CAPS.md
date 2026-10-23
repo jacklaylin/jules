@@ -61,8 +61,9 @@ Caps are checked before work starts, so one reply can go a few cents past a ceil
 If spend can't be read (e.g. a database problem), Jules carries on and logs `cost_cap_check_failed`, so a
 fault never silences Jules. Each stop is logged as `cost_cap_reached` (no message text).
 
-**Your own number is capped too.** If you test heavily, set the per-person caps above your own use or
-leave them off while testing.
+**Your own conversation is never capped** when `OWNER_ALERT_CONVERSATION_ID` is set to it (Admin › People ›
+you; the id at the end of `/admin/people/<id>`). Its spend still counts toward the global total. Other numbers
+you test from are capped like anyone else's.
 
 ### Later: a free tier for Jules+
 
