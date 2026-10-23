@@ -47,7 +47,7 @@ test('an alert text stores which alert it was and sends its store link as a trac
  const res={headers:{},setHeader(k,v){this.headers[k]=v;},end(){}};
  await createGoHandler({env:{...env,LINK_CLICK_TRACKING:'true'},store})({method:'GET',url:`/api/image?go=${encodeURIComponent(link.split('/go/')[1])}`,headers:{'user-agent':'Mozilla/5.0 (iPhone)'}},res);
  assert.equal(res.statusCode,302);assert.equal(res.headers.Location,ssense);
- assert.deepEqual(recorded,[{quantity:1,conversation_id:A,kind:'link_click',ref:operation}]);
+ assert.deepEqual(recorded,[{quantity:1,conversation_id:A,kind:'link_click',ref:operation,link_index:0}]);
  assert.equal(readGoLink(link.split('/go/')[1],env).operation,operation);
 });
 

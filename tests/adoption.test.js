@@ -187,7 +187,7 @@ test('the go link records a tap and forwards to the store; tampered links, previ
   const token = goLink('ai:m1', 1, env).split('/go/')[1];
   const res = await open(token);
   assert.equal(res.statusCode, 302); assert.equal(res.headers.Location, 'https://other.example/coat');
-  assert.deepEqual(recorded, [{ quantity: 1, conversation_id: A, kind: 'link_click', ref: 'ai:m1' }]);
+  assert.deepEqual(recorded, [{ quantity: 1, conversation_id: A, kind: 'link_click', ref: 'ai:m1', link_index: 1 }], 'the tap records which link it was');
   assert.ok(!JSON.stringify(recorded).includes('coat'), 'the event keeps no product link or text');
   assert.equal((await open(token, { agent: 'facebookexternalhit/1.1 Facebot Twitterbot/1.0' })).statusCode, 200, 'a preview fetcher gets the preview page');
   assert.equal((await open(token, { method: 'HEAD' })).statusCode, 302);
@@ -199,6 +199,18 @@ test('the go link records a tap and forwards to the store; tampered links, previ
   assert.equal((await open(token, { handlerStore: unmigrated })).headers.Location, 'https://other.example/coat', 'the tap still forwards before db/032 runs');
   assert.equal((await open(token, { method: 'POST' })).statusCode, 405);
   assert.equal(createGoHandler.length, 1);
+});
+
+test('a tap is still recorded, without its link position, before db/052 adds the column', async () => {
+  const bodies = [];
+  const fetcher = async (_url, init) => { const body = JSON.parse(init.body); bodies.push(body); return 'link_index' in body ? new Response('{"code":"PGRST204"}', { status: 400 }) : new Response(null, { status: 201 }); };
+  const store = createStore({ SUPABASE_URL: 'https://db.example', SUPABASE_SERVICE_ROLE_KEY: 'secret' }, fetcher);
+  await store.recordAdoptionEvent({ conversation_id: A, kind: 'link_click', ref: 'ai:m1', link_index: 2 });
+  assert.deepEqual(bodies, [{ conversation_id: A, kind: 'link_click', ref: 'ai:m1', link_index: 2 }, { conversation_id: A, kind: 'link_click', ref: 'ai:m1' }]);
+  bodies.length = 0;
+  const failing = createStore({ SUPABASE_URL: 'https://db.example', SUPABASE_SERVICE_ROLE_KEY: 'secret' }, async (_url, init) => { bodies.push(JSON.parse(init.body)); return new Response('{}', { status: 400 }); });
+  await assert.rejects(failing.recordAdoptionEvent({ conversation_id: A, kind: 'reaction', ref: 'ai:m1', detail: 'bad' }), /Database request failed/);
+  assert.equal(bodies.length, 1, 'other rejected rows are not retried');
 });
 
 function turn(generate, extraEnv = {}) {
