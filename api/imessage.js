@@ -6,6 +6,9 @@ import { receiveInInbox } from '../lib/inbox.js';
 import { handleReplyWatchdog, handleJudgeRun } from '../lib/reply-watchdog.js';
 import { recordReaction } from '../lib/adoption-events.js';
 import { createStore } from '../lib/store.js';
+import { loadSdk } from '../lib/photon.js';
+// This function texts on almost every request, so it starts loading the iMessage SDK at cold start (lib/photon.js).
+loadSdk().catch(()=>{});
 
 export const config = { api: { bodyParser: false }, maxDuration: 120 };
 // A search turn responds to the webhook once it is acknowledged; the search finishes in waitUntil,
