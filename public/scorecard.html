@@ -16,16 +16,28 @@
       <span class="dv-refresh"><span id="loader" hidden>Refreshing…</span><span id="refreshed"></span><button id="refresh" class="small quiet dv-icon-button" type="button" aria-label="Refresh" title="Refresh"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M16 10a6 6 0 1 1-1.76-4.24M16 3.5v3.5h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button></span>
     </div>
     <div id="scorecard-filters" class="dv-pop dv-filters" popover aria-label="Filters">
-      <label>Whose searches<select id="who"></select></label>
+      <label>Whose turns<select id="who"></select></label>
       <div class="dv-pop-actions"><button class="small btn--butter" type="button" popovertarget="scorecard-filters" popovertargetaction="hide">Done</button></div>
     </div>
     <div class="dv-status"><span id="notice" role="status" aria-live="polite"></span></div>
     <p id="own-missing" class="notice" hidden>Your own testing is counted with testers’ searches. To leave it out, set <code>OWNER_ALERT_CONVERSATION_ID</code> in Vercel to your conversation id (Admin › People, open yourself, the last part of the address), then redeploy.</p>
-    <div id="metrics" class="dv-metrics" role="group" aria-label="Scorecard figures" aria-busy="true"></div>
-    <details class="fold metrics-help"><summary>What these numbers mean</summary><dl id="definitions"></dl></details>
-    <p id="judge-missing" class="notice" hidden>The nightly judge isn’t set up yet, so judge figures are blank. Run <code>db/038_nightly_judge.sql</code> in Supabase.</p>
-
     <div class="dv-cards">
+      <section class="dv-card" aria-labelledby="chat-title">
+        <div class="dv-card-head"><h2 id="chat-title">All chat turns</h2><span class="dv-card-note">every tester message Jules answered, not only searches</span></div>
+        <div id="chat-watched" class="dv-metrics" role="group" aria-label="Watched weekly" aria-busy="true"></div>
+        <div id="chat-more" class="dv-metrics" role="group" aria-label="More chat figures" aria-busy="true"></div>
+        <details class="fold metrics-help"><summary>What these numbers mean</summary><dl id="chat-definitions"></dl></details>
+        <p id="chat-error" class="notice--error" hidden></p>
+        <p class="dv-card-foot"><strong>The first row is the four numbers watched weekly.</strong> Request type doesn’t apply here; Compare and Whose turns do. Turns the OpenAI account refused (out of credit or over the spend limit) are outages, left out and counted beside Failed replies.</p>
+      </section>
+
+      <section class="dv-card" aria-labelledby="search-title">
+        <div class="dv-card-head"><h2 id="search-title">Searches</h2><span class="dv-card-note">replies that searched for products or asked a shopping question</span></div>
+        <div id="metrics" class="dv-metrics" role="group" aria-label="Search figures" aria-busy="true"></div>
+        <details class="fold metrics-help"><summary>What these numbers mean</summary><dl id="definitions"></dl></details>
+        <p id="judge-missing" class="notice" hidden>The nightly judge isn’t set up yet, so judge figures are blank. Run <code>db/038_nightly_judge.sql</code> in Supabase.</p>
+      </section>
+
       <section class="dv-card" aria-labelledby="weeks-title">
         <div class="dv-card-head"><h2 id="weeks-title">By week</h2><span class="dv-card-note">last 8 weeks, newest first</span></div>
         <div class="dv-table-wrap"><table class="dv-table adoption-table"><thead><tr id="weeks-head"></tr></thead><tbody id="weeks"></tbody></table></div>

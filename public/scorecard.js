@@ -1,14 +1,14 @@
 import {mountAdminShell,adminJson,adminToken,skeletonRows,metricCell,shortVerdict,anchorMenus} from './admin-console.js';
 import {readPage,savePage,sameData} from './list-cache.js';
 import {ago} from './admin-people-view.js';
-import {TYPES,WHO,PERIODS,forWho,METRICS,metricCells,weekRows,worstTurns,agreement,turnRow} from './scorecard-view.js';
+import {TYPES,WHO,PERIODS,forWho,METRICS,CHAT_METRICS,metricCells,chatCells,weekRows,worstTurns,agreement,turnRow} from './scorecard-view.js';
 // Admin › Scorecard: weekly search and recommendation quality, and the turns most worth reading.
 mountAdminShell('quality');
 anchorMenus();
 const $ = id => document.getElementById(id);
 const el = (tag, props = {}, ...children) => { const node = Object.assign(document.createElement(tag), props); node.append(...children.filter(c => c !== null && c !== undefined)); return node; };
 const cell = (label, content, className = '') => { const td = el('td', { className }, content); td.dataset.label = label; return td; };
-let data = null, refreshedAt = null, type = 'all', who = 'testers', period = 'week';
+let data = null, chat = null, refreshedAt = null, type = 'all', who = 'testers', period = 'week';
 try { const q = new URLSearchParams(location.search); type = q.get('type') ?? 'all'; who = q.get('who') ?? 'testers'; period = q.get('compare') ?? 'week'; } catch {}
 if (!PERIODS.some(p => p.key === period)) period = 'week';
 if (!TYPES.some(t => t.key === type)) type = 'all';
@@ -16,7 +16,16 @@ if (!WHO.some(w => w.key === who)) who = 'testers';
 // The filters live in the address, so a reload or a shared link keeps them.
 const remember = () => { const q = new URLSearchParams(); if (type !== 'all') q.set('type', type); if (who !== 'testers') q.set('who', who); if (period !== 'week') q.set('compare', period); history.replaceState(null, '', q.size ? `?${q}` : location.pathname); };
 
+const strip = (id, cells) => { $(id).replaceChildren(...cells.map(c => metricCell({ label: c.label, value: c.value, detail: c.sample, change: shortVerdict(c.verdict), tone: c.tone, was: c.was }))); $(id).removeAttribute('aria-busy'); };
+// All chat turns load on their own (view=chat-turns), so neither half waits for the other.
+function renderChat() {
+  if (!chat) return;
+  const cells = chatCells(chat, { now: Date.now(), period, who });
+  strip('chat-watched', cells.filter(c => c.watched)); strip('chat-more', cells.filter(c => !c.watched));
+}
+
 function render() {
+  renderChat();
   if (!data) return;
   const own = data.own_conversations ?? [], turns = forWho(data.turns, who, own), now = Date.now();
   // Whose searches sits in Filters (one filter group in the toolbar); it shows only once your own conversation is known.
@@ -26,9 +35,7 @@ function render() {
   $('own-missing').hidden = Boolean(data.own_configured);
   $('types').replaceChildren(...TYPES.map(t => el('button', { type: 'button', ariaPressed: String(t.key === type), onclick: () => { type = t.key; remember(); render(); } },
     t.label, el('span', { className: 'count', textContent: String(t.key === 'all' ? turns.length : turns.filter(x => x.request_type === t.key).length) }))));
-  const cells = metricCells(turns, { type, now, period });
-  $('metrics').replaceChildren(...cells.map(c => metricCell({ label: c.label, value: c.value, detail: c.sample, change: shortVerdict(c.verdict), tone: c.tone, was: c.was })));
-  $('metrics').removeAttribute('aria-busy');
+  strip('metrics', metricCells(turns, { type, now, period }));
   $('judge-missing').hidden = data.judge_available;
   $('weeks-head').replaceChildren(...['Week of', 'Searches', ...METRICS.map(m => m.label)].map(h => el('th', { textContent: h })));
   const weeks = weekRows(turns, { type, now });
@@ -69,16 +76,25 @@ async function post(body, done) {
 }
 // A return visit draws the last scorecard at once (list-cache.js), with its age, while "Refreshing…" shows in the status line;
 // a fresh scorecard that matches is not drawn again.
+async function loadChat(token) {
+  if (!chat) { const saved = readPage(localStorage, 'admin_scorecard_chat', token); if (saved) { chat = saved.data; renderChat(); } }
+  try {
+    const fresh = await adminJson('/api/admin?view=chat-turns'), same = sameData(fresh, chat);
+    chat = fresh; savePage(localStorage, 'admin_scorecard_chat', token, fresh); $('chat-error').hidden = true;
+    if (!same) renderChat();
+  } catch (error) { $('chat-error').hidden = false; $('chat-error').textContent = chat ? `Could not refresh chat turns: ${error.message} Showing the last ones saved.` : `Could not load chat turns: ${error.message} Try Refresh.`; }
+}
 async function load() {
   $('loader').hidden = false; notice('');
   const token = await adminToken().catch(() => null);
+  const pendingChat = loadChat(token);
   if (!data) { const saved = readPage(localStorage, 'admin_scorecard', token); if (saved) { data = saved.data; refreshedAt = saved.at; render(); } }
   try {
     const fresh = await adminJson('/api/admin?view=scorecard'), same = sameData(fresh, data);
     data = fresh; refreshedAt = Date.now(); savePage(localStorage, 'admin_scorecard', token, fresh);
     if (same) $('refreshed').textContent = `Refreshed ${ago(refreshedAt)}`; else render();
   } catch (error) { notice(data ? `Could not refresh: ${error.message} Showing the scorecard from ${ago(refreshedAt)}.` : `Could not load the scorecard: ${error.message} Try Refresh.`, true); if (!data) $('weeks').replaceChildren(); }
-  finally { $('loader').hidden = true; }
+  finally { await pendingChat; $('loader').hidden = true; }
 }
 $('refresh').onclick = load;
 $('compare').value = period;
@@ -86,4 +102,5 @@ $('compare').onchange = () => { period = $('compare').value; remember(); render(
 $('who').onchange = () => { who = $('who').value; remember(); render(); };
 setInterval(() => { if (refreshedAt) $('refreshed').textContent = `Refreshed ${ago(refreshedAt)}`; }, 30000);
 $('weeks').replaceChildren(...skeletonRows(6, 8));
+$('chat-definitions').replaceChildren(...CHAT_METRICS.flatMap(m => [el('dt', { textContent: m.label }), el('dd', { textContent: `${m.explain} ${m.higher ? 'Higher' : 'Lower'} is better.` })]));
 load();

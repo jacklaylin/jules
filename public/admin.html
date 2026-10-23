@@ -8,10 +8,6 @@
 <body class="admin-console">
   <main>
     <h1 class="dv-title">People</h1>
-    <section id="chat-metrics" class="chat-metrics" aria-label="Chat quality, last 7 days against the 7 before" hidden>
-      <div id="chat-metrics-strip" class="dv-metrics"></div>
-      <details class="fold metrics-help"><summary>Chat quality, last 7 days against the 7 before · what these numbers mean</summary><dl id="chat-metrics-help"></dl></details>
-    </section>
     <div class="dv-toolbar">
       <div id="people-views" class="dv-views" role="group" aria-label="People views">
         <button type="button" data-view="" aria-pressed="true">Testers</button>
@@ -21,7 +17,7 @@
       <label class="dv-search"><span class="sr-only">Search name or number</span><input id="people-search" type="search" maxlength="40" placeholder="Search name or number"><span class="kbd" aria-hidden="true">/</span></label>
       <span id="people-count" class="dv-toolbar-note"></span>
       <span class="spacer"></span>
-      <span class="dv-refresh"><span id="loader" hidden>Refreshing…</span><span id="refreshed"></span><button id="refresh" class="small quiet dv-icon-button" type="button" aria-label="Refresh" title="Refresh: people and chat quality"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M16 10a6 6 0 1 1-1.76-4.24M16 3.5v3.5h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button></span>
+      <span class="dv-refresh"><span id="loader" hidden>Refreshing…</span><span id="refreshed"></span><button id="refresh" class="small quiet dv-icon-button" type="button" aria-label="Refresh" title="Refresh: people"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M16 10a6 6 0 1 1-1.76-4.24M16 3.5v3.5h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button></span>
     </div>
     <div class="dv-status"><span id="notice" role="status" aria-live="polite"></span><span id="people-keys" class="dv-keys" aria-hidden="true"><span class="kbd">J</span><span class="kbd">K</span> move <span class="kbd">↵</span> open</span></div>
     <div id="people" class="dv-list people-list" aria-label="People"></div>

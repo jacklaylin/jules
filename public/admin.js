@@ -1,6 +1,6 @@
-import {mountAdminShell,adminJson,anchorMenus,metricCell,shortVerdict,skeletonRows} from './admin-console.js';
+import {mountAdminShell,adminJson,anchorMenus,skeletonRows} from './admin-console.js';
 import {browseKey} from './admin-review.js';
-import {filterPeople,accessSegments,accessChange,accessResult,ago,countLine,metricCells,filterSignups} from './admin-people-view.js';
+import {filterPeople,accessSegments,accessChange,accessResult,ago,countLine,filterSignups} from './admin-people-view.js';
 import {closeDialog} from './design-system.js';
 // Admin › People: the list of testers as a data view. The name opens the person page; Status changes waitlist access in place.
 // New signups lists people who signed up but haven't texted Jules yet; their first text moves them to Testers.
@@ -125,17 +125,6 @@ async function load() {
   finally { await pendingSignups; loading = false; render(); }
 }
 
-// The people list does not depend on metrics: if they fail, the strip stays hidden.
-async function loadMetrics() {
-  try {
-    const trend = await adminJson('/api/admin?view=metrics');
-    const cells = metricCells(trend);
-    $('chat-metrics-strip').replaceChildren(...cells.map(cell => metricCell({ label: cell.label, value: cell.value, change: shortVerdict(cell.verdict), tone: cell.tone, was: `${cell.was} · ${cell.sample}` })));
-    $('chat-metrics-help').replaceChildren(...cells.flatMap(cell => [el('dt', { textContent: cell.label }), el('dd', { textContent: `${cell.explain} ${cell.better}` })]));
-    $('chat-metrics').hidden = false;
-  } catch { /* Keep the list usable. */ }
-}
-
 function focusRow(step) {
   const rows = [...$('people').querySelectorAll('.person-link')], at = rows.indexOf(document.activeElement);
   rows[at < 0 ? (step > 0 ? 0 : rows.length - 1) : Math.min(rows.length - 1, Math.max(0, at + step))]?.focus();
@@ -150,8 +139,7 @@ addEventListener('keydown', event => {
   else if (action.type === 'row' && view !== 'signups') focusRow(action.step);
 });
 $('people-search').oninput = render;
-$('refresh').onclick = () => { load(); loadMetrics(); };
+$('refresh').onclick = () => { load(); };
 // Keep "Refreshed 3 min ago" honest while the page sits open.
 setInterval(() => { if (refreshedAt) $('refreshed').textContent = `Refreshed ${ago(refreshedAt)}`; }, 30000);
 load();
-loadMetrics();
