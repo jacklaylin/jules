@@ -107,7 +107,7 @@ async function load() {
     // A report already shown for this period and date stays; otherwise the table says it could not load.
     if (shownKey === key) { same = true; $('notice').className = 'error'; $('notice').textContent = `Could not refresh costs: ${error.message} Showing the report from ${new Date(refreshedAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}.`; return; }
     data = null; shownKey = null; $('rows').replaceChildren(emptyRow(5, 'Costs could not be loaded.'));
-    $('notice').className = 'error'; $('notice').textContent = `Could not load costs: ${error.message} Try Refresh in More.`;
+    $('notice').className = 'error'; $('notice').textContent = `Could not load costs: ${error.message} Try Refresh.`;
   } finally {
     if (request === version) { $('loader').hidden = true; if (same) $('refreshed').textContent = `Refreshed ${new Date(refreshedAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`; else render(); }
   }
@@ -128,7 +128,7 @@ $('entry').onsubmit = async event => {
   } catch (error) { $('entry-error').textContent = `Not saved: ${error.message}`; $('entry-error').hidden = false; }
   finally { $('save').disabled = false; }
 };
-$('refresh').onclick = () => { $('costs-more').hidePopover(); load(); };
+$('refresh').onclick = load;
 $('date').onchange = load;
 // The service list does not apply to the all-services budget; only daily usage needs a day.
 // A job budget picks a recurring job; every other amount picks a service.

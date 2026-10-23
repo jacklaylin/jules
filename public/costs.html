@@ -20,13 +20,10 @@
       <div id="cost-period" class="seg" role="group" aria-label="Period"><button type="button" data-period="month">Month</button><button type="button" data-period="day">Day</button></div>
       <label class="dv-field"><span id="date-label">Month (UTC)</span><input id="date" type="month" placeholder="YYYY-MM" pattern="\d{4}-\d{2}(-\d{2})?" required></label>
       <span class="spacer"></span>
-      <button class="small quiet" type="button" popovertarget="costs-more">More ⋯</button>
       <button id="entry-open" class="btn--butter small" type="button" aria-expanded="false" aria-controls="tool-entry">Update an amount</button>
+      <span class="dv-refresh"><span id="loader" hidden>Refreshing…</span><span id="refreshed"></span><button id="refresh" class="small quiet" type="button" title="Re-reads connected billing">Refresh</button></span>
     </div>
-    <div id="costs-more" class="dv-pop dv-menu" popover aria-label="More actions">
-      <button id="refresh" type="button">Refresh <span class="hint">re-reads connected billing</span></button>
-    </div>
-    <div class="dv-status"><span id="loader" hidden>Refreshing…</span><span id="refreshed"></span><span id="coverage"></span><span id="jobs-status"></span><span id="reconcile-status"></span><span id="caps-status"></span><span id="view-summary"></span><span id="notice" role="status" aria-live="polite"></span></div>
+    <div class="dv-status"><span id="coverage"></span><span id="jobs-status"></span><span id="reconcile-status"></span><span id="caps-status"></span><span id="view-summary"></span><span id="notice" role="status" aria-live="polite"></span></div>
 
     <div id="summary" class="dv-metrics" role="group" aria-label="Cost figures" aria-busy="true"></div>
     <details class="fold metrics-help"><summary>What these numbers mean</summary><dl>

@@ -17,9 +17,9 @@
       </div>
       <label id="compare-field" class="dv-field">Compare <select id="compare"><option value="week">This week vs last week</option><option value="month" selected>Last 4 weeks vs the 4 before</option></select></label>
       <span class="spacer"></span>
-      <button id="refresh" class="small quiet" type="button">Refresh</button>
+      <span class="dv-refresh"><span id="loader" hidden>Refreshing…</span><span id="refreshed"></span><button id="refresh" class="small quiet" type="button">Refresh</button></span>
     </div>
-    <div class="dv-status"><span id="refreshed"></span><span id="loader" hidden>Refreshing…</span><span id="notice" role="status" aria-live="polite"></span></div>
+    <div class="dv-status"><span id="notice" role="status" aria-live="polite"></span></div>
 
     <section id="view-engagement" aria-label="Engagement">
       <div id="strip" class="dv-metrics report-strip" role="group" aria-label="Style report figures" aria-busy="true"></div>

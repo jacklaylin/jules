@@ -403,6 +403,9 @@ button.small{min-height:32px;padding:0 14px;font-size:13px}
 .dv-filters{padding:14px}.dv-filters:popover-open{display:grid;gap:12px}.dv-filters label{display:grid;gap:6px;font-size:13px}.dv-filters select{margin:0}
 .dv-pop-actions{display:flex;justify-content:space-between;gap:8px}
 .dv-status{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;min-height:26px;margin:0 0 10px;font-size:12px;line-height:1.5;color:var(--text-2)}
+.dv-status:not(:has(>:not(:empty):not([hidden]))){min-height:0;margin-bottom:6px}
+/* Refresh: when the page last loaded and the Refresh button, together at the right end of the toolbar. */
+.dv-refresh{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--text-2)}.dv-refresh>#loader:not([hidden])+#refreshed{display:none}
 .dv-status .error{color:var(--danger);font-weight:600}.dv-keys{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-left:auto}
 .dv-token{display:inline-flex;align-items:center;gap:2px;min-height:26px;padding:0 2px 0 10px;border-radius:var(--r-pill);background:var(--fog);color:var(--ink);font-size:12px;font-weight:600}
 .dv-token button{min-height:22px;width:24px;padding:0;border:0;background:transparent;box-shadow:none;color:var(--text-2);font-size:15px}

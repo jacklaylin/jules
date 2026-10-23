@@ -52,9 +52,9 @@ export function ago(at, now = Date.now()) {
 }
 
 // "10 people · refreshed 1 min ago", or "3 of 10 people · …" while a search narrows the list.
-export function countLine(shown, total, refreshedAt, now = Date.now()) {
+export function countLine(shown, total) {
   const people = `${total} ${total === 1 ? 'person' : 'people'}`;
-  return `${shown === total ? people : `${shown} of ${people}`}${refreshedAt ? ` · refreshed ${ago(refreshedAt, now)}` : ''}`;
+  return shown === total ? people : `${shown} of ${people}`;
 }
 
 // Chat quality summary (lib/chat-metrics.js metricsTrend). Counts only; the full breakdown is scripts/chat-metrics.js.
@@ -94,13 +94,6 @@ export function metricCells(trend) {
 }
 
 // The status-line summary in plain words: how many messages the numbers come from.
-export function metricsNote(current) {
-  if (!current) return '';
-  const failed = current.fallbacks + current.stuck;
-  return `Last 7 days: ${count(current.turns, ['tester message', 'tester messages'])}, ${failed} failed (${current.fallbacks} generic, ${current.stuck} never sent)`
-    + `${current.named_searches ? `, ${current.named_accepted} of ${current.named_searches} named-product searches ended in a pick` : ''}.`;
-}
-
 // ---------- New signups (lib/new-signups.js) ----------
 // Signups with no conversation yet. Phones arrive masked ("•••-0123"), so a search matches the name or those digits.
 export function filterSignups(signups, query = '') {
