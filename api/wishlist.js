@@ -21,6 +21,7 @@ import { createStore } from '../lib/store.js';
 import {withUsage} from '../lib/usage.js';
 import {lookupIndexedProduct} from '../lib/indexed-product.js';
 import { wishlistUser, sessionHash, forgetSession, groupWishlist, photoCaching } from '../lib/wishlist.js';
+import { wishlistGoLink } from '../lib/wishlist-go.js';
 import { authorize } from '../lib/auth.js';
 import { json, readJson, uuid, timeView } from '../lib/http.js';
 import {createSignupHandler} from '../lib/public-signup.js';
@@ -208,6 +209,8 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
         }
         if (groupId) {
           const item = groups.find(g=>g.id===groupId);
+          // Store links open through Jules (/go/), so a tap is counted like one from a text.
+          for(const link of item?.links??[])link.go_url=wishlistGoLink(access.conversation,item.id,link.url,env);
           return item ? json(res,200,{item}) : json(res,404,{error:'Item not found.'});
         }
         // Each card keeps its entries (saved item and reply ids), so a remove can read its photos alongside the list.

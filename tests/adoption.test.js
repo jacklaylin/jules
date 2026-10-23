@@ -6,6 +6,7 @@ import { createAdminHandler } from '../api/admin.js';
 import { testerCells, weekCells, summaryCells, duration } from '../public/adoption-view.js';
 import { shownProducts, trackLinks, goLink, readGoLink, resultLinks, createGoHandler } from '../lib/adoption-events.js';
 import { createImageHandler } from '../api/image.js';
+import { wishlistGoLink } from '../lib/wishlist-go.js';
 import { receiveInInbox } from '../lib/inbox.js';
 import sharp from 'sharp';
 
@@ -199,6 +200,25 @@ test('the go link records a tap and forwards to the store; tampered links, previ
   assert.equal((await open(token, { handlerStore: unmigrated })).headers.Location, 'https://other.example/coat', 'the tap still forwards before db/032 runs');
   assert.equal((await open(token, { method: 'POST' })).statusCode, 405);
   assert.equal(createGoHandler.length, 1);
+});
+
+test('a wishlist link records a tap and forwards to the store it carries; forged links and previews do not count', async () => {
+  const env = { SUPABASE_SERVICE_ROLE_KEY: 'secret', LINK_CLICK_TRACKING: 'true' }, recorded = [];
+  const store = { replyResult: assert.fail, recordAdoptionEvent: async row => recorded.push(row) };
+  const open = async (href, agent = 'Mozilla/5.0 (iPhone)') => {
+    const res = { headers: {}, setHeader(k, v) { this.headers[k] = v; }, end() {} };
+    await createGoHandler({ env, store })({ method: 'GET', url: `/api/image?go=${encodeURIComponent(href.slice(4))}`, headers: { 'user-agent': agent } }, res);
+    return res;
+  };
+  const href = wishlistGoLink(A, 'group-1', 'https://shop.example/coat', env);
+  const res = await open(href);
+  assert.equal(res.statusCode, 302); assert.equal(res.headers.Location, 'https://shop.example/coat'); assert.equal(res.headers['Referrer-Policy'], 'no-referrer');
+  assert.deepEqual(recorded, [{ quantity: 1, conversation_id: A, kind: 'link_click', ref: 'wishlist:group-1' }]);
+  assert.equal((await open(href, 'facebookexternalhit/1.1')).statusCode, 302); assert.equal(recorded.length, 1, 'a preview fetch is not a tap');
+  const sig = href.split('.').at(-1), forged = Buffer.from(JSON.stringify([A, 'group-1', 'https://evil.example/'])).toString('base64url');
+  assert.equal((await open(`/go/w.${forged}.${sig}`)).statusCode, 404, 'another store link cannot reuse a signature');
+  assert.equal(wishlistGoLink(A, 'group-1', 'http://shop.example/coat', env), null, 'only public https store links');
+  assert.equal(wishlistGoLink(A, 'group-1', 'https://shop.example/coat', {}), null, 'no signing key, no link');
 });
 
 test('a tap is still recorded, without its link position, before db/052 adds the column', async () => {
