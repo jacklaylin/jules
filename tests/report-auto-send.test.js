@@ -127,3 +127,19 @@ test('a report the summary already built after the import settled is not rebuilt
  await prepareReport(store,owner,{},{tag:async()=>{},build,rebuild:true,since:new Date(Date.now()+60000).toISOString(),autoSend:null});
  assert.equal(builds,1,'an older report is rebuilt with the new import');
 });
+
+// Source agnostic (founder, 23 Oct 2026): chat-only sources have no import summary to wait for.
+test('chat-only sources: the link goes out as soon as the report is built, after an order screenshot or a first photo',async()=>{
+ const {reportAfterChat}=await import('../lib/gmail-worker.js');
+ const store=fixture();delete store.data.job;
+ const prepare=(s,o,e,options)=>prepareReport(s,o,e,{...options,tag:async()=>{},build:async()=>{store.data.style_report=report('r1');return {status:'built',unlocked:[]};}});
+ await reportAfterChat(store,owner,env,{screenshots:true,send:store.send,prepare});
+ assert.equal(links(store).length,1,'no summary to wait for');
+ await reportAfterChat(store,owner,env,{screenshots:true,send:store.send,prepare});
+ assert.equal(links(store).length,1,'the first link only');
+ const photos=fixture({style_report:report('r2')});delete photos.data.job;let builds=0;
+ await reportAfterChat(photos,owner,env,{send:photos.send,prepare:async()=>{builds++;}});
+ assert.equal(builds,0,'new photos on an existing report are read on their own');
+ const asking=fixture({questions:[{id:'q1',status:'open',question:'Q?',item_ids:['item-1']}],style_report:report('r3')});delete asking.data.job;
+ assert.equal(await autoSendReport(asking,owner,env,{send:asking.send}),null,'never while a question waits');
+});
