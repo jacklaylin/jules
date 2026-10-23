@@ -22,7 +22,7 @@ import {withUsage} from '../lib/usage.js';
 import {lookupIndexedProduct} from '../lib/indexed-product.js';
 import { wishlistUser, sessionHash, forgetSession, groupWishlist, photoCaching } from '../lib/wishlist.js';
 import { authorize } from '../lib/auth.js';
-import { json, readJson, uuid } from '../lib/http.js';
+import { json, readJson, uuid, timeView } from '../lib/http.js';
 import {createSignupHandler} from '../lib/public-signup.js';
 import {handleReport,handleSharedReport,handleSharePage} from '../lib/style-report.js';
 import {readFile} from 'node:fs/promises';
@@ -97,20 +97,25 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
           return json(res,200,result);
         }
         if (['remove','restore'].includes(input.action)) {
+          const started=performance.now();
           const access=await auth(req.headers,env,store,fetcher);
+          timeView(res,'wishlist_'+input.action,started,performance.now()-started);
           if(access.status!==200)return json(res,access.status,{error:'Please sign in with your invited email.'});
           if(!uuid(input.group))return json(res,400,{error:'Invalid item.'});
+          const remove=input.action==='remove',hint=cardEntries(input.entries);
+          // Both reads run together: the whole list (so a page drawn before the card changed still acts on all of
+          // it) and the photos of the encounters the page named, which the write needs.
+          const encounters=hint?store.wishlistEncounters(access.conversation,hint):null;encounters?.catch(()=>{});
           const rows=await store.wishlistEntries(access.conversation,{includeRemoved:true});
           const item=groupWishlist(rows).find(group=>group.id===input.group);
           if(!item)return json(res,404,{error:'Item not found.'});
           // A repeated remove or restore (a retry after a timeout) changes nothing and records no second event.
           const removed=row=>row.removed===true||row.removed==='true';
           const current=rows.filter(row=>item.entries.some(e=>e.item_id===row.item_id&&e.reply_id===row.reply_id));
-          if(current.length&&current.every(row=>removed(row)===(input.action==='remove')))return json(res,200,{ok:true,unchanged:true});
-          // Stop alerts before hiding the item; restoring leaves alerts off.
-          if(input.action==='remove')await store.disablePriceAlert(access.conversation,item.id);
-          await store.setWishlistRemoved(access.conversation,item.entries,input.action==='remove');
-          await store.recordEvidence(access.conversation,[wishlistEvidence(input.action==='remove'?'removed':'restored',item)]);
+          if(current.length&&current.every(row=>removed(row)===remove))return json(res,200,{ok:true,unchanged:true});
+          // The alert stops as the item is hidden (both together); restoring leaves alerts off.
+          await Promise.all([remove&&store.disablePriceAlert(access.conversation,item.id),store.setWishlistRemoved(access.conversation,item.entries,remove,sameEntries(item.entries,hint)?encounters:null)]);
+          await store.recordEvidence(access.conversation,[wishlistEvidence(remove?'removed':'restored',item)]);
           return json(res,200,{ok:true});
         }
         // "I bought this" and its undo (lib/wishlist-purchases.js). A bought item leaves All for the Bought
@@ -205,7 +210,8 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
           const item = groups.find(g=>g.id===groupId);
           return item ? json(res,200,{item}) : json(res,404,{error:'Item not found.'});
         }
-        return json(res,200,{items:groups.map(({links,entries,...group})=>group)});
+        // Each card keeps its entries (saved item and reply ids), so a remove can read its photos alongside the list.
+        return json(res,200,{items:groups.map(({links,...group})=>group)});
       }
       if (!uuid(id)) return json(res,400,{error:'Invalid item.'});
       if(query.get('image')==='reference'){const index=query.get('index');if(!/^[01]$/.test(index??''))return json(res,400,{error:'Invalid photo.'});return image(res,await store.wishlistPhoto(access.conversation,id,Number(index)),query);}
@@ -223,6 +229,9 @@ export function createWishlistHandler({ env = process.env, storeFactory = create
     } catch(error) { console.log(JSON.stringify({event:'wishlist_request_failed',error_type:error?.name,database_error:error?.message==='Database request failed',database_status:error?.database_status,database_code:error?.database_code})); return json(res,503,{error:'Could not load your wishlist. Please try again.'}); }
   };
 }
+// The saved item and reply ids a page sends with a remove or restore (at most 50), or null.
+const cardEntries=value=>Array.isArray(value)&&value.length&&value.length<=50&&value.every(e=>uuid(e?.item_id)&&uuid(e?.reply_id))?value.map(({item_id,reply_id})=>({item_id,reply_id})):null;
+const sameEntries=(a,b)=>Boolean(b)&&a.length===b.length&&a.every(x=>b.some(y=>y.item_id===x.item_id&&y.reply_id===x.reply_id));
 function image(res, value, query) {
   if (!value || !['image/jpeg','image/png','image/webp'].includes(value.mime_type)) return json(res,404,{error:'Image unavailable.'});
   res.statusCode=200;res.setHeader('Content-Type',value.mime_type);res.setHeader('Cache-Control',photoCaching(query));res.setHeader('X-Content-Type-Options','nosniff');res.end(Buffer.from(value.data,'base64'));

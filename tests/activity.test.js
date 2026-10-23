@@ -50,3 +50,11 @@ test('a quick action never shows the panel; one still running after a second doe
 test('private image requests bypass page activity',async()=>{
  const count=events.length;globalThis.fetch=async()=>({ok:true});await trackedFetch('/api/style?crop=0');await trackedFetch('/api/wishlist?item=fixture&source=photo');await trackedFetch('/api/image');assert.equal(events.length,count);
 });
+test('a wishlist remove or restore never shows the panel: the page already answered it',async t=>{
+ t.mock.timers.enable({apis:['setTimeout','setInterval','Date']});
+ const panel=document.body.children[0],count=events.length,slow=gate();globalThis.fetch=()=>slow.promise;
+ const removing=trackedFetch('/api/wishlist',{method:'POST',body:JSON.stringify({action:'remove',group:'g'})});
+ t.mock.timers.tick(7000);assert.equal(panel.open,false);assert.equal(events.length,count);
+ slow.resolve({ok:true});await removing;
+ globalThis.fetch=async()=>({ok:true});await trackedFetch('/api/wishlist',{method:'POST',body:JSON.stringify({action:'restore',group:'g'})});assert.equal(events.length,count);
+});
