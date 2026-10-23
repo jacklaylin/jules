@@ -31,3 +31,22 @@ test('a message that already gives every price is left exactly as written', () =
   const reply = 'maritime, $198 (was $248)\nhttps://taylorstitch.com/p/maritime\nteca, $185\nhttps://portugueseflannel.com/p/teca\nover $300 left out.';
   assert.equal(repairPrices(reply, { draft }), reply);
 });
+
+// October 22 (frozen dev-b984d6be / dev-f8e7e280): the message gave a sale price but not the former price,
+// and the repair copied the draft's whole option line back in, so option 2 was listed twice.
+test('the part that names the product is never copied back, so an option is never listed twice', () => {
+  const sale = '1. Tailored Athlete Half Zip — Dark Bordeaux · $125.00 · size L in stock\nhttps://tailoredathlete.com/p/half-zip\n\n2. swtrshp Merino Half Zip — Copper · $183.00 (on sale, was $195.00) · at sweatershop.com\nhttps://sweatershop.com/p/half-zip';
+  const reply = 'two from other brands:\n\n1. Tailored Athlete Half Zip — $125, L in stock.\nhttps://tailoredathlete.com/p/half-zip\n\n2. swtrshp Merino Half Zip in Copper — $183 sale price.\nhttps://sweatershop.com/p/half-zip';
+  const fixed = repairPrices(reply, { draft: sale });
+  assert.equal(fixed.match(/swtrshp/g).length, 1, 'option 2 is named once');
+  assert.equal(fixed.match(/^2\. /gm).length, 1, 'one line numbered 2');
+  assert.match(fixed, /\$183\.00 \(on sale, was \$195\.00\)\nhttps:\/\/sweatershop\.com\/p\/half-zip/);
+  assert.deepEqual(checkComposed({ reply: fixed, claims: {} }, { draft: sale }), []);
+});
+
+test('a price written into the product\'s naming part is left for the model to place, not copied with the name', () => {
+  const joined = '2. swtrshp Merino Half Zip — Copper — $183.00 (on sale, was $195.00) at sweatershop.com\nhttps://sweatershop.com/p/half-zip';
+  const reply = '2. swtrshp Merino Half Zip in Copper — $183 sale price.\nhttps://sweatershop.com/p/half-zip';
+  assert.equal(repairPrices(reply, { draft: joined }), reply);
+  assert.ok(checkComposed({ reply, claims: {} }, { draft: joined }).some(p => /Include the prices/.test(p)));
+});

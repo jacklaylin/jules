@@ -99,7 +99,7 @@ test('freezing a report keeps the turn as the agent saw it, the original reply a
   assert.match(frozen.original.body, /want me to save it\? saved it/);
   assert.deepEqual(frozen.original.actions.map(a => a.tool), ['find_products', 'save_to_wishlist']);
   assert.equal(frozen.original.search.state.options[0].url, jacket.url);
-  assert.match(recordedDraft(frozen.original.search), /Maison Margiela Mesh-Trimmed Shell Jacket — blue at .*\nhttps:\/\/www\.mrporter\.com/);
+  assert.match(recordedDraft(frozen.original.search), /Maison Margiela Mesh-Trimmed Shell Jacket — blue( · [^\n]+)? · at [^\n]+\nhttps:\/\/www\.mrporter\.com/);
 });
 
 test('a report on a message that is not an agent reply is frozen as not replayable and skipped in the pass rate', async () => {
