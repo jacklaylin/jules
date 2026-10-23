@@ -81,7 +81,6 @@ function renderQuality(q, testers) {
   }));
   if (!q.weeks.length) $('quality-weeks').append(el('tr', {}, el('td', { colSpan: 5, className: 'dv-empty', textContent: 'Nothing recorded yet.' })));
   $('quality-photos').replaceChildren(...q.photo_outcomes.map(o => el('tr', {}, cell('Outcome', el('strong', { textContent: o.label })), cell('Photos', String(q.photos.outcomes[o.key] ?? 0), 'end num'), cell('Meaning', o.explain, 'muted'))));
-  $('quality-photo-note').textContent = `${q.photos.total} photo messages in all. ${q.photos.saved} led to a wishlist save${q.photos.corrected ? `, ${q.photos.corrected} of them later corrected` : ''}. Owner test photos are left out.`;
 }
 
 // Purchase nudges (lib/nudges.js nudgeSummary). Loaded on its own; a failed read only hides this section.
@@ -126,8 +125,8 @@ function renderAlerts(a, testers) {
     ['Replied', ratio(t.replied, delivered, t.reply_rate), 'within a day'], ['Bought', String(t.bought), 'marked bought within 14 days']]
     .map(([label, value, note]) => metricCell({ label, value, detail: note })));
   $('alerts-period').textContent = `last ${a.days} days`;
-  $('alerts-note').hidden = false;
-  $('alerts-note').textContent = `${a.tracking ? '' : 'Link taps are not being recorded: set LINK_CLICK_TRACKING=true in Vercel to count them. '}Taps are only counted on texts sent after Oct 22, when alert links started going through Jules.`;
+  $('alerts-note').hidden = a.tracking;
+  $('alerts-note').textContent = a.tracking ? '' : 'Link taps are not being recorded: set LINK_CLICK_TRACKING=true in Vercel to count them.';
   $('alert-kinds').replaceChildren(...a.kinds.map(k => el('tr', {}, cell('Kind', el('strong', { textContent: k.label })), cell('Texts', String(k.texts), 'end num'),
     cell('Delivered', String(k.sent + k.uncertain), 'end num'), cell('Not delivered', String(k.failed + k.blocked), 'end num'), cell('People', String(k.people), 'end num'),
     cell('Tapped link', a.tracking ? ratio(k.tapped, k.sent + k.uncertain, k.tap_rate) : '—', 'end num'), cell('Replied', ratio(k.replied, k.sent + k.uncertain, k.reply_rate), 'end num'), cell('Bought', String(k.bought), 'end num'))));
