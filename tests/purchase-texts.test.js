@@ -249,7 +249,7 @@ test('a person\'s daily run reads, then texts about what it found',async()=>{
 test('the daily run covers everyone connected and one failure does not stop the rest',async()=>{
  const seen=[];const store={gmailConnections:async()=>['a','b','c']};
  const summary=await runDailyRefresh(store,{},{owner:async(s,id)=>{seen.push(id);if(id==='b')throw Error('boom');return {check:'ready',text:id==='a'?'sent':'nothing_new'};}});
- assert.deepEqual(seen,['a','b','c']);assert.deepEqual(summary,{people:3,checked:2,texted:1,fit_checks:0,unfinished:0,failed:1});
+ assert.deepEqual(seen,['a','b','c']);assert.deepEqual(summary,{people:3,checked:2,texted:1,fit_checks:0,unfinished:0,failed:1,return_reminders:0});
 });
 
 test('the real email reader runs the check on its own job and leaves the full import as it was',async()=>{

@@ -632,7 +632,7 @@ $('ask-confirm').onclick = async () => {
 // ---------- Purchase nudges ----------
 // The decision log for unprompted texts (lib/nudges.js) and, for the designated test conversation only, a
 // test "goes with" offer about a chosen wardrobe item. Nothing is reset; a test can be sent again.
-const NUDGE_REASONS = { quiet_hours: 'quiet hours', ignored_backoff: 'paused: last 2 went unanswered', daily_cap: 'already texted today', weekly_cap: '3 this week already', price_alert_today: 'price alert went out today',
+const NUDGE_REASONS = { quiet_hours: 'quiet hours', ignored_backoff: 'paused: last 2 went unanswered', daily_cap: 'already texted today', weekly_cap: '3 this week already', price_alert_today: 'an alert or return reminder went out today',
   mid_conversation: 'mid-conversation', opted_out: 'texted STOP', texts_off: 'purchase texts off', not_clothing: 'not clothing', not_worth_a_text: 'model: not worth an offer', nothing_recent: 'nothing recent',
   accepted: 'said yes', declined: 'said no', not_now: 'not now', unrelated: 'replied about something else', stopped: 'turned purchase texts off' };
 const NUDGE_KINDS = { goes_with: 'Goes with', fit_check: 'Fit check' };
@@ -670,30 +670,49 @@ $('nudge-confirm').onclick = async () => {
 // ---------- Return windows ----------
 // Step 1 of return-window reminders (lib/return-windows.js): each recent purchase, the return terms its emails
 // state, and today's decision with the reason. Re-reading recent emails saves only their return terms.
-const RETURN_REASONS = { no_terms: 'no return terms in its emails', final_sale: 'final sale', window_start_not_stated: 'period stated, start not stated', no_delivered_date: 'counts from delivery; no delivery email',
-  no_shipped_date: 'counts from shipping; no shipping email', no_purchased_date: 'counts from the order; no dated order email', too_early: 'too early', deadline_passed: 'deadline passed', already_reminded: 'already reminded',
+const RETURN_REASONS = { reminders_off: 'they turned return reminders off', opted_out: 'texted STOP', quiet_hours: 'quiet hours', already_today: 'already reminded today', next_text: 'waits for the next reminder', no_terms: 'no return terms in its emails', final_sale: 'final sale', window_start_not_stated: 'period stated, start not stated', no_delivered_date: 'counts from delivery; no delivery email',
+  no_shipped_date: 'counts from shipping; no shipping email', no_purchased_date: 'no dated order', too_early: 'too early', deadline_passed: 'deadline passed', already_reminded: 'already reminded',
   kept: 'they kept it', return_requested: 'return already started', returned: 'returned', cancelled: 'cancelled', gift: 'a gift', gone: 'no longer theirs', never_bought: 'not a purchase' };
 const returnDay = d => new Date(d + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
 function returnTermsText(terms) {
   return terms.map(t => [t.return_by ? `return by ${returnDay(t.return_by)} (“${t.return_by_quote}”)` : null, t.window ? `${t.window.days ? t.window.days + ' days' : t.window.months + ' months'} from ${t.window_from.replace('not_stated', 'an unstated start')} (“${t.window_quote}”)` : null, t.final_sale ? `final sale (“${t.final_sale}”)` : null].filter(Boolean).join('; ')).join(' · ');
 }
+let returnItems = [];
 function renderReturns(data) {
+  $('returns-setting').textContent = `Return reminders are ${data.reminders_on ? 'on' : 'off'} for them.`;
+  returnItems = data.test_candidates ?? [];
+  $('returns-test').hidden = !data.test_delivery || !returnItems.length; $('returns-test-send').hidden = $('returns-test').hidden; $('returns-no-test').hidden = data.test_delivery;
+  $('returns-item').replaceChildren(...returnItems.map(i => el('option', { value: i.id, textContent: `${i.name}${i.merchant ? ` · ${i.merchant}` : ''}${i.deadline ? ` · ${i.at_least ? 'at least until' : 'closes'} ${returnDay(i.deadline)}` : ' · no stated terms'}` })));
+  syncReturnDate();
   $('returns-summary').textContent = `${data.items.length} purchases in the last 120 days · ${data.with_terms} with stated return terms · ${data.with_deadline} with a deadline · time zone ${data.zone}${data.connected ? '' : ' · Gmail not connected'}`;
-  $('returns-items').replaceChildren(...(data.items.length ? data.items.map(i => el('li', { textContent: `${[i.brand, i.product].filter(Boolean).join(' ') || 'Purchase'}${i.merchant ? ` · ${i.merchant}` : ''} · bought ${i.bought_at.slice(0, 10)} · ${i.deadline ? `last return day ${returnDay(i.deadline)} (${i.days_left} days left) · ` : ''}${i.status === 'would_send' ? 'would remind today' : RETURN_REASONS[i.reason] ?? i.reason}${i.terms.length ? ` · ${returnTermsText(i.terms)}` : ''}${i.evidence?.from ? ` · ${i.evidence.from.kind} email ${i.evidence.from.day}` : ''}` }))
+  $('returns-items').replaceChildren(...(data.items.length ? data.items.map(i => el('li', { textContent: `${[i.brand, i.product].filter(Boolean).join(' ') || 'Purchase'}${i.merchant ? ` · ${i.merchant}` : ''} · bought ${i.bought_at.slice(0, 10)} · ${i.deadline ? `last return day ${returnDay(i.deadline)} (${i.days_left} days left) · ` : ''}${i.status === 'would_send' ? 'due: reminds at the next daily run' : RETURN_REASONS[i.reason] ?? i.reason}${i.at_least ? ' · at least (order-date floor)' : ''}${i.terms.length ? ` · ${returnTermsText(i.terms)}` : ''}${i.evidence?.from ? ` · ${i.evidence.from.kind} email ${i.evidence.from.day}` : ''}` }))
     : [el('li', { className: 'muted', textContent: 'No purchases in the last 120 days.' })]));
-  $('returns-log').replaceChildren(...(data.log.length ? data.log.map(e => el('li', { textContent: `${e.at.slice(0, 16).replace('T', ' ')} UTC · ${e.status === 'would_send' ? 'would remind' : RETURN_REASONS[e.reason] ?? e.reason}${e.deadline ? ` · last day ${returnDay(e.deadline)}` : ''}` }))
+  $('returns-log').replaceChildren(...(data.log.length ? data.log.map(e => el('li', { textContent: `${e.at.slice(0, 16).replace('T', ' ')} UTC · ${e.status === 'sent' ? 'reminded' : e.status === 'would_send' ? 'due' : RETURN_REASONS[e.reason] ?? e.reason}${e.test ? ' · test' : ''}${e.deadline ? ` · last day ${returnDay(e.deadline)}` : ''}` }))
     : [el('li', { className: 'muted', textContent: 'No decisions logged yet (the daily purchase check writes them).' })]));
   $('returns-left').textContent = data.reread.remaining;
   $('returns-reread').hidden = !data.connected || !data.reread.remaining; $('returns-confirm').hidden = $('returns-reread').hidden;
 }
 $('returns').onclick = async () => {
-  $('returns-error').hidden = true; $('returns-reread').hidden = true; $('returns-confirm').hidden = true;
+  $('returns-error').hidden = true; $('returns-reread').hidden = true; $('returns-confirm').hidden = true; $('returns-test').hidden = true; $('returns-test-send').hidden = true; $('returns-no-test').hidden = true;
   $('returns-items').replaceChildren(...skeletonRows(2).map(row => el('li', {}, row)));
   $('returns-dialog').showModal();
   try { renderReturns(await api(`/api/admin?conversation=${person}&view=returns`)); }
   catch (error) { $('returns-error').textContent = error.message; $('returns-error').hidden = false; }
 };
 $('returns-cancel').onclick = () => $('returns-dialog').close();
+// The rehearsal date is needed only for an item without a stated deadline.
+function syncReturnDate() { const item = returnItems.find(i => i.id === $('returns-item').value); const need = Boolean(item) && !item.deadline; $('returns-date').hidden = !need; $('returns-date-label').hidden = !need; }
+$('returns-item').onchange = syncReturnDate;
+$('returns-test-send').onclick = async () => {
+  const buttons = [$('returns-test-send'), $('returns-cancel'), $('returns-confirm')]; buttons.forEach(b => { b.disabled = true; }); $('returns-test-send').textContent = 'Sending…'; $('returns-error').hidden = true;
+  try {
+    const data = await api('/api/admin', { method: 'POST', body: JSON.stringify({ action: 'send-test-reminder', conversation: person, item: $('returns-item').value, rehearsal: $('returns-date').value || null, confirm: true }) });
+    renderReturns(data);
+    notice(data.reminder.status === 'sent' ? `Test reminder about ${data.reminder.item} sent.` : `Test reminder not confirmed (${data.reminder.status}); check Conversation before sending again.`);
+    loadMessages().catch(error => notice(`Conversation: ${error.message}`));
+  } catch (error) { $('returns-error').textContent = error.message; $('returns-error').hidden = false; }
+  finally { buttons.forEach(b => { b.disabled = false; }); $('returns-test-send').textContent = 'Send test reminder'; }
+};
 $('returns-confirm').onclick = async () => {
   const buttons = [$('returns-confirm'), $('returns-cancel')]; buttons.forEach(b => { b.disabled = true; }); $('returns-error').hidden = true;
   let read = 0, found = 0;

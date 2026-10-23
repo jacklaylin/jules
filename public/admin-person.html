@@ -209,16 +209,25 @@
   </dialog>
   <dialog id="returns-dialog" class="confirm-dialog" aria-labelledby="returns-title">
     <h2 id="returns-title">Return windows</h2>
-    <p class="muted">Read and log only: nothing is texted yet. A deadline comes only from what their order, shipping or delivery emails state: a return-by date, or a return period counted from a dated email. Never a store's policy page or an estimated delivery.</p>
+    <p class="muted">Jules texts once, from 3 days before the last return day. A deadline comes only from what their emails or receipts state: a return-by date, or a return period counted from a dated email or an in-store purchase. Without a delivery date, the order date is a floor (“at least until”). Never a store’s policy page or an estimated delivery.</p>
+    <p id="returns-setting" class="muted"></p>
     <p id="returns-summary" class="muted"></p>
     <ul id="returns-items" class="nudge-log"></ul>
     <div id="returns-reread" hidden>
       <p>Re-read <strong id="returns-left">0</strong> order, shipping and delivery emails from their last 45 days of purchases for the return terms they state. Only return terms are saved; their purchase history is otherwise unchanged.</p>
     </div>
+    <div id="returns-test" hidden>
+      <p>Send <strong>this person</strong> the return reminder about one item from their wardrobe, labelled <code>[test reminder]</code>. It uses the item’s real deadline when its emails state one; otherwise pick a rehearsal date. It ignores timing, quiet hours and “once per item”, and can be sent again. Their reply goes to Jules like any other message.</p>
+      <label for="returns-item">Item</label>
+      <select id="returns-item"></select>
+      <label for="returns-date" id="returns-date-label">Rehearsal last return day</label>
+      <input id="returns-date" type="date">
+    </div>
+    <p id="returns-no-test" class="muted" hidden>Test reminders go only to the designated test conversation (PRICE_ALERT_TEST_CONVERSATION_ID in Vercel).</p>
     <h3>Changes, newest first</h3>
     <ul id="returns-log" class="nudge-log"></ul>
     <p id="returns-error" class="error" role="alert" hidden></p>
-    <div class="dialog-actions"><button id="returns-confirm" class="btn--butter" type="button" hidden>Re-read emails</button><button id="returns-cancel" type="button">Close</button></div>
+    <div class="dialog-actions"><button id="returns-test-send" class="btn--butter" type="button" hidden>Send test reminder</button><button id="returns-confirm" type="button" hidden>Re-read emails</button><button id="returns-cancel" type="button">Close</button></div>
   </dialog>
   <dialog id="reread-dialog" class="confirm-dialog" aria-labelledby="reread-title">
     <h2 id="reread-title">Re-read this photo?</h2>
