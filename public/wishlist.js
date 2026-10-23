@@ -7,6 +7,7 @@ import {rememberWishlistTarget,consumeWishlistTarget,itemURL} from './wishlist-d
 import {matchPhotoBackground} from './photo-background.js';
 import {readList,saveList,forgetLists} from './list-cache.js';
 import {whenNear} from './lazy-photo.js';
+import {createRemoval} from './wishlist-remove.js';
 import {ALL,filterChips,matchesFilter,nextFilter,filterLabel,filterFromURL,filterURL,countLabel,wantedCount,isAll} from './wishlist-filters.js';
 const $ = id => document.getElementById(id);
 fitFilterBar($('toolbar'));
@@ -233,13 +234,16 @@ function removeButton(item,card){
  button.onclick=async()=>{button.disabled=true;try{await removeItem(item,card);}catch(e){message(e.message);button.disabled=false;}};
  return button;
 }
-// One removal for the card's × and the detail's Remove row.
-async function removeItem(item,card=[...$('grid').children].find(c=>c.dataset.group===item.id)){
- await alertPost({action:'remove',group:item.id});if(card)await removeWithMotion(card);itemCache.delete(item.id);applyFilter();
+// One removal for the card's × and the detail's Remove row (public/wishlist-remove.js): the card leaves and the
+// toast shows at once; a refused request brings the card back with the error.
+const removal=createRemoval({cache:itemCache,send:alertPost,removeCard:removeWithMotion,refilter:()=>applyFilter(),
+ redraw:()=>render([...itemCache.values()],generation,'local'),notify:toast,dismiss:()=>{$('toast').hidden=true;},fail:e=>message(e.message),
  // Someone who bought it often just removes it: one tap records the purchase instead (store and size unknown).
- toast(item.price_alert?.active?'Removed. Alert turned off.':'Removed from your wishlist.',async()=>{await alertPost({action:'restore',group:item.id});await load();},
-  item.bought?null:{label:'I bought it',run:()=>markBought(item,{via:'remove_toast'})});
- const next=$('grid').querySelector('.product-card:not([hidden]) .tile');if(next)next.focus();
+ bought:item=>markBought(item,{via:'remove_toast'})});
+async function removeItem(item,card=[...$('grid').children].find(c=>c.dataset.group===item.id)){
+ const done=removal.remove(item,card);
+ const next=[...$('grid').querySelectorAll('.product-card:not([hidden]) .tile')].find(tile=>!card?.contains(tile));if(next)next.focus();
+ await done;
 }
 // "I bought this" (lib/wishlist-purchases.js): the item moves to Bought, its alert stops and it joins the wardrobe.
 const boughtLine=bought=>['Bought '+date(bought.at),bought.store].filter(Boolean).join(' · ');
