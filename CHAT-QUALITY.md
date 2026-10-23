@@ -79,7 +79,7 @@ In priority order:
 
 1. **Separate OpenAI project and key for evals** (founder). It blocks safe testing, the nightly run and the next step of item 4.
 2. **Schedule the nightly regression run** (`scripts/chat-gate.js --nightly`) once item 1 exists.
-3. **Example conversations** (founder) in [docs/example-conversations.md](docs/example-conversations.md). Then test them on luna with and without.
+3. **Example conversations.** Ten are written and approved in [docs/example-conversations.md](docs/example-conversations.md). Next: build them into the prompt ([docs/example-conversations-handoff.md](docs/example-conversations-handoff.md)), then test them on luna with and without.
 4. **`CHAT_NARRATE` decision.** Run the routing evals with the flag off and on (~$5–8). On the frozen set, flag on scored 67–70% vs 63%, but two save/alert cases got worse.
 5. **The simpler-path test.** Remove contradicting rules, merge duplicates between skills and tool descriptions, and cut the 21 tools. Hold further router work until this is decided.
 6. **Complaints per turn is 35%.** That's the real target. Read it per conversation and per kind on the Scorecard.
