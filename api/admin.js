@@ -31,7 +31,7 @@ import { profileFirstName, displayName } from '../lib/memory.js';
 import { signupsWaiting } from '../lib/new-signups.js';
 import { goesWithCandidates, sendTestNudge, nudgeTestConversation, purchaseTextsOn } from '../lib/purchase-texts.js';
 import { nudgeTimezone, nudgeSummary } from '../lib/nudges.js';
-import { returnWindowView, rereadReturnTerms, sendTestReminder, reminderTestCandidates, reminderTestConversation, remindersOn } from '../lib/return-windows.js';
+import { returnRemindersSummary, returnWindowView, rereadReturnTerms, sendTestReminder, reminderTestCandidates, reminderTestConversation, remindersOn } from '../lib/return-windows.js';
 import { alertSummary } from '../lib/alert-metrics.js';
 import { reportAdoptionData } from '../lib/report-adoption.js';
 
@@ -177,6 +177,8 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
       if (query.get('view') === 'adoption') return json(res, 200, await adoptionReport(store));
       // Unprompted texts across testers (lib/nudges.js): sends, holds, replies. Loaded on its own so a failure leaves Adoption as it is.
       if (query.get('view') === 'nudges-summary') return json(res, 200, nudgeSummary(await store.nudgeLogs()));
+      // Return-window reminders across testers (lib/return-windows.js): sent, kept, returned, no reply, and where the rest stand.
+      if (query.get('view') === 'returns-summary') return json(res, 200, await returnRemindersSummary(store));
       // Alert texts across testers (lib/alert-metrics.js): sent, failed, tapped, replied, bought. Loaded on its own like nudges.
       if (query.get('view') === 'alerts-summary') return json(res, 200, alertSummary(await store.alertMetricRows(new Date(Date.now() - 30 * 86400000).toISOString()), { tracking: env.LINK_CLICK_TRACKING === 'true' }));
       // Admin › Scorecard › All chat turns (lib/scorecard.js): figures per turn, no ids or text.

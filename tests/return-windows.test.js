@@ -396,3 +396,48 @@ test('an answer whose question reference is not a waiting question is still reco
  const defer=applyReceiptAnswerPartially(state,{actions:act('defer_question',{question_id:'no-such-question'})(id)},{id:'imessage:3',owner_id:OWNER,source:'chat_answer',at:'2026-10-28T19:00:00Z'});
  assert.equal(defer.applied,0);
 });
+
+// ---------- Step 3: outcome rates ----------
+import {reminderOutcome,returnReminderSummary,returnRemindersSummary} from '../lib/return-windows.js';
+const REMINDED={item_id:'p',at:'2026-10-28T19:00:00.000Z',deadline:'2026-10-31',operation:'return-window:o:2026-10-28'};
+const said=(value,at,extra={})=>({id:'p',brand:'CHERRY LA',product:'Cargo Pants',merchant:'CHERRY LA',outcome:{value},field_provenance:{outcome:{at}},source_events:[],...extra});
+
+test('outcomes come from what was recorded after the reminder',()=>{
+ const now=Date.parse('2026-11-05T12:00:00Z');
+ assert.equal(reminderOutcome(REMINDED,said('kept','2026-10-28T20:00:00Z'),null,now).outcome,'kept');
+ const back=reminderOutcome(REMINDED,said('returned','2026-10-29T10:00:00Z',{fit:'runs_small',field_provenance:{outcome:{at:'2026-10-29T10:00:00Z'},fit:{at:'2026-10-29T10:00:00Z'}}}),null,now);
+ assert.deepEqual([back.outcome,back.in_time,back.fit],['returned',true,'runs_small']);
+ assert.equal(reminderOutcome(REMINDED,said('returned','2026-11-02T10:00:00Z'),null,now).in_time,false,'after the last day');
+ // A return email after the reminder counts too.
+ const email=reminderOutcome(REMINDED,{...said('unknown',null),field_provenance:{},source_events:[{kind:'returned',at:Date.parse('2026-10-30T10:00:00Z')}]},null,now);
+ assert.deepEqual([email.outcome,email.in_time,email.from],['returned',true,'email']);
+ // Kept before the reminder is not an answer to it.
+ assert.equal(reminderOutcome(REMINDED,said('kept','2026-10-20T00:00:00Z'),null,now).outcome,'no_reply');
+ assert.equal(reminderOutcome(REMINDED,said('unknown',null),'2026-10-29T00:00:00Z',now).outcome,'other_reply');
+ assert.equal(reminderOutcome(REMINDED,said('unknown',null),null,Date.parse('2026-10-30T00:00:00Z')).outcome,'open','still before the last day');
+});
+
+test('the summary counts real reminders per tester, leaves tests out of the rates, and says where other purchases stand',()=>{
+ const now=Date.parse('2026-11-05T12:00:00Z');
+ const people=[{conversation_id:'a',lastInbound:null,items:[said('kept','2026-10-28T20:00:00Z'),said('returned','2026-10-29T10:00:00Z',{id:'q'})],
+  returns:{reminded:[REMINDED,{...REMINDED,item_id:'q'},{...REMINDED,item_id:'r'}],log:[{item_id:'z',status:'skip',reason:'no_terms'},{item_id:'y',status:'skip',reason:'too_early'},{item_id:'y',status:'skip',reason:'no_terms'},{item_id:'t',status:'sent',test:true}]}},
+  {conversation_id:'b',items:[],lastInbound:null,returns:{log:[{item_id:'t',status:'sent',test:true}]}},
+  {conversation_id:'c',items:[],lastInbound:null,returns:{log:[]}}];
+ const s=returnReminderSummary(people,now);
+ assert.deepEqual(s.people.map(p=>p.id),['a','b'],'nobody with nothing to show');
+ const a=s.people[0];
+ assert.deepEqual([a.sent,a.kept,a.returned,a.returned_in_time,a.no_reply,a.tests],[3,1,1,1,1,1]);
+ assert.deepEqual(a.waiting,{no_terms:2},'each item\'s latest decision');
+ assert.equal(s.people[1].tests,1);assert.equal(s.totals.sent,3);
+ assert.equal(s.totals.answered_rate,2/3);
+ assert.equal(s.recent.length,3);assert.equal(s.recent[0].name,'CHERRY LA Cargo Pants');
+});
+
+test('the admin read loads purchase history only for people who got a real reminder',async()=>{
+ const store=await reminded(),loads=[];
+ const reads=Object.assign(Object.create(store),{returnLogs:async()=>[{conversation_id:OWNER,returns:store.row.data.returns},{conversation_id:'quiet',returns:{log:[{item_id:'x',status:'skip',reason:'no_terms'}]}}],
+  gmailImport:async id=>{loads.push(id);return store.gmailImport(id);},lastInbound:async()=>null});
+ const s=await returnRemindersSummary(reads,{now:Date.parse('2026-11-05T12:00:00Z')});
+ assert.deepEqual(loads,[OWNER]);
+ assert.equal(s.totals.sent,1);assert.equal(s.recent[0].outcome,'no_reply');assert.equal(s.recent[0].merchant,'CHERRY LA');
+});

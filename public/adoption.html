@@ -68,6 +68,20 @@
         </section>
       </div>
 
+      <div id="returns" class="dv-cards" hidden>
+        <section class="dv-card" aria-labelledby="returns-title">
+          <div class="dv-card-head"><h2 id="returns-title">Return reminders</h2><span class="dv-card-note">a text before a return window closes</span></div>
+          <div id="returns-summary" class="dv-metrics"></div>
+          <div class="dv-table-wrap"><table class="dv-table adoption-table"><thead><tr>
+            <th>Tester</th><th class="end">Sent</th><th class="end">Kept</th><th class="end">Returned</th><th class="end">Fit notes</th><th class="end">Other reply</th><th class="end">No reply</th><th class="end">Tests</th><th>Other purchases</th>
+          </tr></thead><tbody id="return-testers"></tbody></table></div>
+        </section>
+        <section class="dv-card" aria-labelledby="return-recent-title">
+          <div class="dv-card-head"><h2 id="return-recent-title">Recent return reminders</h2></div>
+          <div class="dv-table-wrap"><table class="dv-table adoption-table"><thead><tr><th>When (UTC)</th><th>Tester</th><th>Item</th><th>Last day</th><th>Outcome</th></tr></thead><tbody id="return-recent"></tbody></table></div>
+        </section>
+      </div>
+
       <div id="alerts" class="dv-cards" hidden>
         <section class="dv-card" aria-labelledby="alerts-title">
           <div class="dv-card-head"><h2 id="alerts-title">Alert texts</h2><span id="alerts-period" class="dv-card-note"></span></div>
@@ -84,6 +98,7 @@
       </div>
       <p id="quality-error" class="dv-card-note" hidden>The Quality cards couldn’t load. The rest of the page is unaffected; try Refresh.</p>
       <p id="nudges-error" class="dv-card-note" hidden>The Purchase nudges cards couldn’t load. The rest of the page is unaffected; try Refresh.</p>
+      <p id="returns-error" class="dv-card-note" hidden>The Return reminders cards couldn’t load. The rest of the page is unaffected; try Refresh.</p>
       <p id="alerts-error" class="dv-card-note" hidden>The Alert texts cards couldn’t load. The rest of the page is unaffected; try Refresh.</p>
     </div>
   </main>
