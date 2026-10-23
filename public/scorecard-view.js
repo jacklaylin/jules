@@ -82,11 +82,55 @@ export function metricCells(turns, { type = 'all', now = Date.now(), period = 'w
   const scoped = ofType(turns, type), { current, previous } = periodRanges(period, now), before = (PERIODS.find(p => p.key === period) ?? PERIODS[0]).before;
   const within = ([from, to]) => scoped.filter(t => ms(t.at) >= from && ms(t.at) < to);
   const thisPeriod = figures(within(current)), lastPeriod = figures(within(previous));
-  return METRICS.map(m => {
-    const a = thisPeriod[m.key], b = lastPeriod[m.key], v = verdict(m, a, b);
-    return { key: m.key, label: m.label, value: a.value === null ? '—' : m.format(a.value), verdict: v[0].toUpperCase() + v.slice(1), tone: TONE[v] ?? 'plain',
-      was: b.value === null ? `nothing ${before}` : `vs ${m.format(b.value)}`, sample: a.value === null ? `no ${m.noun[1]}` : count(a.n, m.noun), explain: m.explain, better: m.higher ? 'Higher is better.' : 'Lower is better.' };
-  });
+  // Outages are left out of every figure; Failed says how many, so a quiet week of failures is not mistaken for a good one.
+  const outages = within(current).length - counted(within(current)).length;
+  return METRICS.map(m => cellOf(m, thisPeriod[m.key], lastPeriod[m.key], before, m.key === 'failed_rate' ? outages : 0));
+}
+function cellOf(m, a, b, before, outages = 0) {
+  const v = verdict(m, a, b), left = outages ? ` · ${count(outages, ['outage', 'outages'])} left out` : '';
+  return { key: m.key, label: m.label, value: a.value === null ? '—' : m.format(a.value), verdict: v[0].toUpperCase() + v.slice(1), tone: TONE[v] ?? 'plain', watched: Boolean(m.watched),
+    was: b.value === null ? `nothing ${before}` : `vs ${m.format(b.value)}`, sample: (a.value === null ? `no ${m.noun[1]}` : count(a.n, m.noun)) + left, explain: m.explain, better: m.higher ? 'Higher is better.' : 'Lower is better.' };
+}
+
+// ---------- All chat turns (lib/scorecard.js loadChatScorecard) ----------
+// Every tester message Jules answered, not only searches: { turns, episodes } with figures and an own flag. The first
+// four are the numbers the founder watches weekly. Turns the OpenAI account refused (out of credit, over the spend
+// limit) are an outage, left out of every figure and counted beside Failed replies, as on the search figures.
+const fine = ts => ts.filter(t => !t.billing_outage);
+const mean = values => values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
+export const CHAT_METRICS = [
+  { key: 'complaint_rate', label: 'Complaints per turn', watched: true, format: pct, higher: false, minChange: 0.05, noun: ['turn', 'turns'],
+    compute: ({ turns }) => { const s = fine(turns); return { value: rate(s.filter(t => t.complained).length, s.length), n: s.length }; },
+    explain: 'Tester messages whose reply drew a complaint: a #dev note, a 👎 tapback, or a later message showing Jules missed what they asked (a quality signal). Each counts against the reply just before it.' },
+  { key: 'failure_rate', label: 'Failed replies', watched: true, format: pct, higher: false, minChange: 0.02, noun: ['turn', 'turns'],
+    compute: ({ turns }) => { const s = fine(turns); return { value: rate(s.filter(t => t.fallback || t.stuck).length, s.length), n: s.length }; },
+    explain: 'Tester messages that got the generic “something went wrong” text or no reply at all. OpenAI account outages (no credit, over the spend limit) are counted apart.' },
+  { key: 'messages_per_turn', label: 'Messages per turn', watched: true, format: v => v.toFixed(1), higher: false, minRatio: 0.1, noun: ['turn', 'turns'],
+    compute: ({ turns }) => { const v = fine(turns).map(t => t.messages).filter(Number.isFinite); return { value: mean(v), n: v.length }; },
+    explain: 'iMessages Jules sent for each tester message: the “looking now” text, the answer, product cards, photos and captions. Fewer means less to scroll.' },
+  { key: 'final_p50', label: 'Time to reply', watched: true, format: sec, higher: false, minRatio: 0.1, noun: ['turn', 'turns'],
+    compute: ({ turns }) => { const v = fine(turns).map(t => t.final_result_ms).filter(Number.isFinite); return { value: quantile(v, 0.5), n: v.length }; },
+    explain: 'Typical wait from a tester’s message until the complete answer (search results, saved item, or the reply itself). Half were faster.' },
+  { key: 'first_p50', label: 'First text back', format: sec, higher: false, minRatio: 0.1, noun: ['turn', 'turns'],
+    compute: ({ turns }) => { const v = fine(turns).map(t => t.first_message_ms).filter(Number.isFinite); return { value: quantile(v, 0.5), n: v.length }; },
+    explain: 'Typical wait until Jules’s first text, including a quick “looking now”. Half were faster.' },
+  { key: 'final_p90', label: 'Slowest 10%', format: sec, higher: false, minRatio: 0.1, noun: ['turn', 'turns'],
+    compute: ({ turns }) => { const v = fine(turns).map(t => t.final_result_ms).filter(Number.isFinite); return { value: quantile(v, 0.9), n: v.length }; },
+    explain: '1 in 10 complete answers took at least this long. Shows the bad waits the typical number hides.' },
+  { key: 'model_written_share', label: 'Written by the model', format: pct, higher: true, minChange: 0.05, noun: ['reply', 'replies'],
+    compute: ({ turns }) => { const s = fine(turns).filter(t => ['model', 'template', 'mixed'].includes(t.composed_by)), n = c => s.filter(t => t.composed_by === c).length;
+      return { value: s.length ? (n('model') + n('mixed') / 2) / s.length : null, n: s.length }; },
+    explain: 'Replies the model wrote in Jules’s voice, rather than fixed text. Replies sent before this was recorded are left out.' },
+  { key: 'first_try_rate', label: 'Found first try', format: pct, higher: true, minChange: 0.05, noun: ['pick', 'picks'],
+    compute: ({ episodes }) => { const s = episodes.filter(e => e.outcome !== 'no_acceptance'); return { value: rate(s.filter(e => e.outcome === 'first_try').length, s.length), n: s.length }; },
+    explain: 'When a tester asked for a specific product and then picked or saved one, how often it was in the first set of results.' },
+];
+export function chatCells(chat, { now = Date.now(), period = 'week', who = 'testers' } = {}) {
+  const mine = r => who === 'all' || !r.own, { current, previous } = periodRanges(period, now), before = (PERIODS.find(p => p.key === period) ?? PERIODS[0]).before;
+  const within = (rows, [from, to]) => (rows ?? []).filter(r => mine(r) && ms(r.at) >= from && ms(r.at) < to);
+  const part = range => ({ turns: within(chat?.turns, range), episodes: within(chat?.episodes, range) });
+  const a = part(current), b = part(previous), outages = a.turns.length - fine(a.turns).length;
+  return CHAT_METRICS.map(m => cellOf(m, m.compute(a), m.compute(b), before, m.key === 'failure_rate' ? outages : 0));
 }
 
 // Up to eight weeks, newest first, each with every metric and its sample.

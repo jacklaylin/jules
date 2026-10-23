@@ -13,9 +13,8 @@ import { json, readJson, uuid, timeView } from '../lib/http.js';
 import { purchaseReview, reviewPurchase, reportMissedPurchase } from '../lib/purchase-review.js';
 import { groupWishlist } from '../lib/wishlist.js';
 import { marketEnvironment } from '../lib/shopping-market.js';
-import { metricsTrend } from '../lib/chat-metrics.js';
 import { loadTurnOutcomes } from '../lib/turn-outcomes.js';
-import { loadScorecard, replayDraft } from '../lib/scorecard.js';
+import { loadScorecard, loadChatScorecard, replayDraft } from '../lib/scorecard.js';
 import { deleteImportedHistory } from '../lib/gmail-import.js';
 import { tagPurchaseHistory } from '../lib/item-tags.js';
 import { buildReport, sendReportLink, sendNewCardText, reportView, withReadPhoto } from '../lib/style-report.js';
@@ -180,7 +179,8 @@ export function createAdminHandler({ auth = authorize, storeFactory = createStor
       if (query.get('view') === 'nudges-summary') return json(res, 200, nudgeSummary(await store.nudgeLogs()));
       // Alert texts across testers (lib/alert-metrics.js): sent, failed, tapped, replied, bought. Loaded on its own like nudges.
       if (query.get('view') === 'alerts-summary') return json(res, 200, alertSummary(await store.alertMetricRows(new Date(Date.now() - 30 * 86400000).toISOString()), { tracking: env.LINK_CLICK_TRACKING === 'true' }));
-      if (query.get('view') === 'metrics') return json(res, 200, await metricsTrend(store, { days: 7 }));
+      // Admin › Scorecard › All chat turns (lib/scorecard.js): figures per turn, no ids or text.
+      if (query.get('view') === 'chat-turns') return json(res, 200, await loadChatScorecard(store, { env }));
       // Per sourcing turn outcomes (lib/turn-outcomes.js): ids, counts and labels only, no message text.
       if (query.get('view') === 'scorecard') return json(res, 200, await loadScorecard(store, { env }));
       if (query.get('view') === 'turn-outcomes') return json(res, 200, await loadTurnOutcomes(store, { days: Math.min(56, Math.max(1, Number(query.get('days')) || 7)) }));

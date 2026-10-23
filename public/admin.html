@@ -8,10 +8,6 @@
 <body class="admin-console">
   <main>
     <h1 class="dv-title">People</h1>
-    <section id="chat-metrics" class="chat-metrics" aria-label="Chat quality, last 7 days against the 7 before" hidden>
-      <div id="chat-metrics-strip" class="dv-metrics"></div>
-      <details class="fold metrics-help"><summary>Chat quality, last 7 days against the 7 before · what these numbers mean</summary><dl id="chat-metrics-help"></dl></details>
-    </section>
     <div class="dv-toolbar">
       <div id="people-views" class="dv-views" role="group" aria-label="People views">
         <button type="button" data-view="" aria-pressed="true">Testers</button>
@@ -26,7 +22,7 @@
     <div id="people-more" class="dv-pop dv-menu" popover aria-label="More actions">
       <button id="refresh" type="button">Refresh <span class="hint">people and chat quality</span></button>
     </div>
-    <div class="dv-status"><span id="metrics-note"></span><span id="notice" role="status" aria-live="polite"></span><span id="people-keys" class="dv-keys" aria-hidden="true"><span class="kbd">J</span><span class="kbd">K</span> move <span class="kbd">↵</span> open</span></div>
+    <div class="dv-status"><span id="notice" role="status" aria-live="polite"></span><span id="people-keys" class="dv-keys" aria-hidden="true"><span class="kbd">J</span><span class="kbd">K</span> move <span class="kbd">↵</span> open</span></div>
     <div id="people" class="dv-list people-list" aria-label="People"></div>
     <div id="signups" class="dv-list signups-list" aria-label="New signups" hidden></div>
     <p id="signups-note" class="dv-status" hidden>People who signed up but haven’t texted Jules yet. Photon only lets Jules text someone after they’ve texted first, so for each one: enroll their number in Photon, ask them to text their Jules line, then find them under Testers and click Approve. Approving sets up their account and texts the welcome.</p>

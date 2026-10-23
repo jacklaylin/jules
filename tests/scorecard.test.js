@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Readable } from 'node:stream';
-import { metricCells, weekRows, worstTurns, agreement, turnRow, verdict, METRICS, weekStart, forWho } from '../public/scorecard-view.js';
-import { loadScorecard, replayDraft, ownConversations } from '../lib/scorecard.js';
+import { metricCells, chatCells, weekRows, worstTurns, agreement, turnRow, verdict, METRICS, weekStart, forWho } from '../public/scorecard-view.js';
+import { loadScorecard, loadChatScorecard, replayDraft, ownConversations } from '../lib/scorecard.js';
 import { createAdminHandler } from '../api/admin.js';
 
 const NOW = Date.parse('2026-10-22T12:00:00Z'); // a Thursday; the week began Monday Oct 19
@@ -149,8 +149,55 @@ test('the owner marks the judge only on a saved turn of that conversation, from 
 test('OpenAI account outages are left out of every figure and the turns to read, and shown beside the week’s count', () => {
   const turns = [...many(5, 1), ...many(3, 1, { result: 'outage', products_shown: 0, headline: 'silent', labels: ['silent'], result_ms: 1000 })];
   const cells = Object.fromEntries(metricCells(turns, { now: NOW }).map(c => [c.key, c]));
-  assert.equal(cells.failed_rate.value, '0%'); assert.equal(cells.failed_rate.sample, '5 searches'); assert.equal(cells.result_p50.value, '50s');
+  assert.equal(cells.failed_rate.value, '0%'); assert.equal(cells.failed_rate.sample, '5 searches · 3 outages left out'); assert.equal(cells.result_p50.value, '50s');
   assert.equal(worstTurns(turns).length, 0);
   const [week] = weekRows(turns, { now: NOW });
   assert.equal(week.searches, 5); assert.equal(week.outages, 3);
+});
+
+// ---------- All chat turns ----------
+const chatTurn = (n, extra = {}) => ({ at: day(n), own: false, first_message_ms: 3000, final_result_ms: 20000, messages: 2, fallback: false, stuck: false, billing_outage: false, complained: false, composed_by: 'model', ...extra });
+const chatMany = (count, n, extra) => Array.from({ length: count }, () => chatTurn(n, extra));
+
+test('all chat turns: the four watched numbers come first, compared this week against last on their own samples', () => {
+  const chat = { turns: [
+    ...chatMany(8, 1), ...chatMany(2, 1, { complained: true }), chatTurn(2, { fallback: true }), ...chatMany(3, 2, { billing_outage: true, fallback: true }),
+    ...chatMany(6, 8, { messages: 3, final_result_ms: 40000, complained: true }), ...chatMany(4, 8, { messages: 3, final_result_ms: 40000 }),
+  ], episodes: [{ at: day(1), outcome: 'first_try' }, { at: day(1), outcome: 'no_acceptance' }] };
+  const cells = Object.fromEntries(chatCells(chat, { now: NOW }).map(c => [c.key, c]));
+  assert.deepEqual(chatCells(chat, { now: NOW }).filter(c => c.watched).map(c => c.label), ['Complaints per turn', 'Failed replies', 'Messages per turn', 'Time to reply']);
+  // 11 turns this week (3 outages left out): 2 complaints, 1 failed.
+  assert.deepEqual([cells.complaint_rate.value, cells.complaint_rate.verdict, cells.complaint_rate.was, cells.complaint_rate.sample], ['18%', 'Better', 'vs 60%', '11 turns']);
+  assert.deepEqual([cells.failure_rate.value, cells.failure_rate.verdict, cells.failure_rate.sample], ['9%', 'Worse', '11 turns · 3 outages left out']);
+  assert.deepEqual([cells.messages_per_turn.value, cells.messages_per_turn.verdict, cells.messages_per_turn.was], ['2.0', 'Better', 'vs 3.0']);
+  assert.deepEqual([cells.final_p50.value, cells.final_p50.verdict], ['20s', 'Better']);
+  assert.deepEqual([cells.first_try_rate.value, cells.first_try_rate.verdict, cells.first_try_rate.sample], ['100%', 'Too few to tell', '1 pick']);
+  assert.ok(chatCells(chat, { now: NOW }).every(c => c.explain.length > 20 && /is better\.$/.test(c.better)));
+});
+
+test('all chat turns follow Compare and Whose turns: the founder’s own turns are left out unless included', () => {
+  const chat = { turns: [...chatMany(5, 1), ...chatMany(5, 1, { own: true, complained: true })], episodes: [] };
+  const rate = opts => chatCells(chat, { now: NOW, ...opts }).find(c => c.key === 'complaint_rate');
+  assert.deepEqual([rate({}).value, rate({}).sample], ['0%', '5 turns']);
+  assert.deepEqual([rate({ who: 'all' }).value, rate({ who: 'all' }).sample], ['50%', '10 turns']);
+  const month = chatCells({ turns: [...chatMany(5, 20), ...chatMany(5, 40, { messages: 4 })], episodes: [] }, { now: NOW, period: 'month' }).find(c => c.key === 'messages_per_turn');
+  assert.deepEqual([month.value, month.was, month.verdict], ['2.0', 'vs 4.0', 'Better']);
+  assert.equal(chatCells(null, { now: NOW })[0].value, '—');
+});
+
+test('the chat-turns read marks the founder’s turns and returns figures only, no ids or text', async () => {
+  const C1 = 'aaaaaaaa-0000-4000-8000-000000000001', C2 = 'bbbbbbbb-0000-4000-8000-000000000002';
+  const rows = [
+    { conversation_id: C1, provider_id: 'm1', direction: 'inbound', created_at: day(1), body: 'private' },
+    { conversation_id: C1, operation_id: 'ai:m1', direction: 'outbound', status: 'sent', created_at: day(1), sent_at: day(1), body: 'private reply' },
+    { conversation_id: C2, provider_id: 'm2', direction: 'inbound', created_at: day(2) },
+    { conversation_id: C2, operation_id: 'ai:m2', direction: 'outbound', status: 'sent', created_at: day(2), sent_at: day(2) },
+    { conversation_id: C2, provider_id: 'old', direction: 'inbound', created_at: day(70) },
+    { conversation_id: C2, operation_id: 'ai:old', direction: 'outbound', status: 'sent', created_at: day(70) },
+  ];
+  const store = { list: async () => [{ id: C1, sender_id: '+14155550142' }, { id: C2, sender_id: '+14155550199' }], metricRows: async () => rows, replyActions: async () => [] };
+  const data = await loadChatScorecard(store, { now: NOW, env: { FOUNDER_ALERT_PHONE: '+1 415 555 0142' } });
+  assert.deepEqual(data.turns.map(t => t.own), [true, false]);
+  assert.equal(data.own_configured, true);
+  assert.doesNotMatch(JSON.stringify(data), /private|aaaaaaaa|bbbbbbbb|4155550/);
 });
