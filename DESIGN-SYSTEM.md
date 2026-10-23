@@ -135,6 +135,7 @@ Every rich iMessage preview image is one component, LinkPreview, designed on the
 | Daylight | Homepage `/` | `home-v2.png` |
 | Bubblegum | Wishlist `/wishlist` | `wishlist-v2.png` (three blank cards) |
 | Sherbet | Your style `/style` | `style-v2.png` |
+| Bubblegum | Single save with a product photo | `saved-photo-bg-v1.png` plus the photo, placed per item (`lib/link-preview-photo.js`) |
 | Dusk | Saved item with no product photo | `saved-v2.png` |
 | Signup | Spare (invites) | — |
 
