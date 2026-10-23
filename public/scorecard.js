@@ -32,7 +32,7 @@ function render() {
   $('judge-missing').hidden = data.judge_available;
   $('weeks-head').replaceChildren(...['Week of', 'Searches', ...METRICS.map(m => m.label)].map(h => el('th', { textContent: h })));
   const weeks = weekRows(turns, { type, now });
-  $('weeks').replaceChildren(...weeks.map(w => el('tr', { className: w.current ? 'current' : '' }, cell('Week of', el('strong', { textContent: w.week_of })), cell('Searches', String(w.searches), 'num'),
+  $('weeks').replaceChildren(...weeks.map(w => el('tr', { className: w.current ? 'current' : '' }, cell('Week of', el('strong', { textContent: w.week_of })), cell('Searches', w.outages ? `${w.searches} (+${w.outages} outage)` : String(w.searches), 'num'),
     ...w.cells.map(c => cell(c.label, c.value, 'num')))));
   if (!weeks.length) $('weeks').append(el('tr', {}, el('td', { colSpan: METRICS.length + 2, className: 'dv-empty', textContent: 'No searches yet.' })));
   const a = agreement(turns);
