@@ -24,9 +24,10 @@ const OTHER_TERMS = [
   ['Misses', 'The model’s own judgement that a later message showed Jules got something wrong. They’re noisy: use them as pointers to conversations to read, not as a score.'],
   ['Flags', 'The tester’s own 👎 tapbacks and #dev notes.'],
   ['Purchase nudges', 'Texts Jules sends on her own: the goes-with offer after a new purchase and the fit check after delivery. Answered means they said yes, no, not now, or turned these texts off. Paused means two nudges in a row went unanswered for two days, so Jules waits 14 days (any message resets it). Admin test sends are left out of the rates.'],
+  ['Return reminders', 'A text a few days before a recent purchase’s return window closes, when its emails or receipt state the window. Kept and Returned are what the person told Jules (or a later return email) after the reminder; Returned in time means before the last return day. Other reply means they texted Jules since but nothing was recorded for that item. Open means the window hasn’t closed yet. Admin test reminders are left out.'],
   ['Alert texts', 'Price-drop, back-in-stock and nearly-sold-out texts. A tap is counted when the person opens the store link in that text (link previews don’t count). Admin test texts are left out.'],
 ];
-let data = null, nudges = null, alerts = null, refreshedAt = null;
+let data = null, nudges = null, alerts = null, returns = null, refreshedAt = null;
 
 function render() {
   if (!data) return;
@@ -55,6 +56,7 @@ function render() {
   }));
   renderQuality(data.quality, testers);
   renderNudges(nudges, testers);
+  renderReturns(returns, testers);
   renderAlerts(alerts, testers);
   const quality = data.quality ? [...data.quality.kinds.map(k => [`Miss: ${k.label}`, k.explain]), ...data.quality.photo_outcomes.map(o => [`Photo: ${o.label}`, o.explain])] : [];
   $('definitions').replaceChildren(...[...steps.map(s => [s.label, s.explain]), ...OTHER_TERMS, ...quality].flatMap(([term, text]) => [el('dt', { textContent: term }), el('dd', { textContent: text })]));
@@ -109,6 +111,32 @@ function renderNudges(n, testers) {
   if (!n.recent.length) $('nudge-recent').append(el('tr', {}, el('td', { colSpan: 4, className: 'dv-empty', textContent: 'Nothing recorded yet.' })));
 }
 
+// Return reminders (lib/return-windows.js returnReminderSummary). Loaded on its own; a failed read only hides this section.
+const RETURN_OUTCOME = { kept: 'kept', returned: 'returned', other_reply: 'other reply', no_reply: 'no reply', open: 'open' };
+const RETURN_WAITING = { too_early: 'too early', no_terms: 'no return terms', final_sale: 'final sale', deadline_passed: 'window closed', already_reminded: 'already reminded', kept: 'kept', returned: 'returned',
+  return_requested: 'return started', gift: 'a gift', gone: 'no longer theirs', never_bought: 'not a purchase', cancelled: 'cancelled', quiet_hours: 'quiet hours', already_today: 'already reminded today',
+  next_text: 'next text', reminders_off: 'turned off', opted_out: 'texted STOP', no_purchased_date: 'no order date' };
+function renderReturns(r, testers) {
+  if (r === undefined) return;
+  $('returns').hidden = !r; $('returns-error').hidden = Boolean(r);
+  if (!r) return;
+  const name = id => testers.find(t => t.id === id)?.sender_id ?? id.slice(0, 8);
+  const link = id => el('a', { className: 'tester-link', href: `/admin/people/${id}`, textContent: name(id) });
+  const t = r.totals;
+  $('returns-summary').replaceChildren(...[['Reminders sent', String(t.sent), `${t.open} still open`], ['Answered', pct(t.answered_rate), `${t.kept + t.returned} of ${t.sent - t.open} closed`],
+    ['Returned in time', String(t.returned_in_time), `${t.returned} returned · ${t.kept} kept`], ['No reply', String(t.no_reply), `${t.other_reply} replied about something else`]]
+    .map(([label, value, detail]) => metricCell({ label, value, detail })));
+  $('return-testers').replaceChildren(...r.people.map(p => el('tr', {}, cell('Tester', link(p.id)), cell('Sent', String(p.sent), 'end num'), cell('Kept', String(p.kept), 'end num'),
+    cell('Returned', `${p.returned}${p.returned_in_time !== p.returned ? ` (${p.returned_in_time} in time)` : ''}`, 'end num'), cell('Fit notes', String(p.fit_notes), 'end num'),
+    cell('Other reply', String(p.other_reply), 'end num'), cell('No reply', `${p.no_reply}${p.open ? ` (+${p.open} open)` : ''}`, 'end num'), cell('Tests', String(p.tests), 'end num'),
+    cell('Other purchases', Object.entries(p.waiting).sort((a, b) => b[1] - a[1]).map(([k, c]) => `${RETURN_WAITING[k] ?? k} ×${c}`).join(', ') || '—'))));
+  if (!r.people.length) $('return-testers').append(el('tr', {}, el('td', { colSpan: 9, className: 'dv-empty', textContent: 'No return reminders yet.' })));
+  $('return-recent').replaceChildren(...r.recent.map(e => el('tr', {}, cell('When (UTC)', e.at.slice(0, 16).replace('T', ' ')), cell('Tester', link(e.id)),
+    cell('Item', [e.name, e.merchant && !(e.name ?? '').toLowerCase().includes(e.merchant.toLowerCase()) ? e.merchant : null].filter(Boolean).join(' · ') || '—'), cell('Last day', e.deadline),
+    cell('Outcome', `${RETURN_OUTCOME[e.outcome] ?? e.outcome}${e.outcome === 'returned' ? (e.in_time ? ' in time' : ' late') : ''}${e.fit ? ` · fit: ${e.fit.replace(/_/g, ' ')}` : ''}`))));
+  if (!r.recent.length) $('return-recent').append(el('tr', {}, el('td', { colSpan: 5, className: 'dv-empty', textContent: 'Nothing sent yet.' })));
+}
+
 // Alert texts (lib/alert-metrics.js alertSummary), last 30 days. Loaded on its own; a failed read only hides this section.
 const DELIVERY = { sent: 'Sent', uncertain: 'Uncertain', failed: 'Failed', blocked: 'Blocked (STOP)', sending: 'Sending' };
 const ratio = (part, whole, r) => whole ? `${part} (${pct(r ?? part / whole)})` : '0';
@@ -142,11 +170,11 @@ function renderAlerts(a, testers) {
 async function load() {
   $('loader').hidden = false; $('notice').textContent = ''; $('notice').className = '';
   const token = await adminToken().catch(() => null);
-  if (!data) { const saved = readPage(localStorage, 'admin_adoption', token); if (saved) { ({ data, nudges, alerts } = saved.data); refreshedAt = saved.at; render(); } }
-  const nudgesRead = adminJson('/api/admin?view=nudges-summary').catch(() => null), alertsRead = adminJson('/api/admin?view=alerts-summary').catch(() => null);
+  if (!data) { const saved = readPage(localStorage, 'admin_adoption', token); if (saved) { ({ data, nudges, alerts, returns } = saved.data); refreshedAt = saved.at; render(); } }
+  const nudgesRead = adminJson('/api/admin?view=nudges-summary').catch(() => null), alertsRead = adminJson('/api/admin?view=alerts-summary').catch(() => null), returnsRead = adminJson('/api/admin?view=returns-summary').catch(() => null);
   try {
-    const fresh = { data: await adminJson('/api/admin?view=adoption'), nudges: await nudgesRead, alerts: await alertsRead }, same = sameData(fresh, { data, nudges, alerts });
-    ({ data, nudges, alerts } = fresh); refreshedAt = Date.now(); savePage(localStorage, 'admin_adoption', token, fresh);
+    const fresh = { data: await adminJson('/api/admin?view=adoption'), nudges: await nudgesRead, alerts: await alertsRead, returns: await returnsRead }, same = sameData(fresh, { data, nudges, alerts, returns });
+    ({ data, nudges, alerts, returns } = fresh); refreshedAt = Date.now(); savePage(localStorage, 'admin_adoption', token, fresh);
     if (same) $('refreshed').textContent = `Refreshed ${ago(refreshedAt)}`; else render();
   } catch (error) { $('notice').className = 'error'; $('notice').textContent = data ? `Could not refresh: ${error.message} Showing the report from ${ago(refreshedAt)}.` : `Could not load adoption: ${error.message} Try Refresh.`; if (!data) $('testers').replaceChildren(); }
   finally { $('loader').hidden = true; }
