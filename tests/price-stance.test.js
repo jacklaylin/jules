@@ -129,25 +129,27 @@ test('an amount on the plan must be quoted from the user, or kept from the plan 
   const msg=body=>({direction:'inbound',body}),said=[msg('can you find me some cool shirts that aren’t expensive')];
   const withPrice=(price,extra={})=>({...plan,...extra,price:{...plan.price,...price}});
   // The model picked $50 for "aren't expensive": the amount is dropped, the stance stays, nothing is filtered.
-  const invented=supportedPrice(withPrice({max:50,currency:'USD',stance:'prefers_lower',amount_quote:'that aren\'t expensive'}),[...said,{direction:'outbound',body:'under $50?'}]);
+  const invented=supportedPrice(withPrice({max:50,currency:'USD',stance:'prefers_lower',price_quote:'that aren\'t expensive'}),[...said,{direction:'outbound',body:'under $50?'}]);
   assert.deepEqual({min:invented.price.min,max:invented.price.max,stance:invented.price.stance},{min:null,max:null,stance:'prefers_lower'});
   assert.deepEqual(invented.price.unsupported_amount,{min:null,max:50,quote:'that aren\'t expensive'});
   assert.equal(priceBand({plan:invented}).max,null);
-  assert.equal(supportedPrice(withPrice({max:50,amount_quote:null}),said).price.max,null);
+  assert.equal(supportedPrice(withPrice({max:50,price_quote:null}),said).price.max,null);
   // Jules's own words are not the user's.
-  assert.equal(supportedPrice(withPrice({max:50,amount_quote:'under $50'}),[...said,{direction:'outbound',body:'want them under $50?'}]).price.max,null);
+  assert.equal(supportedPrice(withPrice({max:50,price_quote:'under $50'}),[...said,{direction:'outbound',body:'want them under $50?'}]).price.max,null);
   // A stated amount stands, whatever its spelling or quote marks.
-  assert.equal(supportedPrice(withPrice({max:50,amount_quote:'under 50'}),[msg('cool shirts under 50')]).price.max,50);
-  assert.equal(supportedPrice(withPrice({max:100,amount_quote:'nothing over a hundred'}),[msg('linen shorts, Nothing over a  hundred bucks')]).price.max,100);
-  assert.equal(supportedPrice(withPrice({min:200,max:300,amount_quote:'200-300'}),[msg('somewhere around 200-300')]).price.max,300);
-  assert.equal(supportedPrice(withPrice({max:1500,amount_quote:'under 1.5k'}),[msg('a coat under 1.5k')]).price.max,1500);
+  assert.equal(supportedPrice(withPrice({max:50,price_quote:'under 50'}),[msg('cool shirts under 50')]).price.max,50);
+  assert.equal(supportedPrice(withPrice({max:100,price_quote:'nothing over a hundred'}),[msg('linen shorts, Nothing over a  hundred bucks')]).price.max,100);
+  assert.equal(supportedPrice(withPrice({min:200,max:300,price_quote:'200-300'}),[msg('somewhere around 200-300')]).price.max,300);
+  assert.equal(supportedPrice(withPrice({max:1500,price_quote:'under 1.5k'}),[msg('a coat under 1.5k')]).price.max,1500);
   // A quoted amount that isn't the plan's amount is not support for it.
-  assert.equal(supportedPrice(withPrice({max:50,amount_quote:'under 80'}),[msg('shirts under 80')]).price.max,null);
+  assert.equal(supportedPrice(withPrice({max:50,price_quote:'under 80'}),[msg('shirts under 80')]).price.max,null);
   // Continuing a request keeps its amount even when the message that stated it is out of view.
-  assert.equal(supportedPrice(withPrice({max:800,amount_quote:null},{continuation:true}),[msg('go chunkier')],{max:800,min:null}).price.max,800);
-  assert.equal(supportedPrice(withPrice({max:500,amount_quote:null},{continuation:true}),[msg('go chunkier')],{max:800,min:null}).price.max,null);
+  assert.equal(supportedPrice(withPrice({max:800,price_quote:null},{continuation:true}),[msg('go chunkier')],{max:800,min:null}).price.max,800);
+  assert.equal(supportedPrice(withPrice({max:500,price_quote:null},{continuation:true}),[msg('go chunkier')],{max:800,min:null}).price.max,null);
   // No amount: nothing to check.
-  const none=withPrice({stance:'prefers_lower'});assert.equal(supportedPrice(none,said),none);
+  const none=withPrice({stance:null});assert.equal(supportedPrice(none,said),none);
+  // Plans stored before October 23 named the quote amount_quote.
+  assert.equal(supportedPrice(withPrice({max:50,price_quote:undefined,amount_quote:'under 50'}),[msg('cool shirts under 50')]).price.max,50);
 });
 
 test('everyday and special-piece budgets apply by the scope the plan names',async()=>{
@@ -209,4 +211,27 @@ test('the ranker and the stylist both receive the band; the ranker sees each can
   await stylistConcepts({query:'tops',plan,facts,band:{range:'up to $500'},env:{OPENAI_API_KEY:'test'},fetcher:async(_u,o)=>{stylistInput=JSON.parse(JSON.parse(o.body).input);return {ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({concepts:[]})}]}]})};}});
   assert.deepEqual(stylistInput.price_band,{range:'up to $500'});
   assert.ok(stylistInput.saved_profile.some(f=>f.field==='spending'&&f.key==='quality'));
+});
+
+// October 23: "prefers lower" set on a chinos request was carried onto a new request for club shirts
+// with no word about price, so results leaned cheap and the look check stepped aside.
+test('a leaning toward lower prices must be in the newest message, or kept from the request being continued',()=>{
+  const msg=body=>({direction:'inbound',body}),withPrice=(price,extra={})=>({...plan,...extra,price:{...plan.price,stance:'prefers_lower',...price}});
+  const chinos=[msg('can you find the beige still chinos somewhere cheaper'),{direction:'outbound',body:'found two'}];
+  // A new request with no word about price: the leaning carried from the last request is dropped.
+  for(const quote of [null,'somewhere cheaper']){
+    const carried=supportedPrice(withPrice({price_quote:quote},{continuation:false}),[...chinos,msg('Find me some cool shirts to wear to basement')],{stance:'prefers_lower'});
+    assert.equal(carried.price.stance,null,String(quote));assert.equal(carried.price.unsupported_stance,true);
+    assert.equal(priceBand({plan:carried}),null);
+  }
+  // Said in the newest message, in any wording: it stands.
+  for(const [body,quote] of [['cheap black tanks for the club','cheap'],['something affordable please, I\'m broke','something affordable'],['less pricey ones?','less pricey'],['NOTHING TOO EXPENSIVE','nothing too expensive']])
+    assert.equal(supportedPrice(withPrice({price_quote:quote},{continuation:false}),[...chinos,msg(body)]).price.stance,'prefers_lower',body);
+  // Continuing the request that set it keeps it; continuing one without it, or Jules's words, does not.
+  assert.equal(supportedPrice(withPrice({price_quote:null},{continuation:true}),[msg('go tighter')],{stance:'prefers_lower'}).price.stance,'prefers_lower');
+  assert.equal(supportedPrice(withPrice({price_quote:null},{continuation:true}),[msg('go tighter')],{stance:null}).price.stance,null);
+  assert.equal(supportedPrice(withPrice({price_quote:'cheaper'},{continuation:false}),[msg('club shirts'),{direction:'outbound',body:'want cheaper ones?'}]).price.stance,null);
+  // An amount quoted in the newest message supports both the amount and the leaning.
+  const both=supportedPrice(withPrice({max:50,currency:'USD',price_quote:'cheap, under 50'},{continuation:false}),[msg('cheap, under 50 please')]);
+  assert.deepEqual([both.price.stance,both.price.max],['prefers_lower',50]);
 });
