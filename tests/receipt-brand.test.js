@@ -33,3 +33,21 @@ test('the store is shown as people say it, everywhere history is read: wardrobe,
  assert.equal(state.items[0].merchant,'MFPEN');
  assert.equal(wardrobeView(state).items[0].merchant,'MFPEN');
 });
+
+test('the answer reader gets a compact history: each item as a person would name it, and only waiting questions',async()=>{
+ const {answerView,interpretReceiptAnswer}=await import('../lib/receipt-feedback.js');
+ const state=projectReceiptEvidence(owner,[record(1,'MFPEN Retail ApS'),record(2,'Dries Van Noten')]).state;
+ const fixed=applyReceiptFeedback(state,{id:'closet:1',owner_id:owner,source:'closet_edit',at:'2026-10-22T00:00:00Z',item_ids:['item-1'],action:'correct_fields',values:{brand:'MFPEN Studio'}});
+ fixed.questions=[{id:'q1',topic:'recipient',fields:[],question:'Was this for you?',item_ids:['item-2'],status:'open',reason:'r',evidence_ids:['e2']},{id:'q0',topic:'recipient',fields:[],question:'Old',item_ids:['item-2'],status:'resolved',reason:'r',evidence_ids:['e2']}];
+ const view=answerView({...fixed,conversation:[{direction:'inbound'}],return_reminders:[{id:'item-1'}]});
+ assert.deepEqual(view.items.map(i=>i.id),['item-1','item-2']);
+ const first=view.items[0];
+ assert.equal(first.brand,'MFPEN Studio');assert.equal(first.as_first_read.brand,'MFPEN','the original reading is kept when corrected');
+ assert.deepEqual(first.events,['purchased']);assert.ok(first.bought);
+ for(const k of ['source_events','original','field_provenance','source_ids'])assert.ok(!(k in first),k);
+ assert.ok(!('feedback' in view),'no correction log');
+ assert.deepEqual(view.questions.map(q=>q.id),['q1']);
+ assert.equal(view.conversation.length,1);assert.equal(view.return_reminders[0].id,'item-1');
+ let sent;await interpretReceiptAnswer(fixed,'keeping it',async request=>{sent=request.context.state;return {actions:[]};});
+ assert.ok(JSON.stringify(sent).length<JSON.stringify(fixed).length/2,'much smaller than the full history');
+});
