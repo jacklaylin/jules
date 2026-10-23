@@ -31,13 +31,13 @@ export const METRICS = [
     explain: 'Searches the nightly judge passed on every criterion. It is lenient on taste and fit and can’t see photos, so read the failures rather than trusting the rate alone.' },
   { key: 'first_p50', label: 'First reply (typical)', format: sec, higher: false, minRatio: 0.1, noun: ['search', 'searches'],
     compute: ts => { const v = ts.map(t => t.first_message_ms).filter(Number.isFinite); return { value: quantile(v, 0.5), n: v.length }; },
-    explain: 'Time from the tester’s message to Jules’s first text back (usually the “looking now” line). Half were faster.' },
+    explain: 'Time from the tester’s message to Jules’s first text back (usually the “on it” line; the 👀 tapback and typing dots come before it and aren’t counted). Half were faster.' },
   { key: 'result_p50', label: 'Results (typical)', format: sec, higher: false, minRatio: 0.1, noun: ['search', 'searches'],
     compute: ts => { const v = ts.map(t => t.result_ms).filter(Number.isFinite); return { value: quantile(v, 0.5), n: v.length }; },
-    explain: 'Time until the results arrived. Half were faster.' },
+    explain: 'Time until the answer’s text with the results reached the tester (product cards and photos follow it). Half were faster. Searches before October 22 count until everything was sent.' },
   { key: 'result_p90', label: 'Results (slowest 10%)', format: sec, higher: false, minRatio: 0.1, noun: ['search', 'searches'],
     compute: ts => { const v = ts.map(t => t.result_ms).filter(Number.isFinite); return { value: quantile(v, 0.9), n: v.length }; },
-    explain: '1 in 10 searches took at least this long.' },
+    explain: '1 in 10 searches took at least this long for the answer’s text to arrive.' },
   { key: 'failed_rate', label: 'Failed', format: pct, higher: false, minChange: 0.05, noun: ['search', 'searches'],
     compute: ts => ({ value: rate(ts.filter(t => BROKE.has(t.result)).length, ts.length), n: ts.length }),
     explain: 'Searches where something broke: the reply fell back to the plain message, stalled, or couldn’t read the photo.' },
@@ -54,7 +54,9 @@ export const WHO = [{ key: 'testers', label: 'Testers only' }, { key: 'all', lab
 export function forWho(turns, who, own = []) { const mine = new Set(own); return who === 'all' ? turns : turns.filter(t => !mine.has(t.conversation_id)); }
 
 const ofType = (turns, type) => type === 'all' ? turns : turns.filter(t => t.request_type === type);
-export function figures(turns) { return Object.fromEntries(METRICS.map(m => [m.key, m.compute(turns)])); }
+// Turns the OpenAI account refused (out of credit, over the spend limit) are an outage, not a search: left out of every figure.
+const counted = turns => turns.filter(t => t.result !== 'outage');
+export function figures(turns) { const ts = counted(turns); return Object.fromEntries(METRICS.map(m => [m.key, m.compute(ts)])); }
 
 // This week against last week, judged on each metric's own sample, like the People chat-quality strip.
 export function verdict(metric, now, before) {
@@ -94,7 +96,7 @@ export function weekRows(turns, { type = 'all', now = Date.now() } = {}) {
   const first = Math.max(weekStart(Math.min(...scoped.map(t => ms(t.at)))), current - (WEEKS - 1) * 7 * DAY), rows = [];
   for (let from = current; from >= first; from -= 7 * DAY) {
     const week = scoped.filter(t => ms(t.at) >= from && ms(t.at) < from + 7 * DAY), f = figures(week);
-    rows.push({ week_of: new Date(from).toISOString().slice(0, 10), current: from === current, searches: week.length,
+    rows.push({ week_of: new Date(from).toISOString().slice(0, 10), current: from === current, searches: counted(week).length, outages: week.length - counted(week).length,
       cells: METRICS.map(m => ({ key: m.key, label: m.label, value: f[m.key].value === null ? '—' : m.format(f[m.key].value), n: f[m.key].n })) });
   }
   return rows;
@@ -104,7 +106,7 @@ export function weekRows(turns, { type = 'all', now = Date.now() } = {}) {
 // failed searches; newest first within each. Turns with nothing wrong are left out.
 export function worstTurns(turns, { limit = 30 } = {}) {
   const score = t => (t.failed?.length ?? 0) * 10 + (t.headline === 'negative' ? 5 : 0) + (FAILED.has(t.result) ? 3 : 0) + (t.labels?.includes('flagged') ? 2 : 0);
-  return turns.filter(t => score(t) > 0).sort((a, b) => score(b) - score(a) || ms(b.at) - ms(a.at)).slice(0, limit);
+  return counted(turns).filter(t => score(t) > 0).sort((a, b) => score(b) - score(a) || ms(b.at) - ms(a.at)).slice(0, limit);
 }
 
 // How often the founder agreed with the judge, from the "judge was right / wrong" marks.
@@ -115,7 +117,7 @@ export function agreement(turns) {
 
 export const LABEL_TEXT = { saved: 'Saved', alert_on: 'Alert on', picked: 'Picked', purchase_intent: 'Asked to buy', clicked: 'Tapped link', reacted: 'Reacted', rejected: 'Rejected',
   missed: 'Missed', flagged: 'Flagged', confused: 'Tapped ❓', refined: 'Refined', clarified: 'Clarified', replied: 'Replied', moved_on: 'Moved on', not_recorded: 'Not recorded', silent: 'Silent', waiting: 'Waiting' };
-export const RESULT_TEXT = { verified: 'Verified', unverified_only: 'Unverified only', nothing_found: 'Nothing found', question: 'Asked first', failed: 'Failed', unreadable: 'Photo unreadable' };
+export const RESULT_TEXT = { verified: 'Verified', unverified_only: 'Unverified only', nothing_found: 'Nothing found', question: 'Asked first', failed: 'Failed', unreadable: 'Photo unreadable', outage: 'OpenAI account outage' };
 export const CRITERIA_TEXT = { identity: 'Wrong product or variant', links_verified: 'Unverified link', commerce_facts: 'Unsupported price, stock or shipping', clarification: 'Unneeded question', repetition: 'Repeated itself', consent: 'Consent' };
 
 // One worst-turn row as display strings.

@@ -145,3 +145,12 @@ test('the owner marks the judge only on a saved turn of that conversation, from 
   ]) { res = response(); await handler(post(body, headers), res); assert.equal(res.statusCode, status, JSON.stringify(body)); }
   assert.equal(marks.length, 2);
 });
+
+test('OpenAI account outages are left out of every figure and the turns to read, and shown beside the week’s count', () => {
+  const turns = [...many(5, 1), ...many(3, 1, { result: 'outage', products_shown: 0, headline: 'silent', labels: ['silent'], result_ms: 1000 })];
+  const cells = Object.fromEntries(metricCells(turns, { now: NOW }).map(c => [c.key, c]));
+  assert.equal(cells.failed_rate.value, '0%'); assert.equal(cells.failed_rate.sample, '5 searches'); assert.equal(cells.result_p50.value, '50s');
+  assert.equal(worstTurns(turns).length, 0);
+  const [week] = weekRows(turns, { now: NOW });
+  assert.equal(week.searches, 5); assert.equal(week.outages, 3);
+});
