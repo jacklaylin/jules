@@ -441,3 +441,15 @@ test('the admin read loads purchase history only for people who got a real remin
  assert.deepEqual(loads,[OWNER]);
  assert.equal(s.totals.sent,1);assert.equal(s.recent[0].outcome,'no_reply');assert.equal(s.recent[0].merchant,'CHERRY LA');
 });
+
+test('recording an answer reuses the history it just read unless something else wrote in between',async()=>{
+ for(const [between,reads] of [[false,1],[true,2]]){
+  const store=await reminded();let evidenceReads=0;const evidence=store.evidence;
+  store.evidence=async(...args)=>{evidenceReads++;return evidence(...args);};
+  // Another writer's claim between the read and ours moves the revision on by more than our own claim.
+  if(between){const claim=store.claimGmailImport;let once=true;store.claimGmailImport=async o=>{if(once){once=false;const r=await claim(o);await store.finishGmailImport(o,r.revision,r.data,r.token_ciphertext);}return claim(o);};}
+  const {result,state}=await reply(store,'keeping them',act('report_kept'));
+  assert.equal(result.updated,true);assert.equal(state.items[0].outcome.value,'kept');
+  assert.equal(evidenceReads,reads,between?'read again after another write':'read once');
+ }
+});
