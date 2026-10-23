@@ -56,6 +56,7 @@ This is not a growth or learning feature. With 5–10 testers revenue teaches no
 - **Tracking ID.** An opaque value derived from the link token (for example a short hash of operation + index). Stored with the click event so a purchase can be matched to the reply and product later. Since October 23, 2026 each `link_click` event already records the tapped link's position (`link_index`, db/052), so taps per store can be counted before any affiliate work.
 - **Scope.** Product links in chat replies and price-alert texts that go through `/go/`. Wishlist page links go through `/go/` too since October 23, 2026 (`lib/wishlist-go.js`; taps recorded with ref `wishlist:<item>`). Shop cart links (`CHECKOUT_LINKS_ENABLED`) stay unwrapped until a test purchase confirms wrapping doesn't break the cart.
 - **Settings.** `AFFILIATE_ENABLED` (off by default) and `SOVRN_CAMPAIGN_KEY` in Vercel environment variables. Never in source code.
+- **Built October 23, 2026** (`lib/affiliate.js`). The tap forwards to `https://redirect.viglink.com/?key=…&u=<store link>&cuid=<id>&utm_source=jules&utm_medium=sms|wishlist`. The `cuid` is a 24-character hash of the tap's link (reply operation and link position, or wishlist item and link), so it can be recomputed from a `link_click` row. Never `cp`: Sovrn's fallback to other retailers would change the store the person tapped. Wrapped taps send `Referrer-Policy: origin` so Sovrn can see they came from Jules (code of conduct §7.1) without the link token. Links already carrying `afsrc=1` aren't wrapped (§7.3).
 
 ### Phase 2: measure
 
@@ -78,7 +79,7 @@ This is not a growth or learning feature. With 5–10 testers revenue teaches no
 2. **Sign up.** Create a publisher account at sovrn.com (Commerce), confirm your email and accept the terms. No credential yet.
 3. **Submit a campaign.** Submit the Jules landing page as the campaign. In the description, explain that Jules sends product links by text to people who opted in, and how the disclosure is shown. Sovrn reviews each "location" separately; Jules is one location.
 4. **Get the key.** Sovrn shows a campaign key for the Redirect API. Store it only in **Vercel → Jules → Settings → Environment Variables** as `SOVRN_CAMPAIGN_KEY`. Never paste it into chat, code or Git.
-5. **Test clicks.** With the code deployed and `AFFILIATE_ENABLED=true`, tap a few Jules product links yourself. Only send a few: clicks aren't paid before approval.
+5. **Test clicks.** Sovrn won't start its review until it has seen a few clicks through the integration (its app and SMS onboarding guides say so). With the code deployed and `AFFILIATE_ENABLED=true`, tap a few Jules product links yourself. Only send a few: clicks aren't paid before approval.
 6. **Wait for approval.** About 5 business days. If there's no status and no clicks after that, email Sovrn support.
 7. **Payment and tax.** Add payout and tax details in the Sovrn account (stays in Sovrn, not in Jules).
 
