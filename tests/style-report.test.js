@@ -656,13 +656,14 @@ test('a share link serves the page with a preview built only from what was share
  assert.equal(res.statusCode,200);
  assert.match(res.body,/<title>Jack’s style report · Jules<\/title>/);
  assert.match(res.body,/property="og:title" content="Jack’s style report · Jules"/);
- assert.match(res.body,/property="og:image" content="https:\/\/jules\.test\/brand\/previews\/report-v1\.png"/);
+ // A share with a first name gets its own preview image with the name in the headline.
+ assert.ok(res.body.includes(`property="og:image" content="https://jules.test/api/image?share_preview=${share.token}&amp;v=1"`));
  assert.ok(!res.body.includes('Your style report · Jules'),'the generic title is replaced, not repeated');
  assert.ok(res.body.includes('<body>page</body>'),'the page itself is unchanged');
  // Nothing private reaches the preview: a hidden returns line or feedback never appears.
  assert.ok(!/RETURNED|feedback|wont_share/.test(res.body));
  // A wrong or turned-off link gets the generic preview, with no name.
- for(const token of ['AbCdEfGhIjKlMnOpQrStUv','nope']){res=await open(token);assert.match(res.body,/<title>A style report · Jules<\/title>/);assert.ok(!res.body.includes('Jack'));}
+ for(const token of ['AbCdEfGhIjKlMnOpQrStUv','nope']){res=await open(token);assert.match(res.body,/<title>A style report · Jules<\/title>/);assert.ok(!res.body.includes('Jack'));assert.match(res.body,/property="og:image" content="https:\/\/jules\.test\/brand\/previews\/report-v2\.png"/);}
 });
 
 test('the preview description comes from the best shared card',()=>{

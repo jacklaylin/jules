@@ -8,71 +8,85 @@
 <body class="admin-console">
   <main>
     <h1 class="dv-title">Adoption</h1>
-    <div id="summary" class="dv-metrics adoption-summary" hidden></div>
     <div class="dv-toolbar">
-      <span id="refreshed" class="dv-toolbar-note"></span>
+      <label class="dv-field">Compare <select id="compare"><option value="week">This week vs last week</option><option value="month" selected>Last 4 weeks vs the 4 before</option></select></label>
       <span class="spacer"></span>
       <button id="refresh" class="small quiet" type="button">Refresh</button>
     </div>
-    <div class="dv-status"><span id="loader" hidden>Refreshing…</span><span id="notice" role="status" aria-live="polite"></span></div>
-    <!-- The style report's share loop, last 4 weeks (lib/report-adoption.js); the full view is Admin › Style report. -->
-    <section id="report-tile" class="dv-card adoption-report" aria-labelledby="report-tile-title" aria-busy="true">
-      <div class="dv-card-head"><h2 id="report-tile-title">Style report share loop</h2><span class="dv-card-note">last 4 weeks</span><span class="spacer"></span><a href="/admin/style-report">Style report page →</a></div>
-      <ol id="report-funnel" class="report-funnel"></ol>
-    </section>
-
-    <section aria-labelledby="testers-title">
-      <h2 id="testers-title" class="dv-subhead">Testers</h2>
-      <div class="dv-table-wrap"><table class="dv-table adoption-table"><thead><tr>
-        <th>Tester</th><th>Furthest step</th><th>Last message</th><th>Active days (last 7)</th><th class="end">Results</th><th class="end">Saves</th><th class="end">Shown</th><th class="end">Save rate</th><th class="end">Clicks</th><th>Price alerts</th><th>First results after</th><th class="end">Cost</th>
-      </tr></thead><tbody id="testers"></tbody></table></div>
-    </section>
-
-    <section aria-labelledby="ladder-title">
-      <h2 id="ladder-title" class="dv-subhead">Weekly ladder</h2>
-      <div class="dv-table-wrap"><table class="dv-table adoption-table"><thead><tr id="ladder-head"></tr></thead><tbody id="ladder"></tbody></table></div>
-      <p class="dv-note">Each week shows how many testers had reached each step by the end of that week, as a count and a share of everyone who had joined by then. <strong>New</strong> joined that week. <strong>Active</strong> sent Jules a message that week. Weeks start Monday (UTC).</p>
-    </section>
-    <section id="quality" aria-labelledby="quality-title" hidden>
-      <h2 id="quality-title" class="dv-subhead">Quality</h2>
-      <div id="quality-summary" class="dv-metrics adoption-summary"></div>
-      <p class="dv-note"><strong>Misses</strong> are the model’s own judgement that a later message showed Jules got something wrong. They’re noisy, so use them as pointers to conversations to read, not as a score. <strong>Flags</strong> are the tester’s own 👎 tapbacks and <code>#dev</code> notes.</p>
-      <h3 class="adoption-minor">By tester</h3>
-      <div class="dv-table-wrap"><table class="dv-table adoption-table"><thead><tr>
-        <th>Tester</th><th class="end">Results</th><th class="end">Misses</th><th class="end">Miss rate</th><th class="end">Flags</th><th class="end">Photos</th><th class="end">Identified</th><th class="end">Saved from photo</th>
-      </tr></thead><tbody id="quality-testers"></tbody></table></div>
-      <h3 class="adoption-minor">By week</h3>
-      <div class="dv-table-wrap"><table class="dv-table adoption-table"><thead><tr id="quality-week-head"></tr></thead><tbody id="quality-weeks"></tbody></table></div>
-      <h3 class="adoption-minor">Photo searches</h3>
-      <div class="dv-table-wrap"><table class="dv-table adoption-table adoption-narrow"><thead><tr><th>Outcome</th><th class="end">Photos</th><th>Meaning</th></tr></thead><tbody id="quality-photos"></tbody></table></div>
-      <p id="quality-photo-note" class="dv-note"></p>
-      <h3 class="adoption-minor">Misses to read</h3>
-      <div class="dv-table-wrap"><table class="dv-table adoption-table"><thead><tr><th>Date</th><th>Tester</th><th>Kind</th><th>What happened</th></tr></thead><tbody id="quality-misses"></tbody></table></div>
-    </section>
-    <section id="nudges" aria-labelledby="nudges-title" hidden>
-      <h2 id="nudges-title" class="dv-subhead">Purchase nudges</h2>
-      <div id="nudges-summary" class="dv-metrics adoption-summary"></div>
-      <p class="dv-note">Texts Jules sends on her own: the <strong>goes with</strong> offer after a new purchase and the <strong>fit check</strong> after delivery. <strong>Answered</strong> means they said yes, no, not now, or turned these texts off. <strong>Paused</strong> means two nudges in a row went unanswered for two days, so Jules waits 14 days (any message resets it). Admin test sends are left out of the rates.</p>
-      <div class="dv-table-wrap"><table class="dv-table adoption-table"><thead><tr>
-        <th>Tester</th><th class="end">Offers</th><th class="end">Answered</th><th class="end">Yes</th><th class="end">No / not now</th><th class="end">Other reply</th><th class="end">No reply</th><th class="end">Fit checks</th><th>Held or skipped</th><th>Latest</th>
-      </tr></thead><tbody id="nudge-testers"></tbody></table></div>
-      <h3 class="adoption-minor">Recent decisions</h3>
-      <div class="dv-table-wrap"><table class="dv-table adoption-table"><thead><tr><th>When (UTC)</th><th>Tester</th><th>Kind</th><th>Outcome</th></tr></thead><tbody id="nudge-recent"></tbody></table></div>
-    </section>
-    <section id="alerts" aria-labelledby="alerts-title" hidden>
-      <h2 id="alerts-title" class="dv-subhead">Alert texts</h2>
-      <div id="alerts-summary" class="dv-metrics adoption-summary"></div>
-      <p id="alerts-note" class="dv-note"></p>
-      <div class="dv-table-wrap"><table class="dv-table adoption-table"><thead><tr>
-        <th>Kind</th><th class="end">Texts</th><th class="end">Delivered</th><th class="end">Not delivered</th><th class="end">People</th><th class="end">Tapped link</th><th class="end">Replied</th><th class="end">Bought</th>
-      </tr></thead><tbody id="alert-kinds"></tbody></table></div>
-      <h3 class="adoption-minor">Recent alert texts</h3>
-      <div class="dv-table-wrap"><table class="dv-table adoption-table"><thead><tr><th>When (UTC)</th><th>Tester</th><th>Kind</th><th>Delivery</th><th>What happened</th></tr></thead><tbody id="alert-recent"></tbody></table></div>
-    </section>
-    <p id="alerts-error" class="dv-note" hidden>The Alert texts section couldn’t load. The rest of the page is unaffected; try Refresh.</p>
-    <p id="nudges-error" class="dv-note" hidden>The Purchase nudges section couldn’t load. The rest of the page is unaffected; try Refresh.</p>
-    <p id="quality-error" class="dv-note" hidden>The Quality section couldn’t load. The rest of the page is unaffected; try Refresh.</p>
+    <div class="dv-status"><span id="refreshed"></span><span id="loader" hidden>Refreshing…</span><span id="notice" role="status" aria-live="polite"></span></div>
+    <div id="summary" class="dv-metrics" role="group" aria-label="Adoption figures" aria-busy="true"></div>
     <details class="fold metrics-help"><summary>What these numbers mean</summary><dl id="definitions"></dl></details>
+
+    <div class="dv-cards">
+      <!-- The style report's share loop, last 4 weeks (lib/report-adoption.js); the full view is Admin › Style report. -->
+      <section id="report-tile" class="dv-card" aria-labelledby="report-tile-title" aria-busy="true">
+        <div class="dv-card-head"><h2 id="report-tile-title">Style report share loop</h2><span class="dv-card-note">last 4 weeks</span><span class="spacer"></span><a href="/admin/style-report">Style report page →</a></div>
+        <ol id="report-funnel" class="report-funnel"></ol>
+      </section>
+
+      <section class="dv-card" aria-labelledby="testers-title">
+        <div class="dv-card-head"><h2 id="testers-title">Testers</h2><span class="dv-card-note">furthest step on the ladder</span></div>
+        <div class="dv-table-wrap"><table class="dv-table adoption-table"><thead><tr>
+          <th>Tester</th><th>Furthest step</th><th>Last message</th><th>Active days (last 7)</th><th class="end">Results</th><th class="end">Saves</th><th class="end">Shown</th><th class="end">Save rate</th><th class="end">Clicks</th><th>Price alerts</th><th>First results after</th><th class="end">Cost</th>
+        </tr></thead><tbody id="testers"></tbody></table></div>
+      </section>
+
+      <section class="dv-card" aria-labelledby="ladder-title">
+        <div class="dv-card-head"><h2 id="ladder-title">Weekly ladder</h2><span class="dv-card-note">testers who had reached each step by the end of the week</span></div>
+        <div class="dv-table-wrap"><table class="dv-table adoption-table"><thead><tr id="ladder-head"></tr></thead><tbody id="ladder"></tbody></table></div>
+      </section>
+
+      <div id="quality" class="dv-cards" hidden>
+        <section class="dv-card" aria-labelledby="quality-title">
+          <div class="dv-card-head"><h2 id="quality-title">Quality</h2><span class="dv-card-note">misses, flags and photo searches</span></div>
+          <div id="quality-summary" class="dv-metrics"></div>
+          <div class="dv-table-wrap"><table class="dv-table adoption-table"><thead><tr>
+            <th>Tester</th><th class="end">Results</th><th class="end">Misses</th><th class="end">Miss rate</th><th class="end">Flags</th><th class="end">Photos</th><th class="end">Identified</th><th class="end">Saved from photo</th>
+          </tr></thead><tbody id="quality-testers"></tbody></table></div>
+        </section>
+        <section class="dv-card" aria-labelledby="quality-weeks-title">
+          <div class="dv-card-head"><h2 id="quality-weeks-title">Quality by week</h2></div>
+          <div class="dv-table-wrap"><table class="dv-table adoption-table"><thead><tr id="quality-week-head"></tr></thead><tbody id="quality-weeks"></tbody></table></div>
+        </section>
+        <section class="dv-card" aria-labelledby="photos-title">
+          <div class="dv-card-head"><h2 id="photos-title">Photo searches</h2></div>
+          <div class="dv-table-wrap"><table class="dv-table adoption-table"><thead><tr><th>Outcome</th><th class="end">Photos</th><th>Meaning</th></tr></thead><tbody id="quality-photos"></tbody></table></div>
+          <p id="quality-photo-note" class="dv-card-foot"></p>
+        </section>
+      </div>
+
+      <div id="nudges" class="dv-cards" hidden>
+        <section class="dv-card" aria-labelledby="nudges-title">
+          <div class="dv-card-head"><h2 id="nudges-title">Purchase nudges</h2><span class="dv-card-note">goes-with offers and fit checks</span></div>
+          <div id="nudges-summary" class="dv-metrics"></div>
+          <div class="dv-table-wrap"><table class="dv-table adoption-table"><thead><tr>
+            <th>Tester</th><th class="end">Offers</th><th class="end">Answered</th><th class="end">Yes</th><th class="end">No / not now</th><th class="end">Other reply</th><th class="end">No reply</th><th class="end">Fit checks</th><th>Held or skipped</th><th>Latest</th>
+          </tr></thead><tbody id="nudge-testers"></tbody></table></div>
+        </section>
+        <section class="dv-card" aria-labelledby="nudge-recent-title">
+          <div class="dv-card-head"><h2 id="nudge-recent-title">Recent nudge decisions</h2></div>
+          <div class="dv-table-wrap"><table class="dv-table adoption-table"><thead><tr><th>When (UTC)</th><th>Tester</th><th>Kind</th><th>Outcome</th></tr></thead><tbody id="nudge-recent"></tbody></table></div>
+        </section>
+      </div>
+
+      <div id="alerts" class="dv-cards" hidden>
+        <section class="dv-card" aria-labelledby="alerts-title">
+          <div class="dv-card-head"><h2 id="alerts-title">Alert texts</h2><span id="alerts-period" class="dv-card-note"></span></div>
+          <div id="alerts-summary" class="dv-metrics"></div>
+          <div class="dv-table-wrap"><table class="dv-table adoption-table"><thead><tr>
+            <th>Kind</th><th class="end">Texts</th><th class="end">Delivered</th><th class="end">Not delivered</th><th class="end">People</th><th class="end">Tapped link</th><th class="end">Replied</th><th class="end">Bought</th>
+          </tr></thead><tbody id="alert-kinds"></tbody></table></div>
+          <p id="alerts-note" class="dv-card-foot" hidden></p>
+        </section>
+        <section class="dv-card" aria-labelledby="alert-recent-title">
+          <div class="dv-card-head"><h2 id="alert-recent-title">Recent alert texts</h2></div>
+          <div class="dv-table-wrap"><table class="dv-table adoption-table"><thead><tr><th>When (UTC)</th><th>Tester</th><th>Kind</th><th>Delivery</th><th>What happened</th></tr></thead><tbody id="alert-recent"></tbody></table></div>
+        </section>
+      </div>
+      <p id="quality-error" class="dv-card-note" hidden>The Quality cards couldn’t load. The rest of the page is unaffected; try Refresh.</p>
+      <p id="nudges-error" class="dv-card-note" hidden>The Purchase nudges cards couldn’t load. The rest of the page is unaffected; try Refresh.</p>
+      <p id="alerts-error" class="dv-card-note" hidden>The Alert texts cards couldn’t load. The rest of the page is unaffected; try Refresh.</p>
+    </div>
   </main>
 </body>
 </html>

@@ -184,3 +184,19 @@ test('tapbacks are stored as fixed kinds against the reacting person’s own rep
   await recordReaction({ reactionTarget: async () => ({ conversation_id: C, operation_id: 'ai:in1' }), recordAdoptionEvent: async () => { throw Object.assign(new Error('x'), { database_status: 400 }); } },
     { message: { sender: { id: '+1555' }, content: { emoji: '👍' } }, target: 'out-1' });
 });
+
+test('results are timed by when the answer’s text arrived; older turns fall back to when everything was sent', () => {
+  const messages = chat([{ actions: [search()], products: verified(2) }, { actions: [search()], products: verified(1) }]);
+  messages[1].search_result.timing_diagnostics = { first_message_ms: 2000, text_ms: 31000, result_ms: 40000 };
+  const [withText, older] = turnOutcomes({ messages }, { now: NOW });
+  assert.equal(withText.result_ms, 31000); assert.equal(older.result_ms, 40000);
+});
+
+test('a search the OpenAI account refused is an outage: counted apart, never a failed search', () => {
+  const messages = chat([{ actions: [search()], source: 'ai_fallback', outcome: 'fallback' }, { actions: [search()], products: verified(1) }, { actions: [search()], source: 'ai_fallback', outcome: 'fallback' }]);
+  messages[1].reply_diagnostics.model_error_code = 'organization_spend_limit_exceeded';
+  const turns = turnOutcomes({ messages }, { now: NOW });
+  assert.deepEqual(turns.map(t => t.result), ['outage', 'verified', 'failed']);
+  const summary = outcomeSummary(turns);
+  assert.equal(summary.outages, 1); assert.equal(summary.turns, 2); assert.equal(summary.failed_rate, 0.5);
+});

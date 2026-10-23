@@ -9,33 +9,37 @@
   <main>
     <h1 class="dv-title">Scorecard</h1>
     <div class="dv-toolbar">
-      <div id="who" class="seg" role="group" aria-label="Whose searches to count" hidden></div>
       <div id="types" class="seg" role="group" aria-label="Filter by request type"></div>
-      <span id="refreshed" class="dv-toolbar-note"></span>
+      <label class="dv-field">Compare <select id="compare"><option value="week" selected>This week vs last week</option><option value="month">Last 4 weeks vs the 4 before</option></select></label>
+      <button id="filters-open" class="small quiet" type="button" popovertarget="scorecard-filters" hidden>Filters <span id="filter-count" class="dv-count" hidden></span></button>
       <span class="spacer"></span>
       <button id="refresh" class="small quiet" type="button">Refresh</button>
     </div>
-    <div class="dv-status"><span id="loader" hidden>Refreshing…</span><span id="notice" role="status" aria-live="polite"></span></div>
+    <div id="scorecard-filters" class="dv-pop dv-filters" popover aria-label="Filters">
+      <label>Whose searches<select id="who"></select></label>
+      <div class="dv-pop-actions"><button class="small btn--butter" type="button" popovertarget="scorecard-filters" popovertargetaction="hide">Done</button></div>
+    </div>
+    <div class="dv-status"><span id="refreshed"></span><span id="loader" hidden>Refreshing…</span><span id="notice" role="status" aria-live="polite"></span></div>
     <p id="own-missing" class="notice" hidden>Your own testing is counted with testers’ searches. To leave it out, set <code>OWNER_ALERT_CONVERSATION_ID</code> in Vercel to your conversation id (Admin › People, open yourself, the last part of the address), then redeploy.</p>
-    <h2 class="dv-subhead">This week, against last week</h2>
-    <div id="metrics" class="dv-metrics adoption-summary scorecard-metrics" hidden></div>
+    <div id="metrics" class="dv-metrics" role="group" aria-label="Scorecard figures" aria-busy="true"></div>
+    <details class="fold metrics-help"><summary>What these numbers mean</summary><dl id="definitions"></dl></details>
     <p id="judge-missing" class="notice" hidden>The nightly judge isn’t set up yet, so judge figures are blank. Run <code>db/038_nightly_judge.sql</code> in Supabase.</p>
 
-    <section aria-labelledby="weeks-title">
-      <h2 id="weeks-title" class="dv-subhead">By week</h2>
-      <div class="dv-table-wrap"><table class="dv-table adoption-table"><thead><tr id="weeks-head"></tr></thead><tbody id="weeks"></tbody></table></div>
-      <p class="dv-note">A search is a reply where Jules looked for products or asked a shopping question before searching. Weeks start Monday (UTC). The last three days are worked out live; older weeks come from the nightly judge’s saved rows.</p>
-    </section>
+    <div class="dv-cards">
+      <section class="dv-card" aria-labelledby="weeks-title">
+        <div class="dv-card-head"><h2 id="weeks-title">By week</h2><span class="dv-card-note">last 8 weeks, newest first</span></div>
+        <div class="dv-table-wrap"><table class="dv-table adoption-table"><thead><tr id="weeks-head"></tr></thead><tbody id="weeks"></tbody></table></div>
+        <p class="dv-card-foot">Searches the OpenAI account refused (out of credit or over the spend limit) show as outages beside the count and are left out of every figure.</p>
+      </section>
 
-    <section aria-labelledby="worst-title">
-      <h2 id="worst-title" class="dv-subhead">Turns to read</h2>
-      <p id="agreement" class="dv-note"></p>
-      <div class="dv-table-wrap"><table class="dv-table adoption-table scorecard-turns"><thead><tr>
-        <th>Date</th><th>Tester</th><th>Type</th><th>Result</th><th>What happened next</th><th>Judge</th><th>Judge right?</th><th></th>
-      </tr></thead><tbody id="worst"></tbody></table></div>
-      <p class="dv-note">Judge failures first, then searches the tester turned down, flagged or that missed, then failed searches and searches that found nothing. Marking the judge right or wrong builds the agreement figure above. <strong>Copy replay draft</strong> copies the turn as a draft test case with emails and phone numbers masked; anonymise it before it goes in the repo.</p>
-    </section>
-    <details class="fold metrics-help"><summary>What these numbers mean</summary><dl id="definitions"></dl></details>
+      <section class="dv-card" aria-labelledby="worst-title">
+        <div class="dv-card-head"><h2 id="worst-title">Turns to read</h2><span id="agreement" class="dv-card-note"></span></div>
+        <div class="dv-table-wrap"><table class="dv-table adoption-table scorecard-turns"><thead><tr>
+          <th>Date</th><th>Tester</th><th>Type</th><th>Result</th><th>What happened next</th><th>Judge</th><th>Judge right?</th><th></th>
+        </tr></thead><tbody id="worst"></tbody></table></div>
+        <p class="dv-card-foot">Judge failures first, then searches the tester turned down, flagged or that missed, then failed searches and searches that found nothing. <strong>Copy replay draft</strong> copies the turn as a draft test case with emails and phone numbers masked; anonymise it before it goes in the repo.</p>
+      </section>
+    </div>
   </main>
 </body>
 </html>

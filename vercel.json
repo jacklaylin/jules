@@ -18,31 +18,6 @@
   ],
   "redirects": [
     {
-      "source": "/simulator",
-      "destination": "/admin/test-chat",
-      "permanent": false
-    },
-    {
-      "source": "/simulator.html",
-      "destination": "/admin/test-chat",
-      "permanent": false
-    },
-    {
-      "source": "/replay.html",
-      "destination": "/admin/replays",
-      "permanent": false
-    },
-    {
-      "source": "/search-diagnostic.html",
-      "destination": "/admin/search",
-      "permanent": false
-    },
-    {
-      "source": "/identification-test.html",
-      "destination": "/admin/identify",
-      "permanent": false
-    },
-    {
       "source": "/costs.html",
       "destination": "/admin/costs",
       "permanent": false
@@ -122,22 +97,6 @@
       "destination": "/admin-person.html"
     },
     {
-      "source": "/admin/test-chat",
-      "destination": "/simulator.html"
-    },
-    {
-      "source": "/admin/replays",
-      "destination": "/replay.html"
-    },
-    {
-      "source": "/admin/search",
-      "destination": "/search-diagnostic.html"
-    },
-    {
-      "source": "/admin/identify",
-      "destination": "/identification-test.html"
-    },
-    {
       "source": "/admin/costs",
       "destination": "/costs.html"
     },
@@ -208,7 +167,7 @@
   ],
   "functions": {
     "api/image.js": {
-      "includeFiles": "public/brand/previews/fallback-v1.png",
+      "includeFiles": "{public/brand/previews/saved-v2.png,public/brand/previews/saved-photo-bg-v1.png,public/brand/previews/saved-set-bg-v1.png,public/brand/previews/card-front-v1.png,public/brand/previews/card-back-v1.png,public/brand/previews/report-bg-v1.png,public/fonts/instrument-serif.ttf}",
       "maxDuration": 30
     },
     "api/wishlist.js": {
