@@ -20,7 +20,7 @@ let view=new URLSearchParams(location.search).get('view')==='jokes'?'jokes':'';
 function showView(){
  for(const b of $('views').querySelectorAll('button'))b.setAttribute('aria-pressed',String(b.dataset.view===view));
  $('view-engagement').hidden=view==='jokes';$('view-jokes').hidden=view!=='jokes';$('compare-field').hidden=view==='jokes';
- $('heading-note').textContent=view==='jokes'?'Thumbs on report lines, last 7 days':'How reports are opened, shared and voted on';
+ $('heading-note').textContent=view==='jokes'?'Thumbs on report lines, last 7 days':'';
  $('refreshed').textContent='';$('notice').textContent='';
  (view==='jokes'?loadJokes:loadEngagement)();
 }

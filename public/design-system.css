@@ -403,6 +403,11 @@ button.small{min-height:32px;padding:0 14px;font-size:13px}
 .dv-filters{padding:14px}.dv-filters:popover-open{display:grid;gap:12px}.dv-filters label{display:grid;gap:6px;font-size:13px}.dv-filters select{margin:0}
 .dv-pop-actions{display:flex;justify-content:space-between;gap:8px}
 .dv-status{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;min-height:26px;margin:0 0 10px;font-size:12px;line-height:1.5;color:var(--text-2)}
+.dv-status:not(:has(>:not(:empty):not([hidden]))){min-height:0;margin-bottom:6px}
+/* Refresh: when the page last loaded and the Refresh button, together at the right end of the toolbar. */
+.dv-refresh{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--text-2)}.dv-refresh>#loader:not([hidden])+#refreshed{display:none}
+.dv-refresh .dv-icon-button{min-width:34px;padding:0;justify-content:center}.dv-refresh svg{width:18px;height:18px}.dv-refresh:has(#loader:not([hidden])) svg{animation:spin 1s linear infinite}
+@media (prefers-reduced-motion:reduce){.dv-refresh svg{animation:none!important}}
 .dv-status .error{color:var(--danger);font-weight:600}.dv-keys{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-left:auto}
 .dv-token{display:inline-flex;align-items:center;gap:2px;min-height:26px;padding:0 2px 0 10px;border-radius:var(--r-pill);background:var(--fog);color:var(--ink);font-size:12px;font-weight:600}
 .dv-token button{min-height:22px;width:24px;padding:0;border:0;background:transparent;box-shadow:none;color:var(--text-2);font-size:15px}
@@ -446,7 +451,7 @@ button.quiet{border-color:transparent;box-shadow:none;background:transparent;col
 .dv-tool{border:1px solid var(--line);border-radius:16px;padding:14px 16px;margin:0 0 12px}
 .dv-tool-head{display:flex;align-items:center;gap:10px;margin-bottom:6px}.dv-tool-head h2{margin:0;font-size:22px}.dv-tool-head button{margin-left:auto}
 @media(max-width:800px){
- .dv-toolbar button.small,.dv-search,.dv-views button,.seg button{min-height:44px}.dv-search{width:100%}.dv-keys,.dv-divider{display:none}.dv-field{min-height:44px}
+ .dv-toolbar button.small,.dv-search,.dv-views button,.seg button{min-height:44px}.dv-search{width:100%}.dv-keys,.dv-divider{display:none}.dv-field{min-height:44px}.dv-refresh .dv-icon-button{min-width:44px}
  .dv-metrics{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line)}.dv-metric{border:0;background:var(--white)}.dv-metric:last-child:nth-child(odd){grid-column:1/-1}
  .metrics-help dl{grid-template-columns:1fr;gap:2px}.metrics-help dd{margin-bottom:8px}
  .dv-card{padding:16px}.dv-card-head h2{font-size:26px}

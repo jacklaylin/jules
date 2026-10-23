@@ -21,12 +21,9 @@
       <label class="dv-search"><span class="sr-only">Search name or number</span><input id="people-search" type="search" maxlength="40" placeholder="Search name or number"><span class="kbd" aria-hidden="true">/</span></label>
       <span id="people-count" class="dv-toolbar-note"></span>
       <span class="spacer"></span>
-      <button class="small quiet" type="button" popovertarget="people-more">More ⋯</button>
+      <span class="dv-refresh"><span id="loader" hidden>Refreshing…</span><span id="refreshed"></span><button id="refresh" class="small quiet dv-icon-button" type="button" aria-label="Refresh" title="Refresh: people and chat quality"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M16 10a6 6 0 1 1-1.76-4.24M16 3.5v3.5h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button></span>
     </div>
-    <div id="people-more" class="dv-pop dv-menu" popover aria-label="More actions">
-      <button id="refresh" type="button">Refresh <span class="hint">people and chat quality</span></button>
-    </div>
-    <div class="dv-status"><span id="metrics-note"></span><span id="notice" role="status" aria-live="polite"></span><span id="people-keys" class="dv-keys" aria-hidden="true"><span class="kbd">J</span><span class="kbd">K</span> move <span class="kbd">↵</span> open</span></div>
+    <div class="dv-status"><span id="notice" role="status" aria-live="polite"></span><span id="people-keys" class="dv-keys" aria-hidden="true"><span class="kbd">J</span><span class="kbd">K</span> move <span class="kbd">↵</span> open</span></div>
     <div id="people" class="dv-list people-list" aria-label="People"></div>
     <div id="signups" class="dv-list signups-list" aria-label="New signups" hidden></div>
     <p id="signups-note" class="dv-status" hidden>People who signed up but haven’t texted Jules yet. Photon only lets Jules text someone after they’ve texted first, so for each one: enroll their number in Photon, ask them to text their Jules line, then find them under Testers and click Approve. Approving sets up their account and texts the welcome.</p>

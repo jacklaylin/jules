@@ -1,6 +1,6 @@
 import {mountAdminShell,adminJson,anchorMenus,metricCell,shortVerdict,skeletonRows} from './admin-console.js';
 import {browseKey} from './admin-review.js';
-import {filterPeople,accessSegments,accessChange,accessResult,ago,countLine,metricCells,metricsNote,filterSignups} from './admin-people-view.js';
+import {filterPeople,accessSegments,accessChange,accessResult,ago,countLine,metricCells,filterSignups} from './admin-people-view.js';
 import {closeDialog} from './design-system.js';
 // Admin › People: the list of testers as a data view. The name opens the person page; Status changes waitlist access in place.
 // New signups lists people who signed up but haven't texted Jules yet; their first text moves them to Testers.
@@ -45,7 +45,9 @@ function render() {
   }));
   if (!shown.length && loading) $('people').append(...skeletonRows(8));
   else if (!shown.length) $('people').append(el('p', { className: 'dv-empty', textContent: failed ? '' : !people.length ? 'No testers yet.' : accessFilter ? `No ${accessFilter} testers match.` : 'No testers match this search.' }));
-  $('people-count').textContent = people.length || refreshedAt ? countLine(shown.length, people.length, refreshedAt) : '';
+  $('people-count').textContent = people.length || refreshedAt ? countLine(shown.length, people.length) : '';
+  $('refreshed').textContent = refreshedAt ? `Refreshed ${ago(refreshedAt)}` : '';
+  $('loader').hidden = !(loading && refreshedAt);
   $('notice').className = failed ? 'error' : '';
   $('notice').textContent = failed || done;
 }
@@ -117,9 +119,9 @@ $('access-confirm').onclick = async () => {
 async function load() {
   loading = true; failed = ''; signupsFailed = ''; render();
   // The signup list is its own read: if it fails, Testers still loads.
-  const pendingSignups = adminJson('/api/admin?view=signups').then(data => { signups = data.signups; }, error => { signupsFailed = `Could not load new signups: ${error.message} Try Refresh in More.`; });
+  const pendingSignups = adminJson('/api/admin?view=signups').then(data => { signups = data.signups; }, error => { signupsFailed = `Could not load new signups: ${error.message} Try Refresh.`; });
   try { const data = await adminJson('/api/admin'); people = data.conversations; waitlist = { allowance: data.waitlist_replies ?? 3, approvalText: data.approval_text ?? null, approvalAccount: data.approval_account === true, contactCard: data.contact_card_enabled === true }; refreshedAt = Date.now(); }
-  catch (error) { failed = `Could not load people: ${error.message} Try Refresh in More.`; }
+  catch (error) { failed = `Could not load people: ${error.message} Try Refresh.`; }
   finally { await pendingSignups; loading = false; render(); }
 }
 
@@ -130,7 +132,6 @@ async function loadMetrics() {
     const cells = metricCells(trend);
     $('chat-metrics-strip').replaceChildren(...cells.map(cell => metricCell({ label: cell.label, value: cell.value, change: shortVerdict(cell.verdict), tone: cell.tone, was: `${cell.was} · ${cell.sample}` })));
     $('chat-metrics-help').replaceChildren(...cells.flatMap(cell => [el('dt', { textContent: cell.label }), el('dd', { textContent: `${cell.explain} ${cell.better}` })]));
-    $('metrics-note').textContent = metricsNote(trend.current);
     $('chat-metrics').hidden = false;
   } catch { /* Keep the list usable. */ }
 }
@@ -149,8 +150,8 @@ addEventListener('keydown', event => {
   else if (action.type === 'row' && view !== 'signups') focusRow(action.step);
 });
 $('people-search').oninput = render;
-$('refresh').onclick = () => { $('people-more').hidePopover(); load(); loadMetrics(); };
-// Keep "refreshed 3 min ago" honest while the page sits open.
-setInterval(() => { if (refreshedAt && view !== 'signups') $('people-count').textContent = countLine(shownPeople().length, people.length, refreshedAt); }, 30000);
+$('refresh').onclick = () => { load(); loadMetrics(); };
+// Keep "Refreshed 3 min ago" honest while the page sits open.
+setInterval(() => { if (refreshedAt) $('refreshed').textContent = `Refreshed ${ago(refreshedAt)}`; }, 30000);
 load();
 loadMetrics();
