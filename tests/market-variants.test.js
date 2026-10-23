@@ -63,6 +63,17 @@ test('model-selected color persists through interest and subsequent scoped save 
  offered=await selectionOutcome(args,{state:{stage:'choice',options:[option]},facts:[],env:{},constraints:{},respond,verify:async()=>({status:'verified',url:url+'?variant=1',product_name:'Shirt - Ocean / S',color:'Ocean',availability:'InStock'})});
  assert.equal(offered.state.selected_set[0].selected_color,'Ocean');assert.equal(offered.state.selected_set[0].listing_check.availability,null);
 });
+test('re-choosing the color an option already verified saves without refetching; another color still needs its page',async()=>{
+ const black={color:'88 Black Black/gs-4a',url:url+'?variant=2'},yellow={color:'6D Agar Yellow',url:url+'?variant=1'};
+ const check={status:'verified',url:black.url,product_name:'Romi - 88 Black Black/gs-4a',color:black.color,color_options:[yellow,black],price_snapshot:{amount:960,currency:'USD'}};
+ const option={name:'Romi — 88 Black Black/gs-4a',url:black.url,listing_check:check};
+ const respond=(body,state,extra)=>({body,state,extra}),failed=async()=>({status:'check_failed'});
+ const args={decision:'confirm',option_indices:[0],color_choices:[{option_index:0,color_index:1}],consent:'wishlist',consent_context:'answer_to_offer'};
+ const saved=await selectionOutcome(args,{state:{stage:'offer_set',options:[option],offered_urls:[black.url]},facts:[],env:{},constraints:{},respond,verify:failed});
+ assert.equal(saved.extra.user_confirmed,true);assert.equal(saved.extra.products[0].selected_color,black.color);assert.equal(saved.extra.products[0].url,black.url);
+ const other=await selectionOutcome({...args,color_choices:[{option_index:0,color_index:0}]},{state:{stage:'offer_set',options:[option],offered_urls:[black.url]},facts:[],env:{},constraints:{},respond,verify:failed});
+ assert.match(other.body,/couldn’t verify/);assert.equal(other.extra,undefined);
+});
 test('legacy recovery binds interpreted color to its original reply and replaces the whole wrong photo set',async()=>{
  let updated,images;
  const store={wishlistItem:async()=>({product:{url,name:'Shirt — Clay',selected_color:'Clay',details_revision:5,image:{data:'red'},additional_images:[{data:'red2'}],links:[{url}]},wishlist_encounters:[{reply_id:'save'}]}),messages:async()=>({messages:[{id:'request',direction:'inbound',body:'The blue one please'},{id:'save',direction:'outbound',body:'Saved'},{id:'later',direction:'inbound',body:'A red bag next'}]}),correctWishlistProduct:async(_c,_i,u)=>updated=u,saveWishlistPhotos:async(_c,_i,u)=>images=u};
