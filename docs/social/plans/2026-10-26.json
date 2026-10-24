@@ -1,0 +1,437 @@
+{
+ "week": "2026-10-26",
+ "note": "First week, rewritten after Jack's note (Oct 24): more culture, more fun, example chats. Marathon week (NYC Marathon Sun Nov 1) and Halloween (Sat Oct 31). Eight series so week 2 can compare them. Example chats and cards are labeled; no prices.",
+ "posts": [
+  {
+   "id": "w1-marathon-look-cool",
+   "series": "help-me",
+   "hook": "marathon-but-cool",
+   "publishAt": "2026-10-26T19:00:00-04:00",
+   "title": "running the marathon sunday but i want to look cool",
+   "slides": [
+    {
+     "kind": "hook",
+     "text": "\"jules, i'm running the marathon sunday and i want to look *cool*\"",
+     "sub": "A real problem.",
+     "ground": "tangerine"
+    },
+    {
+     "kind": "chat",
+     "illustrative": true,
+     "messages": [
+      {
+       "from": "me",
+       "text": "running the nyc marathon sunday. i want to look fast even if i'm not"
+      },
+      {
+       "from": "jules",
+       "text": "love this. first rule: nothing new on your feet on race day. keep your shoes, change the kit"
+      },
+      {
+       "from": "jules",
+       "text": "black split shorts, a singlet in one loud color so your people spot you at mile 16, white socks pulled to mid-calf. sunglasses on your head, not your face"
+      },
+      {
+       "from": "me",
+       "text": "ok yes. medium, and i like the loud color idea"
+      },
+      {
+       "from": "jules",
+       "text": "pulling options in a medium now. i'll keep your size for next time"
+      }
+     ]
+    },
+    {
+     "kind": "list",
+     "title": "The look-fast kit",
+     "items": [
+      "Split shorts in black",
+      "A singlet in one loud color",
+      "White socks, mid-calf",
+      "Sunglasses on your head",
+      "The same shoes you trained in"
+     ],
+     "ground": "white"
+    },
+    {
+     "kind": "cta",
+     "text": "Run it. Look *good* doing it.",
+     "sub": "Text Jules what you need for the moment. Link in bio."
+    }
+   ],
+   "caption": "Good luck to everyone running Sunday. The conversation is an example of what you can text Jules. Link in bio.",
+   "hashtags": [
+    "nycmarathon",
+    "runningtok",
+    "runclub",
+    "fashiontok"
+   ]
+  },
+  {
+   "id": "w1-tote-says-about-you",
+   "series": "says-about-you",
+   "hook": "tote-bag-says-about-you",
+   "publishAt": "2026-10-27T19:00:00-04:00",
+   "title": "What your tote bag says about you",
+   "slides": [
+    {
+     "kind": "hook",
+     "text": "What your *tote bag* says about you",
+     "ground": "butter"
+    },
+    {
+     "kind": "card",
+     "label": "The free one from a bookstore",
+     "title": "You read, or you'd like to be seen reading. *Both count.*",
+     "ground": "white"
+    },
+    {
+     "kind": "card",
+     "label": "The nylon one in a fun color",
+     "title": "Folds into a pocket. *So do your feelings.*",
+     "ground": "bubblegum"
+    },
+    {
+     "kind": "card",
+     "label": "The boat tote with your initials",
+     "title": "You own a lake house, or you've been invited to one *once.*",
+     "ground": "grape"
+    },
+    {
+     "kind": "card",
+     "label": "The one from a natural wine shop",
+     "title": "You have opinions about *skin contact.*",
+     "ground": "tangerine"
+    },
+    {
+     "kind": "cta",
+     "text": "What does *your* closet say?",
+     "sub": "Jules reads what you actually buy and tells you. Link in bio."
+    }
+   ],
+   "caption": "Which one are you? Wrong answers only in the comments.",
+   "hashtags": [
+    "totebag",
+    "whatyourxsaysaboutyou",
+    "fashiontok"
+   ]
+  },
+  {
+   "id": "w1-dress-like-dua",
+   "series": "dress-like",
+   "hook": "dress-like-dua-lipa",
+   "publishAt": "2026-10-28T19:00:00-04:00",
+   "title": "jules, make me dress like Dua Lipa",
+   "slides": [
+    {
+     "kind": "hook",
+     "text": "\"jules, make me dress like *Dua Lipa*\"",
+     "sub": "But for an office job.",
+     "ground": "ink"
+    },
+    {
+     "kind": "chat",
+     "illustrative": true,
+     "messages": [
+      {
+       "from": "me",
+       "text": "make me dress like dua lipa. i work in an office"
+      },
+      {
+       "from": "jules",
+       "text": "her off-duty look works at a desk: an oversized black leather blazer, a fitted baby tee, low-rise straight jeans, pointy flats and chunky gold hoops"
+      },
+      {
+       "from": "jules",
+       "text": "skip the tiny sunglasses indoors"
+      },
+      {
+       "from": "me",
+       "text": "i have the jeans. find me the blazer in a small?"
+      },
+      {
+       "from": "jules",
+       "text": "on it. checking resale too, a broken-in leather blazer looks more her than a stiff new one"
+      }
+     ]
+    },
+    {
+     "kind": "list",
+     "title": "The pieces",
+     "items": [
+      "Oversized black leather blazer",
+      "Fitted baby tee",
+      "Low-rise straight jeans",
+      "Pointy flats",
+      "Chunky gold hoops"
+     ],
+     "ground": "butter"
+    },
+    {
+     "kind": "cta",
+     "text": "Who should we dress you as *next*?",
+     "sub": "Text Jules any look. It finds the pieces in your size. Link in bio."
+    }
+   ],
+   "caption": "Celebrity look, office-approved. The conversation is an example of what you can text Jules. Who's next?",
+   "hashtags": [
+    "dualipa",
+    "getthelook",
+    "officeoutfit",
+    "fashiontok"
+   ]
+  },
+  {
+   "id": "w1-run-club-starter-pack",
+   "series": "starter-pack",
+   "hook": "run-club-starter-pack",
+   "publishAt": "2026-10-29T19:00:00-04:00",
+   "title": "Run club starter pack",
+   "slides": [
+    {
+     "kind": "hook",
+     "text": "The *run club* starter pack",
+     "sub": "Marathon week edition.",
+     "ground": "grape"
+    },
+    {
+     "kind": "list",
+     "title": "Includes",
+     "items": [
+      "Split shorts, whatever the weather",
+      "A watch that tracks things you'll never look at",
+      "The tee from a race you didn't run",
+      "Carbon-plate shoes for an easy jog",
+      "The coffee after, which is the real workout"
+     ],
+     "ground": "white"
+    },
+    {
+     "kind": "card",
+     "label": "Bonus",
+     "title": "Run club is the new *dating app.*",
+     "ground": "bubblegum"
+    },
+    {
+     "kind": "cta",
+     "text": "What's in *your* starter pack?",
+     "sub": "Jules makes one from what you actually buy. Link in bio."
+    }
+   ],
+   "caption": "Tag the friend who joined for the coffee. Jules builds a starter pack from your own orders.",
+   "hashtags": [
+    "runclub",
+    "starterpack",
+    "runningtok",
+    "fashiontok"
+   ]
+  },
+  {
+   "id": "w1-halloween-from-closet",
+   "series": "this-week",
+   "hook": "costume-from-your-closet",
+   "publishAt": "2026-10-30T19:00:00-04:00",
+   "title": "costume party tomorrow and i own nothing",
+   "slides": [
+    {
+     "kind": "hook",
+     "text": "Costume party tomorrow. *You own nothing.*",
+     "sub": "You own more than you think.",
+     "ground": "ink"
+    },
+    {
+     "kind": "chat",
+     "illustrative": true,
+     "messages": [
+      {
+       "from": "me",
+       "text": "costume party tomorrow and i own nothing"
+      },
+      {
+       "from": "me",
+       "tile": "a photo of my closet"
+      },
+      {
+       "from": "jules",
+       "text": "you own two already. black turtleneck, jeans, round glasses: steve jobs. camel coat, sunglasses, a coffee: a carolyn bessette-kennedy sighting"
+      },
+      {
+       "from": "me",
+       "text": "steve jobs. need grey new balance"
+      },
+      {
+       "from": "jules",
+       "text": "what size? i'll find a pair that gets to you in time"
+      }
+     ]
+    },
+    {
+     "kind": "list",
+     "title": "Closet costumes",
+     "items": [
+      "Black turtleneck + jeans = Steve Jobs",
+      "Camel coat + sunglasses + coffee = CBK",
+      "Denim on denim + boots = 2001 red carpet",
+      "Suit + sunglasses + earpiece = Secret Service"
+     ],
+     "ground": "tangerine"
+    },
+    {
+     "kind": "cta",
+     "text": "Send Jules *your* closet.",
+     "sub": "Link in bio. Free while in early access."
+    }
+   ],
+   "caption": "No costume shop required. The conversation is an example of what you can text Jules. Happy Halloween.",
+   "hashtags": [
+    "halloweencostume",
+    "lastminutecostume",
+    "halloween",
+    "fashiontok"
+   ]
+  },
+  {
+   "id": "w1-deadpan-shopping",
+   "series": "deadpan",
+   "hook": "shopping-honestly",
+   "publishAt": "2026-10-31T19:00:00-04:00",
+   "title": "Shopping, honestly",
+   "slides": [
+    {
+     "kind": "hook",
+     "text": "Shopping, *honestly*",
+     "ground": "white"
+    },
+    {
+     "kind": "card",
+     "title": "Me saving the same coat for the *fourth* winter in a row.",
+     "ground": "butter"
+    },
+    {
+     "kind": "card",
+     "title": "My closet: black, black, navy, *a cry for help.*",
+     "ground": "ink"
+    },
+    {
+     "kind": "card",
+     "title": "A price drop alert hitting harder than any text from *him.*",
+     "ground": "bubblegum"
+    },
+    {
+     "kind": "card",
+     "title": "\"Nothing to wear,\" says the person with *41 black tees.*",
+     "ground": "grape"
+    },
+    {
+     "kind": "cta",
+     "text": "Let Jules hold the *receipts.*",
+     "sub": "Your style report, from what you actually buy. Link in bio."
+    }
+   ],
+   "caption": "Which one called you out? Jules turns your order history into a style report.",
+   "hashtags": [
+    "shoppingaddict",
+    "relatable",
+    "fashiontok"
+   ]
+  },
+  {
+   "id": "w1-pov-order-history",
+   "series": "closet-wrapped",
+   "hook": "pov-jules-read-your-orders",
+   "publishAt": "2026-11-01T19:00:00-05:00",
+   "title": "POV: Jules read your order history",
+   "slides": [
+    {
+     "kind": "hook",
+     "text": "POV: Jules read your *order history*",
+     "sub": "Spotify Wrapped, but for your closet.",
+     "ground": "butter"
+    },
+    {
+     "kind": "card",
+     "label": "Example card · The receipt",
+     "title": "First order: March 2022. Most re-bought: *the black tee.*",
+     "body": "Proof Jules read your orders, line by line.",
+     "ground": "ink"
+    },
+    {
+     "kind": "card",
+     "label": "Example card · Starter pack",
+     "title": "Black tees ×6. One very good coat. *A bike that costs more than the coat.*",
+     "ground": "grape"
+    },
+    {
+     "kind": "card",
+     "label": "Example card · Gatekeeper",
+     "title": "The brand you'd *never* tell your friends about.",
+     "ground": "tangerine"
+    },
+    {
+     "kind": "card",
+     "label": "Example card · Then vs now",
+     "title": "2022: logo hoodies. 2026: one very serious loafer. *You edited.*",
+     "ground": "white"
+    },
+    {
+     "kind": "cta"
+    }
+   ],
+   "caption": "Your style report, built from what you actually buy: order screenshots, outfit photos or your order emails. These cards are examples. Get yours: link in bio.",
+   "hashtags": [
+    "stylewrapped",
+    "spotifywrapped",
+    "fashiontok"
+   ]
+  },
+  {
+   "id": "w1-in-out-winter",
+   "series": "in-out",
+   "hook": "in-out-winter",
+   "publishAt": "2026-11-02T19:00:00-05:00",
+   "title": "In / out: winter edition",
+   "slides": [
+    {
+     "kind": "hook",
+     "text": "In / out: *winter* edition",
+     "ground": "grape"
+    },
+    {
+     "kind": "card",
+     "label": "In / out",
+     "title": "In: one great coat. *Out: four okay ones.*",
+     "ground": "ink"
+    },
+    {
+     "kind": "card",
+     "label": "In / out",
+     "title": "In: resale first. *Out: paying full price for something that restocks next week.*",
+     "ground": "white"
+    },
+    {
+     "kind": "card",
+     "label": "In / out",
+     "title": "In: the same outfit, on repeat, on purpose. *Out: outfit-of-the-day pressure.*",
+     "ground": "butter"
+    },
+    {
+     "kind": "card",
+     "label": "In / out",
+     "title": "In: knowing your size in three brands. *Out: ordering two to return one.*",
+     "ground": "tangerine"
+    },
+    {
+     "kind": "cta",
+     "text": "Make your closet *in.*",
+     "sub": "Text Jules. It remembers your sizes and keeps watching. Link in bio."
+    }
+   ],
+   "caption": "Agree or disagree? Add yours in the comments.",
+   "hashtags": [
+    "inandout",
+    "wintertrends",
+    "fashiontok"
+   ]
+  }
+ ]
+}
