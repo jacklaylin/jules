@@ -20,6 +20,18 @@ test('missing, foreign and cyclic targets never fall back to latest photo',()=>{
  assert.deepEqual(imageReferences([older,bag,newer,current]),[]);
  }
 });
+test('a resolved thread without a photo falls back to the conversation photos, never marked as the reply target',()=>{
+ const note={id:'note',provider_id:'provider-note',direction:'outbound',body:'i’ll keep Brut Archives in mind for future recommendations.'};
+ const side={id:'side',provider_id:'provider-side',direction:'inbound',body:'Brut is a cool brand'};
+ for(const body of ['What did you find?','any luck?','so is it brut or not']){
+  const current={id:'current',provider_id:'provider-current',direction:'inbound',body,reply_context:{resolved:true,messages:[note,side]}};
+  const refs=imageReferences([older,bag,side,note,current]);
+  assert.deepEqual(refs.map(m=>[m.id,m.explicit_reply]),[['older',false],['bag',false]],body);
+  assert.equal(referencedImage([older,bag,side,note,current]).id,'bag',body);
+ }
+ // No photo anywhere: still nothing.
+ assert.deepEqual(imageReferences([side,note,{direction:'inbound',body:'What did you find?',reply_context:{resolved:true,messages:[note]}}]),[]);
+});
 test('new attached image remains current even when replying to an older message',()=>{
  const current={...image('current','A new bag'),reply_context:explicit.reply_context};
  assert.equal(referencedImage([older,bag,current]).id,'current');
