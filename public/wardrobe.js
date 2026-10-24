@@ -71,7 +71,7 @@ function photo(item,{reuse=false}={}){
  if(kept&&!kept.classList.contains('skeleton'))return kept;
  const frame=el('div',{className:'photo skeleton'+(kind==='suggestion'?' suggested-photo':'')});
  if(reuse)photoFrames.set(key,frame);
- whenNear(frame,()=>photoURL(item.id,kind,kind==='photo'&&item.photo_source==='search_confirmed'?'search':null,kind==='photo'?item.photo_version:item.suggestion.version).then(async url=>{
+ whenNear(frame,()=>photoURL(kind==='photo'?item.photo_item??item.id:item.id,kind,kind==='photo'&&item.photo_source==='search_confirmed'?'search':null,kind==='photo'?item.photo_version:item.suggestion.version).then(async url=>{
   const img=el('img',{alt:name(item)});img.src=url;await img.decode();
   if(Math.max(img.naturalWidth,img.naturalHeight)<SMALL_PHOTO){frame.classList.add('photo--small');img.style.maxWidth=img.naturalWidth*2+'px';img.style.maxHeight=img.naturalHeight*2+'px';}
   matchPhotoBackground(frame,img);frame.classList.remove('skeleton');frame.replaceChildren(img);})
@@ -244,7 +244,7 @@ function openDetail(id){
  const media=photo(item);
  $('detail-photo').replaceWith(item.suggestion?Object.assign(el('div',{className:'suggested-frame detail-suggestion'},media,suggestionAsk(item)),{id:'detail-photo'}):Object.assign(media,{id:'detail-photo'}));
  $('detail-brand').textContent=item.brand??'';$('detail-title').textContent=name(item);
- const facts=[['Category',CATEGORY_LABELS[item.category]??'Not sorted yet'],['Size',item.size??'Unknown'],['Color',item.color??'Unknown'],['Bought',[item.merchant,item.bought_at&&day(item.bought_at)].filter(Boolean).join(' · ')||'Unknown'],
+ const facts=[['Category',CATEGORY_LABELS[item.category]??'Not sorted yet'],['Size',item.size??'Unknown'],['Color',item.color??'Unknown'],...(item.from_photo?[['Came from','Your outfit photo']]:[['Bought',[item.merchant,item.bought_at&&day(item.bought_at)].filter(Boolean).join(' · ')||'Unknown']]),
   // A configured product lists the parts chosen for it (the strap and carabiners of a built bag).
   ...(item.parts?.length?[['Built with',item.parts.map(p=>[p.product,p.color].filter(Boolean).join(', ')).join(' · ')]]:[]),
   // Marked as bought on the wishlist: the price stays unknown until a receipt shows it.
