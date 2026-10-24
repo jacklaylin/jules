@@ -180,3 +180,13 @@ test('Admin shows each person’s spend against their cap, and the global positi
   assert.deepEqual(capsText({ spending: report }), { text: 'Global cap: this month $5.15 of $100.00 · 1 person is at their cap.', over: true });
   assert.deepEqual(capsText({ spending: await spendingReport(store, {}, { now: NOW }) }), { text: 'Spending caps are off.', over: false });
 });
+
+test('the founder’s own conversation is never capped, personal or global; everyone else still is', quiet(async () => {
+  clearCapCache();
+  const env = { COST_CAP_USER_DAILY_USD: '1', COST_CAP_GLOBAL_DAILY_USD: '1', OWNER_ALERT_CONVERSATION_ID: ' founder ' };
+  const store = spendStore({ founder: [dollars(5)], tester: [dollars(0.2)] }, [dollars(5.2)]);
+  assert.equal((await checkCaps(store, 'founder', env, { now: NOW })).capped, false);
+  const tester = await checkCaps(store, 'tester', env, { now: NOW });
+  assert.equal(tester.capped, true); assert.equal(tester.scope, 'global', 'the founder’s spend still counts toward the global total');
+  assert.equal((await checkCaps(store, 'tester', { ...env, OWNER_ALERT_CONVERSATION_ID: '' }, { now: NOW, fresh: true })).capped, true);
+}));
