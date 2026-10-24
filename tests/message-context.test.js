@@ -29,6 +29,10 @@ test('a resolved thread without a photo falls back to the conversation photos, n
   assert.deepEqual(refs.map(m=>[m.id,m.explicit_reply]),[['older',false],['bag',false]],body);
   assert.equal(referencedImage([older,bag,side,note,current]).id,'bag',body);
  }
+ // A thread about products (an answer with results, or a product's card) stays about them: an older photo is not offered.
+ const answer={id:'answer',provider_id:'provider-answer',direction:'outbound',body:'two bags',search_result:{products:[{name:'Bag',url:'https://example.com/bag'}]}};
+ for(const thread of [[answer],[{...answer,replied_to_part:{kind:'card',option:1}}]])
+  assert.deepEqual(imageReferences([older,answer,{direction:'inbound',body:'does anyone else sell this?',reply_context:{resolved:true,messages:thread}}]),[]);
  // No photo anywhere: still nothing.
  assert.deepEqual(imageReferences([side,note,{direction:'inbound',body:'What did you find?',reply_context:{resolved:true,messages:[note]}}]),[]);
 });
