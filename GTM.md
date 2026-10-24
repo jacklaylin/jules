@@ -2,6 +2,27 @@
 
 Status: working draft, started October 19, 2026. Captures founder decisions and open ideas; nothing here is a commitment yet. Product backlog lives in [BACKLOG.md](BACKLOG.md).
 
+## Launch plan: step by step (October 24, 2026)
+
+**Goal:** the first 1,000 users by December 31, 2026, on about $1,000 of marketing spend, judged on cost per person who sends a first shopping request. The December push rides Spotify Wrapped season, when people are already sharing cards about themselves.
+
+Each step lists what must be true before it starts. Don't start a step until its prerequisites are checked off: a spike that lands on a broken flow is wasted, and it can't be repeated.
+
+| # | Step | When | Prerequisites | Done when | Status |
+|---|---|---|---|---|---|
+| 1 | **Launch readiness** | Oct 23 | — | The share funnel is fixed, reports come from any source (#435), spending caps are on with the founder exempt (#443), and Photon capacity is understood | Done, except one open question for Photon: is Auto Scale billed per line? |
+| 2 | **End-to-end test as a stranger** | By Oct 31 | Step 1 deployed | From a phone that has never texted Jules: sign up from a shared report link → text Jules → send one outfit photo → get the report link → share a card → a friend signs up and is credited to that share in Admin › People. Every step works with no help from the founder | Open |
+| 3 | **Seed the Jules social account** | Oct 24 – Nov 7 | Step 1 | At least 6–9 posts that show the product (a real find, a report card, a savings moment), so a creator who checks the account sees something real. Run in the thread "Put Jules social posting on autopilot" | In progress (separate thread) |
+| 4 | **Creator outreach** | DMs Nov 3–7; follow-ups Nov 10–12; posts land through Nov 21 | Steps 2 and 3. Ref codes ready ([Creator outreach: first 20](https://claude.ai/artifact/JSRrgkGg9TMjsXCh1xof9x)). The founder's personal bio says "founder of Jules" and links the Jules account | DMs sent from the founder's personal account; log of replies, joins, posts and sign-ups by ref | Ready to start after steps 2 and 3 |
+| 5 | **Founder posts and Reddit** | Nov 10–30, alongside step 4 | Step 3 has a few posts. `/faq` and the landing definition line are live (answer-engine step 3 below), because Reddit readers click through | Weekly founder posts in the "where's it from" and savings formats; 2–3 disclosed Reddit posts (r/findfashion, r/frugalmalefashion, r/sneakers) | Open |
+| 6 | **$200 paid boost** | Nov 17–30 | A creator post (step 4) or founder post (step 5) that clearly beats the others on sign-ups by ref, and the creator's permission to boost it | The boost brings sign-ups at a lower cost per first request than unpaid posts, or it's stopped after $100 | Open |
+| 7 | **Choose the December channel** | Dec 1 | At least two weeks of data from steps 4–6, and the weekly review (step 10) running | One channel gets most of the December budget, chosen by cost per first shopping request | Open |
+| 8 | **Upgrade Photon to Business** | When active users near 80, and no later than Nov 28 | Photon's answer on Auto Scale billing. Budget check: about $250 per line per month, and roughly 2–3 lines for 1,000 users | The dedicated line is live, and `CONTACT_CARD_ENABLED` is turned on (the card then matches the line people text) | Open |
+| 9 | **Wrapped-season push** | Dec 1–31 (Spotify Wrapped usually lands in the first week of December) | Steps 7 and 8. Spending caps reviewed against current spend. The waitlist copy feels like a start, not a wall. A product decision: is the current style report the "shopping Wrapped" card, or is a Wrapped-style card ([WRAPPED.md](WRAPPED.md)) built first? | Remaining budget on the chosen channel, a Product Hunt launch, and creators re-engaged with a Wrapped hook | Open |
+| 10 | **Weekly review** | Every Monday from Nov 3 | Sign-ups by ref (Admin › People) and the share loop (Admin › Adoption) | Each week: sign-ups, first shopping requests and spend per channel, and where next week's money goes | Open |
+
+**Budget (about $1,000 total):** creator thank-yous about $100 (step 4), paid boost $200 (step 6), and the December push about $700 (step 9). Photon's Business plan is separate and is the largest new cost (about $500–750 a month at 1,000 users).
+
 ## Constraints
 
 - **Bootstrapped.** No funding. Growth comes from word of mouth and marketing done well, not paid acquisition at scale.
