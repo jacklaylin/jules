@@ -1,0 +1,136 @@
+{
+ "week": "2026-10-26",
+ "note": "First week. Eight posts so the accounts have something to show before creator DMs go out Nov 3. Every pillar appears at least once so week 2 can compare them. Example cards are labeled as examples; no prices.",
+ "posts": [
+  {
+   "id": "w1-closet-wrapped",
+   "pillar": "wrapped",
+   "hook": "wrapped-for-your-closet",
+   "publishAt": "2026-10-26T19:00:00-04:00",
+   "title": "Wrapped, but for your closet",
+   "slides": [
+    {"kind": "hook", "text": "Spotify Wrapped, but for your *closet*", "sub": "What your orders say about you. Swipe for the example.", "ground": "butter"},
+    {"kind": "card", "label": "Example card · The receipt", "title": "First order: March 2022. Most re-bought: *the black tee.*", "body": "Proof Jules read your orders, line by line.", "ground": "ink"},
+    {"kind": "card", "label": "Example card · Starter pack", "title": "Black tees ×6. One very good coat. *A bike that costs more than the coat.*", "ground": "grape"},
+    {"kind": "card", "label": "Example card · Gatekeeper", "title": "The brand you'd *never* tell your friends about.", "ground": "tangerine"},
+    {"kind": "cta"}
+   ],
+   "caption": "Your style report, built from what you actually buy: order screenshots, outfit photos or your order emails. Cards in this post are examples. Get yours: link in bio, then text Jules.",
+   "hashtags": ["stylewrapped", "fashiontok", "whatsinmycloset"]
+  },
+  {
+   "id": "w1-stop-screenshotting",
+   "pillar": "text-it",
+   "hook": "screenshot-graveyard",
+   "publishAt": "2026-10-27T19:00:00-04:00",
+   "title": "Your camera roll is an outfit graveyard",
+   "slides": [
+    {"kind": "hook", "text": "Your camera roll is a *graveyard* of outfits you'll never find", "ground": "ink"},
+    {"kind": "chat", "illustrative": true, "messages": [
+     {"from": "me", "text": "[screenshot from a TikTok]\nwhere is this jacket from"},
+     {"from": "jules", "text": "that looks like a cropped chore jacket in washed brown canvas. here are the closest ones i found in your size, plus one resale listing of what i think is the exact one"},
+     {"from": "me", "text": "the resale one. watch it?"},
+     {"from": "jules", "text": "done. i'll text you if the price drops"}
+    ], "caption": "Send the screenshot. Get the find, in your size."},
+    {"kind": "card", "label": "How it works", "title": "Text a screenshot. Jules finds it, in *your* size, and keeps watching.", "body": "No app to download. It's an iMessage thread.", "ground": "butter"},
+    {"kind": "cta", "text": "Stop *saving*. Start *finding*.", "sub": "Text Jules your next screenshot. Free while in early access."}
+   ],
+   "caption": "Screenshot it, then send it to Jules. That's the whole trick. The conversation in this post is an example. Link in bio.",
+   "hashtags": ["wheresitfrom", "fashiontok", "outfitinspo"]
+  },
+  {
+   "id": "w1-sold-out-in-your-size",
+   "pillar": "hunt",
+   "hook": "sold-out-dont-refresh",
+   "publishAt": "2026-10-28T19:00:00-04:00",
+   "title": "Sold out in your size? Don't refresh.",
+   "slides": [
+    {"kind": "hook", "text": "Sold out in your size? *Stop refreshing.*", "ground": "tangerine"},
+    {"kind": "list", "title": "What actually works", "items": ["Check resale too: the exact piece often turns up there first", "Search other stores that carry the brand, not just the brand's site", "Note your size *and* the size system (EU 44, US 10, 32×30)", "Set an alert for your size only, so you're not pinged for sizes you can't wear"], "ground": "white"},
+    {"kind": "card", "label": "Or", "title": "Text Jules *\"tell me if these come back in a 10.\"*", "body": "Any store, size-specific, by text.", "ground": "grape"},
+    {"kind": "cta", "text": "Let someone else *refresh.*", "sub": "Link in bio. Free while in early access."}
+   ],
+   "caption": "Restocks and resale drops don't wait for you to check. Save this for the next sold-out heartbreak.",
+   "hashtags": ["restock", "sneakertok", "fashiontok"]
+  },
+  {
+   "id": "w1-dupe-site-scam",
+   "pillar": "how-to",
+   "hook": "scam-store-signs",
+   "publishAt": "2026-10-29T19:00:00-04:00",
+   "title": "5 signs that 'deal' site is a scam",
+   "slides": [
+    {"kind": "hook", "text": "5 signs that \"deal\" site is a *scam*", "sub": "Before you check out, check these.", "ground": "ink"},
+    {"kind": "list", "title": "Red flags", "items": ["The web address is one letter off from the real brand", "Every single item is marked down absurdly far", "No returns policy, no street address, no real contact", "Payment only by wire, Zelle, gift card or crypto", "The photos are the brand's own, but the site isn't"], "ground": "butter"},
+    {"kind": "card", "label": "Quick check", "title": "Reverse-search one product photo. If it's on the brand's site, buy it *there*.", "ground": "white"},
+    {"kind": "card", "label": "Jules", "title": "Jules skips known copycat stores and look-alike domains *for you.*", "ground": "grape"},
+    {"kind": "cta", "text": "Shop the *real* thing.", "sub": "Text Jules what you're eyeing. Link in bio."}
+   ],
+   "caption": "Copycat stores copy the photos, the logo and nearly the address. Save this and send it to the friend who always finds 'a crazy deal'.",
+   "hashtags": ["scamalert", "shoppingtips", "fashiontok"]
+  },
+  {
+   "id": "w1-dating-profile",
+   "pillar": "wrapped",
+   "hook": "closet-dating-profile",
+   "publishAt": "2026-10-30T19:00:00-04:00",
+   "title": "Your closet, as a dating profile",
+   "slides": [
+    {"kind": "hook", "text": "If your closet had a *dating profile*", "ground": "bubblegum"},
+    {"kind": "card", "label": "Example card · Dating profile", "title": "Looking for: someone who *also* owns six black tees.", "ground": "white"},
+    {"kind": "card", "label": "Example card · Dating profile", "title": "Green flag: reads the fabric tag. *Red flag: buys it anyway.*", "ground": "butter"},
+    {"kind": "card", "label": "Example card · In / out", "title": "In: one great coat. *Out: four okay ones.*", "ground": "ink"},
+    {"kind": "cta"}
+   ],
+   "caption": "Every Jules style report is written from what you've actually bought. These cards are examples; yours would be about you. Link in bio.",
+   "hashtags": ["stylewrapped", "fashiontok", "datingprofile"]
+  },
+  {
+   "id": "w1-texts-instead-of-tabs",
+   "pillar": "text-it",
+   "hook": "texts-instead-of-tabs",
+   "publishAt": "2026-10-31T19:00:00-04:00",
+   "title": "Texts I send instead of opening 12 tabs",
+   "slides": [
+    {"kind": "hook", "text": "Things you can text instead of opening *12 tabs*", "ground": "grape"},
+    {"kind": "list", "title": "Send Jules", "items": ["\"find this in my size\" + a screenshot", "\"is this cheaper anywhere else?\" + a link", "\"something for a wedding in May, nothing shiny\"", "\"tell me if these come back in a 48\"", "\"what goes with this?\" + a photo"], "ground": "white"},
+    {"kind": "card", "label": "It remembers", "title": "Your sizes. Your stores. *What you hated last time.*", "ground": "butter"},
+    {"kind": "cta", "text": "Close the *tabs.*", "sub": "Link in bio, then just text. Free while in early access."}
+   ],
+   "caption": "Shopping should be fun, not twelve tabs and a size chart. Which one would you send first?",
+   "hashtags": ["shoppingtips", "fashiontok", "personalshopper"]
+  },
+  {
+   "id": "w1-then-vs-now",
+   "pillar": "wrapped",
+   "hook": "closet-then-vs-now",
+   "publishAt": "2026-11-01T19:00:00-05:00",
+   "title": "Your closet: then vs now",
+   "slides": [
+    {"kind": "hook", "text": "Your style, *then* vs *now*", "sub": "The card everyone screenshots.", "ground": "ink"},
+    {"kind": "card", "label": "Example card · Then", "title": "2022: logo hoodies, *three* pairs of the same sneaker.", "ground": "tangerine"},
+    {"kind": "card", "label": "Example card · Now", "title": "2026: wool trousers, *one* very serious loafer.", "ground": "white"},
+    {"kind": "card", "label": "Example card · The read", "title": "You didn't grow out of it. You *edited*.", "ground": "grape"},
+    {"kind": "cta"}
+   ],
+   "caption": "Jules reads your orders and tells you how your taste moved. These cards are examples. Get your own report: link in bio.",
+   "hashtags": ["stylewrapped", "glowup", "fashiontok"]
+  },
+  {
+   "id": "w1-find-from-screenshot",
+   "pillar": "how-to",
+   "hook": "find-from-screenshot-free",
+   "publishAt": "2026-11-02T19:00:00-05:00",
+   "title": "Find any outfit from a screenshot (free)",
+   "slides": [
+    {"kind": "hook", "text": "How to find *any* outfit from a screenshot", "sub": "Free, in under a minute.", "ground": "butter"},
+    {"kind": "list", "title": "The free way", "items": ["Crop to just the piece you want", "Run it through Google Lens and switch to the Shopping tab", "Add the brand or fabric you can see to the search", "Check resale apps with the same keywords"], "ground": "white"},
+    {"kind": "card", "label": "Where it gets hard", "title": "Finding it is easy. Finding it *in your size*, then catching the restock, isn't.", "ground": "ink"},
+    {"kind": "card", "label": "That part", "title": "Text the screenshot to Jules. It checks your size and *keeps looking*.", "ground": "grape"},
+    {"kind": "cta", "text": "Send the *screenshot.*", "sub": "Link in bio. Free while in early access."}
+   ],
+   "caption": "Google Lens is great for a quick look. When you need your size, or need someone to keep checking, that's what Jules is for.",
+   "hashtags": ["wheresitfrom", "googlelens", "fashiontok"]
+  }
+ ]
+}

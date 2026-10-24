@@ -13,3 +13,4 @@ node_modules/
 .env*
 
 .claude/settings.local.json
+docs/social/out/
