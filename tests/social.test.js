@@ -8,7 +8,7 @@ import {slideHtml} from '../scripts/social/slides.js';
 import {zernio,pickAccounts,analyticsRows} from '../scripts/social/zernio.js';
 
 const NOW=Date.parse('2026-10-25T12:00:00Z');
-const post=(over={})=>({id:'w1-test',pillar:'how-to',hook:'test-hook',publishAt:'2026-10-27T19:00:00-04:00',title:'A title',caption:'A caption.',hashtags:['fashiontok'],
+const post=(over={})=>({id:'w1-test',series:'hunt',hook:'test-hook',publishAt:'2026-10-27T19:00:00-04:00',title:'A title',caption:'A caption.',hashtags:['fashiontok'],
  slides:[{kind:'hook',text:'Hook *here*'},{kind:'list',title:'Steps',items:['one','two']},{kind:'cta'}],...over});
 
 test('the first week plan passes its own checks', () => {
@@ -63,7 +63,7 @@ test('the Zernio request: 9:16 slides and a brand disclosure for TikTok, 4:5 and
  assert.equal(s.content_preview_confirmed,true);assert.equal(s.express_consent_given,true);
  assert.match(s.description,/A caption\.\n\n#fashiontok/);
  assert.equal(ig.platform,'instagram');assert.deepEqual(ig.customMedia,[{type:'image',url:'https://x/i1.jpg'}]);
- assert.deepEqual(body.tags,['jules-social','how-to','w1-test']);
+ assert.deepEqual(body.tags,['jules-social','hunt','w1-test']);
  // Only connected platforms are targeted.
  assert.deepEqual(zernioPost(post(),{tiktok:null,instagram:'ig1'},{tiktok:[],instagram:[]}).platforms.map(p=>p.platform),['instagram']);
 });
@@ -98,4 +98,11 @@ test('account picking and analytics rows', () => {
  assert.deepEqual(pickAccounts(accounts,{ZERNIO_TIKTOK_ACCOUNT:'textjules'}),{tiktok:'b',instagram:'c'});
  const rows=analyticsRows({posts:[{latePostId:'p1',publishedAt:'2026-10-27',content:'Title\nmore',platformAnalytics:[{platform:'tiktok',analytics:{views:900,shares:4,saves:7}},{platform:'instagram',analytics:{impressions:300}}]}]});
  assert.deepEqual(rows.map(r=>[r.post,r.platform,r.views,r.shares,r.content]),[['p1','tiktok',900,4,'Title'],['p1','instagram',300,0,'Title']]);
+});
+
+test('a chat too long for one slide is refused, and a photo tile counts as room taken', () => {
+ const chat=messages=>post({slides:[{kind:'hook',text:'x'},{kind:'chat',illustrative:true,messages},{kind:'cta'}]});
+ assert.deepEqual(checkPost(chat([{from:'me',text:'hi'},{from:'me',tile:'a photo of my closet'}]),{now:NOW}),[]);
+ assert.ok(checkPost(chat(Array.from({length:5},()=>({from:'jules',text:'x'.repeat(100)}))),{now:NOW}).some(m=>/too long/.test(m)));
+ assert.match(slideHtml({kind:'chat',illustrative:true,messages:[{from:'me',tile:'a TikTok screenshot'}]}),/bubble-tile out[^]*a TikTok screenshot/);
 });

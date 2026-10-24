@@ -1,136 +1,437 @@
 {
  "week": "2026-10-26",
- "note": "First week. Eight posts so the accounts have something to show before creator DMs go out Nov 3. Every pillar appears at least once so week 2 can compare them. Example cards are labeled as examples; no prices.",
+ "note": "First week, rewritten after Jack's note (Oct 24): more culture, more fun, example chats. Marathon week (NYC Marathon Sun Nov 1) and Halloween (Sat Oct 31). Eight series so week 2 can compare them. Example chats and cards are labeled; no prices.",
  "posts": [
   {
-   "id": "w1-closet-wrapped",
-   "pillar": "wrapped",
-   "hook": "wrapped-for-your-closet",
+   "id": "w1-marathon-look-cool",
+   "series": "help-me",
+   "hook": "marathon-but-cool",
    "publishAt": "2026-10-26T19:00:00-04:00",
-   "title": "Wrapped, but for your closet",
+   "title": "running the marathon sunday but i want to look cool",
    "slides": [
-    {"kind": "hook", "text": "Spotify Wrapped, but for your *closet*", "sub": "What your orders say about you. Swipe for the example.", "ground": "butter"},
-    {"kind": "card", "label": "Example card · The receipt", "title": "First order: March 2022. Most re-bought: *the black tee.*", "body": "Proof Jules read your orders, line by line.", "ground": "ink"},
-    {"kind": "card", "label": "Example card · Starter pack", "title": "Black tees ×6. One very good coat. *A bike that costs more than the coat.*", "ground": "grape"},
-    {"kind": "card", "label": "Example card · Gatekeeper", "title": "The brand you'd *never* tell your friends about.", "ground": "tangerine"},
-    {"kind": "cta"}
+    {
+     "kind": "hook",
+     "text": "\"jules, i'm running the marathon sunday and i want to look *cool*\"",
+     "sub": "A real problem.",
+     "ground": "tangerine"
+    },
+    {
+     "kind": "chat",
+     "illustrative": true,
+     "messages": [
+      {
+       "from": "me",
+       "text": "running the nyc marathon sunday. i want to look fast even if i'm not"
+      },
+      {
+       "from": "jules",
+       "text": "love this. first rule: nothing new on your feet on race day. keep your shoes, change the kit"
+      },
+      {
+       "from": "jules",
+       "text": "black split shorts, a singlet in one loud color so your people spot you at mile 16, white socks pulled to mid-calf. sunglasses on your head, not your face"
+      },
+      {
+       "from": "me",
+       "text": "ok yes. medium, and i like the loud color idea"
+      },
+      {
+       "from": "jules",
+       "text": "pulling options in a medium now. i'll keep your size for next time"
+      }
+     ]
+    },
+    {
+     "kind": "list",
+     "title": "The look-fast kit",
+     "items": [
+      "Split shorts in black",
+      "A singlet in one loud color",
+      "White socks, mid-calf",
+      "Sunglasses on your head",
+      "The same shoes you trained in"
+     ],
+     "ground": "white"
+    },
+    {
+     "kind": "cta",
+     "text": "Run it. Look *good* doing it.",
+     "sub": "Text Jules what you need for the moment. Link in bio."
+    }
    ],
-   "caption": "Your style report, built from what you actually buy: order screenshots, outfit photos or your order emails. Cards in this post are examples. Get yours: link in bio, then text Jules.",
-   "hashtags": ["stylewrapped", "fashiontok", "whatsinmycloset"]
+   "caption": "Good luck to everyone running Sunday. The conversation is an example of what you can text Jules. Link in bio.",
+   "hashtags": [
+    "nycmarathon",
+    "runningtok",
+    "runclub",
+    "fashiontok"
+   ]
   },
   {
-   "id": "w1-stop-screenshotting",
-   "pillar": "text-it",
-   "hook": "screenshot-graveyard",
+   "id": "w1-tote-says-about-you",
+   "series": "says-about-you",
+   "hook": "tote-bag-says-about-you",
    "publishAt": "2026-10-27T19:00:00-04:00",
-   "title": "Your camera roll is an outfit graveyard",
+   "title": "What your tote bag says about you",
    "slides": [
-    {"kind": "hook", "text": "Your camera roll is a *graveyard* of outfits you'll never find", "ground": "ink"},
-    {"kind": "chat", "illustrative": true, "messages": [
-     {"from": "me", "text": "[screenshot from a TikTok]\nwhere is this jacket from"},
-     {"from": "jules", "text": "that looks like a cropped chore jacket in washed brown canvas. here are the closest ones i found in your size, plus one resale listing of what i think is the exact one"},
-     {"from": "me", "text": "the resale one. watch it?"},
-     {"from": "jules", "text": "done. i'll text you if the price drops"}
-    ], "caption": "Send the screenshot. Get the find, in your size."},
-    {"kind": "card", "label": "How it works", "title": "Text a screenshot. Jules finds it, in *your* size, and keeps watching.", "body": "No app to download. It's an iMessage thread.", "ground": "butter"},
-    {"kind": "cta", "text": "Stop *saving*. Start *finding*.", "sub": "Text Jules your next screenshot. Free while in early access."}
+    {
+     "kind": "hook",
+     "text": "What your *tote bag* says about you",
+     "ground": "butter"
+    },
+    {
+     "kind": "card",
+     "label": "The free one from a bookstore",
+     "title": "You read, or you'd like to be seen reading. *Both count.*",
+     "ground": "white"
+    },
+    {
+     "kind": "card",
+     "label": "The nylon one in a fun color",
+     "title": "Folds into a pocket. *So do your feelings.*",
+     "ground": "bubblegum"
+    },
+    {
+     "kind": "card",
+     "label": "The boat tote with your initials",
+     "title": "You own a lake house, or you've been invited to one *once.*",
+     "ground": "grape"
+    },
+    {
+     "kind": "card",
+     "label": "The one from a natural wine shop",
+     "title": "You have opinions about *skin contact.*",
+     "ground": "tangerine"
+    },
+    {
+     "kind": "cta",
+     "text": "What does *your* closet say?",
+     "sub": "Jules reads what you actually buy and tells you. Link in bio."
+    }
    ],
-   "caption": "Screenshot it, then send it to Jules. That's the whole trick. The conversation in this post is an example. Link in bio.",
-   "hashtags": ["wheresitfrom", "fashiontok", "outfitinspo"]
+   "caption": "Which one are you? Wrong answers only in the comments.",
+   "hashtags": [
+    "totebag",
+    "whatyourxsaysaboutyou",
+    "fashiontok"
+   ]
   },
   {
-   "id": "w1-sold-out-in-your-size",
-   "pillar": "hunt",
-   "hook": "sold-out-dont-refresh",
+   "id": "w1-dress-like-dua",
+   "series": "dress-like",
+   "hook": "dress-like-dua-lipa",
    "publishAt": "2026-10-28T19:00:00-04:00",
-   "title": "Sold out in your size? Don't refresh.",
+   "title": "jules, make me dress like Dua Lipa",
    "slides": [
-    {"kind": "hook", "text": "Sold out in your size? *Stop refreshing.*", "ground": "tangerine"},
-    {"kind": "list", "title": "What actually works", "items": ["Check resale too: the exact piece often turns up there first", "Search other stores that carry the brand, not just the brand's site", "Note your size *and* the size system (EU 44, US 10, 32×30)", "Set an alert for your size only, so you're not pinged for sizes you can't wear"], "ground": "white"},
-    {"kind": "card", "label": "Or", "title": "Text Jules *\"tell me if these come back in a 10.\"*", "body": "Any store, size-specific, by text.", "ground": "grape"},
-    {"kind": "cta", "text": "Let someone else *refresh.*", "sub": "Link in bio. Free while in early access."}
+    {
+     "kind": "hook",
+     "text": "\"jules, make me dress like *Dua Lipa*\"",
+     "sub": "But for an office job.",
+     "ground": "ink"
+    },
+    {
+     "kind": "chat",
+     "illustrative": true,
+     "messages": [
+      {
+       "from": "me",
+       "text": "make me dress like dua lipa. i work in an office"
+      },
+      {
+       "from": "jules",
+       "text": "her off-duty look works at a desk: an oversized black leather blazer, a fitted baby tee, low-rise straight jeans, pointy flats and chunky gold hoops"
+      },
+      {
+       "from": "jules",
+       "text": "skip the tiny sunglasses indoors"
+      },
+      {
+       "from": "me",
+       "text": "i have the jeans. find me the blazer in a small?"
+      },
+      {
+       "from": "jules",
+       "text": "on it. checking resale too, a broken-in leather blazer looks more her than a stiff new one"
+      }
+     ]
+    },
+    {
+     "kind": "list",
+     "title": "The pieces",
+     "items": [
+      "Oversized black leather blazer",
+      "Fitted baby tee",
+      "Low-rise straight jeans",
+      "Pointy flats",
+      "Chunky gold hoops"
+     ],
+     "ground": "butter"
+    },
+    {
+     "kind": "cta",
+     "text": "Who should we dress you as *next*?",
+     "sub": "Text Jules any look. It finds the pieces in your size. Link in bio."
+    }
    ],
-   "caption": "Restocks and resale drops don't wait for you to check. Save this for the next sold-out heartbreak.",
-   "hashtags": ["restock", "sneakertok", "fashiontok"]
+   "caption": "Celebrity look, office-approved. The conversation is an example of what you can text Jules. Who's next?",
+   "hashtags": [
+    "dualipa",
+    "getthelook",
+    "officeoutfit",
+    "fashiontok"
+   ]
   },
   {
-   "id": "w1-dupe-site-scam",
-   "pillar": "how-to",
-   "hook": "scam-store-signs",
+   "id": "w1-run-club-starter-pack",
+   "series": "starter-pack",
+   "hook": "run-club-starter-pack",
    "publishAt": "2026-10-29T19:00:00-04:00",
-   "title": "5 signs that 'deal' site is a scam",
+   "title": "Run club starter pack",
    "slides": [
-    {"kind": "hook", "text": "5 signs that \"deal\" site is a *scam*", "sub": "Before you check out, check these.", "ground": "ink"},
-    {"kind": "list", "title": "Red flags", "items": ["The web address is one letter off from the real brand", "Every single item is marked down absurdly far", "No returns policy, no street address, no real contact", "Payment only by wire, Zelle, gift card or crypto", "The photos are the brand's own, but the site isn't"], "ground": "butter"},
-    {"kind": "card", "label": "Quick check", "title": "Reverse-search one product photo. If it's on the brand's site, buy it *there*.", "ground": "white"},
-    {"kind": "card", "label": "Jules", "title": "Jules skips known copycat stores and look-alike domains *for you.*", "ground": "grape"},
-    {"kind": "cta", "text": "Shop the *real* thing.", "sub": "Text Jules what you're eyeing. Link in bio."}
+    {
+     "kind": "hook",
+     "text": "The *run club* starter pack",
+     "sub": "Marathon week edition.",
+     "ground": "grape"
+    },
+    {
+     "kind": "list",
+     "title": "Includes",
+     "items": [
+      "Split shorts, whatever the weather",
+      "A watch that tracks things you'll never look at",
+      "The tee from a race you didn't run",
+      "Carbon-plate shoes for an easy jog",
+      "The coffee after, which is the real workout"
+     ],
+     "ground": "white"
+    },
+    {
+     "kind": "card",
+     "label": "Bonus",
+     "title": "Run club is the new *dating app.*",
+     "ground": "bubblegum"
+    },
+    {
+     "kind": "cta",
+     "text": "What's in *your* starter pack?",
+     "sub": "Jules makes one from what you actually buy. Link in bio."
+    }
    ],
-   "caption": "Copycat stores copy the photos, the logo and nearly the address. Save this and send it to the friend who always finds 'a crazy deal'.",
-   "hashtags": ["scamalert", "shoppingtips", "fashiontok"]
+   "caption": "Tag the friend who joined for the coffee. Jules builds a starter pack from your own orders.",
+   "hashtags": [
+    "runclub",
+    "starterpack",
+    "runningtok",
+    "fashiontok"
+   ]
   },
   {
-   "id": "w1-dating-profile",
-   "pillar": "wrapped",
-   "hook": "closet-dating-profile",
+   "id": "w1-halloween-from-closet",
+   "series": "this-week",
+   "hook": "costume-from-your-closet",
    "publishAt": "2026-10-30T19:00:00-04:00",
-   "title": "Your closet, as a dating profile",
+   "title": "costume party tomorrow and i own nothing",
    "slides": [
-    {"kind": "hook", "text": "If your closet had a *dating profile*", "ground": "bubblegum"},
-    {"kind": "card", "label": "Example card · Dating profile", "title": "Looking for: someone who *also* owns six black tees.", "ground": "white"},
-    {"kind": "card", "label": "Example card · Dating profile", "title": "Green flag: reads the fabric tag. *Red flag: buys it anyway.*", "ground": "butter"},
-    {"kind": "card", "label": "Example card · In / out", "title": "In: one great coat. *Out: four okay ones.*", "ground": "ink"},
-    {"kind": "cta"}
+    {
+     "kind": "hook",
+     "text": "Costume party tomorrow. *You own nothing.*",
+     "sub": "You own more than you think.",
+     "ground": "ink"
+    },
+    {
+     "kind": "chat",
+     "illustrative": true,
+     "messages": [
+      {
+       "from": "me",
+       "text": "costume party tomorrow and i own nothing"
+      },
+      {
+       "from": "me",
+       "tile": "a photo of my closet"
+      },
+      {
+       "from": "jules",
+       "text": "you own two already. black turtleneck, jeans, round glasses: steve jobs. camel coat, sunglasses, a coffee: a carolyn bessette-kennedy sighting"
+      },
+      {
+       "from": "me",
+       "text": "steve jobs. need grey new balance"
+      },
+      {
+       "from": "jules",
+       "text": "what size? i'll find a pair that gets to you in time"
+      }
+     ]
+    },
+    {
+     "kind": "list",
+     "title": "Closet costumes",
+     "items": [
+      "Black turtleneck + jeans = Steve Jobs",
+      "Camel coat + sunglasses + coffee = CBK",
+      "Denim on denim + boots = 2001 red carpet",
+      "Suit + sunglasses + earpiece = Secret Service"
+     ],
+     "ground": "tangerine"
+    },
+    {
+     "kind": "cta",
+     "text": "Send Jules *your* closet.",
+     "sub": "Link in bio. Free while in early access."
+    }
    ],
-   "caption": "Every Jules style report is written from what you've actually bought. These cards are examples; yours would be about you. Link in bio.",
-   "hashtags": ["stylewrapped", "fashiontok", "datingprofile"]
+   "caption": "No costume shop required. The conversation is an example of what you can text Jules. Happy Halloween.",
+   "hashtags": [
+    "halloweencostume",
+    "lastminutecostume",
+    "halloween",
+    "fashiontok"
+   ]
   },
   {
-   "id": "w1-texts-instead-of-tabs",
-   "pillar": "text-it",
-   "hook": "texts-instead-of-tabs",
+   "id": "w1-deadpan-shopping",
+   "series": "deadpan",
+   "hook": "shopping-honestly",
    "publishAt": "2026-10-31T19:00:00-04:00",
-   "title": "Texts I send instead of opening 12 tabs",
+   "title": "Shopping, honestly",
    "slides": [
-    {"kind": "hook", "text": "Things you can text instead of opening *12 tabs*", "ground": "grape"},
-    {"kind": "list", "title": "Send Jules", "items": ["\"find this in my size\" + a screenshot", "\"is this cheaper anywhere else?\" + a link", "\"something for a wedding in May, nothing shiny\"", "\"tell me if these come back in a 48\"", "\"what goes with this?\" + a photo"], "ground": "white"},
-    {"kind": "card", "label": "It remembers", "title": "Your sizes. Your stores. *What you hated last time.*", "ground": "butter"},
-    {"kind": "cta", "text": "Close the *tabs.*", "sub": "Link in bio, then just text. Free while in early access."}
+    {
+     "kind": "hook",
+     "text": "Shopping, *honestly*",
+     "ground": "white"
+    },
+    {
+     "kind": "card",
+     "title": "Me saving the same coat for the *fourth* winter in a row.",
+     "ground": "butter"
+    },
+    {
+     "kind": "card",
+     "title": "My closet: black, black, navy, *a cry for help.*",
+     "ground": "ink"
+    },
+    {
+     "kind": "card",
+     "title": "A price drop alert hitting harder than any text from *him.*",
+     "ground": "bubblegum"
+    },
+    {
+     "kind": "card",
+     "title": "\"Nothing to wear,\" says the person with *41 black tees.*",
+     "ground": "grape"
+    },
+    {
+     "kind": "cta",
+     "text": "Let Jules hold the *receipts.*",
+     "sub": "Your style report, from what you actually buy. Link in bio."
+    }
    ],
-   "caption": "Shopping should be fun, not twelve tabs and a size chart. Which one would you send first?",
-   "hashtags": ["shoppingtips", "fashiontok", "personalshopper"]
+   "caption": "Which one called you out? Jules turns your order history into a style report.",
+   "hashtags": [
+    "shoppingaddict",
+    "relatable",
+    "fashiontok"
+   ]
   },
   {
-   "id": "w1-then-vs-now",
-   "pillar": "wrapped",
-   "hook": "closet-then-vs-now",
+   "id": "w1-pov-order-history",
+   "series": "closet-wrapped",
+   "hook": "pov-jules-read-your-orders",
    "publishAt": "2026-11-01T19:00:00-05:00",
-   "title": "Your closet: then vs now",
+   "title": "POV: Jules read your order history",
    "slides": [
-    {"kind": "hook", "text": "Your style, *then* vs *now*", "sub": "The card everyone screenshots.", "ground": "ink"},
-    {"kind": "card", "label": "Example card · Then", "title": "2022: logo hoodies, *three* pairs of the same sneaker.", "ground": "tangerine"},
-    {"kind": "card", "label": "Example card · Now", "title": "2026: wool trousers, *one* very serious loafer.", "ground": "white"},
-    {"kind": "card", "label": "Example card · The read", "title": "You didn't grow out of it. You *edited*.", "ground": "grape"},
-    {"kind": "cta"}
+    {
+     "kind": "hook",
+     "text": "POV: Jules read your *order history*",
+     "sub": "Spotify Wrapped, but for your closet.",
+     "ground": "butter"
+    },
+    {
+     "kind": "card",
+     "label": "Example card · The receipt",
+     "title": "First order: March 2022. Most re-bought: *the black tee.*",
+     "body": "Proof Jules read your orders, line by line.",
+     "ground": "ink"
+    },
+    {
+     "kind": "card",
+     "label": "Example card · Starter pack",
+     "title": "Black tees ×6. One very good coat. *A bike that costs more than the coat.*",
+     "ground": "grape"
+    },
+    {
+     "kind": "card",
+     "label": "Example card · Gatekeeper",
+     "title": "The brand you'd *never* tell your friends about.",
+     "ground": "tangerine"
+    },
+    {
+     "kind": "card",
+     "label": "Example card · Then vs now",
+     "title": "2022: logo hoodies. 2026: one very serious loafer. *You edited.*",
+     "ground": "white"
+    },
+    {
+     "kind": "cta"
+    }
    ],
-   "caption": "Jules reads your orders and tells you how your taste moved. These cards are examples. Get your own report: link in bio.",
-   "hashtags": ["stylewrapped", "glowup", "fashiontok"]
+   "caption": "Your style report, built from what you actually buy: order screenshots, outfit photos or your order emails. These cards are examples. Get yours: link in bio.",
+   "hashtags": [
+    "stylewrapped",
+    "spotifywrapped",
+    "fashiontok"
+   ]
   },
   {
-   "id": "w1-find-from-screenshot",
-   "pillar": "how-to",
-   "hook": "find-from-screenshot-free",
+   "id": "w1-in-out-winter",
+   "series": "in-out",
+   "hook": "in-out-winter",
    "publishAt": "2026-11-02T19:00:00-05:00",
-   "title": "Find any outfit from a screenshot (free)",
+   "title": "In / out: winter edition",
    "slides": [
-    {"kind": "hook", "text": "How to find *any* outfit from a screenshot", "sub": "Free, in under a minute.", "ground": "butter"},
-    {"kind": "list", "title": "The free way", "items": ["Crop to just the piece you want", "Run it through Google Lens and switch to the Shopping tab", "Add the brand or fabric you can see to the search", "Check resale apps with the same keywords"], "ground": "white"},
-    {"kind": "card", "label": "Where it gets hard", "title": "Finding it is easy. Finding it *in your size*, then catching the restock, isn't.", "ground": "ink"},
-    {"kind": "card", "label": "That part", "title": "Text the screenshot to Jules. It checks your size and *keeps looking*.", "ground": "grape"},
-    {"kind": "cta", "text": "Send the *screenshot.*", "sub": "Link in bio. Free while in early access."}
+    {
+     "kind": "hook",
+     "text": "In / out: *winter* edition",
+     "ground": "grape"
+    },
+    {
+     "kind": "card",
+     "label": "In / out",
+     "title": "In: one great coat. *Out: four okay ones.*",
+     "ground": "ink"
+    },
+    {
+     "kind": "card",
+     "label": "In / out",
+     "title": "In: resale first. *Out: paying full price for something that restocks next week.*",
+     "ground": "white"
+    },
+    {
+     "kind": "card",
+     "label": "In / out",
+     "title": "In: the same outfit, on repeat, on purpose. *Out: outfit-of-the-day pressure.*",
+     "ground": "butter"
+    },
+    {
+     "kind": "card",
+     "label": "In / out",
+     "title": "In: knowing your size in three brands. *Out: ordering two to return one.*",
+     "ground": "tangerine"
+    },
+    {
+     "kind": "cta",
+     "text": "Make your closet *in.*",
+     "sub": "Text Jules. It remembers your sizes and keeps watching. Link in bio."
+    }
    ],
-   "caption": "Google Lens is great for a quick look. When you need your size, or need someone to keep checking, that's what Jules is for.",
-   "hashtags": ["wheresitfrom", "googlelens", "fashiontok"]
+   "caption": "Agree or disagree? Add yours in the comments.",
+   "hashtags": [
+    "inandout",
+    "wintertrends",
+    "fashiontok"
+   ]
   }
  ]
 }

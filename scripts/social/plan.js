@@ -4,7 +4,8 @@
 // any conversation that didn't really happen. The weekly routine writes the copy; this is its backstop.
 import {GROUND_NAMES} from './slides.js';
 
-export const PILLARS=['wrapped','text-it','hunt','how-to','real'];
+// The rotating series (docs/social/THEMES.md). Results are compared per series.
+export const SERIES=['says-about-you','help-me','dress-like','starter-pack','in-out','closet-wrapped','dupe-or-real','dress-code','this-week','gift-panic','deadpan','hunt','real'];
 const KINDS=['hook','card','list','chat','photo','cta'];
 // GTM.md: sell the outcome, never the technology.
 const TECH_WORDS=/\b(ai|a\.i\.|artificial intelligence|agent|agentic|chatbot|chat ?gpt|gpt|llm|algorithm|machine learning)\b/i;
@@ -13,13 +14,13 @@ const TECH_WORDS=/\b(ai|a\.i\.|artificial intelligence|agent|agentic|chatbot|cha
 const MONEY=/[$€£]\s?\d|\b\d+\s?% off\b|\b\d+\s?(dollars|bucks)\b/i;
 const DAY=86400000;
 
-const copyOf=slide=>[slide.text,slide.sub,slide.label,slide.title,slide.body,slide.caption,...(slide.items??[]),...(slide.messages??[]).map(m=>m.text)].filter(Boolean);
+const copyOf=slide=>[slide.text,slide.sub,slide.label,slide.title,slide.body,slide.caption,...(slide.items??[]),...(slide.messages??[]).map(m=>m.text??m.tile)].filter(Boolean);
 
 export function checkPost(post,{now=Date.now()}={}){
  const problems=[],add=m=>problems.push(`${post?.id??'(no id)'}: ${m}`);
  if(!post||typeof post!=='object')return ['A post must be an object.'];
  if(!/^[a-z0-9-]{3,60}$/.test(post.id??''))add('id must be 3-60 lowercase letters, digits or dashes');
- if(!PILLARS.includes(post.pillar))add(`pillar must be one of ${PILLARS.join(', ')}`);
+ if(!SERIES.includes(post.series))add(`series must be one of ${SERIES.join(', ')}`);
  if(typeof post.hook!=='string'||!post.hook.trim())add('hook (a short name for the angle, used to compare results) is required');
  const at=Date.parse(post.publishAt);
  if(!/[zZ]|[+-]\d\d:\d\d$/.test(post.publishAt??'')||Number.isNaN(at))add('publishAt must be an ISO time with an offset, e.g. 2026-10-27T19:00:00-04:00');
@@ -37,8 +38,11 @@ export function checkPost(post,{now=Date.now()}={}){
   if(s.kind==='list'&&(!Array.isArray(s.items)||s.items.length<2||s.items.length>5))add(`${where}: list needs 2-5 items`);
   if(s.kind==='photo'&&!s.image)add(`${where}: photo needs an image path`);
   if(s.kind==='chat'){
-   if(!Array.isArray(s.messages)||!s.messages.length||s.messages.some(m=>!['me','jules'].includes(m.from)||!m.text))add(`${where}: chat needs messages from "me" or "jules"`);
+   if(!Array.isArray(s.messages)||!s.messages.length||s.messages.some(m=>!['me','jules'].includes(m.from)||!(m.text||m.tile||m.image)))add(`${where}: chat needs messages from "me" or "jules", each with text, a tile or an image`);
    // A conversation is either a real one (a screenshot or transcript to point to) or labeled as an example.
+   // About what fits one 9:16 slide above the footer; a photo tile takes the room of ~180 characters.
+   const size=(s.messages??[]).reduce((n,m)=>n+(m.tile||m.image?180:String(m.text??'').length+20),0);
+   if(size>540)add(`${where}: chat is too long for one slide (${size}/540); split it across two chat slides`);
    if(!s.illustrative&&!s.evidence)add(`${where}: chat must be marked illustrative or cite evidence (a real conversation)`);
   }
   for(const line of copyOf(s))if(line.length>240)add(`${where}: a line over 240 characters won't fit a slide`);
@@ -82,5 +86,5 @@ export function zernioPost(post,accounts,media,{timezone='America/New_York'}={})
  if(accounts.tiktok)platforms.push({platform:'tiktok',accountId:accounts.tiktok,customContent:post.title||post.slides[0].text?.replace(/\*/g,'').slice(0,90)||post.hook,customMedia:media.tiktok.map(url=>({type:'image',url})),
   platformSpecificData:{tiktokSettings:{privacy_level:'PUBLIC_TO_EVERYONE',allow_comment:true,content_preview_confirmed:true,express_consent_given:true,media_type:'photo',photo_cover_index:0,auto_add_music:true,description:caption,commercialContentType:'brand_organic'}}});
  if(accounts.instagram)platforms.push({platform:'instagram',accountId:accounts.instagram,customContent:caption,customMedia:media.instagram.map(url=>({type:'image',url}))});
- return {content:caption,scheduledFor:post.publishAt,timezone,platforms,tags:['jules-social',post.pillar,post.id],metadata:{pillar:post.pillar,hook:post.hook,slides:post.slides.length}};
+ return {content:caption,scheduledFor:post.publishAt,timezone,platforms,tags:['jules-social',post.series,post.id],metadata:{series:post.series,hook:post.hook,slides:post.slides.length}};
 }

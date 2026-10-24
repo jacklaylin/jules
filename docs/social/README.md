@@ -5,21 +5,13 @@ Status: started October 24, 2026. Organic posting for the Jules accounts on TikT
 ## The bet
 
 - **Format: swipeable photo carousels**, one a day, the same post on TikTok (9:16) and the Instagram feed (4:5). Carousels are the cheapest format to make well without a face on camera, they reach the TikTok For You feed without followers, and they look like the product: the style report is already a deck of cards.
-- **Channels:** TikTok first (younger, taste-driven shoppers; Wrapped season), Instagram second (creators check it before they answer a DM). Reddit stays human: the founder posts with disclosure (GTM.md step 5); automated Reddit posting reads as spam and breaks community rules. X, Threads, Pinterest and LinkedIn wait until a pillar proves itself.
+- **Channels:** TikTok first (younger, taste-driven shoppers; Wrapped season), Instagram second (creators check it before they answer a DM). Reddit stays human: the founder posts with disclosure (GTM.md step 5); automated Reddit posting reads as spam and breaks community rules. X, Threads, Pinterest and LinkedIn wait until a series proves itself.
 - **Tool: [Zernio](https://zernio.com)** (formerly Late) schedules both accounts through one API. First two accounts free, unlimited posts (pricing page, October 24, 2026). Postiz ($29/month) and Buffer (free plan, but no posting API) were the alternatives.
 - **Cost:** $0 a month for tools. Copy is written by the routine; slides are rendered from the brand templates in code. The $200 boost budget in the launch plan is for the best organic post, not for ads made from scratch.
 
-## Content pillars
+## Series
 
-| Pillar | What it is | Why |
-|---|---|---|
-| `wrapped` | Example style-report cards (receipt, starter pack, gatekeeper, then vs now, dating profile, in/out) | The viral move. Every one ends "what would yours say?" |
-| `text-it` | What you can send Jules and what comes back | Teaches the habit "text it to Jules" |
-| `hunt` | Restocks, sold-out sizes, resale, price drops | The job people will pay for (GTM.md: hunters) |
-| `how-to` | Genuinely useful shopping tips, with an honest "or use Jules for the hard part" | Saves and shares; answer-engine friendly |
-| `real` | Real finds and real cards, only with the person's consent and a dated source | Proof. Starts once testers or creators share |
-
-Mix per week: 3 `wrapped`, 2 `text-it`, 1 `hunt`, 1 `how-to` until results say otherwise. From December 1, `wrapped` leads (Wrapped season).
+The plan rotates through recurring series: "what your ___ says about you", "jules, help" example chats, "dress like ___", starter packs, in / out, Closet Wrapped, dupe or the real thing, dress-code decoder, this week, gift panic, deadpan one-liners, the hunt, and real receipts. Each one works as a carousel now and as a short video later. The list, the rotation and the seasonal calendar are in [THEMES.md](THEMES.md). Every post names its `series`, so results are compared per series.
 
 ## Rules the routine follows
 
@@ -32,7 +24,7 @@ Code enforces the starred rules (`scripts/social/plan.js`); the rest are judgmen
 - Only claim what Jules does today (check [docs/example-conversations.md](../example-conversations.md) and the FAQ). Free while in early access; iPhone and iMessage only.
 - Slide 1 is the hook: under 10 words, a statement, about the viewer. The post pays it off by the last slide.
 - Write in Jules' voice ([VOICE.md](../../VOICE.md)): warm, specific, a little opinionated. Chat bubbles from Jules are lowercase.
-- Don't name or mock real people. Brand names are fine as examples of taste, never as endorsements.
+- Celebrity looks are fine (THEMES.md › Celebrities): describe the look, never use their photo, never suggest an endorsement. Don't mock private people, bodies or anyone's money. Brand names are fine as examples of taste, never as endorsements.
 - Captions: one or two plain sentences, then "link in bio". Hashtags are for search, not decoration (`fashiontok`, `wheresitfrom`, `stylewrapped`, `thrifttok`, `restock`).
 
 ## How the loop works
@@ -40,7 +32,7 @@ Code enforces the starred rules (`scripts/social/plan.js`); the rest are judgmen
 Every Friday the routine:
 
 1. Reads results for everything posted so far: `node scripts/social/run.js stats --days 28`.
-2. Picks next week: about 70% new angles on what worked (by shares + saves per 1,000 views, then views), 30% new tests. A hook that flopped gets one rewrite, then it's dropped.
+2. Picks next week from [THEMES.md](THEMES.md) › Rotation: one post per series plus two wild cards for last week's best series (by shares + saves per 1,000 views, then views), weighted to the seasonal calendar. A hook that flopped gets one rewrite, then it's dropped.
 3. Writes `docs/social/plans/<next Monday>.json` (see the 2026-10-26 plan for the shape).
 4. Checks and renders: `node scripts/social/run.js render <plan>`, then looks at the slides itself.
 5. Schedules: `node scripts/social/run.js schedule <plan>`, 7pm New York time, Monday to Sunday.
@@ -51,9 +43,9 @@ Posts sit in the Zernio calendar for at least 12 hours before they publish. To s
 ## Measuring
 
 - **Bio links carry the source.** TikTok bio: `textjules.com/?ref=tiktok`. Instagram bio: `textjules.com/?ref=instagram`. The landing page carries `ref` into sign-up, and Admin › People shows the source of each sign-up.
-- **Weekly:** views, shares, saves and comments per post and pillar (Zernio analytics), and sign-ups by source (Admin).
+- **Weekly:** views, shares, saves and comments per post and series (Zernio analytics), and sign-ups by source (Admin).
 - **The number that matters:** sign-ups per 1,000 views by channel, compared with creator posts (their own `?ref=` codes) at the Monday review.
-- **Decision on November 30** (about 30 posts): if social has brought fewer than 25 sign-ups, cut it back to three posts a week and move effort to creators and Product Hunt. If one pillar clearly wins, give it most of December.
+- **Decision on November 30** (about 30 posts): if social has brought fewer than 25 sign-ups, cut it back to three posts a week and move effort to creators and Product Hunt. If one series clearly wins, give it most of December.
 
 ## Setup (once)
 

@@ -18,12 +18,21 @@ const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const rich=s=>esc(s).replace(/\*([^*]+)\*/g,'<em>$1</em>');
 const mark=(color)=>`<div class="mark">${WORDMARK.replace(/fill="#17120F"/g,`fill="${color}"`)}</div>`;
 
+// A chat message: text, a photo from the repo, or a stand-in tile for a photo the person sent ("a TikTok
+// screenshot"), drawn as a tile so an example never passes off someone's real photo as ours.
+const bubble=m=>{
+ const side=m.from==='jules'?'in':'out';
+ if(m.image)return `<img class="bubble-photo ${side}" src="${pathToFileURL(path.resolve(ROOT,m.image)).href}" alt="">`;
+ if(m.tile)return `<p class="bubble-tile ${side}"><span class="label">Photo</span>${esc(m.tile)}</p>`;
+ return `<p class="bubble ${side}">${esc(m.text)}</p>`;
+};
+
 function body(slide,{tall}){
  switch(slide.kind){
   case 'hook':return `<main class="hook"><h1>${rich(slide.text)}</h1>${slide.sub?`<p class="sub">${rich(slide.sub)}</p>`:''}</main>`;
   case 'card':return `<main class="card">${slide.label?`<p class="label">${esc(slide.label)}</p>`:''}<h2>${rich(slide.title)}</h2>${slide.body?`<p class="body">${rich(slide.body)}</p>`:''}</main>`;
   case 'list':return `<main class="list"><h2>${rich(slide.title)}</h2><ol>${slide.items.map(i=>`<li><span>${rich(i)}</span></li>`).join('')}</ol></main>`;
-  case 'chat':return `<main class="chat">${slide.illustrative?'<p class="label">Example conversation</p>':''}<div class="thread">${slide.messages.map(m=>`<p class="bubble ${m.from==='jules'?'in':'out'}">${esc(m.text)}</p>`).join('')}</div>${slide.caption?`<p class="body">${rich(slide.caption)}</p>`:''}</main>`;
+  case 'chat':return `<main class="chat"><header class="contact"><span class="orb"></span><b>jules</b>${slide.illustrative?'<span class="label">Example conversation</span>':''}</header><div class="thread">${slide.messages.map(bubble).join('')}</div>${slide.caption?`<p class="body">${rich(slide.caption)}</p>`:''}</main>`;
   case 'photo':return `<main class="photo"><img src="${pathToFileURL(path.resolve(ROOT,slide.image)).href}" alt="">${slide.caption?`<p class="body">${rich(slide.caption)}</p>`:''}</main>`;
   case 'cta':return `<main class="cta"><h2>${rich(slide.text||'What would *yours* say?')}</h2><p class="body">${esc(slide.sub||'Text Jules for your own style report. Free while in early access.')}</p><p class="url">textjules.com</p></main>`;
   default:throw Error(`Unknown slide kind: ${slide.kind}`);
@@ -57,6 +66,11 @@ li::before{content:counter(n);font-family:S,serif;font-size:1.5em;line-height:.9
 body:has(.chat){padding:0}.chat{padding:${tall?'64px 22px 40px':'30px 20px 20px'}}
 .thread{display:flex;flex-direction:column;gap:6px;font-family:-apple-system,"Helvetica Neue",Arial,sans-serif}
 .bubble{font-size:15px;line-height:1.3;padding:8px 13px;border-radius:18px;max-width:80%;white-space:pre-line}
+.contact{display:flex;align-items:center;gap:8px;margin-bottom:${tall?14:6}px;font-family:-apple-system,"Helvetica Neue",Arial,sans-serif;font-size:14px}
+.contact .label{margin-left:auto}
+.orb{width:30px;height:30px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#fff 0,#fff0 25%),radial-gradient(circle at 35% 35%,#FFC93C,#FF8FC7 45%,#FF7A2F 70%,#6C3BFF)}
+.bubble-photo{width:150px;border-radius:16px}.bubble-photo.out,.bubble-tile.out{align-self:flex-end}.bubble-photo.in,.bubble-tile.in{align-self:flex-start}
+.bubble-tile{width:150px;height:${tall?180:120}px;border-radius:16px;background:#D9D4CF;color:#4A433D;font-size:12px;line-height:1.3;padding:12px;display:flex;flex-direction:column;justify-content:flex-end;gap:6px}
 .bubble.out{align-self:flex-end;background:#0A6BF0;color:#fff}
 .bubble.in{align-self:flex-start;background:#E9E9EB;color:#000}
 .photo img{width:100%;max-height:${tall?440:290}px;object-fit:contain;border-radius:18px}
