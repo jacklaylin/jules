@@ -125,6 +125,10 @@
       "destination": "/account.html"
     },
     {
+      "source": "/plus",
+      "destination": "/plus.html"
+    },
+    {
       "source": "/faq",
       "destination": "/faq.html"
     },

@@ -1,0 +1,15 @@
+/* Jules+ fake-door page (PLUS-TEST.md): one readable column on the public header, the shared butter button. */
+.plus{width:min(100%,640px);margin:72px auto 80px}
+.plus h1{font-size:96px;line-height:.92;margin:0 0 28px}
+.plus .intro{font-size:18px;line-height:1.5;color:var(--text-2);margin:0 0 36px}
+.plus-offer{border:1px solid var(--line);border-radius:var(--r-card);padding:28px;display:grid;gap:8px;justify-items:start}
+.plus-price{margin:0;font-size:20px}.plus-amount{font-size:56px;line-height:1;font-weight:600}
+.plus-offer .fine{margin:0 0 12px;font-size:14px;color:var(--text-2)}
+.plus-offer #plus-get{min-height:56px}
+.plus-done{outline:none}.plus-done h2{font-size:36px;margin:0 0 12px}.plus-done p{margin:0 0 8px;font-size:16px;line-height:1.6}
+.plus-included-title{margin:56px 0 0;font:500 11px/1.6 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--text-2)}
+.plus-features{list-style:none;margin:0;padding:0}
+.plus-features li{padding:20px 0;border-top:1px solid var(--line)}.plus-features li:first-child{border-top:0}
+.plus-features h3{margin:0 0 6px;font-size:20px}.plus-features p{margin:0;font-size:16px;line-height:1.6;color:var(--text-2)}
+.plus-page .site-legal{margin-top:0}
+@media(max-width:700px){.plus{margin:42px auto 48px}.plus h1{font-size:64px}.plus .intro{font-size:16px}.plus-offer{padding:20px}.plus-offer #plus-get{width:100%}.plus-amount{font-size:48px}.plus-done h2{font-size:30px}}
